@@ -1,0 +1,10 @@
+# Ignore config with API keys
+config/config.yaml
+
+# Node modules
+node_modules/
+dist/
+
+# npm
+npm-debug.log*
+package-lock.json

@@ -1,0 +1,62 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.dist/
+.build/
+
+# Envs
+.venv/
+.env/
+.env
+.envrc
+.envrc.local
+
+# OS/IDE
+.DS_Store
+.idea/
+.vscode/
+
+# Node
+node_modules/
+**/node_modules/
+
+# Runtime data (config state, caches, logs - 8GB+)
+/data/
+
+# Cloudflared secrets and config
+cloudflared/*.json
+cloudflared/config.yml
+
+# Generic
+downloads/
+**/log/
+**/logs/
+**/Backups/
+**/Backup/
+**/backups/
+**/backup/
+
+**/*.db
+**/*.db.bk
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite
+**/*.sqlite3
+**/*.sqlite3-shm
+**/*.sqlite3-wal
+**/*.log
+**/dist/
+
+# Project outputs
+*.csv
+
+# Caddy runtime state
+caddy/config/caddy/autosave.json
+caddy/data/
+
+temp/
+
+# CCC backup tasks (real ones are gitignored, samples are kept)
+scripts/backup/ccc-tasks/*.ccctask
+!scripts/backup/ccc-tasks/sample/

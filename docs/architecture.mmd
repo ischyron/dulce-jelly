@@ -1,0 +1,55 @@
+graph LR
+  subgraph Clients
+    A1[LAN Clients<br/>Direct IP:port]
+    A2[Public Clients<br/>*.dulcejelly.me]
+  end
+
+  subgraph Ingress
+    CF[Cloudflared Tunnel]
+    Caddy[Caddy Reverse Proxy<br/>dulcejelly.me paths + subdomains]
+  end
+
+  subgraph Media Services
+    JF[Jellyfin]
+    JS[Jellyseerr]
+    RA[Radarr]
+    SO[Sonarr]
+    PR[Prowlarr]
+    QB[qBittorrent]
+    SA[SABnzbd]
+    RC[Recyclarr scheduled]
+  end
+
+  A1 -->|Direct| JF
+  A1 -->|Direct| JS
+  A1 -->|Direct| RA
+  A1 -->|Direct| SO
+  A1 -->|Direct| PR
+  A1 -->|Direct| QB
+  A1 -->|Direct| SA
+  A2 --> CF --> Caddy
+
+  Caddy -->|dulcejelly.me paths + subdomains| JF
+  Caddy -->|dulcejelly.me paths + subdomains| JS
+  Caddy -->|dulcejelly.me paths + subdomains| RA
+  Caddy -->|dulcejelly.me paths + subdomains| SO
+  Caddy -->|dulcejelly.me paths + subdomains| PR
+  Caddy -->|dulcejelly.me paths + subdomains| QB
+  Caddy -->|dulcejelly.me paths + subdomains| SA
+
+  JS -->|Requests| RA
+  JS -->|Requests| SO
+  RA -->|Indexers| PR
+  SO -->|Indexers| PR
+  RA -->|Download Client| QB
+  SO -->|Download Client| QB
+  SA -.->|Optional NZB| RA
+  SA -.->|Optional NZB| SO
+  RC -->|Sync Profiles| RA
+  RC -->|Sync Profiles| SO
+
+  JF -->|Library Access| Media[(Media Storage)]
+  RA -->|Import Media| Media
+  SO -->|Import Media| Media
+  QB -->|Downloads| Media
+  SA -->|Downloads| Media

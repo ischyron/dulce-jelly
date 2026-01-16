@@ -1,0 +1,24 @@
+batchSize: 10
+autoAssignProfile: AutoAssignQuality
+decisionProfiles:
+  - HD
+  - Efficient-4K
+  - HighQuality-4K
+
+radarr:
+  url: ${RADARR_URL:-http://radarr:7878}
+  apiKey: ${RADARR_API_KEY}
+
+openai:
+  apiKey: ${OPENAI_API_KEY}
+  model: gpt-4-turbo
+
+# Natural-language hints the LLM uses alongside metadata
+promptHints: |
+  - Prefer HighQuality-4K for visually rich films (HDR/DV, action, animation) with good ratings.
+  - Efficient-4K when 4K-worthy but prefer compact encodes (YTS/PSA ok) and metadata is modest.
+  - HD for low-popularity/low-rating or when 4K adds little value.
+  - Penalize YTS for HighQuality-4K; favor FLUX/FraMeSToR/Hallowed.
+
+# Remux policy must remain enforced
+remuxPenalty: Remux is fully blocked (score -1000, size cap 1MB/min).

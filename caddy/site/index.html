@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dulce Jelly Media</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg-primary: #0a0e1a;
+      --bg-secondary: #111827;
+      --surface: rgba(17, 24, 39, 0.6);
+      --surface-hover: rgba(30, 41, 59, 0.8);
+      --text-primary: #f9fafb;
+      --text-secondary: #9ca3af;
+      --accent: #60a5fa;
+      --accent-glow: rgba(96, 165, 250, 0.15);
+      --border: rgba(148, 163, 184, 0.12);
+      --border-hover: rgba(96, 165, 250, 0.4);
+      --shadow: rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: clamp(16px, 4vw, 48px) clamp(16px, 4vw, 24px);
+      position: relative;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* Animated gradient background */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 30%, rgba(59, 130, 246, 0.08), transparent 50%),
+        radial-gradient(circle at 80% 60%, rgba(147, 51, 234, 0.06), transparent 50%),
+        radial-gradient(circle at 40% 80%, rgba(16, 185, 129, 0.05), transparent 40%);
+      z-index: 0;
+      pointer-events: none;
+      animation: bgShift 20s ease-in-out infinite alternate;
+    }
+
+    /* Video background */
+    .video-background {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 1;
+      filter: blur(1px);
+    }
+
+    @keyframes bgShift {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(20px, -20px) scale(1.05); }
+    }
+
+    .container {
+      width: min(1200px, 100%);
+      position: relative;
+      z-index: 2;
+      animation: fadeIn 0.8s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Header with horizontal logo */
+    header {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: clamp(12px, 3vw, 24px);
+      margin-bottom: clamp(32px, 5vw, 56px);
+      text-align: center;
+    }
+
+    .logo-wrapper {
+      display: block;
+      width: 200px;
+      max-width: 85vw;
+      border-radius: 12px;
+      background: transparent;
+      backdrop-filter: blur(20px);
+      transition: all 0.3s ease;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+      line-height: 0;
+    }
+
+    .logo-wrapper:hover {
+      transform: translateY(-2px);
+    }
+
+    .main-logo {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.5));
+      opacity: 0.9;
+      mix-blend-mode: screen;
+    }
+
+    h1 {
+      margin: 0;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      font-size: clamp(28px, 5vw, 42px);
+      color: var(--text-primary);
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .tagline {
+      font-size: clamp(14px, 2.5vw, 17px);
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .protocol-note {
+      font-size: clamp(11px, 2vw, 13px);
+      color: var(--text-secondary);
+      opacity: 0.7;
+      margin-top: 8px;
+    }
+
+    /* Card grid */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+      gap: clamp(16px, 3vw, 20px);
+      margin-bottom: clamp(24px, 4vw, 32px);
+    }
+
+    .card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: clamp(18px, 3vw, 24px);
+      text-decoration: none;
+      color: inherit;
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: clamp(12px, 2.5vw, 16px);
+      align-items: center;
+      backdrop-filter: blur(20px);
+      box-shadow: 0 4px 16px var(--shadow);
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, var(--accent-glow), transparent);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      border-color: var(--border-hover);
+      background: var(--surface-hover);
+      box-shadow: 0 12px 32px var(--shadow), 0 0 0 1px var(--border-hover);
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .card:active {
+      transform: translateY(-2px);
+    }
+
+    .card-icon {
+      width: clamp(48px, 8vw, 56px);
+      height: clamp(48px, 8vw, 56px);
+      border-radius: 12px;
+      object-fit: contain;
+      background: rgba(96, 165, 250, 0.08);
+      border: 1px solid var(--border);
+      padding: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      transition: all 0.25s ease;
+    }
+
+    .card:hover .card-icon {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(96, 165, 250, 0.3);
+    }
+
+    .card-content {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+
+    .card-title {
+      font-size: clamp(16px, 3vw, 18px);
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+
+    .card-subtitle {
+      font-size: clamp(13px, 2.2vw, 14px);
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 768px) {
+      body {
+        padding: 24px 16px;
+      }
+
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .card {
+        padding: 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .card {
+        padding: 16px;
+        gap: 12px;
+      }
+
+      .card-icon {
+        width: 44px;
+        height: 44px;
+      }
+    }
+
+    /* TV/Large screen optimizations */
+    @media (min-width: 1920px) {
+      .container {
+        max-width: 1400px;
+      }
+
+      .grid {
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 24px;
+      }
+
+      .card {
+        padding: 28px;
+      }
+
+      .logo-wrapper {
+        width: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <video class="video-background" autoplay loop muted playsinline>
+    <source src="logos/dulce-jelly-bounce.mp4" type="video/mp4">
+  </video>
+  <div class="container">
+    <header>
+      <div class="logo-wrapper">
+        <img class="main-logo" src="logos/dulce-jelly.png" alt="Dulce Jelly Media" loading="eager" />
+      </div>
+      <h1>Dulce Jelly</h1>
+      <p class="tagline">Media hub: Watch, request more, manage quality and queues.</p>
+    </header>
+
+    <div class="grid">
+      <a class="card" data-domain="jellyfin.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/jellyfin.png" alt="Jellyfin" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Watch</div>
+          <div class="card-subtitle">Jellyfin · Media server</div>
+        </div>
+      </a>
+
+      <a class="card" data-domain="jellyseerr.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/jellyseer.png" alt="Jellyseerr" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Request Content</div>
+          <div class="card-subtitle">Jellyseerr · Requests</div>
+        </div>
+      </a>
+
+      <a class="card" data-domain="qb.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/qbittorrent.png" alt="qBittorrent" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Torrent Queue</div>
+          <div class="card-subtitle">qBittorrent · Downloads</div>
+        </div>
+      </a>
+
+      <a class="card" data-domain="sab.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/sabnzbd.png" alt="SABnzbd" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Usenet Queue</div>
+          <div class="card-subtitle">SABnzbd · NZB downloads</div>
+        </div>
+      </a>
+
+      <a class="card" data-domain="radarr.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/radarr.png" alt="Radarr" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Manage Movies</div>
+          <div class="card-subtitle">Radarr · Automation</div>
+        </div>
+      </a>
+
+      <a class="card" data-domain="sonarr.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/sonarr.png" alt="Sonarr" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Manage TV Shows</div>
+          <div class="card-subtitle">Sonarr · Automation</div>
+        </div>
+      </a>
+
+      <a class="card" data-domain="prowlarr.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/prowlarr.png" alt="Prowlarr" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Manage Indexers</div>
+          <div class="card-subtitle">Prowlarr · Sources</div>
+        </div>
+      </a>
+
+      <a class="card" href="#" target="_blank" rel="noopener" style="opacity: 0.6; pointer-events: none;">
+        <img class="card-icon" src="logos/recyclarr.png" alt="Recyclarr" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Config Sync</div>
+          <div class="card-subtitle">Recyclarr · Scheduled</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      const proto = window.location.protocol;
+      document.querySelectorAll('a[data-domain]').forEach(function(link) {
+        link.href = proto + '//' + link.dataset.domain;
+      });
+    })();
+  </script>
+</body>
+</html>

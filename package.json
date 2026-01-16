@@ -1,0 +1,20 @@
+{
+  "name": "dulce-jelly-media-server-tools",
+  "private": true,
+  "version": "0.1.1",
+  "description": "Short CLI helper for media-server operations",
+  "engines": {
+    "node": "22.19.0"
+  },
+  "scripts": {
+    "ms": "node ms/index.js",
+    "setup": "npm install && (cd quality-broker && npm install && npm run build)",
+    "lint": "npx eslint ms/**/*.js"
+  },
+  "dependencies": {
+    "colorette": "^2.0.20"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0"
+  }
+}

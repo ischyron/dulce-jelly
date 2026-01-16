@@ -1,0 +1,40 @@
+# Example Pulumi stack configuration for 'dev' stack
+# Copy this file and customize for your environment
+# Run: pulumi stack init dev (if not exists)
+# Then: pulumi config set --secret cloudflare:apiToken YOUR_CF_API_TOKEN
+
+config:
+  # Cloudflare configuration (from cloudflare provider)
+  # cloudflare:apiToken: <set via: pulumi config set --secret cloudflare:apiToken YOUR_TOKEN>
+  cloudflare:accountId: "your-cloudflare-account-id"
+
+  # DulceJelly configuration
+  dulcejelly-cloudflare:zoneId: "your-cloudflare-zone-id"
+  dulcejelly-cloudflare:baseDomain: "mymedialibrary.example"
+
+  # Optional: Customize service hostnames (defaults shown)
+  # dulcejelly-cloudflare:jellyfinHostname: "jellyfin"
+  # dulcejelly-cloudflare:jellyseerrHostname: "jellyseerr"
+  # dulcejelly-cloudflare:radarrHostname: "radarr"
+  # dulcejelly-cloudflare:sonarrHostname: "sonarr"
+  # dulcejelly-cloudflare:qbittorrentHostname: "qb"
+  # dulcejelly-cloudflare:prowlarrHostname: "prowlarr"
+  # dulcejelly-cloudflare:sabnzbdHostname: "sab"
+
+  # Security configuration
+  dulcejelly-cloudflare:enableWafHardening: true
+  dulcejelly-cloudflare:rateLimitEnabled: true
+
+  # Cloudflare Access (Zero Trust) - set to true if you want to use it
+  # Note: Requires IdP configuration in Cloudflare dashboard
+  dulcejelly-cloudflare:enableAccessForAdminApps: false
+
+  # Optional: Set email domain for Access policies if enableAccessForAdminApps is true
+  # dulcejelly-cloudflare:accessEmailDomain: "yourdomain.com"
+
+  # Optional: Geo-restriction (leave empty to allow all countries)
+  # Example: ["US", "GB", "CA"]
+  # dulcejelly-cloudflare:geoAllowCountries: []
+
+  # Optional: Your tunnel ID (for reference, used in DNS CNAME target)
+  # dulcejelly-cloudflare:tunnelId: "your-tunnel-uuid"

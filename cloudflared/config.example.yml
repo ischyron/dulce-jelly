@@ -1,0 +1,31 @@
+# Cloudflare Tunnel Configuration Example
+#
+# Copy this file to config.yml and replace with your actual values:
+#   cp config.example.yml config.yml
+#
+# Then update:
+#   - tunnel: Your actual Cloudflare Tunnel ID
+#   - credentials-file: Path to your tunnel credentials JSON file
+#   - hostnames: Your actual domain names
+
+tunnel: YOUR_TUNNEL_ID_HERE
+credentials-file: /etc/cloudflared/YOUR_TUNNEL_ID_HERE.json
+
+ingress:
+  - hostname: jellyfin.mymedialibrary.example
+    service: http://caddy:80
+  - hostname: jellyseerr.mymedialibrary.example
+    service: http://caddy:80
+  - hostname: qb.mymedialibrary.example
+    service: http://caddy:80
+  - hostname: prowlarr.mymedialibrary.example
+    service: http://caddy:80
+  - hostname: radarr.mymedialibrary.example
+    service: http://caddy:80
+  - hostname: sonarr.mymedialibrary.example
+    service: http://caddy:80
+  - hostname: sab.mymedialibrary.example
+    service: http://caddy:80
+  - hostname: mymedialibrary.example
+    service: http://caddy:80
+  - service: http_status:404

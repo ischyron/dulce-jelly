@@ -1,0 +1,164 @@
+{
+  # Keep TLS termination at Cloudflare; block direct HTTP access below.
+  auto_https off
+  admin off
+}
+
+# Local health endpoint for container healthcheck
+:80 {
+  @health path /healthz
+  handle @health {
+    respond "ok" 200
+  }
+  respond 404
+}
+
+# Shared basic auth snippet (from environment variables; gated by CADDY_AUTH_ENABLED)
+(auth_common) {
+  @auth_enabled expression {env.CADDY_AUTH_ENABLED} != "false"
+  basic_auth @auth_enabled {
+    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+  }
+}
+
+# Enforce HTTPS for public domains (allow when CF forwards proto=https)
+(require_https_public) {
+  @insecure not header X-Forwarded-Proto https
+  redir @insecure https://{host}{uri} 308
+}
+
+# Landing page (public DNS) with auth (except /jellyfin)
+http://dulcejelly.me {
+  import require_https_public
+  @auth_enabled expression {env.CADDY_AUTH_ENABLED} != "false"
+  basic_auth @auth_enabled {
+    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+  }
+  header {
+    Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Pragma "no-cache"
+    Expires "0"
+  }
+
+  # Normalize Jellyseerr setup redirect on path access
+  redir /setup /jellyseerr/setup 307
+
+  # Allow static assets (e.g., logos) to be served (preserve path)
+  handle /logos* {
+    root * /srv
+    file_server
+  }
+
+  # Serve only the landing page at /
+  handle_path / {
+    root * /srv
+    try_files {path} index.html
+    file_server
+  }
+
+  # Everything else → 404
+  respond 404
+}
+
+# LAN shortcuts on dulce.local → redirect to direct ports (no proxy)
+http://dulce.local {
+  handle {
+    root * /srv
+    try_files {path} {path}/ /index.html
+    file_server
+  }
+  header {
+    Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Pragma "no-cache"
+    Expires "0"
+    Referrer-Policy "no-referrer"
+  }
+
+  handle_path /jellyfin* {
+    uri strip_prefix /jellyfin
+    redir * http://{host}:3278{uri} 307
+  }
+  handle_path /jellyseerr* {
+    uri strip_prefix /jellyseerr
+    redir * http://{host}:3277{uri} 307
+  }
+  handle_path /qb* {
+    uri strip_prefix /qb
+    redir * http://{host}:3275{uri} 307
+  }
+  handle /sab* {
+    redir * http://{host}:3274{uri} 307
+  }
+  handle_path /radarr* {
+    uri strip_prefix /radarr
+    redir * http://{host}:3273{uri} 307
+  }
+  handle_path /sonarr* {
+    uri strip_prefix /sonarr
+    redir * http://{host}:3272{uri} 307
+  }
+  handle_path /prowlarr* {
+    uri strip_prefix /prowlarr
+    redir * http://{host}:3276{uri} 307
+  }
+}
+
+# App subdomains (HTTPS only)
+http://jellyfin.dulcejelly.me {
+  import require_https_public
+  @auth_enabled expression {$JELLYFIN_AUTH_ENABLED}
+  basic_auth @auth_enabled {
+    {$BASIC_AUTH_USER} {$BASIC_AUTH_HASH}
+  }
+  reverse_proxy jellyfin:8096 {
+    header_up Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Port {server_port}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Forwarded-PathBase /
+  }
+}
+
+http://jellyseerr.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy jellyseerr:5055
+}
+
+http://qb.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy qbittorrent:8080
+}
+
+http://prowlarr.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy prowlarr:9696
+}
+
+http://radarr.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy radarr:7878
+}
+
+http://sab.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy sabnzbd:8080 {
+    header_up Host {host}
+    header_up X-Forwarded-Host {host}
+    header_up X-Real-IP {remote}
+    header_up X-Forwarded-For {remote}
+    header_up X-Forwarded-Port {server_port}
+    header_up X-Forwarded-Proto {scheme}
+  }
+}
+
+http://sonarr.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy sonarr:8989
+}

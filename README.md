@@ -32,6 +32,22 @@ over time.
 > applicable laws.
 
 
+## What's Included
+
+DulceJelly is a collection of open-source media management tools:
+
+- **[Jellyfin](https://jellyfin.org/)** - Media server for streaming your personal library
+- **[Jellyseerr](https://github.com/Fallenbagel/jellyseerr)** - Library management and monitoring interface
+- **[Radarr](https://radarr.video/)** - Movie library manager and organizer
+- **[Sonarr](https://sonarr.tv/)** - TV show library manager and organizer
+- **[Prowlarr](https://prowlarr.com/)** - Indexer manager for content sources
+- **[qBittorrent](https://www.qbittorrent.org/)** - BitTorrent client
+- **[SABnzbd](https://sabnzbd.org/)** - Usenet client
+- **[Recyclarr](https://recyclarr.dev/)** - Quality profile synchronization
+- **[Caddy](https://caddyserver.com/)** - Reverse proxy server
+- **[Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/)** - Secure remote access
+
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
@@ -219,47 +235,9 @@ All services should show as "running".
 
 ### Step 7: Initial Service Configuration
 
-Each service needs one-time setup through its web interface.
+Complete the one-time service setup using the guide: [docs/service-setup-guide.md](docs/service-setup-guide.md).
 
-**On your local network, visit:**
-
-1. **Jellyfin** - `http://localhost:3278`
-   - Create an admin account
-   - Add your media libraries pointing to your existing media folders
-
-2. **Jellyseerr** - `http://localhost:3277`
-   - Configure Jellyfin connection: `http://jellyfin:8096`
-   - Log in with your Jellyfin account
-   - Configure library monitoring preferences
-
-3. **qBittorrent** - `http://localhost:3275`
-   - Get temporary password: `docker compose logs qbittorrent | grep "temporary password"`
-   - Change password in settings
-   - Set default save path to: `/downloads/torrents`
-
-4. **SABnzbd** - `http://localhost:3274`
-   - Complete initial setup wizard
-   - Set completed download folder to: `/downloads/usenet`
-   - Set incomplete download folder to: `/incomplete`
-
-5. **Prowlarr** - `http://localhost:3276`
-   - Configure indexers for your legal content sources
-   - Connect to Radarr and Sonarr for coordination
-
-6. **Radarr** - `http://localhost:3273`
-   - Add root folder: `/movies`
-   - Configure quality profiles for your media preferences
-   - Add download clients pointing to `/downloads/torrents` (qBit) or `/downloads/usenet` (SAB)
-
-7. **Sonarr** - `http://localhost:3272`
-   - Add root folder: `/series`
-   - Configure quality profiles for your media preferences
-   - Add download clients pointing to `/downloads/torrents` (qBit) or `/downloads/usenet` (SAB)
-
-### Step 8: Configure Services & Automation
-- Follow the consolidated guide: [docs/service-setup-guide.md](docs/service-setup-guide.md) for qBittorrent, SABnzbd, Prowlarr, Radarr, Sonarr, Jellyseerr, and automation (Recyclarr + Quality Broker).
-
-### Step 9: Test Everything
+### Step 8: Test Everything
 
 ```bash
 # Navigate to the project root
@@ -269,7 +247,7 @@ node --test test/test-services.test.mjs
 
 All tests should pass.
 
-### Step 10: Start Using DulceJelly!
+### Step 9: Start Using DulceJelly!
 
 You're done! Now you can:
 
@@ -306,23 +284,6 @@ Use your public domain (requires Cloudflare Tunnel setup):
 - And more...
 
 **Note**: 🔒 = Login required (basic auth or Cloudflare Access, depending on your configuration)
-
-## What's Included
-
-DulceJelly is a collection of open-source media management tools:
-
-- **[Jellyfin](https://jellyfin.org/)** - Media server for streaming your personal library
-- **[Jellyseerr](https://github.com/Fallenbagel/jellyseerr)** - Library management and monitoring interface
-- **[Radarr](https://radarr.video/)** - Movie library manager and organizer
-- **[Sonarr](https://sonarr.tv/)** - TV show library manager and organizer
-- **[Prowlarr](https://prowlarr.com/)** - Indexer manager for content sources
-- **[qBittorrent](https://www.qbittorrent.org/)** - BitTorrent client
-- **[SABnzbd](https://sabnzbd.org/)** - Usenet client
-- **[Recyclarr](https://recyclarr.dev/)** - Quality profile synchronization
-- **[Caddy](https://caddyserver.com/)** - Reverse proxy server
-- **[Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/)** - Secure remote access
-
-**User Responsibility**: These tools can be used for both legal and illegal purposes. You are solely responsible for ensuring your use complies with copyright laws and terms of service. This project provides infrastructure only - it does not provide, promote, or facilitate access to copyrighted content.
 
 ## Testing
 

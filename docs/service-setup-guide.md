@@ -1,6 +1,6 @@
 # Service Setup Guide
 
-Authoritative steps to configure each service after the stack is running. Use direct LAN ports for initial setup; subdomains/Cloudflare come afterward.
+Quick, one-time setup steps for each service after the stack is running. Start with the LAN ports below before switching to subdomains/Cloudflare.
 
 ## Ports & Internal Hostnames
 - Jellyfin: `http://localhost:3278` (internal: `jellyfin:8096`)
@@ -41,15 +41,15 @@ Authoritative steps to configure each service after the stack is running. Use di
 ## Radarr
 1) Open `http://localhost:3273` and finish the wizard.
 2) Root folder: `/movies` (binds to `JELLYFIN_MOVIES`).
-3) Download client: qBittorrent at `http://qbittorrent:8080` with path `/downloads`.
-4) Quality profiles & custom formats: synced via Recyclarr (see Automation below).
+3) Download clients: qBittorrent at `http://qbittorrent:8080` (path `/downloads/torrents`) and/or SABnzbd at `http://sabnzbd:8080` (path `/downloads/usenet`).
+4) Quality profiles & custom formats: synced via Recyclarr (see Automation below); adjust to your preference if not using the defaults.
 5) Optional: Connect Jellyfin at `http://jellyfin:8096` using a Jellyfin API key.
 
 ## Sonarr
 1) Open `http://localhost:3272` and finish the wizard.
 2) Root folder: `/series` (binds to `JELLYFIN_SERIES`).
-3) Download client: qBittorrent at `http://qbittorrent:8080` with path `/downloads`.
-4) Quality profiles & custom formats: synced via Recyclarr.
+3) Download clients: qBittorrent at `http://qbittorrent:8080` (path `/downloads/torrents`) and/or SABnzbd at `http://sabnzbd:8080` (path `/downloads/usenet`).
+4) Quality profiles & custom formats: synced via Recyclarr; adjust if you have custom preferences.
 5) Optional: Connect Jellyfin at `http://jellyfin:8096` using a Jellyfin API key.
 
 ## Automation (Recyclarr + Quality Broker)

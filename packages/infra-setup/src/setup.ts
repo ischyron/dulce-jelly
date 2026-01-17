@@ -69,15 +69,13 @@ async function main() {
   console.log('It does NOT modify Cloudflare resources (use Pulumi for that).');
   console.log();
 
-  // Get project root
-  const projectRoot = path.resolve(__dirname, '..');
-  const mediaServerDir = path.join(projectRoot, 'media-server');
-  const cloudflaredDir = path.join(mediaServerDir, 'cloudflared');
-  const caddyDir = path.join(mediaServerDir, 'caddy');
+  // Get project root (repo root)
+  const projectRoot = path.resolve(__dirname, '..', '..');
+  const cloudflaredDir = path.join(projectRoot, 'cloudflared');
+  const caddyDir = path.join(projectRoot, 'caddy');
 
-  // Check if media-server directory exists
-  if (!fs.existsSync(mediaServerDir)) {
-    console.error(`Error: media-server directory not found at ${mediaServerDir}`);
+  if (!fs.existsSync(projectRoot)) {
+    console.error(`Error: project root not found at ${projectRoot}`);
     console.error('Please run this script from the repository root.');
     process.exit(1);
   }
@@ -196,43 +194,47 @@ async function main() {
   console.log('Step 5: Generating Configuration Files');
   console.log('-'.repeat(70));
 
-  // Generate cloudflared config
-  const cloudflaredConfig = generateCloudflaredConfig(config);
-  const cloudflaredPath = path.join(cloudflaredDir, 'config.yml');
+  if (config.enableCloudflare) {
+    // Generate cloudflared config
+    const cloudflaredConfig = generateCloudflaredConfig(config);
+    const cloudflaredPath = path.join(cloudflaredDir, 'config.yml');
 
-  if (fs.existsSync(cloudflaredPath)) {
-    const overwrite = await confirm(`${cloudflaredPath} exists. Overwrite?`, false);
-    if (!overwrite) {
-      console.log('Skipping cloudflared config generation.');
+    if (fs.existsSync(cloudflaredPath)) {
+      const overwrite = await confirm(`${cloudflaredPath} exists. Overwrite?`, false);
+      if (!overwrite) {
+        console.log('Skipping cloudflared config generation.');
+      } else {
+        fs.writeFileSync(cloudflaredPath, cloudflaredConfig);
+        console.log(`✓ Generated: ${cloudflaredPath}`);
+      }
     } else {
       fs.writeFileSync(cloudflaredPath, cloudflaredConfig);
       console.log(`✓ Generated: ${cloudflaredPath}`);
     }
+
+    // Generate Caddyfile
+    const caddyfile = generateCaddyfile(config);
+    const caddyfilePath = path.join(caddyDir, 'Caddyfile.generated');
+    fs.writeFileSync(caddyfilePath, caddyfile);
+    console.log(`✓ Generated: ${caddyfilePath}`);
+    console.log(`  Note: Review and replace ${path.join(caddyDir, 'Caddyfile')} if satisfied`);
+
+    // Generate .env additions
+    const envAdditions = generateEnvAdditions(config);
+    const envPath = path.join(projectRoot, '.env.additions');
+    fs.writeFileSync(envPath, envAdditions);
+    console.log(`✓ Generated: ${envPath}`);
+    console.log(`  Note: Merge these into your .env file`);
+
+    // Generate Pulumi config snippet
+    const pulumiConfigSnippet = generatePulumiConfigSnippet(config);
+    const pulumiSnippetPath = path.join(projectRoot, 'infra', 'cloudflare', 'Pulumi.config-snippet.yaml');
+    fs.writeFileSync(pulumiSnippetPath, pulumiConfigSnippet);
+    console.log(`✓ Generated: ${pulumiSnippetPath}`);
+    console.log(`  Note: Merge these settings into your Pulumi stack config`);
   } else {
-    fs.writeFileSync(cloudflaredPath, cloudflaredConfig);
-    console.log(`✓ Generated: ${cloudflaredPath}`);
+    console.log('Cloudflare disabled; skipping Cloudflare-specific config generation.');
   }
-
-  // Generate Caddyfile
-  const caddyfile = generateCaddyfile(config);
-  const caddyfilePath = path.join(caddyDir, 'Caddyfile.generated');
-  fs.writeFileSync(caddyfilePath, caddyfile);
-  console.log(`✓ Generated: ${caddyfilePath}`);
-  console.log(`  Note: Review and replace ${path.join(caddyDir, 'Caddyfile')} if satisfied`);
-
-  // Generate .env additions
-  const envAdditions = generateEnvAdditions(config);
-  const envPath = path.join(mediaServerDir, '.env.additions');
-  fs.writeFileSync(envPath, envAdditions);
-  console.log(`✓ Generated: ${envPath}`);
-  console.log(`  Note: Merge these into your .env file`);
-
-  // Generate Pulumi config snippet
-  const pulumiConfigSnippet = generatePulumiConfigSnippet(config);
-  const pulumiSnippetPath = path.join(projectRoot, 'infra', 'cloudflare', 'Pulumi.config-snippet.yaml');
-  fs.writeFileSync(pulumiSnippetPath, pulumiConfigSnippet);
-  console.log(`✓ Generated: ${pulumiSnippetPath}`);
-  console.log(`  Note: Merge these settings into your Pulumi stack config`);
 
   console.log();
   console.log('='.repeat(70));
@@ -241,32 +243,39 @@ async function main() {
   console.log();
   console.log('Next Steps:');
   console.log();
-  console.log('1. Copy your tunnel credentials file to:');
-  console.log(`   ${cloudflaredDir}/${config.tunnelCredentialsFile}`);
-  console.log();
-  console.log('2. Review and merge generated configurations:');
-  console.log(`   - ${cloudflaredPath}`);
-  console.log(`   - ${caddyfilePath} → ${path.join(caddyDir, 'Caddyfile')}`);
-  console.log(`   - ${envPath} → ${path.join(mediaServerDir, '.env')}`);
-  console.log();
-  console.log('3. Configure and deploy Cloudflare infrastructure:');
-  console.log('   cd infra/cloudflare');
-  console.log('   npm install');
-  console.log('   pulumi login');
-  console.log('   pulumi stack init prod  # or your stack name');
-  console.log('   # Merge Pulumi.config-snippet.yaml into your stack config');
-  console.log('   pulumi config set --secret cloudflare:apiToken YOUR_TOKEN');
-  console.log('   pulumi preview');
-  console.log('   pulumi up');
-  console.log();
-  console.log('4. Start your media server:');
-  console.log('   cd media-server');
-  console.log('   docker compose up -d');
-  console.log();
-  console.log('5. Run smoke tests:');
-  console.log('   cd media-server');
-  console.log('   export TEST_AUTH_USER=your_user TEST_AUTH_PASS=your_pass');
-  console.log('   node --test test/test-services.test.mjs');
+  if (config.enableCloudflare) {
+    console.log('1. Copy your tunnel credentials file to:');
+    console.log(`   ${cloudflaredDir}/${config.tunnelCredentialsFile}`);
+    console.log();
+    console.log('2. Review and merge generated configurations:');
+    console.log(`   - ${path.join(cloudflaredDir, 'config.yml')}`);
+    console.log(`   - ${path.join(caddyDir, 'Caddyfile.generated')} → ${path.join(caddyDir, 'Caddyfile')}`);
+    console.log(`   - ${path.join(projectRoot, '.env.additions')} → ${path.join(projectRoot, '.env')}`);
+    console.log();
+    console.log('3. Configure and deploy Cloudflare infrastructure:');
+    console.log('   cd infra/cloudflare');
+    console.log('   npm install');
+    console.log('   pulumi login');
+    console.log('   pulumi stack init prod  # or your stack name');
+    console.log('   # Merge Pulumi.config-snippet.yaml into your stack config');
+    console.log('   pulumi config set --secret cloudflare:apiToken YOUR_TOKEN');
+    console.log('   pulumi preview');
+    console.log('   pulumi up');
+    console.log();
+    console.log('4. Start your media server:');
+    console.log('   docker compose up -d');
+    console.log();
+    console.log('5. Run smoke tests:');
+    console.log('   export TEST_AUTH_USER=your_user TEST_AUTH_PASS=your_pass');
+    console.log('   node --test test/test-services.test.mjs');
+  } else {
+    console.log('1. Start your media server:');
+    console.log('   docker compose up -d');
+    console.log();
+    console.log('2. Run smoke tests:');
+    console.log('   export TEST_AUTH_USER=your_user TEST_AUTH_PASS=your_pass');
+    console.log('   node --test test/test-services.test.mjs');
+  }
   console.log();
 
   rl.close();

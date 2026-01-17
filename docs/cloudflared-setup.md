@@ -42,7 +42,7 @@ This command:
 
 ### 4. Copy Credentials to Project
 ```bash
-cp ~/.cloudflared/<TUNNEL_ID>.json /Users/haaris/workspace/movie_library_manager/cloudflared/
+cp ~/.cloudflared/<TUNNEL_ID>.json ./cloudflared/
 ```
 
 ### 5. Update config.yml

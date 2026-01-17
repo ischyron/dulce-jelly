@@ -272,7 +272,7 @@ DulceJelly separates local configuration from cloud resources:
 
 ### Local Configuration (Generated)
 
-Managed by `infra/setup.ts`:
+Managed by `packages/infra-setup/src/setup.ts`:
 
 1. **`cloudflared/config.yml`**
    - Tunnel ingress rules
@@ -440,7 +440,7 @@ dulce-jelly/
 │   │   └── src/                    # TypeScript source
 │   └── infra-setup/                # Infrastructure setup scripts (OPTIONAL)
 │       └── src/                    # TypeScript source
-├── apps/                           # Application packages
+├── infra/                          # Infrastructure packages
 │   └── cloudflare/                 # Pulumi IaC for Cloudflare (OPTIONAL)
 │       └── index.ts                # Pulumi program
 ├── turbo.json                      # Turborepo pipeline config
@@ -497,10 +497,13 @@ dulce-jelly/
 │       ├── architecture.md          # This file
 │       ├── service-setup-guide.md   # Setup instructions
 │       └── cloudflared-setup.md     # Tunnel setup guide
+├── packages/
+│   └── infra-setup/                 # Interactive config generator
+│       ├── src/
+│       ├── dist/
+│       ├── package.json
+│       └── tsconfig.json
 ├── infra/
-│   ├── setup.ts                     # Interactive config generator
-│   ├── package.json                 # Setup script dependencies
-│   ├── README.md                    # Infrastructure setup guide
 │   └── cloudflare/                  # Pulumi IaC
 │       ├── index.ts                 # Main Pulumi program
 │       ├── Pulumi.yaml              # Project config
@@ -540,7 +543,7 @@ All stateful data is in `data/`, which is:
 ### Starting the Stack
 
 ```bash
-cd media-server
+cd dulce-jelly
 docker compose up -d
 ```
 

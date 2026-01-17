@@ -203,7 +203,7 @@ services:
 
   quality-broker:
     build:
-      context: ./quality-broker
+      context: ./packages/quality-broker
       dockerfile: Dockerfile
     image: quality-broker:latest
     container_name: quality-broker

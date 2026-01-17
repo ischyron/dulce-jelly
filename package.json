@@ -9,7 +9,7 @@
   },
   "workspaces": [
     "packages/*",
-    "apps/*"
+    "infra/*"
   ],
   "scripts": {
     "ms": "node packages/ms-cli/dist/index.js",
@@ -19,7 +19,8 @@
     "build:optional": "turbo build --filter=quality-broker --filter=infra-setup",
     "lint": "turbo lint",
     "test": "turbo test",
-    "clean": "turbo clean && rm -rf node_modules packages/*/node_modules packages/*/dist apps/*/node_modules"
+    "test:services": "node --env-file=.env --test test/test-services.test.mjs",
+    "clean": "turbo clean && rm -rf node_modules packages/*/node_modules packages/*/dist infra/*/node_modules"
   },
   "devDependencies": {
     "eslint": "^8.57.0",

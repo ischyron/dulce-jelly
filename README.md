@@ -270,8 +270,11 @@ Run the test suite to verify everything is working:
 
 ```bash
 # Navigate to the project root
+export LAN_HOSTNAME=localhost
 export TEST_AUTH_USER=your_username TEST_AUTH_PASS=your_password
-node --test test/test-services.test.mjs
+# Optional: enable public HTTPS checks
+export PUBLIC_DOMAIN=yourdomain.example
+npm run test:services
 ```
 
 Quick health check: `npm run ms doctor` (health, mounts, recent log scan).
@@ -285,11 +288,11 @@ Tests check:
 
 ## Documentation
 
-- **[architecture.md](docs/architecture.md)** - Technical details, request flow, security model
 - **[Service Setup Guide](docs/service-setup-guide.md)** - Detailed configuration for each service
 - **[Cloudflare Tunnel Setup](docs/cloudflared-setup.md)** - In-depth tunnel configuration
 - **[ms CLI](docs/ms-cli.md)** - Short commands for operating the stack
 - **[Quality Broker](docs/quality-broker.md)** - LLM-guided Radarr quality assignment with grounded, schema-validated decisions
+ - **[architecture.md](docs/architecture.md)** - Technical details, request flow, security model
 - **[Pulumi Infrastructure README](infra/cloudflare/README.md)** - IaC documentation and configuration reference
 - **[CLAUDE.md](CLAUDE.md)** - Project conventions for developers and AI agents
 - **[TODO.md](TODO.md)** - Current development status and pending tasks
@@ -310,7 +313,7 @@ Service (Jellyfin, Radarr, etc.)
 Your Personal Media Library
 ```
 
-**See [architecture.md](docs/architecture.md) for technical deep dive.**
+**See [architecture](docs/architecture.md) for technical deep dive.**
 
 ## Troubleshooting
 

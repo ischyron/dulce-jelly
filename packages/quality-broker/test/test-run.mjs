@@ -1,9 +1,12 @@
 import { strict as assert } from 'assert';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-import { loadConfig } from '../src/config.ts';
+import { loadConfig } from '../dist/config.js';
 
-const baseDir = path.resolve(new URL('..', import.meta.url).pathname);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const baseDir = path.resolve(__dirname, '..');
 
 // Basic config load test (no Radarr/OpenAI calls)
 const config = loadConfig(baseDir);

@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Smoke tests for media-server ingress using Node's built-in test runner.
-// Usage: node --test test/test-services.test.mjs (from media-server)
-// Required env vars: LAN_HOSTNAME, PUBLIC_DOMAIN
+// Usage: node --test test/test-services.test.mjs (from repo root)
+// Required env vars: LAN_HOSTNAME
+// Optional env vars: PUBLIC_DOMAIN (enables public HTTPS tests)
 // Required for HTTPS auth tests: TEST_AUTH_USER, TEST_AUTH_PASS
 // Optional: HOST_IP, CADDY_AUTH_ENABLED, etc.
 
@@ -15,20 +16,27 @@ const AUTH_USER = process.env.TEST_AUTH_USER
 const AUTH_PASS = process.env.TEST_AUTH_PASS
 const MAX_TIME_MS = Number(process.env.MAX_TIME_MS || '8000')
 const CADDY_AUTH_ENABLED = process.env.CADDY_AUTH_ENABLED !== 'false'
-const lanHostname = process.env.LAN_HOSTNAME 
+const lanHostname = process.env.LAN_HOSTNAME
 const publicDomain = process.env.PUBLIC_DOMAIN
+const publicScheme = process.env.PUBLIC_SCHEME || 'https'
 
 if (!lanHostname) {
   throw new Error('LAN_HOSTNAME environment variable is required')
 }
-if (!publicDomain) {
-  throw new Error('PUBLIC_DOMAIN environment variable is required')
-}
 
 const HAVE_AUTH = Boolean(AUTH_USER && AUTH_PASS)
+const HAVE_PUBLIC_DOMAIN = Boolean(publicDomain)
+
+function describeIf(condition, name, fn) {
+  if (condition) {
+    describe(name, fn)
+  } else {
+    describe.skip(name, fn)
+  }
+}
 
 function describeHttpsAuth(name, fn) {
-  describe(name, () => {
+  describeIf(HAVE_PUBLIC_DOMAIN, name, () => {
     if (!HAVE_AUTH) {
       it('FAILED: TEST_AUTH_USER and TEST_AUTH_PASS required for HTTPS auth tests', () => {
         throw new Error('TEST_AUTH_USER and TEST_AUTH_PASS environment variables are required for HTTPS auth tests')
@@ -50,44 +58,47 @@ const openRoutes = [
   `http://${lanHostname}/prowlarr/`
 ]
 
-const httpsAuthRoutes = [
-  `https://${publicDomain}/`,
-  `https://qb.${publicDomain}/`,
-  `https://jellyseerr.${publicDomain}/`,
-  `https://radarr.${publicDomain}/`,
-  `https://sonarr.${publicDomain}/`,
-  `https://sab.${publicDomain}/`,
-  `https://prowlarr.${publicDomain}/`
-]
+const publicHost = (subdomain) => (subdomain ? `${subdomain}.${publicDomain}` : publicDomain)
+const publicUrl = (subdomain, path = '/') => `${publicScheme}://${publicHost(subdomain)}${path}`
 
-const httpsOpenRoutes = [
-  `https://jellyfin.${publicDomain}/`
-]
+const httpsAuthRoutes = HAVE_PUBLIC_DOMAIN ? [
+  publicUrl(null, '/'),
+  publicUrl('qb', '/'),
+  publicUrl('jellyseerr', '/'),
+  publicUrl('radarr', '/'),
+  publicUrl('sonarr', '/'),
+  publicUrl('sab', '/'),
+  publicUrl('prowlarr', '/')
+] : []
 
-const httpRedirectsToHttps = [
-  { from: `http://${publicDomain}/`, to: `https://${publicDomain}/` },
-  { from: `http://qb.${publicDomain}/`, to: `https://qb.${publicDomain}/` },
-  { from: `http://jellyseerr.${publicDomain}/`, to: `https://jellyseerr.${publicDomain}/` },
-  { from: `http://radarr.${publicDomain}/`, to: `https://radarr.${publicDomain}/` },
-  { from: `http://sonarr.${publicDomain}/`, to: `https://sonarr.${publicDomain}/` },
-  { from: `http://sab.${publicDomain}/`, to: `https://sab.${publicDomain}/` },
-  { from: `http://prowlarr.${publicDomain}/`, to: `https://prowlarr.${publicDomain}/` },
-  { from: `http://jellyfin.${publicDomain}/`, to: `https://jellyfin.${publicDomain}/` },
-  { from: `http://${publicDomain}/logos/jellyfin.png`, to: `https://${publicDomain}/logos/jellyfin.png` },
-  { from: `http://${publicDomain}/logos/shouldnotexist.png`, to: `https://${publicDomain}/logos/shouldnotexist.png` }
-]
+const httpsOpenRoutes = HAVE_PUBLIC_DOMAIN ? [
+  publicUrl('jellyfin', '/')
+] : []
 
-const unauthorizedRoutes = [
-  { url: `https://qb.${publicDomain}/`, expected: 401 }
-]
+const httpRedirectsToHttps = HAVE_PUBLIC_DOMAIN ? [
+  { from: `http://${publicHost(null)}/`, to: publicUrl(null, '/') },
+  { from: `http://${publicHost('qb')}/`, to: publicUrl('qb', '/') },
+  { from: `http://${publicHost('jellyseerr')}/`, to: publicUrl('jellyseerr', '/') },
+  { from: `http://${publicHost('radarr')}/`, to: publicUrl('radarr', '/') },
+  { from: `http://${publicHost('sonarr')}/`, to: publicUrl('sonarr', '/') },
+  { from: `http://${publicHost('sab')}/`, to: publicUrl('sab', '/') },
+  { from: `http://${publicHost('prowlarr')}/`, to: publicUrl('prowlarr', '/') },
+  { from: `http://${publicHost('jellyfin')}/`, to: publicUrl('jellyfin', '/') },
+  { from: `http://${publicHost(null)}/logos/jellyfin.png`, to: publicUrl(null, '/logos/jellyfin.png') },
+  { from: `http://${publicHost(null)}/logos/shouldnotexist.png`, to: publicUrl(null, '/logos/shouldnotexist.png') }
+] : []
 
-const notFoundRoutes = [
-  `https://${publicDomain}/anything`
-]
+const unauthorizedRoutes = HAVE_PUBLIC_DOMAIN ? [
+  { url: publicUrl('qb', '/'), expected: 401 }
+] : []
 
-const httpsNotFoundRoutes = [
-  `https://${publicDomain}/shouldnotexist`
-]
+const notFoundRoutes = HAVE_PUBLIC_DOMAIN ? [
+  publicUrl(null, '/anything')
+] : []
+
+const httpsNotFoundRoutes = HAVE_PUBLIC_DOMAIN ? [
+  publicUrl(null, '/shouldnotexist')
+] : []
 
 const redirectRoutes = [
   { from: `http://${lanHostname}/jellyfin/`, expected: `http://${lanHostname}:3278/` },
@@ -109,13 +120,13 @@ const directServiceRoutes = [
   `http://${lanHostname}:3276/` // prowlarr
 ]
 
-const assetRoutesHttps = [
-  `https://${publicDomain}/logos/jellyfin.png`
-]
+const assetRoutesHttps = HAVE_PUBLIC_DOMAIN ? [
+  publicUrl(null, '/logos/jellyfin.png')
+] : []
 
-const assetNotFoundHttps = [
-  `https://${publicDomain}/logos/shouldnotexist.png`
-]
+const assetNotFoundHttps = HAVE_PUBLIC_DOMAIN ? [
+  publicUrl(null, '/logos/shouldnotexist.png')
+] : []
 
 const successStatus = status => status >= 200 && status < 400
 const serviceUpStatus = status => successStatus(status) || status === 401
@@ -229,7 +240,7 @@ describe('Direct service ports (LAN)', () => {
   }
 })
 
-describe('Ingress (http -> https redirects for public hosts)', () => {
+describeIf(HAVE_PUBLIC_DOMAIN, 'Ingress (http -> https redirects for public hosts)', () => {
   for (const { from, to } of httpRedirectsToHttps) {
     it(`GET ${from} redirects to ${to}`, async () => {
       const res = await fetchWithHost(from)
@@ -239,7 +250,7 @@ describe('Ingress (http -> https redirects for public hosts)', () => {
   }
 })
 
-describe('Ingress (not found routes)', () => {
+describeIf(HAVE_PUBLIC_DOMAIN, 'Ingress (not found routes)', () => {
   for (const url of notFoundRoutes) {
     it(`GET ${url} returns 401/404 depending on auth`, async () => {
       const res = await fetchDirect(url, { auth: HAVE_AUTH })
@@ -300,7 +311,7 @@ describe('Ingress (LAN redirects)', () => {
   }
 })
 
-describe('Ingress (apex assets http -> https redirect)', () => {
+describeIf(HAVE_PUBLIC_DOMAIN, 'Ingress (apex assets http -> https redirect)', () => {
   const assetRedirects = httpRedirectsToHttps.filter(({ from }) => from.includes('/logos/'))
   for (const { from, to } of assetRedirects) {
     it(`GET ${from} redirects to ${to}`, async () => {
@@ -361,7 +372,7 @@ describeHttpsAuth('Ingress (unauthorized expectations)', () => {
 
 describeHttpsAuth('Security: Jellyfin public access (no Access/ZeroTrust)', () => {
   it(`GET https://jellyfin.${publicDomain}/ should NOT redirect to Access login`, async () => {
-    const res = await fetchDirect(`https://jellyfin.${publicDomain}/`)
+    const res = await fetchDirect(publicUrl('jellyfin', '/'))
 
     // Should get either 2xx (success) or 401 (basic auth, not Access)
     // Should NOT get 302/303 redirect to cloudflarenet.com or cloudflareaccess.com
@@ -387,7 +398,7 @@ describeHttpsAuth('Security: Jellyfin public access (no Access/ZeroTrust)', () =
   })
 
   it('Jellyfin response should contain Jellyfin markers (not Access login page)', async () => {
-    const res = await fetchDirect(`https://jellyfin.${publicDomain}/`, { auth: HAVE_AUTH })
+    const res = await fetchDirect(publicUrl('jellyfin', '/'), { auth: HAVE_AUTH })
 
     // Should not be a redirect to Access
     if (res.status >= 300 && res.status < 400) {
@@ -402,12 +413,12 @@ describeHttpsAuth('Security: Jellyfin public access (no Access/ZeroTrust)', () =
 
 describeHttpsAuth('Security: Admin services authentication', () => {
   const adminServiceUrls = [
-    { url: `https://jellyseerr.${publicDomain}/`, name: 'Jellyseerr' },
-    { url: `https://radarr.${publicDomain}/`, name: 'Radarr' },
-    { url: `https://sonarr.${publicDomain}/`, name: 'Sonarr' },
-    { url: `https://qb.${publicDomain}/`, name: 'qBittorrent' },
-    { url: `https://prowlarr.${publicDomain}/`, name: 'Prowlarr' },
-    { url: `https://sab.${publicDomain}/`, name: 'SABnzbd' }
+    { url: publicUrl('jellyseerr', '/'), name: 'Jellyseerr' },
+    { url: publicUrl('radarr', '/'), name: 'Radarr' },
+    { url: publicUrl('sonarr', '/'), name: 'Sonarr' },
+    { url: publicUrl('qb', '/'), name: 'qBittorrent' },
+    { url: publicUrl('prowlarr', '/'), name: 'Prowlarr' },
+    { url: publicUrl('sab', '/'), name: 'SABnzbd' }
   ]
 
   for (const { url, name } of adminServiceUrls) {
@@ -450,7 +461,7 @@ describeHttpsAuth('Security: WAF and rate limiting behavior', () => {
   it('Public services should not block legitimate requests', async () => {
     // Test that WAF rules don't break normal usage
     // This is a basic sanity check
-    const res = await fetchDirect(`https://jellyfin.${publicDomain}/`, { auth: HAVE_AUTH })
+    const res = await fetchDirect(publicUrl('jellyfin', '/'), { auth: HAVE_AUTH })
 
     // Should not get blocked by WAF (would be 403 or similar)
     assert.ok(
@@ -462,8 +473,8 @@ describeHttpsAuth('Security: WAF and rate limiting behavior', () => {
   it('HTTP requests should redirect to HTTPS (Cloudflare enforcement)', async () => {
     // All public domain requests should be HTTPS
     const httpServices = [
-      `http://jellyfin.${publicDomain}/`,
-      `http://radarr.${publicDomain}/`
+      `http://${publicHost('jellyfin')}/`,
+      `http://${publicHost('radarr')}/`
     ]
 
     for (const url of httpServices) {

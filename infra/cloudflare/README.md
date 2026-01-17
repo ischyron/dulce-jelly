@@ -8,7 +8,7 @@ This directory contains Pulumi TypeScript code to provision Cloudflare resources
 
 ## Important Notes
 
-- **Tunnel ingress rules remain local**: This IaC manages only Cloudflare-side resources. Your cloudflared tunnel ingress configuration stays in `media-server/cloudflared/config.yml`.
+- **Tunnel ingress rules remain local**: This IaC manages only Cloudflare-side resources. Your cloudflared tunnel ingress configuration stays in `cloudflared/config.yml`.
 - **Jellyfin stays public**: Cloudflare Access is NOT applied to Jellyfin because TV clients cannot complete Zero Trust login pages.
 - **LAN access unaffected**: Direct IP:port access on your local network continues to work regardless of these cloud settings.
 
@@ -197,4 +197,4 @@ Internet → Cloudflare Edge (WAF/Rate Limit/Access)
 - **Caddy**: HTTP routing and optional basic auth (for services not using Access)
 - **Services**: Your media stack containers
 
-For detailed architecture documentation, see [../../media-server/docs/Architecture.md](../../media-server/docs/Architecture.md) (once created).
+For detailed architecture documentation, see [../../docs/architecture.md](../../docs/architecture.md).

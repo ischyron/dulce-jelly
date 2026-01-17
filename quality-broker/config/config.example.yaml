@@ -19,62 +19,88 @@ openai:
 temperature: 0.15
 maxTokens: 320
 
-# Decision thresholds (global / objective)
 thresholds:
-criticScoreMin: 68
-
-# Popularity is noisy; use as hint only
-popularityHigh: 80
-popularityLow: 10
-
-# Votes exist in Radarr default payload: ratings.tmdb.votes (often)
-voteCountReliable: 400
-voteCountHigh: 3000
-
-# Allow LLM cultural-salience inference ONLY when critic+popularity are weak
-allowPopularityTierFallback: true
-popularityTierFallbackMaxPopularity: 2
+  criticScoreMin: 68
+  popularityHigh: 80
+  popularityLow: 10
+  voteCountReliable: 400
+  voteCountHigh: 3000
+  allowPopularityTierFallback: true
+  popularityTierFallbackMaxPopularity: 2
 
 releaseGroups:
-penalizeIfHighQuality4k: [ "YTS", "YIFY" ]
-preferIfHighQuality4k: [ "FLUX", "FraMeSToR", "Hallowed", "LAMA" ]
+  penalizeIfHighQuality4k: [ "YTS", "YIFY" ]
+  preferIfHighQuality4k: [ "FLUX", "FraMeSToR", "Hallowed", "LAMA" ]
 
 visualGenresHigh:
-- Action
-- Animation
-- Adventure
-- Sci-Fi
-- Fantasy
-- War
-- Thriller
+  - Action
+  - Animation
+  - Adventure
+  - Sci-Fi
+  - Fantasy
+  - War
+  - Thriller
 
-# Policies and instructions the LLM must follow (kept in YAML, not in code)
 policies:
-remux:
-  enabled: true
-  penaltyScore: -1000
-  sizeCapMbPerMin: 1
-  message: "Remux is fully blocked (score -1000, size cap 1MB/min). Do not pick remux or suggest it."
+  remux:
+    enabled: true
+    penaltyScore: -1000
+    sizeCapMbPerMin: 1
+    message: "Remux is fully blocked (score -1000, size cap 1MB/min). Do not pick remux or suggest it."
+  reasoning:
+    maxSentences: 2
+    forbidCurrentTrendsClaims: true
+    allowTimelessCulturalInference: true
 
-reasoning:
-  maxSentences: 2
-  forbidCurrentTrendsClaims: true
-  allowTimelessCulturalInference: true
-
-# Natural-language hints the LLM uses alongside metadata
 promptHints: |
-- Use only provided fields and thresholds; do not claim "currently trending" or recent buzz.
-- Treat popularity as noisy/unbounded; very low values (0-2) often mean "no signal", not "unpopular".
-- Use voteCountReliable as a minimum for trusting popularity/rating as stable.
-- HighQuality-4K is only for visually rich titles where 4K/HDR/DV adds real value.
-- Efficient-4K is for 4K-worthy titles with moderate payoff; compact encodes acceptable.
-- HD is for low-signal titles where 4K adds little value.
-- If releaseGroup is penalized (YTS/YIFY) and HighQuality-4K would be chosen, prefer Efficient-4K unless visual payoff is exceptional.
+  - Use only provided fields and thresholds; do not claim "currently trending" or recent buzz.
+  - Treat popularity as noisy/unbounded; very low values (0-2) often mean "no signal", not "unpopular".
+  - Use voteCountReliable as a minimum for trusting popularity/rating as stable.
+  - HighQuality-4K is only for visually rich titles where 4K/HDR/DV adds real value.
+  - Efficient-4K is for 4K-worthy titles with moderate payoff; compact encodes acceptable.
+  - HD is for low-signal titles where 4K adds little value.
+  - If releaseGroup is penalized (YTS/YIFY) and HighQuality-4K would be chosen, prefer Efficient-4K unless visual payoff is exceptional.
 
-# Allowed tags that flag reason for decision on quality
 reasonTags:
-popular: when upgrade reason is that film is popular / culturally significant
-criticScore: when upgrade reason is that film has a good critic score
-visual: when upgrade reason is that film is visually rich (action, animation, HDR/DV value)
-lowq: when current file quality is 720p or below
-met: when current file meets quality demands based on rules
+  popular: when upgrade reason is that film is popular / culturally significant
+  criticScore: when upgrade reason is that film has a good critic score
+  visual: when upgrade reason is that film is visually rich (action, animation, HDR/DV value)
+  lowq: when current file quality is 720p or below
+  met: when current file meets quality demands based on rules
+
+# --- NEW: static prompt scaffolding moved to YAML ---
+promptTemplate:
+  header: |
+    You are a Radarr Quality Broker and video-quality specialist.
+
+    You MUST:
+    - Choose exactly ONE profile from the provided profiles (exact match).
+    - Output JSON only in this format:
+      {"profile":"<profile>","rules":["<allowed reason>"...],"reasoning":"short","popularityTier"?: "low"|"mid"|"high"}
+
+  constraints: |
+    - rules must only use allowedReasons and include at least one.
+    - reasoning must be short and cite only provided fields.
+    - Output must be JSON only.
+
+  inputs: |
+    Decision inputs you will receive:
+    - criticScore, popularity, tmdbVotes, genres, studio, runtime, currentQuality, mediaInfo, releaseGroup
+    - thresholds, releaseGroups, visualGenresHigh, promptHints, policies
+
+  popularityTierPolicy: |
+    PopularityTier fallback policy:
+    - popularityTierPolicy.allow indicates whether you may emit popularityTier.
+    - If allow=true, infer TIMELESS cultural salience only from title/year/studio/genres/franchise archetypes.
+    - Do NOT claim anything about current trends or recent buzz.
+
+  groupsAndGenres: |
+    Release group guidance:
+    - Penalized groups for HighQuality-4K: {{penalizeGroups}}
+    - Preferred groups for HighQuality-4K: {{preferGroups}}
+
+    Visual richness guidance (for HighQuality-4K):
+    - Visual-rich genres: {{visualGenresHigh}}
+
+  remuxPolicy: |
+    Remux policy: {{remuxPolicyMessage}}

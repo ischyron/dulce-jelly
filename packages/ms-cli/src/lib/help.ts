@@ -1,4 +1,4 @@
-const { serviceMap } = require('./utils');
+import { serviceMap } from './utils';
 
 const commandsList = [
   '  up [--force] [service] → docker compose up -d [--force-recreate] <service>',
@@ -21,17 +21,15 @@ const commandsList = [
   '  doctor             → health + mounts + recent log scan'
 ];
 
-const serviceCodes = () => {
+function serviceCodes(): string[] {
   const lines = ['', 'Services (short codes):'];
   Object.entries(serviceMap).forEach(([code, name]) => {
     lines.push(`  ${code}  → ${name}`);
   });
   return lines;
-};
+}
 
-function printHelp() {
+export function printHelp(): void {
   console.log(['Usage: ms <command>', 'Commands:', ...commandsList].join('\n'));
   console.log(serviceCodes().join('\n'));
 }
-
-module.exports = { printHelp };

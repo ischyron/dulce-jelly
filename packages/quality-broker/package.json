@@ -1,7 +1,8 @@
 {
   "name": "quality-broker",
   "version": "0.1.0",
-  "description": "Radarr quality profile broker with LLM-driven decisions",
+  "description": "Radarr quality profile broker with LLM-driven decisions (OPTIONAL)",
+  "private": true,
   "engines": {
     "node": "22.19.0"
   },
@@ -11,7 +12,7 @@
     "build": "tsc -p .",
     "lint": "eslint 'src/**/*.ts'",
     "test": "ts-node test/test-run.ts",
-    "ms": "node ../ms/index.js"
+    "clean": "rm -rf dist"
   },
   "bin": {
     "quality-broker": "dist/index.js"

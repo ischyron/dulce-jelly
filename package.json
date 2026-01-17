@@ -3,19 +3,26 @@
   "private": true,
   "version": "0.1.1",
   "description": "Ops for your Personal Media Server",
+  "packageManager": "npm@11.0.0",
   "engines": {
     "node": "22.19.0"
   },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "ms": "node ms/index.js",
-    "setup": "npm install && (cd quality-broker && npm install && npm run build)",
-    "build": "cd quality-broker && npm run build",
-    "lint": "npx eslint ms/**/*.js && cd quality-broker && npm run lint"
-  },
-  "dependencies": {
-    "colorette": "^2.0.20"
+    "ms": "node packages/ms-cli/dist/index.js",
+    "setup": "npm install && turbo build",
+    "build": "turbo build",
+    "build:core": "turbo build --filter=ms-cli",
+    "build:optional": "turbo build --filter=quality-broker --filter=infra-setup",
+    "lint": "turbo lint",
+    "test": "turbo test",
+    "clean": "turbo clean && rm -rf node_modules packages/*/node_modules packages/*/dist apps/*/node_modules"
   },
   "devDependencies": {
-    "eslint": "^8.57.0"
+    "eslint": "^8.57.0",
+    "turbo": "^2.7.5"
   }
 }

@@ -1,27 +1,45 @@
 #!/usr/bin/env node
-const path = require('path');
-const fs = require('fs');
-const { runCompose, runCommand } = require('./lib/docker');
-const envLib = require('./lib/env');
-const { green, red, yellow, dim, cyan, stripAnsi } = require('./lib/colors');
-const { resolveServiceLoose, parseComposeJson, formatPorts, colorLogLine } = require('./lib/utils');
-const { printHelp } = require('./lib/help');
-const cmd = require('./lib/commands');
+import * as path from 'path';
+import * as fs from 'fs';
+import { runCompose, CommandResult } from './lib/docker';
+import * as envLib from './lib/env';
+import { green, red, yellow, dim, cyan, stripAnsi } from './lib/colors';
+import { resolveServiceLoose, parseComposeJson, formatPorts, colorLogLine, ComposeRow } from './lib/utils';
+import { printHelp } from './lib/help';
+import * as cmd from './lib/commands';
 
-const baseDir = path.join(__dirname, '..');
+const baseDir = path.join(__dirname, '..', '..', '..');
 
-const commands = {
+interface HealthEntry {
+  name: string;
+  state: string;
+  health: string;
+  uptime: string | number;
+  ports: string;
+}
+
+interface RecyclarrSyncInfo {
+  display: string;
+}
+
+interface MountCheckResult {
+  ok: boolean;
+}
+
+type CommandFunction = (args?: string[]) => number | void;
+
+const commands: Record<string, CommandFunction> = {
   help: () => printHelp(),
-  up: (args) => cmd.up(args),
+  up: (args) => cmd.up(args || []),
   down: () => cmd.down(),
   status: () => cmd.status(),
-  start: (args) => { ensureArg(args && args.length, 'start <service>'); return cmd.start(args); },
+  start: (args) => { ensureArg(args && args.length, 'start <service>'); return cmd.start(args || []); },
   logs: (args) => cmd.logs(args || []),
-  stop: (args) => { ensureArg(args && args.length, 'stop <service>'); return cmd.stop(args); },
-  restart: (args) => { const svc = resolveServiceLoose(args[0]); ensureArg(svc, 'restart <service>'); return cmd.restart([svc]); },
-  reload: (args) => { const target = args[0]; ensureArg(target, 'reload <caddy|tunnel>'); return cmd.reload([target]); },
+  stop: (args) => { ensureArg(args && args.length, 'stop <service>'); return cmd.stop(args || []); },
+  restart: (args) => { const svc = resolveServiceLoose((args || [])[0]); ensureArg(svc, 'restart <service>'); return cmd.restart([svc]); },
+  reload: (args) => { const target = (args || [])[0]; ensureArg(target, 'reload <caddy|tunnel>'); return cmd.reload([target]); },
   sync: () => cmd.sync(),
-  'qb-run': (args) => cmd.qualityBrokerRun(args),
+  'qb-run': (args) => cmd.qualityBrokerRun(args || []),
   'qb-log': () => cmd.qualityBrokerLogs(),
   test: () => cmd.testCmd(baseDir),
   env: () => {
@@ -40,8 +58,8 @@ const commands = {
   },
   ports: () => {
     const env = envLib.loadEnv(baseDir);
-    const d = (key, fallback) => env[key] || fallback;
-    const ports = {
+    const d = (key: string, fallback: string) => env[key] || fallback;
+    const ports: Record<string, string> = {
       caddy: d('CADDY_HTTP_PORT', '80'),
       caddy_tls: d('CADDY_HTTPS_PORT', '443'),
       jellyfin: d('JELLYFIN_HTTP_PORT', '3278'),
@@ -70,32 +88,32 @@ const commands = {
   }
 };
 
-function formatHealth(val) {
+function formatHealth(val: string | undefined): string {
   const v = (val || '').toString();
   if (!v || v.toLowerCase() === 'n/a') return dim('n/a');
   if (v.toLowerCase() === 'healthy') return green('healthy');
   return red(v);
 }
 
-function getHealthEntries() {
-  const res = runCompose(['ps', '--format', 'json'], { capture: true });
-  const qbRes = runCompose(['--profile', 'quality-broker', 'ps', '--format', 'json'], { capture: true });
+function getHealthEntries(): HealthEntry[] | null {
+  const res = runCompose(['ps', '--format', 'json'], { capture: true }) as CommandResult;
+  const qbRes = runCompose(['--profile', 'quality-broker', 'ps', '--format', 'json'], { capture: true }) as CommandResult;
   if (res.code !== 0 && qbRes.code !== 0) return null;
   const rows = (parseComposeJson(res.stdout) || []).concat(parseComposeJson(qbRes.stdout) || []);
   if (!rows || rows.length === 0) {
     console.error('Failed to parse compose ps output');
     return null;
   }
-  const seen = new Set();
+  const seen = new Set<string>();
   const syncInfo = getRecyclarrLastSync();
   return rows
-    .filter((row) => {
+    .filter((row: ComposeRow) => {
       const name = row.Name || row.Service || row.name;
       if (!name || seen.has(name)) return false;
       seen.add(name);
       return true;
     })
-    .map((row) => ({
+    .map((row: ComposeRow) => ({
       name: row.Name || row.Service || row.name || 'unknown',
       state: row.State || row.state || row.Status || row.status || 'unknown',
       health: row.Health || row.health || 'n/a',
@@ -106,10 +124,10 @@ function getHealthEntries() {
     }));
 }
 
-function printHealthTable(entries) {
+function printHealthTable(entries: HealthEntry[]): void {
   const headers = ['SERVICE', 'STATE', 'HEALTH', 'UPTIME', 'PORTS'];
   const colWidths = [18, 14, 10, 14, 0];
-  const pad = (str, len) => {
+  const pad = (str: string, len: number): string => {
     if (len === 0) return str; // last column free-form
     const plainLen = stripAnsi(str).length;
     if (plainLen >= len) return str;
@@ -141,11 +159,11 @@ function printHealthTable(entries) {
   });
 }
 
-function checkMounts() {
+function checkMounts(): MountCheckResult {
   const env = envLib.loadEnv(baseDir);
   const downloadsRoot = env.DOWNLOADS_ROOT || '/Volumes/SCRAPFS/downloads';
   const incompleteRoot = env.INCOMPLETE_ROOT || `${downloadsRoot}/incomplete`;
-  const paths = {
+  const paths: Record<string, string> = {
     JELLYFIN_MOVIES: env.JELLYFIN_MOVIES || '/Volumes/MEDIA1/Movies',
     JELLYFIN_SERIES: env.JELLYFIN_SERIES || '/Volumes/MEDIA1/Series',
     DOWNLOADS_ROOT: downloadsRoot,
@@ -162,7 +180,7 @@ function checkMounts() {
   return { ok };
 }
 
-function runDoctor() {
+function runDoctor(): number {
   console.log(cyan('=== HEALTH ==='));
   const entries = getHealthEntries();
   if (!entries) return 1;
@@ -180,16 +198,14 @@ function runDoctor() {
   const mountRes = checkMounts();
 
   console.log('\n' + cyan('=== RECENT LOGS (Last 50 lines. Ignore if you have resolved them.) ==='));
-  let logIssues = false;
   entries.forEach((entry) => {
     if (entry.name === 'recyclarr') {
       console.log(`${entry.name}: skipped (optional)`);
       return;
     }
-    const res = runCompose(['logs', '--no-log-prefix', '--timestamps', '--tail', '50', entry.name], { capture: true });
+    const res = runCompose(['logs', '--no-log-prefix', '--timestamps', '--tail', '50', entry.name], { capture: true }) as CommandResult;
     if (res.code !== 0) {
       console.log(`${entry.name}: ${red('[logs unavailable]')}`);
-      logIssues = true;
       return;
     }
     const lines = res.stdout.split(/\r?\n/);
@@ -197,7 +213,6 @@ function runDoctor() {
     if (errs.length === 0) {
       console.log(`${entry.name}: ${green('[ok]')}`);
     } else {
-      logIssues = true;
       const sample = errs.slice(-3).map((l) => colorLogLine(l, { red, yellow, dim })).join('\n    ');
       console.log(`${entry.name}: ${red(`[${errs.length} issue(s)]`)}
     ${sample}`);
@@ -208,7 +223,7 @@ function runDoctor() {
   return healthIssues || !mountRes.ok ? 1 : 0;
 }
 
-function getRecyclarrLastSync() {
+function getRecyclarrLastSync(): RecyclarrSyncInfo {
   // Prefer persisted logs under /config
   const logPaths = [
     path.join(baseDir, 'data/recyclarr/config/logs'),
@@ -232,7 +247,7 @@ function getRecyclarrLastSync() {
 
   // Fallback: container logs
   try {
-    const res = runCompose(['logs', '--tail', '200', 'recyclarr'], { capture: true });
+    const res = runCompose(['logs', '--tail', '200', 'recyclarr'], { capture: true }) as CommandResult;
     if (res.code === 0 && res.stdout) {
       const parsed = parseRecyclarrLogContent(res.stdout);
       if (parsed) return parsed;
@@ -244,7 +259,7 @@ function getRecyclarrLastSync() {
   return { display: yellow('last sync: unknown') };
 }
 
-function parseRecyclarrLogContent(content) {
+function parseRecyclarrLogContent(content: string): RecyclarrSyncInfo | null {
   const lines = content.split(/\r?\n/).filter(Boolean).reverse();
   const target = lines.find((l) => /\d{4}-\d{2}-\d{2}T/.test(l));
   if (!target) return null;
@@ -255,23 +270,23 @@ function parseRecyclarrLogContent(content) {
   return { display: `${dim('last sync:')} ${ts} (${statusText})` };
 }
 
-function ensureArg(val, usage) {
+function ensureArg(val: unknown, usage: string): void {
   if (!val) throw usageError(usage);
 }
 
-function usageError(msg) {
+function usageError(msg: string): Error {
   return new Error(`Usage: ms ${msg}`);
 }
 
-function main() {
-  const [, , cmd, ...args] = process.argv;
-  if (!cmd || cmd === '--help' || cmd === '-h') {
+function main(): void {
+  const [, , cmdArg, ...args] = process.argv;
+  if (!cmdArg || cmdArg === '--help' || cmdArg === '-h') {
     printHelp();
     process.exit(0);
   }
-  const fn = commands[cmd];
+  const fn = commands[cmdArg];
   if (!fn) {
-    console.error(`Unknown command: ${cmd}`);
+    console.error(`Unknown command: ${cmdArg}`);
     printHelp();
     process.exit(1);
   }
@@ -279,9 +294,11 @@ function main() {
     const code = fn(args);
     if (typeof code === 'number') process.exit(code);
     process.exit(0);
-  } catch (err) {
-    console.error(err.message || err);
+  } catch (err: unknown) {
+    const error = err as Error;
+    console.error(error.message || err);
     process.exit(1);
   }
 }
+
 main();

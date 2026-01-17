@@ -1,0 +1,29 @@
+{
+  "name": "ms-cli",
+  "version": "0.1.1",
+  "description": "Media Server CLI for DulceJelly",
+  "private": true,
+  "engines": {
+    "node": "22.19.0"
+  },
+  "main": "dist/index.js",
+  "bin": {
+    "ms": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint 'src/**/*.ts'",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "colorette": "^2.0.20"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
+    "eslint": "^8.57.0",
+    "typescript": "^5.4.5"
+  }
+}

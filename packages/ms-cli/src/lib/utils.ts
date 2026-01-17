@@ -1,4 +1,4 @@
-const serviceMap = {
+export const serviceMap: Record<string, string> = {
   jf: 'jellyfin',
   js: 'jellyseerr',
   qb: 'qbittorrent',
@@ -12,7 +12,7 @@ const serviceMap = {
   cf: 'cloudflared'
 };
 
-function resolveService(key) {
+export function resolveService(key: string | undefined): string | null {
   if (!key) return null;
   const lower = key.toLowerCase();
   if (serviceMap[lower]) return serviceMap[lower];
@@ -22,12 +22,17 @@ function resolveService(key) {
   return null;
 }
 
-function resolveServiceLoose(key) {
+export function resolveServiceLoose(key: string): string {
   return resolveService(key) || key;
 }
 
-function parseUpArgs(args) {
-  const out = { force: false, services: [] };
+export interface UpArgs {
+  force: boolean;
+  services: string[];
+}
+
+export function parseUpArgs(args: string[]): UpArgs {
+  const out: UpArgs = { force: false, services: [] };
   for (const arg of args) {
     if (arg === '--force' || arg === '--force-recreate' || arg === '-f') {
       out.force = true;
@@ -38,7 +43,33 @@ function parseUpArgs(args) {
   return out;
 }
 
-function parseComposeJson(stdout) {
+export interface Publisher {
+  URL?: string;
+  PublishedPort?: number;
+  TargetPort?: number;
+  Protocol?: string;
+}
+
+export interface ComposeRow {
+  Name?: string;
+  Service?: string;
+  name?: string;
+  State?: string;
+  state?: string;
+  Status?: string;
+  status?: string;
+  Health?: string;
+  health?: string;
+  RunningFor?: string;
+  runningFor?: string;
+  RunningForSeconds?: number;
+  Publishers?: Publisher[];
+  publishers?: Publisher[];
+  Ports?: string | Publisher[];
+  ports?: string | Publisher[];
+}
+
+export function parseComposeJson(stdout: string): ComposeRow[] {
   const text = stdout.trim();
   if (!text) return [];
   try {
@@ -46,7 +77,7 @@ function parseComposeJson(stdout) {
     return Array.isArray(parsed) ? parsed : [parsed];
   } catch (e) {
     const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-    const items = [];
+    const items: ComposeRow[] = [];
     for (const line of lines) {
       try {
         items.push(JSON.parse(line));
@@ -58,7 +89,7 @@ function parseComposeJson(stdout) {
   }
 }
 
-function formatPorts(val) {
+export function formatPorts(val: string | Publisher[] | undefined): string {
   if (Array.isArray(val)) {
     const mapped = val
       .map((p) => {
@@ -75,20 +106,11 @@ function formatPorts(val) {
   return '';
 }
 
-function colorLogLine(line, { red, yellow, dim }) {
+export function colorLogLine(line: string, colors: { red: (s: string) => string; yellow: (s: string) => string; dim: (s: string) => string }): string {
+  const { red, yellow, dim } = colors;
   let out = line;
   out = out.replace(/\b(ERROR|FATAL|EXCEPTION)\b/gi, (m) => red(m));
   out = out.replace(/\b(WRN|WARN|WARNING)\b/gi, (m) => yellow(m));
   out = out.replace(/\b(INFO)\b/gi, (m) => dim(m));
   return out;
 }
-
-module.exports = {
-  serviceMap,
-  resolveService,
-  resolveServiceLoose,
-  parseUpArgs,
-  parseComposeJson,
-  formatPorts,
-  colorLogLine
-};

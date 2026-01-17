@@ -424,11 +424,52 @@ Managed by `infra/cloudflare/` Pulumi project:
   - Header forwarding
   - Static file serving
 
+## Repository Structure
+
+DulceJelly uses a monorepo structure with npm workspaces and Turborepo for build management:
+
+```
+dulce-jelly/
+├── packages/                       # Workspace packages
+│   ├── ms-cli/                     # TypeScript CLI (CORE - required)
+│   │   ├── src/                    # TypeScript source files
+│   │   ├── dist/                   # Compiled JavaScript output
+│   │   ├── tsconfig.json           # TypeScript config
+│   │   └── package.json            # Package definition
+│   ├── quality-broker/             # LLM quality broker (OPTIONAL)
+│   │   └── src/                    # TypeScript source
+│   └── infra-setup/                # Infrastructure setup scripts (OPTIONAL)
+│       └── src/                    # TypeScript source
+├── apps/                           # Application packages
+│   └── cloudflare/                 # Pulumi IaC for Cloudflare (OPTIONAL)
+│       └── index.ts                # Pulumi program
+├── turbo.json                      # Turborepo pipeline config
+└── package.json                    # Root workspace config
+```
+
+### Build System
+
+- **Tool**: Turborepo with npm workspaces
+- **Build all**: `npm run build` (builds all packages with caching)
+- **Build core**: `npm run build:core` (ms-cli only)
+- **Build optional**: `npm run build:optional` (quality-broker, infra-setup)
+- **Lint**: `npm run lint` (lints all TypeScript packages)
+- **Cache**: Turborepo caches build outputs (typical rebuild: ~50ms)
+
+### Package Types
+
+- **ms-cli**: Core CLI tool for managing Docker stack - REQUIRED
+- **quality-broker**: LLM-driven Radarr quality profile assignment - OPTIONAL
+- **infra-setup**: Infrastructure setup wizard - OPTIONAL
+- **cloudflare**: Pulumi IaC for DNS/WAF/tunnels - OPTIONAL
+
+Optional packages are not needed for core media stack operation.
+
 ## File Structure
 
 ```
 dulce-jelly/
-├── 
+├──
 │   ├── docker-compose.yml          # Service definitions
 │   ├── .env                         # Environment variables (not in git)
 │   ├── .env.example                 # Template
@@ -453,7 +494,7 @@ dulce-jelly/
 │   ├── test/
 │   │   └── test-services.test.mjs   # Smoke tests
 │   └── docs/
-│       ├── Architecture.md          # This file
+│       ├── architecture.md          # This file
 │       ├── service-setup-guide.md   # Setup instructions
 │       └── cloudflared-setup.md     # Tunnel setup guide
 ├── infra/

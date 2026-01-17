@@ -1,21 +1,25 @@
-const fs = require('fs');
-const path = require('path');
+import * as fs from 'fs';
+import * as path from 'path';
 
-function loadEnv(baseDir) {
+export interface EnvVars {
+  [key: string]: string | undefined;
+}
+
+export function loadEnv(baseDir: string): EnvVars {
   const envPath = path.join(baseDir, '.env');
   const fileEnv = fs.existsSync(envPath) ? parseEnv(fs.readFileSync(envPath, 'utf-8')) : {};
   return { ...fileEnv, ...process.env };
 }
 
-function stripQuotes(val) {
+function stripQuotes(val: string): string {
   if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
     return val.slice(1, -1);
   }
   return val;
 }
 
-function parseEnv(content) {
-  const out = {};
+function parseEnv(content: string): EnvVars {
+  const out: EnvVars = {};
   content.split('\n').forEach((line) => {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) return;
@@ -28,15 +32,13 @@ function parseEnv(content) {
   return out;
 }
 
-
-function checkPath(p) {
+export function checkPath(p: string): string {
   try {
     fs.accessSync(p, fs.constants.R_OK | fs.constants.W_OK);
     return '[ok]';
-  } catch (err) {
-    if (err.code === 'ENOENT') return '[missing]';
-    return `[no-access: ${err.code || 'error'}]`;
+  } catch (err: unknown) {
+    const error = err as NodeJS.ErrnoException;
+    if (error.code === 'ENOENT') return '[missing]';
+    return `[no-access: ${error.code || 'error'}]`;
   }
 }
-
-module.exports = { loadEnv, checkPath };

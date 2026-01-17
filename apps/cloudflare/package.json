@@ -1,11 +1,13 @@
 {
-  "name": "dulcejelly-cloudflare-infra",
+  "name": "cloudflare-infra",
   "version": "1.0.0",
-  "description": "Pulumi TypeScript project for DulceJelly Cloudflare infrastructure",
+  "description": "Pulumi TypeScript project for DulceJelly Cloudflare infrastructure (OPTIONAL)",
   "main": "index.ts",
+  "private": true,
   "scripts": {
     "build": "tsc",
-    "lint": "eslint ."
+    "lint": "eslint '*.ts'",
+    "clean": "rm -rf bin node_modules"
   },
   "keywords": [
     "pulumi",
@@ -19,6 +21,9 @@
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^7.7.1",
+    "@typescript-eslint/parser": "^7.7.1",
+    "eslint": "^8.57.0",
     "typescript": "^5.3.0"
   }
 }

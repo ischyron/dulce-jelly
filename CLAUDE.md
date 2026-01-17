@@ -83,6 +83,38 @@
 - Non-root containers via PUID/PGID; keep peer/admin ports firewalled.
 - Maintainability: README stays high-level; this file is authoritative for defaults/heuristics; keep setup in env/checked config, not new CLI flags.
 
+## Repository Structure (Monorepo)
+
+The repository uses npm workspaces and Turborepo for monorepo management:
+
+```
+dulce-jelly/
+├── packages/              # Workspace packages
+│   ├── ms-cli/           # TypeScript CLI (CORE - required)
+│   ├── quality-broker/   # LLM quality broker (OPTIONAL)
+│   └── infra-setup/      # Infrastructure setup (OPTIONAL)
+├── apps/                 # Application packages
+│   └── cloudflare/       # Pulumi IaC for Cloudflare (OPTIONAL)
+├── turbo.json            # Turborepo pipeline config
+└── package.json          # Root workspace config
+```
+
+### Build System
+- **Tool:** Turborepo with npm workspaces
+- **Build all:** `npm run build` (builds all packages with caching)
+- **Build core:** `npm run build:core` (ms-cli only)
+- **Build optional:** `npm run build:optional` (quality-broker, infra-setup)
+- **Lint:** `npm run lint` (lints all packages)
+- **Cache:** Turbo automatically caches build outputs for speed
+
+### Package Status
+- **ms-cli** (packages/ms-cli): TypeScript CLI - CORE/REQUIRED
+- **quality-broker** (packages/quality-broker): TypeScript - OPTIONAL
+- **infra-setup** (packages/infra-setup): TypeScript - OPTIONAL
+- **cloudflare** (apps/cloudflare): Pulumi TypeScript - OPTIONAL
+
+Optional packages are not required for core media stack operation.
+
 ## Architecture Diagram
 - Source: `docs/architecture.mmd` (Mermaid).
 - Render (requires mermaid-cli): `npx -y @mermaid-js/mermaid-cli -i docs/architecture.mmd -o docs/architecture.png` (network/install step; may take time).

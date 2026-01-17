@@ -135,7 +135,7 @@ A Cloudflare Tunnel lets you access your server from anywhere without opening fi
 
 4. **Skip the route configuration** in the Cloudflare dashboard - this is handled automatically by your local configuration.
 
-### Step 4: Configure Cloudflare (Infrastructure as Code)
+### Step 4: Configure Cloudflare (optional: to reach your services through internet)
 
 Now we'll set up DNS records and security rules in Cloudflare:
 
@@ -306,7 +306,7 @@ Tests check:
 
 ## Documentation
 
-- **[Architecture.md](docs/Architecture.md)** - Technical details, request flow, security model
+- **[architecture.md](docs/architecture.md)** - Technical details, request flow, security model
 - **[Service Setup Guide](docs/service-setup-guide.md)** - Detailed configuration for each service
 - **[Cloudflare Tunnel Setup](docs/cloudflared-setup.md)** - In-depth tunnel configuration
 - **[ms CLI](docs/ms-cli.md)** - Short commands for operating the stack
@@ -331,7 +331,7 @@ Service (Jellyfin, Radarr, etc.)
 Your Personal Media Library
 ```
 
-**See [Architecture.md](docs/Architecture.md) for technical deep dive.**
+**See [architecture.md](docs/architecture.md) for technical deep dive.**
 
 ## Troubleshooting
 
@@ -388,7 +388,7 @@ The preflight scripts handle:
 
 ## Need Help?
 
-- **Architecture questions**: See [Architecture.md](docs/Architecture.md)
+- **Architecture questions**: See [architecture.md](docs/architecture.md)
 - **Service setup**: See [Service Setup Guide](docs/service-setup-guide.md)
 - **Cloudflare issues**: See [Pulumi README](infra/cloudflare/README.md)
 - **Report issues**: Check [TODO.md](TODO.md) or open a GitHub issue

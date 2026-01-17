@@ -211,13 +211,14 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         autoAssignProfile: config.autoAssignProfile
       });
       if (verbose) {
+        const decisionLog = {
+          profile: decision.profile,
+          rules: decision.rules,
+          reasoning: decision.reasoning,
+          ...(typeof decision.popularityTier === 'string' ? { popularityTier: decision.popularityTier } : {})
+        };
         console.log(
-          `[Verbose] Decision for ${movie.title}: ${JSON.stringify({
-            profile: decision.profile,
-            rules: decision.rules,
-            reasoning: decision.reasoning,
-            popularityTier: decision.popularityTier ?? null
-          })}`
+          `[Verbose] Decision for ${movie.title}: ${JSON.stringify(decisionLog)}`
         );
       }
       const result = await applyDecision({

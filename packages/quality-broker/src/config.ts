@@ -24,15 +24,15 @@ const DEFAULT_POLICIES: Policies = {
 
 const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
   prelude:
-    'You are a Radarr quality profile decision agent. Respond ONLY with a single JSON object matching the schema. No markdown or code blocks. Use only the provided input JSON; do not use outside knowledge.',
+    'You are a Radarr quality profile decision agent. Respond ONLY with a single JSON object matching the schema. No markdown or code blocks. Use only the provided input JSON.',
   header:
-    'Required JSON keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences, must cite input fields/values), optional popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.',
+    'Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Include popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.',
   constraints:
-    'Grounding: reasoning must reference input fields (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, thresholds, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
+    'Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
   inputs:
-    'Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base all decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
+    'Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
   popularityTierPolicy:
-    'If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference. If false, omit popularityTier entirely.',
+    'If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference only. If false, omit popularityTier entirely.',
   groupsAndGenres:
     'Visual genres with high payoff: {{visualGenresHigh}}.'
 };

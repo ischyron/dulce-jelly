@@ -50,14 +50,35 @@ policies:
     allowTimelessCulturalInference: true
 
 promptHints: |
-  - Use only provided fields and thresholds; do not claim "currently trending" or recent buzz.
-  - Treat popularity as noisy/unbounded.
-  - Use voteCountReliable as a minimum for trusting popularity/rating as stable.
-  - If criticScore >= 84, choose HighQuality-4K regardless of genre signals.
-  - HighQuality-4K is only for visually rich titles where 4K/HDR/DV adds real value.
-  - Efficient-4K is for 4K-worthy titles with moderate payoff; compact encodes acceptable.
-  - HD is for low-signal titles where 4K adds little value.
+  - Use only the provided fields and thresholds. Do not claim recency, trends, or external buzz.
+  - Treat popularity as noisy and unbounded; only trust it when voteCountReliable is met.
+  - Do not infer anything beyond criticScore, popularity, genre, and visual richness signals.
+  - A Visually rich film is one that has visualGenresHigh or a combination of these genres or where HDR/DV adds value.
+  
+  - If criticScore >= 76:
+      Choose HighQuality-4K (override all other signals).
 
+  - If criticScore is between 70 and 76 (inclusive):
+      Default to HighQuality-4K 
+      Lower to Efficient-4K only if NO strong popularity and/or NO clear visual-richness signals exist.
+
+  - If criticScore is between 65 and 76 (inclusive):
+      Choose Efficient-4K only when popularity is reasonably high and strong popularity is met.
+      Otherwise, choose HD.
+
+  - If criticScore <= 60:
+      Never choose HighQuality-4K, even if visually rich.
+      Prefer HD unless other signals strongly justify Efficient-4K.
+
+  - Visual richness rule:
+      If a film is visually rich (cinematography, VFX, HDR/DV benefit),
+      prefer HighQuality-4K unless blocked by low criticScore (<=60).
+
+  - Profile intent summary:
+      - HighQuality-4K: top-tier critical reception or visually rich prestige titles.
+      - Efficient-4K: 4K-worthy films with solid but not exceptional signals.
+      - HD: low-signal, low-score, or utility titles where 4K adds little value.
+      
 reasonTags:
   popular: when upgrade reason is that film is popular / culturally significant
   criticScore: when upgrade reason is that film has a good critic score
@@ -69,12 +90,12 @@ promptTemplate:
   prelude: |
     You are a Radarr quality profile decision agent. Respond ONLY with a single JSON object matching the schema. No markdown or code blocks.
   header: |
-    Required JSON keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences), optional popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.
+    Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Include popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.
   constraints: |
-    Grounding: reasoning must reference input fields (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, thresholds, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.
+    Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.
   inputs: |
-    Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base all decisions only on these fields; if data is missing or weak, choose the safer lower profile.
+    Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.
   popularityTierPolicy: |
-    If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference. If false, omit popularityTier entirely.
+    If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference only. If false, omit popularityTier entirely.
   groupsAndGenres: |
     Visual genres with high payoff: {{visualGenresHigh}}.

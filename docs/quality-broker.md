@@ -26,7 +26,7 @@ Key fields (see comments in example):
 - `openai.apiKey` (required in config only), `openai.model` (default gpt-4-turbo)
 - `promptHints`: natural-language heuristics to steer choices
 - `remuxPenalty`: reminder that remux stays blocked (score -1000, 1MB/min cap)
-- `reasonTags`: allowed demand reasons → tags `demand-<reason>` (e.g., popular, criticScore, visual, lowq)
+- `reasonTags`: allowed demand reasons → tags (e.g., popular, criticScore, visual, lowq)
 
 Environment fallbacks: `QUALITY_BROKER_CONFIG` (override config path).
 

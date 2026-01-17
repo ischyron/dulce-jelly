@@ -202,19 +202,20 @@ services:
       start_period: 20s
 
   quality-broker:
-    image: node:22-alpine
+    build:
+      context: ./quality-broker
+      dockerfile: Dockerfile
+    image: quality-broker:latest
     container_name: quality-broker
     hostname: quality-broker
     restart: unless-stopped
-    working_dir: /app
-    command: ["sh", "-c", "SCHED=\"${CRON_SCHEDULE:-0 0 * * *}\"; echo \"Starting cron schedule using: $${SCHED}\"; printf '%s\n' \"$${SCHED} cd /app && node dist/index.js run >> /proc/1/fd/1 2>> /proc/1/fd/2\" > /etc/crontabs/root; exec crond -f -l 2 -L /proc/1/fd/1"]
     environment:
+      TZ: "${TZ:-Asia/Tashkent}"
+      CRON_SCHEDULE: "${QUALITY_BROKER_CRON:-0 0 * * *}"
       LAN_HOSTNAME: "${LAN_HOSTNAME}"
       RADARR_PORT: "${RADARR_PORT:-3273}"
-      QUALITY_BROKER_CONFIG: "${QUALITY_BROKER_CONFIG:-}"
-      CRON_SCHEDULE: "${QUALITY_BROKER_CRON:-0 0 * * *}"
+      QUALITY_BROKER_CONFIG: "${QUALITY_BROKER_CONFIG:-/data/quality-broker/config/config.yaml}"
     volumes:
-      - ./quality-broker:/app:ro
       - ./data/quality-broker:/data/quality-broker
     depends_on:
       - radarr

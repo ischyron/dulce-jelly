@@ -6,9 +6,10 @@
 - Strike out or mark status when done/blocked.
 
 ### Items
-- [DONE] Switch Node version to v22.19.0 and reinstall packages (align with .nvmrc once decided).
-- [DONE] Add `ms` CLI commands to invoke quality-broker (build/run/log helpers) once the image is in regular use.
-
+- [] Bug: Quality broker: --batch-size cannto be read from CLI ms qgb-run -- --batch-size 1 doesnt work
+- [] Bug: Quality broker: no docker logs seen ececpt sh: 0: not found
+- [] Bug: Quality broker: Format for output on console wrong. Sucess message logged when one or more runs have errors (eg: reasning missing from LLM). 
+- [] Bug: Quality broker: Also Color for failure is applied on Success message.
 - [BLOCKED] Approch refinement needed: When logged in on mymedialibrary.example via Caddy I need same login to work for the sub domains like sab.mymedialibrary.example. Blocked on moving auth to Zero trust Cloudlfare as it supports only 5 domains in FREE and this is a re-usable tech stack and I dont want to rely on cost heavy setup. Current approch is to understad more details around DNS config to be made to allow *.mymedialibrary.example to be under auth mapping to tunnel domains and then add exclusion policy for jellyfin.
 - [BLOCKED] Set up Jellyseerr config in Jellyfin Enhanced plugin so Jellyfin users can add movies (requires Jellyfin UI access).
 

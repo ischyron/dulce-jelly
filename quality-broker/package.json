@@ -10,7 +10,8 @@
   "scripts": {
     "build": "tsc -p .",
     "lint": "eslint 'src/**/*.ts'",
-    "test": "ts-node test/test-run.ts"
+    "test": "ts-node test/test-run.ts",
+    "ms": "node ../ms/index.js"
   },
   "bin": {
     "quality-broker": "dist/index.js"

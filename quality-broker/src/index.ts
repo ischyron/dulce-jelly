@@ -140,19 +140,24 @@ async function run(batchSizeOverride?: number) {
   }
 
   const logPath = logger.writeLog(runLog);
+  const failedCount = candidates.length - successCount;
   const summary: RunSummary = {
     runAt: new Date().toISOString(),
     batchSize,
     processed: candidates.length,
     succeeded: successCount,
-    failed: candidates.length - successCount,
+    failed: failedCount,
     logPath
   };
   logger.writeStatus(summary);
   const { default: chalk } = await import('chalk');
-  const msg = `Run complete. Success ${successCount}/${candidates.length}. Log: ${logPath}`;
-  const colored = successCount === candidates.length ? chalk.green(msg) : msg;
-  console.log(colored);
+
+  // Format output with proper coloring
+  const statusText = failedCount === 0
+    ? chalk.green('Success')
+    : chalk.red('Completed with failures');
+  const counts = `${chalk.green(String(successCount))} succeeded, ${failedCount > 0 ? chalk.red(String(failedCount)) : '0'} failed`;
+  console.log(`Run complete. ${statusText}: ${counts} out of ${candidates.length}. Log: ${logPath}`);
 }
 
 async function applyDecision(params: {

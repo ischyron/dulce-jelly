@@ -1,7 +1,7 @@
 import OpenAI from 'openai';
 import { BrokerConfig, DecisionInput, DecisionResult } from './types.js';
 
-const MAX_LLM_ATTEMPTS = 2;
+const MAX_LLM_ATTEMPTS = 3;
 
 type PopularityTier = 'low' | 'mid' | 'high';
 
@@ -176,8 +176,19 @@ export class LLMAgent {
 
     const systemPrompt = buildSystemPrompt(this.config);
 
+    // Debug: log system prompt on first movie only (avoid spam)
+    if (process.env.DEBUG_LLM_PROMPT === 'true') {
+      console.log('=== LLM System Prompt ===');
+      console.log(systemPrompt);
+      console.log('=== Message Content Sample ===');
+      console.log(JSON.stringify(messageContent, null, 2).substring(0, 500));
+      console.log('========================');
+    }
+
     let parsed: any;
     let lastError: Error | null = null;
+    let lastRaw: string = '';
+
     for (let attempt = 1; attempt <= MAX_LLM_ATTEMPTS; attempt += 1) {
       const completion = await this.client.chat.completions.create({
         model,
@@ -191,27 +202,32 @@ export class LLMAgent {
       });
 
       const raw = completion.choices[0]?.message?.content;
+      lastRaw = raw || '';
+
       if (!raw) {
-        lastError = new Error('Empty response from LLM');
+        lastError = new Error(`Empty response from LLM (attempt ${attempt}/${MAX_LLM_ATTEMPTS})`);
         continue;
       }
 
       try {
         parsed = JSON.parse(raw);
         if (!parsed.reasoning || typeof parsed.reasoning !== 'string' || !parsed.reasoning.trim()) {
-          lastError = new Error('LLM returned no reasoning.');
+          console.error(`[Attempt ${attempt}/${MAX_LLM_ATTEMPTS}] LLM response missing reasoning. Raw response:`, raw.substring(0, 200));
+          lastError = new Error(`LLM returned no reasoning (attempt ${attempt}/${MAX_LLM_ATTEMPTS})`);
           continue;
         }
         // success
         lastError = null;
         break;
-      } catch {
-        lastError = new Error(`Failed to parse LLM response: ${raw}`);
+      } catch (parseErr) {
+        console.error(`[Attempt ${attempt}/${MAX_LLM_ATTEMPTS}] Failed to parse LLM response:`, raw.substring(0, 200));
+        lastError = new Error(`Failed to parse LLM response (attempt ${attempt}/${MAX_LLM_ATTEMPTS}): ${raw.substring(0, 100)}`);
       }
     }
 
     if (lastError) {
-      throw lastError;
+      // Provide more context in final error
+      throw new Error(`${lastError.message}. Last response: ${lastRaw.substring(0, 150)}`);
     }
 
     // Validate profile, fallback to first allowed if invalid
@@ -231,10 +247,17 @@ export class LLMAgent {
       .filter((r: string) => allowed.has(r));
     const finalRules = rules.length ? rules : (allowedReasons.length ? [allowedReasons[0]] : []);
 
+    // Final validation for reasoning with fallback
+    let reasoning: string;
     if (typeof parsed.reasoning !== 'string' || !parsed.reasoning.trim()) {
-      throw new Error('LLM returned no reasoning.');
+      // Fallback reasoning based on profile and available data
+      const profileName = returnedProfile || 'HD';
+      const qualityInfo = currentQuality ? `from ${currentQuality}` : 'quality assessment';
+      reasoning = `Profile ${profileName} chosen based on ${qualityInfo} and available metadata.`;
+      console.warn(`Warning: LLM did not provide reasoning for ${movie.title}. Using fallback: "${reasoning}"`);
+    } else {
+      reasoning = parsed.reasoning.trim();
     }
-    const reasoning = parsed.reasoning.trim();
 
     const popularityTier = allowPopularityTier ? coercePopularityTier(parsed.popularityTier) : undefined;
 

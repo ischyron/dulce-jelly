@@ -221,24 +221,16 @@ async function applyDecision(params: {
 const program = new Command();
 program
   .name('quality-broker')
-  .description('Radarr quality broker with LLM-guided profile decisions')
-  .option('--batch-size <n>', 'Override batch size', (v) => parseInt(v, 10))
-  .action(async (opts) => {
-    try {
-      await run(opts.batchSize);
-    } catch (err) {
-      console.error((err as Error).message);
-      process.exit(1);
-    }
-  });
+  .description('Radarr quality broker with LLM-guided profile decisions');
 
 program
   .command('run')
   .description('Run a batch now')
-  .option('--batch-size <n>', 'Override batch size', (v) => parseInt(v, 10))
+  .option('--batch-size <n>', 'Override batch size')
   .action(async (opts) => {
     try {
-      await run(opts.batchSize);
+      const batchSize = opts.batchSize ? parseInt(String(opts.batchSize), 10) : undefined;
+      await run(batchSize);
     } catch (err) {
       console.error((err as Error).message);
       process.exit(1);

@@ -16,8 +16,8 @@ openai:
   apiKey: your-openai-api-key
   model: gpt-4-turbo
 
-temperature: 0.15
-maxTokens: 320
+temperature: 0.3
+maxTokens: 400
 
 thresholds:
   criticScoreMin: 68
@@ -68,17 +68,44 @@ reasonTags:
 
 promptTemplate:
   header: |
-    You are a Radarr Quality Broker and video-quality specialist.
+    You are a Radarr Quality Broker. Output ONLY valid JSON.
 
-    You MUST:
-    - Choose exactly ONE profile from the provided profiles (exact match).
-    - Output JSON only in this format:
-      {"profile":"<profile>","rules":["<allowed reason>"...],"reasoning":"short","popularityTier"?: "low"|"mid"|"high"}
+    REQUIRED JSON STRUCTURE (use these EXACT field names):
+    {
+      "profile": "string - one of the allowed profile names",
+      "rules": ["string array - allowed reason tags"],
+      "reasoning": "string - 1-2 sentences explaining why"
+    }
+
+    CRITICAL - USE THESE EXACT FIELD NAMES:
+    - Field name is "profile" (NOT "autoAssignProfile", NOT "profileName")
+    - Field name is "rules" (NOT "reason", NOT "reasonDescription", NOT "allowedReasons")
+    - Field name is "reasoning" (NOT "reasonDescription", NOT "explanation", NOT "rationale")
+
+    VALID EXAMPLE:
+    {
+      "profile": "HD",
+      "rules": ["lowq", "criticScore"],
+      "reasoning": "Current file is 720p. Critic score of 75 justifies HD upgrade."
+    }
+
+    INVALID EXAMPLES (DO NOT USE):
+    {"autoAssignProfile": "HD", ...}  ❌ Wrong field name
+    {"profile": "HD", "reason": "lowq", ...}  ❌ "reason" should be "rules" array
+    {"profile": "HD", "rules": ["lowq"], "reasonDescription": "..."}  ❌ "reasonDescription" should be "reasoning"
 
   constraints: |
-    - rules must only use allowedReasons and include at least one.
-    - reasoning must be short and cite only provided fields.
-    - Output must be JSON only.
+    FIELD REQUIREMENTS:
+    1. "profile": REQUIRED string, must exactly match one of: allowedProfiles
+    2. "rules": REQUIRED array of strings, each must be from: allowedReasons
+    3. "reasoning": REQUIRED string, 1-2 sentences citing the data
+    4. "popularityTier": OPTIONAL string ("low"|"mid"|"high"), only if popularityTierPolicy.allow is true
+
+    JSON OUTPUT RULES:
+    - Use ONLY the exact field names above
+    - Do NOT add extra fields like "reasonDescription", "autoAssignProfile", "explanation"
+    - Do NOT use markdown code blocks
+    - Output pure JSON only
 
   inputs: |
     Decision inputs you will receive:

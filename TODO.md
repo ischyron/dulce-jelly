@@ -6,10 +6,10 @@
 - Strike out or mark status when done/blocked.
 
 ### Items
-- [] Bug: Quality broker: --batch-size cannto be read from CLI ms qgb-run -- --batch-size 1 doesnt work
-- [] Bug: Quality broker: no docker logs seen ececpt sh: 0: not found
-- [] Bug: Quality broker: Format for output on console wrong. Sucess message logged when one or more runs have errors (eg: reasning missing from LLM). 
-- [] Bug: Quality broker: Also Color for failure is applied on Success message.
+- [DONE] Bug: Quality broker: --batch-size cannot be read from CLI ms qb-run -- --batch-size 1 doesnt work (Fixed: removed duplicate default command that was conflicting with 'run' subcommand)
+- [DONE] Bug: Quality broker: no docker logs seen except sh: 0: not found (Fixed: new Dockerfile approach eliminated this error entirely)
+- [DONE] Bug: Quality broker: Format for output on console wrong. Success message logged when one or more runs have errors (eg: reasoning missing from LLM). (Fixed: now shows "Completed with failures" status with color-coded counts)
+- [DONE] Bug: Quality broker: Also Color for failure is applied on Success message. (Fixed: only success count is green, failed count is red, status text shows red "Completed with failures" when there are errors)
 - [BLOCKED] Approch refinement needed: When logged in on mymedialibrary.example via Caddy I need same login to work for the sub domains like sab.mymedialibrary.example. Blocked on moving auth to Zero trust Cloudlfare as it supports only 5 domains in FREE and this is a re-usable tech stack and I dont want to rely on cost heavy setup. Current approch is to understad more details around DNS config to be made to allow *.mymedialibrary.example to be under auth mapping to tunnel domains and then add exclusion policy for jellyfin.
 - [BLOCKED] Set up Jellyseerr config in Jellyfin Enhanced plugin so Jellyfin users can add movies (requires Jellyfin UI access).
 

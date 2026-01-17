@@ -310,7 +310,7 @@ Tests check:
 - **[Service Setup Guide](docs/service-setup-guide.md)** - Detailed configuration for each service
 - **[Cloudflare Tunnel Setup](docs/cloudflared-setup.md)** - In-depth tunnel configuration
 - **[ms CLI](docs/ms-cli.md)** - Short commands for operating the stack
-- **[Quality Broker](docs/quality-broker.md)** - LLM-guided Radarr quality assignment
+- **[Quality Broker](docs/quality-broker.md)** - LLM-guided Radarr quality assignment with grounded, schema-validated decisions
 - **[Pulumi Infrastructure README](infra/cloudflare/README.md)** - IaC documentation and configuration reference
 - **[CLAUDE.md](CLAUDE.md)** - Project conventions for developers and AI agents
 - **[TODO.md](TODO.md)** - Current development status and pending tasks

@@ -6,7 +6,6 @@ radarr:
     base_url: ${RADARR_URL:-http://radarr:7878}
     api_key: ${RADARR_API_KEY}
 
-    # Reuse your existing quality_definition block (remux blocked, size caps enforced).
 
     quality_profiles:
       - name: AutoAssignQuality
@@ -199,7 +198,6 @@ radarr:
           - name: HighQuality-4K
             score: 20
 
-      # Release group preferences
       - trash_ids:
           - c0c93c3c9a64a34bde3a533f5f6c1f4d # FLUX/FraMeSToR/Hallowed (trusted UHD groups)
         assign_scores_to:

@@ -5,8 +5,11 @@ export interface BrokerConfig {
   decisionProfiles: string[];
   autoAssignProfile: string;
   promptHints?: string;
-  remuxPenalty?: string;
   reasonTags?: Record<string, string>;
+  thresholds?: Thresholds;
+  visualGenresHigh?: string[];
+  policies?: Policies;
+  promptTemplate?: PromptTemplate;
 }
 
 export interface RadarrConfig {
@@ -17,6 +20,37 @@ export interface RadarrConfig {
 export interface OpenAIConfig {
   apiKey?: string;
   model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+export interface Thresholds {
+  criticScoreMin?: number;
+  popularityHigh?: number;
+  popularityLow?: number;
+  allowPopularityTierFallback?: boolean;
+  popularityTierFallbackMaxPopularity?: number;
+  voteCountReliable?: number;
+  voteCountHigh?: number;
+}
+
+export interface ReasoningPolicy {
+  maxSentences?: number;
+  forbidCurrentTrendsClaims?: boolean;
+  allowTimelessCulturalInference?: boolean;
+}
+
+export interface Policies {
+  reasoning?: ReasoningPolicy;
+}
+
+export interface PromptTemplate {
+  prelude?: string;
+  header?: string;
+  constraints?: string;
+  inputs?: string;
+  popularityTierPolicy?: string;
+  groupsAndGenres?: string;
 }
 
 export interface RadarrTag {
@@ -35,14 +69,16 @@ export interface RadarrMovie {
   titleSlug?: string;
   path?: string;
   movieFile?: RadarrMovieFile;
-  releaseGroup?: string;
   studio?: string;
   runtime?: number;
   ratings?: RadarrRatings;
   genres?: string[];
   popularity?: number;
   tmdbPopularity?: number;
+  tmdbVotes?: number;
   keywords?: string[];
+  criticScore?: number;
+  rottenTomatoesCriticScore?: number;
 }
 
 export interface RadarrMovieFile {
@@ -65,10 +101,22 @@ export interface RadarrMovieFile {
 }
 
 export interface RadarrRatings {
-  imdb?: { value?: number };
-  tmdb?: { value?: number };
-  rottenTomatoes?: { value?: number };
+  imdb?: { value?: number; votes?: number };
+  tmdb?: { value?: number; votes?: number; voteCount?: number };
+  rottenTomatoes?: { value?: number; votes?: number };
+  rtCritic?: { value?: number; votes?: number };
   metacritic?: { value?: number };
+}
+
+export interface PopularitySignal {
+  primarySource?: 'tmdb' | 'imdb';
+  primaryScore?: number;
+  primaryVotes?: number;
+  tmdbScore?: number;
+  tmdbVotes?: number;
+  imdbScore?: number;
+  imdbVotes?: number;
+  rawPopularity?: number;
 }
 
 export interface QualityProfile {
@@ -87,6 +135,7 @@ export interface DecisionResult {
   profile: string;
   rules: string[];
   reasoning: string;
+  popularityTier?: 'low' | 'mid' | 'high';
 }
 
 export interface RunLogEntry {
@@ -94,10 +143,15 @@ export interface RunLogEntry {
   title: string;
   imdbId?: string;
   tmdbId?: number;
-  popularity?: number;
+  popularity?: PopularitySignal;
+  metacriticScore?: number;
+  rtAudienceScore?: number;
+  rtAudienceVotes?: number;
+  rtCriticScore?: number;
+  rtCriticVotes?: number;
+  criticScoreSource?: string;
   currentQuality?: string;
   criticScore?: number;
-  releaseGroup?: string;
   keywords?: string[];
   fromProfile: string;
   toProfile: string;

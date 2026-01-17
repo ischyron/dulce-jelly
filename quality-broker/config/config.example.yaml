@@ -14,10 +14,16 @@ radarr:
 
 openai:
   apiKey: your-openai-api-key
-  model: gpt-4-turbo
+  # Default: gpt-4.1 (supports json_schema structured outputs for stricter validation).
+  # Rationale: maximize schema compliance and reduce malformed responses.
+  model: gpt-4.1
+  # Default: 0.15
+  # Rationale: keep decisions consistent and grounded; higher values increase variance.
+  temperature: 0.15
+  # Default: 320
+  # Rationale: enough for concise reasoning without encouraging verbosity.
+  maxTokens: 320
 
-temperature: 0.3
-maxTokens: 400
 
 thresholds:
   criticScoreMin: 68
@@ -25,10 +31,8 @@ thresholds:
   popularityLow: 10
   allowPopularityTierFallback: true
   popularityTierFallbackMaxPopularity: 2
-
-releaseGroups:
-  penalizeIfHighQuality4k: [ "YTS", "YIFY" ]
-  preferIfHighQuality4k: [ "FLUX", "FraMeSToR", "Hallowed", "LAMA" ]
+  voteCountReliable: 400
+  voteCountHigh: 3000
 
 visualGenresHigh:
   - Action
@@ -40,11 +44,6 @@ visualGenresHigh:
   - Thriller
 
 policies:
-  remux:
-    enabled: true
-    penaltyScore: -1000
-    sizeCapMbPerMin: 1
-    message: "Remux is fully blocked (score -1000, size cap 1MB/min). Do not pick remux or suggest it."
   reasoning:
     maxSentences: 2
     forbidCurrentTrendsClaims: true
@@ -52,12 +51,12 @@ policies:
 
 promptHints: |
   - Use only provided fields and thresholds; do not claim "currently trending" or recent buzz.
-  - Treat popularity as noisy/unbounded; very low values (0-2) often mean "no signal", not "unpopular".
+  - Treat popularity as noisy/unbounded.
   - Use voteCountReliable as a minimum for trusting popularity/rating as stable.
+  - If criticScore >= 84, choose HighQuality-4K regardless of genre signals.
   - HighQuality-4K is only for visually rich titles where 4K/HDR/DV adds real value.
   - Efficient-4K is for 4K-worthy titles with moderate payoff; compact encodes acceptable.
   - HD is for low-signal titles where 4K adds little value.
-  - If releaseGroup is penalized (YTS/YIFY) and HighQuality-4K would be chosen, prefer Efficient-4K unless visual payoff is exceptional.
 
 reasonTags:
   popular: when upgrade reason is that film is popular / culturally significant
@@ -67,64 +66,15 @@ reasonTags:
   met: when current file meets quality demands based on rules
 
 promptTemplate:
+  prelude: |
+    You are a Radarr quality profile decision agent. Respond ONLY with a single JSON object matching the schema. No markdown or code blocks.
   header: |
-    You are a Radarr Quality Broker. Output ONLY valid JSON.
-
-    REQUIRED JSON STRUCTURE (use these EXACT field names):
-    {
-      "profile": "string - one of the allowed profile names",
-      "rules": ["string array - allowed reason tags"],
-      "reasoning": "string - 1-2 sentences explaining why"
-    }
-
-    CRITICAL - USE THESE EXACT FIELD NAMES:
-    - Field name is "profile" (NOT "autoAssignProfile", NOT "profileName")
-    - Field name is "rules" (NOT "reason", NOT "reasonDescription", NOT "allowedReasons")
-    - Field name is "reasoning" (NOT "reasonDescription", NOT "explanation", NOT "rationale")
-
-    VALID EXAMPLE:
-    {
-      "profile": "HD",
-      "rules": ["lowq", "criticScore"],
-      "reasoning": "Current file is 720p. Critic score of 75 justifies HD upgrade."
-    }
-
-    INVALID EXAMPLES (DO NOT USE):
-    {"autoAssignProfile": "HD", ...}  ❌ Wrong field name
-    {"profile": "HD", "reason": "lowq", ...}  ❌ "reason" should be "rules" array
-    {"profile": "HD", "rules": ["lowq"], "reasonDescription": "..."}  ❌ "reasonDescription" should be "reasoning"
-
+    Required JSON keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences), optional popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.
   constraints: |
-    FIELD REQUIREMENTS:
-    1. "profile": REQUIRED string, must exactly match one of: allowedProfiles
-    2. "rules": REQUIRED array of strings, each must be from: allowedReasons
-    3. "reasoning": REQUIRED string, 1-2 sentences citing the data
-    4. "popularityTier": OPTIONAL string ("low"|"mid"|"high"), only if popularityTierPolicy.allow is true
-
-    JSON OUTPUT RULES:
-    - Use ONLY the exact field names above
-    - Do NOT add extra fields like "reasonDescription", "autoAssignProfile", "explanation"
-    - Do NOT use markdown code blocks
-    - Output pure JSON only
-
+    Grounding: reasoning must reference input fields (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, thresholds, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.
   inputs: |
-    Decision inputs you will receive:
-    - criticScore, popularity, tmdbVotes, genres, studio, runtime, currentQuality, mediaInfo, releaseGroup
-    - thresholds, releaseGroups, visualGenresHigh, promptHints, policies
-
+    Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base all decisions only on these fields; if data is missing or weak, choose the safer lower profile.
   popularityTierPolicy: |
-    PopularityTier fallback policy:
-    - popularityTierPolicy.allow indicates whether you may emit popularityTier.
-    - If allow=true, infer TIMELESS cultural salience only from title/year/studio/genres/franchise archetypes.
-    - Do NOT claim anything about current trends or recent buzz.
-
+    If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference. If false, omit popularityTier entirely.
   groupsAndGenres: |
-    Release group guidance:
-    - Penalized groups for HighQuality-4K: {{penalizeGroups}}
-    - Preferred groups for HighQuality-4K: {{preferGroups}}
-
-    Visual richness guidance (for HighQuality-4K):
-    - Visual-rich genres: {{visualGenresHigh}}
-
-  remuxPolicy: |
-    Remux policy: {{remuxPolicyMessage}}
+    Visual genres with high payoff: {{visualGenresHigh}}.

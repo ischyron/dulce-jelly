@@ -3,9 +3,39 @@ import path from 'path';
 
 import { parse } from 'yaml';
 
-import { BrokerConfig } from './types.js';
+import { BrokerConfig, Policies, PromptTemplate } from './types.js';
 
 const DEFAULT_BATCH = 10;
+const DEFAULT_REASON_TAGS = {
+  popular: 'upgrade because the film is popular (high popularity)',
+  criticScore: 'upgrade because critic score is strong',
+  visual: 'upgrade because it is visually rich (action/animation/HDR/DV benefits)',
+  lowq: 'upgrade because current file is 720p or below',
+  met: 'quality already meets demands'
+};
+
+const DEFAULT_POLICIES: Policies = {
+  reasoning: {
+    maxSentences: 2,
+    forbidCurrentTrendsClaims: true,
+    allowTimelessCulturalInference: true
+  }
+};
+
+const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
+  prelude:
+    'You are a Radarr quality profile decision agent. Respond ONLY with a single JSON object matching the schema. No markdown or code blocks. Use only the provided input JSON; do not use outside knowledge.',
+  header:
+    'Required JSON keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences, must cite input fields/values), optional popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.',
+  constraints:
+    'Grounding: reasoning must reference input fields (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, thresholds, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
+  inputs:
+    'Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base all decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
+  popularityTierPolicy:
+    'If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference. If false, omit popularityTier entirely.',
+  groupsAndGenres:
+    'Visual genres with high payoff: {{visualGenresHigh}}.'
+};
 
 function expandEnv(val: unknown): unknown {
   if (typeof val !== 'string') return val;
@@ -73,6 +103,17 @@ export function loadConfig(baseDir: string): BrokerConfig {
     throw new Error('OpenAI API key is required in data/quality-broker/config/config.yaml.');
   }
 
+  const policies: Policies = {
+    reasoning: { ...DEFAULT_POLICIES.reasoning, ...(raw.policies?.reasoning || {}) }
+  };
+
+  const promptTemplate: PromptTemplate = {
+    ...DEFAULT_PROMPT_TEMPLATE,
+    ...(raw.promptTemplate || {})
+  };
+
+  const reasonTags = raw.reasonTags && Object.keys(raw.reasonTags).length ? raw.reasonTags : DEFAULT_REASON_TAGS;
+
   return {
     batchSize,
     radarr: {
@@ -81,19 +122,17 @@ export function loadConfig(baseDir: string): BrokerConfig {
     },
     openai: {
       apiKey: openaiApiKey,
-      model: raw.openai?.model || 'gpt-4-turbo'
+      model: raw.openai?.model || 'gpt-4.1',
+      temperature: typeof raw.openai?.temperature === 'number' ? raw.openai.temperature : 0.15,
+      maxTokens: typeof raw.openai?.maxTokens === 'number' ? raw.openai.maxTokens : 320
     },
     decisionProfiles,
     autoAssignProfile: raw.autoAssignProfile || 'AutoAssignQuality',
     promptHints: raw.promptHints || '',
-    remuxPenalty: raw.remuxPenalty || 'Remux is fully blocked (score -1000, size cap 1MB/min).',
-    reasonTags:
-      raw.reasonTags || {
-        popular: 'upgrade because the film is popular (high popularity)',
-        criticScore: 'upgrade because critic score is strong',
-        visual: 'upgrade because it is visually rich (action/animation/HDR/DV benefits)',
-        lowq: 'upgrade because current file is 720p or below',
-        met: 'quality already meets demands'
-      }
+    reasonTags,
+    thresholds: raw.thresholds,
+    visualGenresHigh: raw.visualGenresHigh,
+    policies,
+    promptTemplate
   };
 }

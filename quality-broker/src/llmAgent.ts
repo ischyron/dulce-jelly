@@ -20,16 +20,20 @@ export class LLMAgent {
   async decide(input: DecisionInput): Promise<DecisionResult> {
     const { movie, profileOptions, autoAssignProfile, configHints } = input;
     const model = this.config.openai.model || 'gpt-4-turbo';
+    const allowedReasons = this.config.reasonTags || ['popular', 'criticScore', 'visual', 'lowq'];
     const messageContent = {
       title: movie.title,
       year: movie.year,
       profiles: profileOptions,
       autoAssignProfile,
+      allowedReasons,
       imdbRating: movie.ratings?.imdb?.value,
       tmdbRating: movie.ratings?.tmdb?.value,
       tmdbPopularity: movie.tmdbPopularity,
+      popularity: movie.popularity ?? movie.tmdbPopularity,
       currentQuality: movie.movieFile?.quality?.quality?.name,
       mediaInfo: movie.movieFile?.mediaInfo,
+      releaseGroup: movie.releaseGroup,
       genres: movie.genres,
       studio: movie.studio,
       runtime: movie.runtime,
@@ -48,7 +52,8 @@ export class LLMAgent {
             'You are a quality broker for Radarr. Choose the best quality profile based on popularity, critic rating, visual richness, and release clues. ' +
             'Use only the provided profile names. Prefer upgrades for rich visuals; keep efficient encodes when quality is marginal. ' +
             'Remux is banned (score -1000, size cap 1MB/min). Do not pick remux or suggest it. ' +
-            'Output JSON: {"profile": "<profile name>", "rules": ["rule-name"...], "reasoning": "short"}. Rules must be short slugs.'
+            'Rules must be chosen only from the allowed reasons list and at least one must be present. ' +
+            'Output JSON: {"profile": "<profile name>", "rules": ["<allowed reason>"...], "reasoning": "short"}. '
         },
         {
           role: 'user',
@@ -72,13 +77,16 @@ export class LLMAgent {
       throw new Error(`LLM returned invalid profile: ${parsed.profile}`);
     }
 
-    const rules = Array.isArray(parsed.rules)
+    const rulesRaw = Array.isArray(parsed.rules)
       ? parsed.rules.filter((r): r is string => typeof r === 'string' && r.trim().length > 0)
       : [];
+    const allowed = new Set(allowedReasons);
+    const rules = rulesRaw.filter((r) => allowed.has(r));
+    const finalRules = rules.length ? rules : (allowedReasons.length ? [allowedReasons[0]] : []);
 
     return {
       profile: parsed.profile,
-      rules,
+      rules: finalRules,
       reasoning: parsed.reasoning || 'No reasoning provided'
     };
   }

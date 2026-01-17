@@ -7,6 +7,7 @@ const serviceMap = {
   pr: 'prowlarr',
   sb: 'sabnzbd',
   rc: 'recyclarr',
+  qbq: 'quality-broker',
   ca: 'caddy',
   cf: 'cloudflared'
 };

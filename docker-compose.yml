@@ -201,6 +201,24 @@ services:
       retries: 3
       start_period: 20s
 
+  quality-broker:
+    image: node:22-alpine
+    container_name: quality-broker
+    hostname: quality-broker
+    restart: unless-stopped
+    working_dir: /app
+    command: ["sh", "-c", "SCHED=${CRON_SCHEDULE:-0 0 * * *}; echo \"$$SCHED cd /app && node dist/index.js run\" > /etc/crontabs/root && crond -f -l 2"]
+    environment:
+      LAN_HOSTNAME: "${LAN_HOSTNAME}"
+      RADARR_PORT: "${RADARR_PORT:-3273}"
+      QUALITY_BROKER_CONFIG: "${QUALITY_BROKER_CONFIG:-}"
+      CRON_SCHEDULE: "${QUALITY_BROKER_CRON:-0 0 * * *}"
+    volumes:
+      - ./quality-broker:/app:ro
+      - ./data/quality-broker:/data/quality-broker
+    depends_on:
+      - radarr
+
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr:latest
     container_name: recyclarr
@@ -218,3 +236,4 @@ services:
 networks:
   default:
     name: media_net
+    external: true

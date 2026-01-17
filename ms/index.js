@@ -21,6 +21,8 @@ const commands = {
   restart: (args) => { const svc = resolveServiceLoose(args[0]); ensureArg(svc, 'restart <service>'); return cmd.restart([svc]); },
   reload: (args) => { const target = args[0]; ensureArg(target, 'reload <caddy|tunnel>'); return cmd.reload([target]); },
   sync: () => cmd.sync(),
+  'qb-run': (args) => cmd.qualityBrokerRun(args),
+  'qb-log': () => cmd.qualityBrokerLogs(),
   test: () => cmd.testCmd(baseDir),
   env: () => {
     const env = envLib.loadEnv(baseDir);
@@ -77,22 +79,31 @@ function formatHealth(val) {
 
 function getHealthEntries() {
   const res = runCompose(['ps', '--format', 'json'], { capture: true });
-  if (res.code !== 0) return null;
-  const rows = parseComposeJson(res.stdout);
+  const qbRes = runCompose(['--profile', 'quality-broker', 'ps', '--format', 'json'], { capture: true });
+  if (res.code !== 0 && qbRes.code !== 0) return null;
+  const rows = (parseComposeJson(res.stdout) || []).concat(parseComposeJson(qbRes.stdout) || []);
   if (!rows || rows.length === 0) {
     console.error('Failed to parse compose ps output');
     return null;
   }
+  const seen = new Set();
   const syncInfo = getRecyclarrLastSync();
-  return rows.map((row) => ({
-    name: row.Name || row.Service || row.name || 'unknown',
-    state: row.State || row.state || row.Status || row.status || 'unknown',
-    health: row.Health || row.health || 'n/a',
-    uptime: (row.Name || row.Service || row.name) === 'recyclarr'
-      ? syncInfo.display
-      : row.RunningFor || row.runningFor || row.RunningForSeconds || '',
-    ports: formatPorts(row.Publishers || row.publishers || row.Ports || row.ports || [])
-  }));
+  return rows
+    .filter((row) => {
+      const name = row.Name || row.Service || row.name;
+      if (!name || seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    })
+    .map((row) => ({
+      name: row.Name || row.Service || row.name || 'unknown',
+      state: row.State || row.state || row.Status || row.status || 'unknown',
+      health: row.Health || row.health || 'n/a',
+      uptime: (row.Name || row.Service || row.name) === 'recyclarr'
+        ? syncInfo.display
+        : row.RunningFor || row.runningFor || row.RunningForSeconds || '',
+      ports: formatPorts(row.Publishers || row.publishers || row.Ports || row.ports || [])
+    }));
 }
 
 function printHealthTable(entries) {

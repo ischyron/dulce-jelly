@@ -11,6 +11,8 @@ const commandsList = [
   '  reload caddy       → docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile',
   '  reload tunnel      → docker compose restart cloudflared',
   '  sync               → docker compose run --rm recyclarr sync',
+  '  qb-run [args]      → docker compose --profile quality-broker run --rm quality-broker [args]',
+  '  qb-log             → docker compose --profile quality-broker logs -f quality-broker',
   '  test               → node --test test/test-services.test.mjs',
   '  env                → print key env values',
   '  ports              → show LAN/CF port map',

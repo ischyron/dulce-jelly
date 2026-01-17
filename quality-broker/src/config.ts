@@ -30,6 +30,23 @@ function loadYaml(filePath: string): unknown {
   return deepExpand(raw);
 }
 
+function deriveRadarrUrl(rawUrl?: string): string {
+  const inDocker = fs.existsSync('/.dockerenv');
+  if (inDocker) {
+    // If config points to localhost/127.x inside Docker, prefer service hostname
+    if (!rawUrl || /(^https?:\/\/)?(localhost|127\.)/i.test(rawUrl)) {
+      return 'http://radarr:7878';
+    }
+    return rawUrl;
+  }
+
+  if (rawUrl) return rawUrl;
+
+  const host = process.env.LAN_HOSTNAME || process.env.HOST_IP || 'localhost';
+  const port = process.env.RADARR_PORT || '3273';
+  return `http://${host}${port ? `:${port}` : ''}`;
+}
+
 export function loadConfig(baseDir: string): BrokerConfig {
   const repoRoot = path.resolve(baseDir, '..');
   const dataConfig = path.join(repoRoot, 'data/quality-broker/config/config.yaml');
@@ -44,22 +61,32 @@ export function loadConfig(baseDir: string): BrokerConfig {
   }
 
   const raw = loadYaml(found) as Partial<BrokerConfig>;
-  if (!raw.radarr?.url) {
-    throw new Error('radarr.url is required in config.yaml');
-  }
 
   const batchSize = Number(raw.batchSize || DEFAULT_BATCH);
   const decisionProfiles = raw.decisionProfiles || ['HD', 'Efficient-4K', 'HighQuality-4K'];
+  const radarrApiKey = raw.radarr?.apiKey;
+  if (!radarrApiKey) {
+    throw new Error('Radarr API key is required in data/quality-broker/config/config.yaml.');
+  }
+  const openaiApiKey = raw.openai?.apiKey && String(raw.openai.apiKey).trim();
+  if (!openaiApiKey) {
+    throw new Error('OpenAI API key is required in data/quality-broker/config/config.yaml.');
+  }
+
   return {
     batchSize,
-    radarr: raw.radarr,
+    radarr: {
+      url: deriveRadarrUrl(raw.radarr?.url),
+      apiKey: radarrApiKey
+    },
     openai: {
-      apiKey: raw.openai?.apiKey || process.env.OPENAI_API_KEY,
+      apiKey: openaiApiKey,
       model: raw.openai?.model || 'gpt-4-turbo'
     },
     decisionProfiles,
     autoAssignProfile: raw.autoAssignProfile || 'AutoAssignQuality',
     promptHints: raw.promptHints || '',
-    remuxPenalty: raw.remuxPenalty || 'Remux is fully blocked (score -1000, size cap 1MB/min).'
+    remuxPenalty: raw.remuxPenalty || 'Remux is fully blocked (score -1000, size cap 1MB/min).',
+    reasonTags: raw.reasonTags || ['popular', 'criticScore', 'visual', 'lowq']
   };
 }

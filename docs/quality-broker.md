@@ -22,12 +22,13 @@ Key fields (see comments in example):
 - `batchSize` (default 10; CLI `--batch-size` overrides)
 - `autoAssignProfile`: Radarr profile name used as the intake queue
 - `decisionProfiles`: target profiles the LLM can pick from (must exist in Radarr/Recyclarr)
-- `radarr.url`, `radarr.apiKey` (or env `RADARR_API_KEY`)
-- `openai.apiKey` (or env `OPENAI_API_KEY`), `openai.model` (default gpt-4-turbo)
+- `radarr.apiKey` (config only); URL auto-derives from `LAN_HOSTNAME` + `RADARR_PORT` (or `http://radarr:7878` in Docker). Override via `radarr.url` only if you need a custom host. Ensure the container shares the `media_net` network (defined as external in compose).
+- `openai.apiKey` (required in config only), `openai.model` (default gpt-4-turbo)
 - `promptHints`: natural-language heuristics to steer choices
 - `remuxPenalty`: reminder that remux stays blocked (score -1000, 1MB/min cap)
+- `reasonTags`: allowed demand reasons → tags `demand-<reason>` (e.g., popular, criticScore, visual, lowq)
 
-Environment fallbacks: `RADARR_URL`, `RADARR_API_KEY`, `OPENAI_API_KEY`, `QUALITY_BROKER_CONFIG` (override config path).
+Environment fallbacks: `QUALITY_BROKER_CONFIG` (override config path).
 
 ## Running
 
@@ -44,6 +45,23 @@ From container (after building image):
 
 ```bash
 docker exec quality-broker run --batch-size=5
+```
+
+Scheduled via compose (defaults to midnight daily):
+
+```bash
+docker compose up -d quality-broker
+# adjust schedule via QUALITY_BROKER_CRON (sets CRON_SCHEDULE inside container, default "0 0 * * *")
+```
+
+Via docker compose + ms CLI (service is profile-gated and runs on demand):
+
+```bash
+# run a batch (appends args to the CLI)
+ms qb-run -- --batch-size 5
+
+# view latest log
+ms qb-log
 ```
 
 Cron-safe: each run processes at most `batchSize`, prioritizing movies with the `autoAssignProfile` or missing any `decision:` tag.

@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import path from 'path';
 
-import { loadConfig } from '../src/config.js';
+import { loadConfig } from '../src/config.ts';
 
 const baseDir = path.resolve(new URL('..', import.meta.url).pathname);
 

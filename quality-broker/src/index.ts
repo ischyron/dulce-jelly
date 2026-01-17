@@ -67,6 +67,10 @@ async function run(batchSizeOverride?: number) {
   let successCount = 0;
   for (const movie of candidates) {
     const fromProfile = profiles.find((p) => p.id === movie.qualityProfileId)?.name || 'unknown';
+    const currentQuality = movie.movieFile?.quality?.quality?.name;
+    const criticScore = movie.ratings?.rottenTomatoes?.value;
+    const popularity = movie.popularity ?? movie.tmdbPopularity;
+    const releaseGroup = movie.releaseGroup;
     try {
     const decision = await agent.decide({
       movie,
@@ -78,12 +82,19 @@ async function run(batchSizeOverride?: number) {
         movie,
         radarr,
         tags,
-        decisionProfileIds
+        decisionProfileIds,
+        config
       });
       successCount += 1;
       runLog.push({
-        movieId: movie.id,
+        radarrMovieId: movie.id,
         title: movie.title,
+        imdbId: movie.imdbId,
+        tmdbId: movie.tmdbId,
+        popularity,
+        currentQuality,
+        criticScore,
+        releaseGroup,
         fromProfile,
         toProfile: decision.profile,
         rulesApplied: decision.rules,
@@ -93,8 +104,14 @@ async function run(batchSizeOverride?: number) {
       });
     } catch (err) {
       runLog.push({
-        movieId: movie.id,
+        radarrMovieId: movie.id,
         title: movie.title,
+        imdbId: movie.imdbId,
+        tmdbId: movie.tmdbId,
+        popularity,
+        currentQuality,
+        criticScore,
+        releaseGroup,
         fromProfile,
         toProfile: fromProfile,
         rulesApplied: [],
@@ -126,19 +143,41 @@ async function applyDecision(params: {
   radarr: RadarrClient;
   tags: RadarrTag[];
   decisionProfileIds: { name: string; id: number }[];
+  config: any;
 }): Promise<{ tagsAdded: string[] }> {
-  const { decision, movie, radarr, tags, decisionProfileIds } = params;
+  const { decision, movie, radarr, tags, decisionProfileIds, config } = params;
   const profileId = decisionProfileIds.find((p) => p.name === decision.profile)?.id;
   if (!profileId) throw new Error(`Profile id not found for ${decision.profile}`);
 
-  const requiredTagLabels = [
-    `decision:${decision.profile}`,
-    ...decision.rules.map((r) => `rule:${r}`)
-  ];
+  const normalizeLabel = (prefix: string, value: string) => {
+    const normalized = `${prefix}-${value}`
+      .toLowerCase()
+      .replace(/[^a-z0-9-]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    return normalized || `${prefix}-${Date.now()}`;
+  };
+
+  const allowedReasons = new Set<string>(config.reasonTags || []);
+  let mappedReasons = decision.rules.filter((r) => allowedReasons.has(r));
+  if (!mappedReasons.length && allowedReasons.size) {
+    const fallback = Array.from(allowedReasons)[0];
+    if (fallback !== undefined) {
+      mappedReasons = [fallback];
+    } else {
+      mappedReasons = [];
+    }
+  }
+  if (!mappedReasons.length) throw new Error('No mapped reasons for tagging; decision skipped.');
+  const requiredTagLabels = mappedReasons.map((t) => normalizeLabel('demand', t));
 
   const existing = await radarr.getTags();
   const ensured: RadarrTag[] = [...existing];
-  const tagIds: number[] = [...movie.tags];
+  const labelById = new Map([...existing, ...tags].map((t) => [t.id, t.label] as const));
+  const tagIds: number[] = movie.tags.filter((tid) => {
+    const label = labelById.get(tid) || '';
+    return !label.startsWith('demand-');
+  });
   const addedLabels: string[] = [];
   for (const label of requiredTagLabels) {
     const tag = await radarr.ensureTag(label, ensured);

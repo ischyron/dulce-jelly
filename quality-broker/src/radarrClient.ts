@@ -24,19 +24,24 @@ export class RadarrClient {
         if (v !== undefined) url.searchParams.append(k, String(v));
       });
     }
-    const res = await fetch(url.toString(), {
-      ...opts,
-      headers: {
-        'X-Api-Key': this.apiKey,
-        'Content-Type': 'application/json',
-        ...(opts.headers || {})
+    try {
+      const res = await fetch(url.toString(), {
+        ...opts,
+        headers: {
+          'X-Api-Key': this.apiKey,
+          'Content-Type': 'application/json',
+          ...(opts.headers || {})
+        }
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Radarr request failed ${res.status}: ${text}`);
       }
-    });
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Radarr request failed ${res.status}: ${text}`);
+      return res.json() as Promise<T>;
+    } catch (err) {
+      const reason = (err as Error).message || String(err);
+      throw new Error(`Radarr request to ${url.toString()} failed: ${reason}`);
     }
-    return res.json() as Promise<T>;
   }
 
   async getQualityProfiles(): Promise<QualityProfile[]> {

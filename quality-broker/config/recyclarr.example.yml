@@ -1,5 +1,5 @@
 # Example Recyclarr config fragment to provision Radarr profiles used by quality-broker.
-# Copy/merge into your live recyclarr.yml under the appropriate Radarr instance.
+# Copy/merge into your live data/recyclarr/config/recyclarr.yml
 
 radarr:
   radarr_main:

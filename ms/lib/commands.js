@@ -1,6 +1,11 @@
+const fs = require('fs');
+const path = require('path');
 const { runCompose, runCommand } = require('./docker');
 const envLib = require('./env');
 const { resolveServiceLoose, parseUpArgs } = require('./utils');
+
+const baseDir = path.join(__dirname, '..', '..');
+const QB_PROFILE = 'quality-broker';
 
 function up(args) {
   const { force, services } = parseUpArgs(args);
@@ -25,7 +30,15 @@ function stop(args) {
 
 function logs(args) {
   const svc = resolveServiceLoose(args[0]);
-  return runCompose(['logs', '-f', svc]);
+  const baseCmd = ['logs', '-f', svc];
+  const prettyBin = path.join(baseDir, 'node_modules', '.bin', 'pino-pretty');
+
+  if (fs.existsSync(prettyBin)) {
+    const cmd = `docker compose ${baseCmd.join(' ')} | "${prettyBin}"`;
+    return runCommand('sh', ['-c', cmd], { cwd: baseDir });
+  }
+
+  return runCompose(baseCmd);
 }
 
 function restart(args) {
@@ -46,6 +59,26 @@ function reload(args) {
 
 const sync = () => runCompose(['run', '--rm', 'recyclarr', 'sync']);
 
+function qualityBrokerRun(args) {
+  const extra = args || [];
+  return runCompose(['run', '--rm', 'quality-broker', 'node', 'dist/index.js', 'run', ...extra]);
+}
+
+function qualityBrokerLogs() {
+  // Prefer tailing latest broker JSON log if present (container is short-lived)
+  const logDir = path.join(baseDir, 'data/quality-broker/logs');
+  if (fs.existsSync(logDir)) {
+    const files = fs.readdirSync(logDir).filter((f) => f.endsWith('.json')).sort().reverse();
+    if (files.length) {
+      const latest = path.join(logDir, files[0]);
+      console.log(`Tailing ${latest}`);
+      return runCommand('tail', ['-n', '200', latest]);
+    }
+  }
+  console.log('No quality-broker log file found; falling back to compose logs');
+  return runCompose(['--profile', QB_PROFILE, 'logs', '-f', 'quality-broker']);
+}
+
 function testCmd(baseDir) {
   const env = envLib.loadEnv(baseDir);
   return runCommand('node', ['--test', 'test/test-services.test.mjs'], { cwd: baseDir, env });
@@ -61,5 +94,7 @@ module.exports = {
   restart,
   reload,
   sync,
+  qualityBrokerRun,
+  qualityBrokerLogs,
   testCmd
 };

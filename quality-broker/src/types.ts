@@ -6,6 +6,7 @@ export interface BrokerConfig {
   autoAssignProfile: string;
   promptHints?: string;
   remuxPenalty?: string;
+  reasonTags?: string[];
 }
 
 export interface RadarrConfig {
@@ -34,10 +35,12 @@ export interface RadarrMovie {
   titleSlug?: string;
   path?: string;
   movieFile?: RadarrMovieFile;
+  releaseGroup?: string;
   studio?: string;
   runtime?: number;
   ratings?: RadarrRatings;
   genres?: string[];
+  popularity?: number;
   tmdbPopularity?: number;
 }
 
@@ -86,8 +89,14 @@ export interface DecisionResult {
 }
 
 export interface RunLogEntry {
-  movieId: number;
+  radarrMovieId: number;
   title: string;
+  imdbId?: string;
+  tmdbId?: number;
+  popularity?: number;
+  currentQuality?: string;
+  criticScore?: number;
+  releaseGroup?: string;
   fromProfile: string;
   toProfile: string;
   rulesApplied: string[];

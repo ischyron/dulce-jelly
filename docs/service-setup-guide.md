@@ -3,13 +3,16 @@
 Quick, one-time setup steps for each service after the stack is running. Start with the LAN ports below before switching to subdomains/Cloudflare.
 
 ## Ports & Internal Hostnames
-- Jellyfin: `http://localhost:3278` (internal: `jellyfin:8096`)
-- Jellyseerr: `http://localhost:3277` (internal: `jellyseerr:5055`)
-- Prowlarr: `http://localhost:3276` (internal: `prowlarr:9696`)
-- qBittorrent: `http://localhost:3275` (internal: `qbittorrent:8080`)
-- SABnzbd: `http://localhost:3274` (internal: `sabnzbd:8080`)
-- Radarr: `http://localhost:3273` (internal: `radarr:7878`)
-- Sonarr: `http://localhost:3272` (internal: `sonarr:8989`)
+
+| Service | Local Access | Internal Hostname |
+|---------|--------------|-------------------|
+| Jellyfin | `http://localhost:3278` | `jellyfin:8096` |
+| Jellyseerr | `http://localhost:3277` | `jellyseerr:5055` |
+| Prowlarr | `http://localhost:3276` | `prowlarr:9696` |
+| qBittorrent | `http://localhost:3275` | `qbittorrent:8080` |
+| SABnzbd | `http://localhost:3274` | `sabnzbd:8080` |
+| Radarr | `http://localhost:3273` | `radarr:7878` |
+| Sonarr | `http://localhost:3272` | `sonarr:8989` |
 
 ## Jellyfin
 1) Open `http://localhost:3278` and create an admin account.
@@ -53,6 +56,6 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 5) Optional: Connect Jellyfin at `http://jellyfin:8096` using a Jellyfin API key.
 
 ## Automation (Recyclarr + Quality Broker)
-- Recyclarr: merge the sample `quality-broker/config/recyclarr.example.yml` into `data/recyclarr/config/recyclarr.yml`, then run `ms sync`.
-- Quality Broker: copy `quality-broker/config/config.example.yaml` to `data/quality-broker/config/config.yaml`, set Radarr/OpenAI keys, run `npm run setup` (from ``), then dry-run: `node quality-broker/dist/index.js run --batch-size 1`.
-- Tests: `cd media-server && node --test test/test-services.test.mjs` (set `TEST_AUTH_USER/TEST_AUTH_PASS`).
+- **Recyclarr**: Customize and copy `quality-broker/config/recyclarr.example.yml` into `data/recyclarr/config/recyclarr.yml`, then run `npm run ms sync` to sync quality profiles.
+- **Quality Broker**: Customize and copy  `quality-broker/config/config.example.yaml` to `data/quality-broker/config/config.yaml`, add your Radarr and OpenAI API keys (config file only), run a build from repo root (`npm run build --prefix quality-broker`), then test with `npm run ms qb-run -- --batch-size 1`. Cron runs daily via the `quality-broker` service (configure `QUALITY_BROKER_CRON`, applied as `CRON_SCHEDULE`).
+- **Run tests**: `node --test test/test-services.test.mjs` (requires `TEST_AUTH_USER` and `TEST_AUTH_PASS` environment variables).

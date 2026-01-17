@@ -338,6 +338,7 @@ Your Personal Media Library
 **First check**
 - `ms status` to see container state; 
 - `# Navigate to the project root`. Run `npm run ms -- doctor`) for health/mounts/log scan.
+- `ms logs <svc>` to tail logs (Caddy/Cloudflared output is auto-pretty).
 
 **Common issues**
 - LAN access: use `http://<server-ip>:<port>` if `localhost` fails; confirm `docker compose ps` shows running.

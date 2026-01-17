@@ -53,11 +53,15 @@ DulceJelly is a collection of open-source media management tools:
 
 ## Quick Start
 
-Already configured? Start your media server:
+If you are familiar with the services in this repo, the shortest path is:
 
 ```bash
-# Navigate to the project root
-docker compose up -d
+# Install dependencies and build
+npm run setup
+
+# Configure services (edit .env and follow the service setup guide)
+# Then bring the stack up
+npm run ms -- up
 ```
 
 Access Jellyfin at: `http://localhost:3278`
@@ -139,30 +143,11 @@ This includes configuring:
 - Download clients (qBittorrent, SABnzbd)
 - Prowlarr (indexer management)
 
-### Step 5: Test Everything (Local Network)
-
-```bash
-# Test local access
-npm run ms -- doctor
-
-# Run full test suite (optional)
-export TEST_AUTH_USER=your_username TEST_AUTH_PASS=your_password
-node --test test/test-services.test.mjs
-```
-
-All tests should pass. You can now access your services locally via `http://localhost:<port>`.
-
-**You're done with basic setup!** You can now:
-- **Stream your media**: Open Jellyfin at `http://localhost:3278`
-- **Manage your library**: Access Radarr, Sonarr, and other tools on your LAN
-
----
-
 ## Optional: Setup Cloudflare for Internet Access
 
 If you want to access your media server from anywhere on the internet, follow these additional steps:
 
-### Step 6 (Optional): Run the Setup Script
+### Step 5 (Optional): Run the Setup Script
 
 This script helps configure Cloudflare Tunnel:
 
@@ -177,7 +162,7 @@ The script will ask you for:
 - Which services you want to expose
 - Security preferences
 
-### Step 7 (Optional): Set Up Your Cloudflare Tunnel
+### Step 6 (Optional): Set Up Your Cloudflare Tunnel
 
 1. **Log in to Cloudflare**:
    - Go to: https://one.dash.cloudflare.com/
@@ -196,7 +181,26 @@ The script will ask you for:
 
 4. **Skip route configuration** in the Cloudflare dashboard
 
-### Step 8 (Optional): Configure Cloudflare DNS & Security
+### Step 7 (Optional): Configure Cloudflare DNS & Security
+
+### Step 8: Test Everything (Local Network)
+
+```bash
+# Test local access
+npm run ms -- doctor
+
+# Run full test suite (optional)
+export TEST_AUTH_USER=your_username TEST_AUTH_PASS=your_password
+node --test test/test-services.test.mjs
+```
+
+All tests should pass. You can now access your services locally via `http://localhost:<port>`.
+
+**You're done with basic setup!** You can now:
+- **Stream your media**: Open Jellyfin at `http://localhost:3278`
+- **Manage your library**: Access Radarr, Sonarr, and other tools on your LAN
+
+---
 
 Set up DNS records and security rules using Pulumi:
 

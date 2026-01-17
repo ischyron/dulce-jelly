@@ -357,11 +357,9 @@ DulceJelly includes sample preflight scripts for [Carbon Copy Cloner](https://bo
    # - Mount wait timeouts (MIN_WAIT_SEC, MAX_WAIT_SEC, POLL_SEC)
    ```
 
-2. **Import sample tasks**:
+2. **Create CCC tasks**:
    - Open Carbon Copy Cloner
-   - Customize the task files from `scripts/backup/ccc-tasks/sample/`
-   - Update source/destination paths and preflight script paths to match your setup
-   - Import in CCC and change scheduling and other task settings as needed
+   - Import in CCC under preflight and apply task settings as needed
 
 The preflight scripts handle:
 - **Mount verification**: Ensures backup destination volumes are mounted before backup

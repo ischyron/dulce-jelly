@@ -23,8 +23,6 @@ thresholds:
   criticScoreMin: 68
   popularityHigh: 80
   popularityLow: 10
-  voteCountReliable: 400
-  voteCountHigh: 3000
   allowPopularityTierFallback: true
   popularityTierFallbackMaxPopularity: 2
 
@@ -68,7 +66,6 @@ reasonTags:
   lowq: when current file quality is 720p or below
   met: when current file meets quality demands based on rules
 
-# --- NEW: static prompt scaffolding moved to YAML ---
 promptTemplate:
   header: |
     You are a Radarr Quality Broker and video-quality specialist.

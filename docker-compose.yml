@@ -207,7 +207,7 @@ services:
     hostname: quality-broker
     restart: unless-stopped
     working_dir: /app
-    command: ["sh", "-c", "SCHED=${CRON_SCHEDULE:-0 0 * * *}; echo \"$$SCHED cd /app && node dist/index.js run\" > /etc/crontabs/root && crond -f -l 2"]
+    command: ["sh", "-c", "SCHED=\"${CRON_SCHEDULE:-0 0 * * *}\"; echo \"Starting cron schedule using: $${SCHED}\"; printf '%s\n' \"$${SCHED} cd /app && node dist/index.js run >> /proc/1/fd/1 2>> /proc/1/fd/2\" > /etc/crontabs/root; exec crond -f -l 2 -L /proc/1/fd/1"]
     environment:
       LAN_HOSTNAME: "${LAN_HOSTNAME}"
       RADARR_PORT: "${RADARR_PORT:-3273}"

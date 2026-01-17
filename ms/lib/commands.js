@@ -54,7 +54,10 @@ function reload(args) {
 const sync = () => runCompose(['run', '--rm', 'recyclarr', 'sync']);
 
 function qualityBrokerRun(args) {
-  const extra = args || [];
+  let extra = args || [];
+  if (extra[0] === '--') {
+    extra = extra.slice(1);
+  }
   return runCompose(['run', '--rm', 'quality-broker', 'node', 'dist/index.js', 'run', ...extra]);
 }
 

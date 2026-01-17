@@ -1,6 +1,8 @@
 import OpenAI from 'openai';
 import { BrokerConfig, DecisionInput, DecisionResult } from './types.js';
 
+const MAX_LLM_ATTEMPTS = 2;
+
 type PopularityTier = 'low' | 'mid' | 'high';
 
 interface AgentOptions {
@@ -174,25 +176,42 @@ export class LLMAgent {
 
     const systemPrompt = buildSystemPrompt(this.config);
 
-    const completion = await this.client.chat.completions.create({
-      model,
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: JSON.stringify(messageContent) }
-      ],
-      temperature,
-      max_tokens: maxTokens
-    });
-
-    const raw = completion.choices[0]?.message?.content;
-    if (!raw) throw new Error('Empty response from LLM');
-
     let parsed: any;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      throw new Error(`Failed to parse LLM response: ${raw}`);
+    let lastError: Error | null = null;
+    for (let attempt = 1; attempt <= MAX_LLM_ATTEMPTS; attempt += 1) {
+      const completion = await this.client.chat.completions.create({
+        model,
+        response_format: { type: 'json_object' },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: JSON.stringify(messageContent) }
+        ],
+        temperature,
+        max_tokens: maxTokens
+      });
+
+      const raw = completion.choices[0]?.message?.content;
+      if (!raw) {
+        lastError = new Error('Empty response from LLM');
+        continue;
+      }
+
+      try {
+        parsed = JSON.parse(raw);
+        if (!parsed.reasoning || typeof parsed.reasoning !== 'string' || !parsed.reasoning.trim()) {
+          lastError = new Error('LLM returned no reasoning.');
+          continue;
+        }
+        // success
+        lastError = null;
+        break;
+      } catch {
+        lastError = new Error(`Failed to parse LLM response: ${raw}`);
+      }
+    }
+
+    if (lastError) {
+      throw lastError;
     }
 
     // Validate profile, fallback to first allowed if invalid
@@ -212,10 +231,10 @@ export class LLMAgent {
       .filter((r: string) => allowed.has(r));
     const finalRules = rules.length ? rules : (allowedReasons.length ? [allowedReasons[0]] : []);
 
-    const reasoning =
-      typeof parsed.reasoning === 'string' && parsed.reasoning.trim().length > 0
-        ? parsed.reasoning.trim()
-        : 'No reasoning provided';
+    if (typeof parsed.reasoning !== 'string' || !parsed.reasoning.trim()) {
+      throw new Error('LLM returned no reasoning.');
+    }
+    const reasoning = parsed.reasoning.trim();
 
     const popularityTier = allowPopularityTier ? coercePopularityTier(parsed.popularityTier) : undefined;
 

@@ -29,7 +29,19 @@ function mapTagIdsToLabels(tags: RadarrTag[], ids: number[]): string[] {
 
 async function run(batchSizeOverride?: number) {
   const config = loadConfig(baseDir);
-  const batchSize = batchSizeOverride || config.batchSize;
+  const cliBatch = typeof batchSizeOverride === 'number' && Number.isFinite(batchSizeOverride)
+    ? batchSizeOverride
+    : NaN;
+  const envBatch = Number(process.env.QUALITY_BROKER_BATCH_SIZE || process.env.BATCH_SIZE);
+  const override = Number.isFinite(cliBatch) && cliBatch > 0
+    ? cliBatch
+    : Number.isFinite(envBatch) && envBatch > 0
+      ? envBatch
+      : undefined;
+  const batchSize = override ?? config.batchSize;
+  console.log(`Batch Size: ${config.batchSize}`);
+  console.log(`Batch Size Override: ${override ?? 'none'}`);
+  console.log(`Batch Size Effective: ${batchSize}`);
   const radarr = new RadarrClient(config);
   const logger = new RunLogger(baseDir);
   const agent = new LLMAgent(config);
@@ -52,10 +64,10 @@ async function run(batchSizeOverride?: number) {
 
   const tagsById = new Map(tags.map((t) => [t.id, t.label] as const));
   const hasDecisionTag = (movie: RadarrMovie) =>
-    movie.tags.some((tid) => (tagsById.get(tid) || '').startsWith('decision:'));
+    movie.tags.some((tid) => (tagsById.get(tid) || '').startsWith('demand-'));
 
   const candidates = movies
-    .filter((m) => m.qualityProfileId === autoProfileId || !hasDecisionTag(m))
+    .filter((m) => m.qualityProfileId === autoProfileId && !hasDecisionTag(m))
     .slice(0, batchSize);
 
   if (!candidates.length) {
@@ -137,7 +149,10 @@ async function run(batchSizeOverride?: number) {
     logPath
   };
   logger.writeStatus(summary);
-  console.log(`Run complete. Success ${successCount}/${candidates.length}. Log: ${logPath}`);
+  const { default: chalk } = await import('chalk');
+  const msg = `Run complete. Success ${successCount}/${candidates.length}. Log: ${logPath}`;
+  const colored = successCount === candidates.length ? chalk.green(msg) : msg;
+  console.log(colored);
 }
 
 async function applyDecision(params: {

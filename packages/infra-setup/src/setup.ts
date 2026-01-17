@@ -27,6 +27,7 @@ interface ServiceConfig {
 }
 
 interface SetupConfig {
+  enableCloudflare: boolean;
   baseDomain: string;
   tunnelId: string;
   tunnelCredentialsFile: string;
@@ -82,6 +83,7 @@ async function main() {
   }
 
   const config: SetupConfig = {
+    enableCloudflare: false,
     baseDomain: '',
     tunnelId: '',
     tunnelCredentialsFile: '',
@@ -90,84 +92,105 @@ async function main() {
     enableJellyfinAuth: false
   };
 
-  // Step 1: Domain Configuration
-  console.log('Step 1: Domain Configuration');
+  // Step 0: Choose deployment mode
+  console.log('Step 0: Deployment Mode');
   console.log('-'.repeat(70));
-  config.baseDomain = await question('Enter your domain (e.g., mymedialibrary.example): ');
-
-  if (!config.baseDomain) {
-    console.error('Error: Domain is required');
-    process.exit(1);
-  }
-
+  console.log('DulceJelly can run in two modes:');
+  console.log('  1. Local-only: Access your media on your home network');
+  console.log('  2. Internet-accessible: Secure remote access via Cloudflare Tunnel');
   console.log();
 
-  // Step 2: Cloudflare Tunnel Configuration
-  console.log('Step 2: Cloudflare Tunnel Configuration');
-  console.log('-'.repeat(70));
-  console.log('You need a Cloudflare Tunnel created in your account.');
-  console.log('If you don\'t have one, create it at: https://one.dash.cloudflare.com/');
-  console.log('Navigate to: Networks > Tunnels > Create a tunnel');
-  console.log();
-
-  config.tunnelId = await question('Enter your Cloudflare Tunnel ID: ');
-
-  if (!config.tunnelId) {
-    console.error('Error: Tunnel ID is required');
-    process.exit(1);
-  }
-
-  const defaultCredsFile = `${config.tunnelId}.json`;
-  const credsFile = await question(`Tunnel credentials filename [${defaultCredsFile}]: `);
-  config.tunnelCredentialsFile = credsFile || defaultCredsFile;
-
-  console.log();
-
-  // Step 3: Service Configuration
-  console.log('Step 3: Service Configuration');
-  console.log('-'.repeat(70));
-  console.log('Configure hostnames for each service (subdomain only, no domain)');
-  console.log(`Example: "jellyfin" will create jellyfin.${config.baseDomain}`);
-  console.log();
-
-  const defaultServices = [
-    { name: 'jellyfin', defaultHostname: 'jellyfin', port: 8096, description: 'Media streaming' },
-    { name: 'jellyseerr', defaultHostname: 'jellyseerr', port: 5055, description: 'Content requests' },
-    { name: 'radarr', defaultHostname: 'radarr', port: 7878, description: 'Movie management' },
-    { name: 'sonarr', defaultHostname: 'sonarr', port: 8989, description: 'TV show management' },
-    { name: 'qbittorrent', defaultHostname: 'qb', port: 8080, description: 'Torrent downloads' },
-    { name: 'prowlarr', defaultHostname: 'prowlarr', port: 9696, description: 'Indexer management' },
-    { name: 'sabnzbd', defaultHostname: 'sab', port: 8080, description: 'Usenet downloads' },
-    { name: 'apex', defaultHostname: '', port: 80, description: 'Landing page' }
-  ];
-
-  for (const svc of defaultServices) {
-    const hostname = await question(`  ${svc.name} (${svc.description}) [${svc.defaultHostname || 'apex'}]: `);
-    config.services.push({
-      name: svc.name,
-      hostname: hostname || svc.defaultHostname,
-      port: svc.port,
-      requireAuth: svc.name !== 'jellyfin' && svc.name !== 'apex'
-    });
-  }
-
-  console.log();
-
-  // Step 4: Security Configuration
-  console.log('Step 4: Security Configuration');
-  console.log('-'.repeat(70));
-
-  config.enableCaddyAuth = await confirm(
-    'Enable Caddy basic auth for admin services (Jellyseerr, Radarr, etc.)?',
-    true
-  );
-
-  config.enableJellyfinAuth = await confirm(
-    'Enable Caddy basic auth for Jellyfin? (May break TV client apps)',
+  config.enableCloudflare = await confirm(
+    'Do you want to enable internet access via Cloudflare Tunnel?',
     false
   );
 
   console.log();
+
+  if (config.enableCloudflare) {
+    // Step 1: Domain Configuration
+    console.log('Step 1: Domain Configuration');
+    console.log('-'.repeat(70));
+    config.baseDomain = await question('Enter your domain (e.g., mymedialibrary.example): ');
+
+    if (!config.baseDomain) {
+      console.error('Error: Domain is required for Cloudflare setup');
+      process.exit(1);
+    }
+
+    console.log();
+
+    // Step 2: Cloudflare Tunnel Configuration
+    console.log('Step 2: Cloudflare Tunnel Configuration');
+    console.log('-'.repeat(70));
+    console.log('You need a Cloudflare Tunnel created in your account.');
+    console.log('If you don\'t have one, create it at: https://one.dash.cloudflare.com/');
+    console.log('Navigate to: Networks > Tunnels > Create a tunnel');
+    console.log();
+
+    config.tunnelId = await question('Enter your Cloudflare Tunnel ID: ');
+
+    if (!config.tunnelId) {
+      console.error('Error: Tunnel ID is required');
+      process.exit(1);
+    }
+
+    const defaultCredsFile = `${config.tunnelId}.json`;
+    const credsFile = await question(`Tunnel credentials filename [${defaultCredsFile}]: `);
+    config.tunnelCredentialsFile = credsFile || defaultCredsFile;
+
+    console.log();
+  }
+
+  // Step 3: Service Configuration
+  if (config.enableCloudflare) {
+    console.log('Step 3: Service Configuration');
+    console.log('-'.repeat(70));
+    console.log('Configure hostnames for each service (subdomain only, no domain)');
+    console.log(`Example: "jellyfin" will create jellyfin.${config.baseDomain}`);
+    console.log();
+
+    const defaultServices = [
+      { name: 'jellyfin', defaultHostname: 'jellyfin', port: 8096, description: 'Media streaming' },
+      { name: 'jellyseerr', defaultHostname: 'jellyseerr', port: 5055, description: 'Content requests' },
+      { name: 'radarr', defaultHostname: 'radarr', port: 7878, description: 'Movie management' },
+      { name: 'sonarr', defaultHostname: 'sonarr', port: 8989, description: 'TV show management' },
+      { name: 'qbittorrent', defaultHostname: 'qb', port: 8080, description: 'Torrent downloads' },
+      { name: 'prowlarr', defaultHostname: 'prowlarr', port: 9696, description: 'Indexer management' },
+      { name: 'sabnzbd', defaultHostname: 'sab', port: 8080, description: 'Usenet downloads' },
+      { name: 'apex', defaultHostname: '', port: 80, description: 'Landing page' }
+    ];
+
+    for (const svc of defaultServices) {
+      const hostname = await question(`  ${svc.name} (${svc.description}) [${svc.defaultHostname || 'apex'}]: `);
+      config.services.push({
+        name: svc.name,
+        hostname: hostname || svc.defaultHostname,
+        port: svc.port,
+        requireAuth: svc.name !== 'jellyfin' && svc.name !== 'apex'
+      });
+    }
+
+    console.log();
+  }
+
+  // Step 4: Security Configuration
+  if (config.enableCloudflare) {
+    console.log('Step 4: Security Configuration');
+    console.log('-'.repeat(70));
+
+    config.enableCaddyAuth = await confirm(
+      'Enable Caddy basic auth for admin services (Jellyseerr, Radarr, etc.)?',
+      true
+    );
+
+    config.enableJellyfinAuth = await confirm(
+      'Enable Caddy basic auth for Jellyfin? (May break TV client apps)',
+      false
+    );
+
+    console.log();
+  }
 
   // Step 5: Generate Configurations
   console.log('Step 5: Generating Configuration Files');

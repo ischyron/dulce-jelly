@@ -6,6 +6,15 @@
 - Strike out or mark status when done/blocked.
 
 ### Items
+
+- [ ] Fix README step order: 1) Setup repo, 2) Start & COnfigure Servcies  3) Setup Cloudflare (optional), 4) Test
+- [ ] Update setup script to handle Cloudflare as optional (not all users need internet access)
+- [ ] Make tests support optional HTTPS Cloudflare URLs (based on env vars)
+- [ ] Remove orphaned /infra folder after moving to turbo OR Move apps/cloudflare → infra/cloudflare if Turborepo supports it robustly (test all turbo cases)
+- []  README Quicksatrt  should say --  if you are familair with services in this repo.  just npm run setup and configure services.
+ and the run run ms cli to up servcies.
+
+#### Existing Issues
 - [BLOCKED] Approch refinement needed: When logged in on mymedialibrary.example via Caddy I need same login to work for the sub domains like sab.mymedialibrary.example. Blocked on moving auth to Zero trust Cloudlfare as it supports only 5 domains in FREE and this is a re-usable tech stack and I dont want to rely on cost heavy setup. Current approch is to understad more details around DNS config to be made to allow *.mymedialibrary.example to be under auth mapping to tunnel domains and then add exclusion policy for jellyfin.
 - [BLOCKED] Set up Jellyseerr config in Jellyfin Enhanced plugin so Jellyfin users can add movies (requires Jellyfin UI access).
 

@@ -2,14 +2,9 @@
 
 # DulceJelly
 
-A self-hosted personal media server and automation stack for managing, evaluating, and
-serving a personal movie and TV/Series collection, with built-in support for metadata
-enrichment, quality assessment, and lifecycle management.
-
-DulceJelly emphasizes **library intelligence** — tracking what exists in your
-collection, enriching it with external metadata, analyzing quality and encoding
-characteristics, and coordinating user-defined upgrade or replacement workflows
-over time.
+A self-hosted media server stack emphasizing **library intelligence**: tracking inventory,
+enriching metadata from external sources, analyzing quality and encoding characteristics,
+and coordinating upgrade or replacement workflows over time for your personal movie and TV collection.
 
 **Designed for:**
 
@@ -69,7 +64,7 @@ Access Jellyfin at: `http://localhost:3278`
 
 ## Setup Guide
 
-Follow these steps to set up your DulceJelly media server from scratch.
+Follow these steps to set up your DulceJelly media server.
 
 ### Prerequisites
 
@@ -77,118 +72,24 @@ Before you begin, make sure you have:
 
 1. **Docker Desktop** installed ([Download here](https://www.docker.com/products/docker-desktop))
 2. **Node.js** (v18 or newer; repo pins 22.19.0 via `.nvmrc`) installed ([Download here](https://nodejs.org/))
-3. **A Cloudflare account** (free) ([Sign up here](https://dash.cloudflare.com/sign-up))
-4. **A domain name** managed by Cloudflare (can be transferred or registered there)
-5. **Legal media content** to manage (a ROOT folder with copies of movies or shows you own. It's recommended to use a single media root if possible, or ensure your media root has adequate disk space for automation to move files into it)
+3. **Legal media content** to manage (a ROOT folder with copies of movies or shows you own. It's recommended to use a single media root if possible, or ensure your media root has adequate disk space for automation to move files into it)
 
-### Step 1: Get the Code
+**Optional (for internet access):**
+- **A Cloudflare account** (free) ([Sign up here](https://dash.cloudflare.com/sign-up))
+- **A domain name** managed by Cloudflare (can be transferred or registered there)
+
+### Step 1: Get the Code & Build
 
 ```bash
 # Clone this repository
 git clone <your-repo-url>
 cd dulce-jelly
-```
 
-### Step 2: Run the Setup Script
-
-This script will ask you questions and generate configuration files:
-
-```bash
-cd infra
-npm install
+# Install dependencies and build
 npm run setup
 ```
 
-The script will ask you for:
-
-- Your domain name (e.g., `mydomain.com`)
-- Your Cloudflare Tunnel ID (we'll help you create this)
-- Which services you want to expose
-- Security preferences (authentication, etc.)
-
-**Follow the prompts carefully.** The script generates:
-
-- Tunnel configuration (how Cloudflare connects to your server)
-- Reverse proxy configuration (how requests are routed)
-- Environment variables (your personal settings)
-
-### Step 3: Set Up Your Cloudflare Tunnel
-
-A Cloudflare Tunnel lets you access your server from anywhere without opening firewall ports.
-
-1. **Log in to Cloudflare**:
-   - Go to: https://one.dash.cloudflare.com/
-   - Navigate to: **Networks** → **Tunnels**
-
-2. **Create a new tunnel**:
-   - Click **Create a tunnel**
-   - Choose **Cloudflared**
-   - Give it a name (e.g., "dulcejelly")
-   - **Don't configure connectors** - we'll use Docker instead
-   - On the next page, note your **Tunnel ID** (long string of letters and numbers)
-
-3. **Download credentials**:
-   - Click on your tunnel
-   - Download the credentials JSON file
-   - Rename it to `<tunnel-id>.json` (your tunnel ID from step 2)
-   - Move it to: `cloudflared/<tunnel-id>.json`
-
-4. **Skip the route configuration** in the Cloudflare dashboard - this is handled automatically by your local configuration.
-
-### Step 4: Configure Cloudflare (optional: to reach your services through internet)
-
-Now we'll set up DNS records and security rules in Cloudflare:
-
-```bash
-cd cloudflare
-
-# Install dependencies
-npm install
-
-# Log in to Pulumi (you can use the free tier)
-pulumi login
-
-# Create a new stack (like a project environment)
-pulumi stack init prod
-```
-
-**Set your Cloudflare credentials:**
-
-```bash
-# Replace YOUR_API_TOKEN with a token from:
-# https://dash.cloudflare.com/profile/api-tokens
-# (needs Zone:DNS:Edit and Zone:Zone:Read permissions)
-pulumi config set --secret cloudflare:apiToken YOUR_API_TOKEN
-
-# Set your Cloudflare account ID
-# (found in the URL when you're logged in: dash.cloudflare.com/YOUR_ACCOUNT_ID)
-pulumi config set cloudflare:accountId YOUR_ACCOUNT_ID
-
-# Set your zone ID
-# (found on your domain's Overview page in Cloudflare dashboard)
-pulumi config set zoneId YOUR_ZONE_ID
-```
-
-**Merge the generated configuration:**
-
-The setup script created a file called `Pulumi.config-snippet.yaml` with your settings. Copy the configuration from that file into your `Pulumi.prod.yaml` (or whatever you named your stack).
-
-**Deploy your infrastructure:**
-
-```bash
-# Preview what will be created
-pulumi preview
-
-# Create the resources
-pulumi up
-```
-
-This sets up:
-- DNS records for all your services
-- Security rules (firewall, rate limiting)
-- Optional: access controls for admin tools
-
-### Step 5: Configure Your Media Server
+### Step 2: Configure Your Media Server
 
 1. **Copy the environment template**:
 
@@ -214,12 +115,7 @@ This sets up:
      docker run --rm caddy:2-alpine caddy hash-password --plaintext 'yourpassword'
      ```
 
-3. **Review generated configs**:
-
-   - Check `cloudflared/config.yml` - should list all your hostnames
-   - Check `caddy/Caddyfile.generated` - if it looks good, replace `caddy/Caddyfile` with it
-
-### Step 6: Start Your Media Server
+### Step 3: Start Your Media Server
 
 ```bash
 docker compose up -d
@@ -233,27 +129,106 @@ docker compose ps
 
 All services should show as "running".
 
-### Step 7: Initial Service Configuration
+### Step 4: Initial Service Configuration
 
 Complete the one-time service setup using the guide: [docs/service-setup-guide.md](docs/service-setup-guide.md).
 
-### Step 8: Test Everything
+This includes configuring:
+- Jellyfin (media library paths, users)
+- Radarr and Sonarr (quality profiles, indexers)
+- Download clients (qBittorrent, SABnzbd)
+- Prowlarr (indexer management)
+
+### Step 5: Test Everything (Local Network)
 
 ```bash
-# Navigate to the project root
+# Test local access
+npm run ms -- doctor
+
+# Run full test suite (optional)
 export TEST_AUTH_USER=your_username TEST_AUTH_PASS=your_password
 node --test test/test-services.test.mjs
 ```
 
-All tests should pass.
+All tests should pass. You can now access your services locally via `http://localhost:<port>`.
 
-### Step 9: Start Using DulceJelly!
+**You're done with basic setup!** You can now:
+- **Stream your media**: Open Jellyfin at `http://localhost:3278`
+- **Manage your library**: Access Radarr, Sonarr, and other tools on your LAN
 
-You're done! Now you can:
+---
 
-- **Stream your media**: Open Jellyfin on any device to access your personal library
-- **Manage your library**: Use the admin tools to organize and monitor your collection
-- **Access remotely**: Use your public URLs (e.g., `https://jellyfin.mymedialibrary.example`)
+## Optional: Setup Cloudflare for Internet Access
+
+If you want to access your media server from anywhere on the internet, follow these additional steps:
+
+### Step 6 (Optional): Run the Setup Script
+
+This script helps configure Cloudflare Tunnel:
+
+```bash
+cd packages/infra-setup
+npm run setup
+```
+
+The script will ask you for:
+- Your domain name (e.g., `mydomain.com`)
+- Your Cloudflare Tunnel ID
+- Which services you want to expose
+- Security preferences
+
+### Step 7 (Optional): Set Up Your Cloudflare Tunnel
+
+1. **Log in to Cloudflare**:
+   - Go to: https://one.dash.cloudflare.com/
+   - Navigate to: **Networks** → **Tunnels**
+
+2. **Create a new tunnel**:
+   - Click **Create a tunnel**
+   - Choose **Cloudflared**
+   - Give it a name (e.g., "dulcejelly")
+   - Note your **Tunnel ID**
+
+3. **Download credentials**:
+   - Download the credentials JSON file
+   - Rename it to `<tunnel-id>.json`
+   - Move it to: `cloudflared/<tunnel-id>.json`
+
+4. **Skip route configuration** in the Cloudflare dashboard
+
+### Step 8 (Optional): Configure Cloudflare DNS & Security
+
+Set up DNS records and security rules using Pulumi:
+
+```bash
+cd infra/cloudflare
+
+# Install dependencies
+npm install
+
+# Log in to Pulumi
+pulumi login
+
+# Create a stack
+pulumi stack init prod
+
+# Set your Cloudflare credentials
+pulumi config set --secret cloudflare:apiToken YOUR_API_TOKEN
+pulumi config set cloudflare:accountId YOUR_ACCOUNT_ID
+pulumi config set zoneId YOUR_ZONE_ID
+
+# Deploy
+pulumi up
+```
+
+### Step 9 (Optional): Test Internet Access
+
+Access your services via your domain:
+- `https://jellyfin.yourdomain.example`
+- `https://radarr.yourdomain.example`
+- etc.
+
+Run tests with HTTPS URLs (see [Testing](#testing) section below)
 
 ## Accessing Your Services
 

@@ -6,7 +6,7 @@ export interface BrokerConfig {
   autoAssignProfile: string;
   promptHints?: string;
   remuxPenalty?: string;
-  reasonTags?: string[];
+  reasonTags?: Record<string, string>;
 }
 
 export interface RadarrConfig {
@@ -42,6 +42,7 @@ export interface RadarrMovie {
   genres?: string[];
   popularity?: number;
   tmdbPopularity?: number;
+  keywords?: string[];
 }
 
 export interface RadarrMovieFile {
@@ -97,6 +98,7 @@ export interface RunLogEntry {
   currentQuality?: string;
   criticScore?: number;
   releaseGroup?: string;
+  keywords?: string[];
   fromProfile: string;
   toProfile: string;
   rulesApplied: string[];

@@ -10,27 +10,71 @@ radarr:
   # URL auto-derives from LAN_HOSTNAME/RADARR_PORT (or radarr:7878 in Docker);
   # set this field only if you need a custom host.
   # url:
-  apiKey: ${RADARR_API_KEY}
+  apiKey: your-radarr-api-key
 
 openai:
   apiKey: your-openai-api-key
   model: gpt-4-turbo
 
+temperature: 0.15
+maxTokens: 320
+
+# Decision thresholds (global / objective)
+thresholds:
+criticScoreMin: 68
+
+# Popularity is noisy; use as hint only
+popularityHigh: 80
+popularityLow: 10
+
+# Votes exist in Radarr default payload: ratings.tmdb.votes (often)
+voteCountReliable: 400
+voteCountHigh: 3000
+
+# Allow LLM cultural-salience inference ONLY when critic+popularity are weak
+allowPopularityTierFallback: true
+popularityTierFallbackMaxPopularity: 2
+
+releaseGroups:
+penalizeIfHighQuality4k: [ "YTS", "YIFY" ]
+preferIfHighQuality4k: [ "FLUX", "FraMeSToR", "Hallowed", "LAMA" ]
+
+visualGenresHigh:
+- Action
+- Animation
+- Adventure
+- Sci-Fi
+- Fantasy
+- War
+- Thriller
+
+# Policies and instructions the LLM must follow (kept in YAML, not in code)
+policies:
+remux:
+  enabled: true
+  penaltyScore: -1000
+  sizeCapMbPerMin: 1
+  message: "Remux is fully blocked (score -1000, size cap 1MB/min). Do not pick remux or suggest it."
+
+reasoning:
+  maxSentences: 2
+  forbidCurrentTrendsClaims: true
+  allowTimelessCulturalInference: true
+
 # Natural-language hints the LLM uses alongside metadata
 promptHints: |
-  - You have to use popularity score, and criticScore from radarr data and also your knowledge of the culture and trends to determine if a film is 4K worthy.
-  - 4K worthy is defined as a film with a rotten tomatoes critic score of 68% or higher and/or a signifiantly high popularity. 
-  - 'HighQuality-4K' quality propfile is for visually rich films (action, animation, or where HDR/DV adds value).
-  - A 4K worthy film can fallback to 'Efficient-4K' when Not HighQuality-4K worthy.  Here we prefer compact encodes (YTS is ok)
-  - HD for low-popularity and low-rating or when 4K adds little value like a documentary.
-  - If ReleaseGroup is currently YTS or YTS.?? and needed quality profile is HighQuality-4K; penalize YTS and favor FLUX/FraMeSToR/Hallowed.
+- Use only provided fields and thresholds; do not claim "currently trending" or recent buzz.
+- Treat popularity as noisy/unbounded; very low values (0-2) often mean "no signal", not "unpopular".
+- Use voteCountReliable as a minimum for trusting popularity/rating as stable.
+- HighQuality-4K is only for visually rich titles where 4K/HDR/DV adds real value.
+- Efficient-4K is for 4K-worthy titles with moderate payoff; compact encodes acceptable.
+- HD is for low-signal titles where 4K adds little value.
+- If releaseGroup is penalized (YTS/YIFY) and HighQuality-4K would be chosen, prefer Efficient-4K unless visual payoff is exceptional.
 
-# Remux policy must remain enforced
-remuxPenalty: Remux is fully blocked (score -1000, size cap 1MB/min).
-
-# Tagging: allowed demand reasons (tags will be demand-<reason>)
+# Allowed tags that flag reason for decision on quality
 reasonTags:
- - popular
- - criticScore
- - visual
- - lowq
+popular: when upgrade reason is that film is popular / culturally significant
+criticScore: when upgrade reason is that film has a good critic score
+visual: when upgrade reason is that film is visually rich (action, animation, HDR/DV value)
+lowq: when current file quality is 720p or below
+met: when current file meets quality demands based on rules

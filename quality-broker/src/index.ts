@@ -71,6 +71,7 @@ async function run(batchSizeOverride?: number) {
     const criticScore = movie.ratings?.rottenTomatoes?.value;
     const popularity = movie.popularity ?? movie.tmdbPopularity;
     const releaseGroup = movie.releaseGroup;
+    const keywords = movie.keywords;
     try {
     const decision = await agent.decide({
       movie,
@@ -95,6 +96,7 @@ async function run(batchSizeOverride?: number) {
         currentQuality,
         criticScore,
         releaseGroup,
+        keywords,
         fromProfile,
         toProfile: decision.profile,
         rulesApplied: decision.rules,
@@ -112,6 +114,7 @@ async function run(batchSizeOverride?: number) {
         currentQuality,
         criticScore,
         releaseGroup,
+        keywords,
         fromProfile,
         toProfile: fromProfile,
         rulesApplied: [],
@@ -149,16 +152,16 @@ async function applyDecision(params: {
   const profileId = decisionProfileIds.find((p) => p.name === decision.profile)?.id;
   if (!profileId) throw new Error(`Profile id not found for ${decision.profile}`);
 
-  const normalizeLabel = (prefix: string, value: string) => {
-    const normalized = `${prefix}-${value}`
+  const normalizeLabel = (value: string) => {
+    const normalized = `${value}`
       .toLowerCase()
       .replace(/[^a-z0-9-]+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-+|-+$/g, '');
-    return normalized || `${prefix}-${Date.now()}`;
+    return normalized || `tag-${Date.now()}`;
   };
 
-  const allowedReasons = new Set<string>(config.reasonTags || []);
+  const allowedReasons = new Set<string>(Object.keys(config.reasonTags || {}));
   let mappedReasons = decision.rules.filter((r) => allowedReasons.has(r));
   if (!mappedReasons.length && allowedReasons.size) {
     const fallback = Array.from(allowedReasons)[0];
@@ -169,15 +172,11 @@ async function applyDecision(params: {
     }
   }
   if (!mappedReasons.length) throw new Error('No mapped reasons for tagging; decision skipped.');
-  const requiredTagLabels = mappedReasons.map((t) => normalizeLabel('demand', t));
+  const requiredTagLabels = mappedReasons.map((t) => normalizeLabel(t));
 
   const existing = await radarr.getTags();
   const ensured: RadarrTag[] = [...existing];
-  const labelById = new Map([...existing, ...tags].map((t) => [t.id, t.label] as const));
-  const tagIds: number[] = movie.tags.filter((tid) => {
-    const label = labelById.get(tid) || '';
-    return !label.startsWith('demand-');
-  });
+  const tagIds: number[] = []; // replace all tags with the new set
   const addedLabels: string[] = [];
   for (const label of requiredTagLabels) {
     const tag = await radarr.ensureTag(label, ensured);

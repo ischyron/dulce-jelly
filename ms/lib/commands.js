@@ -29,15 +29,9 @@ function stop(args) {
 }
 
 function logs(args) {
-  const svc = resolveServiceLoose(args[0]);
-  const baseCmd = ['logs', '-f', svc];
-  const prettyBin = path.join(baseDir, 'node_modules', '.bin', 'pino-pretty');
-
-  if (fs.existsSync(prettyBin)) {
-    const cmd = `docker compose ${baseCmd.join(' ')} | "${prettyBin}"`;
-    return runCommand('sh', ['-c', cmd], { cwd: baseDir });
-  }
-
+  const svc = args && args.length ? resolveServiceLoose(args[0]) : null;
+  const baseCmd = ['--ansi', 'always', 'logs', '-f'];
+  if (svc) baseCmd.push(svc);
   return runCompose(baseCmd);
 }
 

@@ -16,7 +16,7 @@ const commands = {
   down: () => cmd.down(),
   status: () => cmd.status(),
   start: (args) => { ensureArg(args && args.length, 'start <service>'); return cmd.start(args); },
-  logs: (args) => { const svc = resolveServiceLoose(args[0]); ensureArg(svc, 'logs <service>'); return cmd.logs([svc]); },
+  logs: (args) => cmd.logs(args || []),
   stop: (args) => { ensureArg(args && args.length, 'stop <service>'); return cmd.stop(args); },
   restart: (args) => { const svc = resolveServiceLoose(args[0]); ensureArg(svc, 'restart <service>'); return cmd.restart([svc]); },
   reload: (args) => { const target = args[0]; ensureArg(target, 'reload <caddy|tunnel>'); return cmd.reload([target]); },

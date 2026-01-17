@@ -87,6 +87,13 @@ export function loadConfig(baseDir: string): BrokerConfig {
     autoAssignProfile: raw.autoAssignProfile || 'AutoAssignQuality',
     promptHints: raw.promptHints || '',
     remuxPenalty: raw.remuxPenalty || 'Remux is fully blocked (score -1000, size cap 1MB/min).',
-    reasonTags: raw.reasonTags || ['popular', 'criticScore', 'visual', 'lowq']
+    reasonTags:
+      raw.reasonTags || {
+        popular: 'upgrade because the film is popular (high popularity)',
+        criticScore: 'upgrade because critic score is strong',
+        visual: 'upgrade because it is visually rich (action/animation/HDR/DV benefits)',
+        lowq: 'upgrade because current file is 720p or below',
+        met: 'quality already meets demands'
+      }
   };
 }

@@ -20,13 +20,15 @@ export class LLMAgent {
   async decide(input: DecisionInput): Promise<DecisionResult> {
     const { movie, profileOptions, autoAssignProfile, configHints } = input;
     const model = this.config.openai.model || 'gpt-4-turbo';
-    const allowedReasons = this.config.reasonTags || ['popular', 'criticScore', 'visual', 'lowq'];
+    const reasonMap = this.config.reasonTags || {};
+    const allowedReasons = Object.keys(reasonMap);
     const messageContent = {
       title: movie.title,
       year: movie.year,
       profiles: profileOptions,
       autoAssignProfile,
       allowedReasons,
+      reasonDescriptions: reasonMap,
       imdbRating: movie.ratings?.imdb?.value,
       tmdbRating: movie.ratings?.tmdb?.value,
       tmdbPopularity: movie.tmdbPopularity,
@@ -52,7 +54,7 @@ export class LLMAgent {
             'You are a quality broker for Radarr. Choose the best quality profile based on popularity, critic rating, visual richness, and release clues. ' +
             'Use only the provided profile names. Prefer upgrades for rich visuals; keep efficient encodes when quality is marginal. ' +
             'Remux is banned (score -1000, size cap 1MB/min). Do not pick remux or suggest it. ' +
-            'Rules must be chosen only from the allowed reasons list and at least one must be present. ' +
+            'Reasons must come only from the allowed reasons list (with meanings supplied) and at least one must be present. ' +
             'Output JSON: {"profile": "<profile name>", "rules": ["<allowed reason>"...], "reasoning": "short"}. '
         },
         {

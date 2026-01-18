@@ -28,9 +28,9 @@ const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
   header:
     'Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Include popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.',
   constraints:
-    'Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
+    'Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
   inputs:
-    'Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
+    'Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
   popularityTierPolicy:
     'If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference only. If false, omit popularityTier entirely.',
   groupsAndGenres:
@@ -128,6 +128,7 @@ export function loadConfig(baseDir: string): BrokerConfig {
     },
     decisionProfiles,
     autoAssignProfile: raw.autoAssignProfile || 'AutoAssignQuality',
+    reviseQualityForProfile: typeof raw.reviseQualityForProfile === 'string' ? raw.reviseQualityForProfile : '',
     promptHints: raw.promptHints || '',
     reasonTags,
     thresholds: raw.thresholds,

@@ -4,6 +4,7 @@ export interface BrokerConfig {
   openai: OpenAIConfig;
   decisionProfiles: string[];
   autoAssignProfile: string;
+  reviseQualityForProfile?: string;
   promptHints?: string;
   reasonTags?: Record<string, string>;
   thresholds?: Thresholds;
@@ -30,8 +31,6 @@ export interface Thresholds {
   popularityLow?: number;
   allowPopularityTierFallback?: boolean;
   popularityTierFallbackMaxPopularity?: number;
-  voteCountReliable?: number;
-  voteCountHigh?: number;
 }
 
 export interface ReasoningPolicy {
@@ -117,6 +116,7 @@ export interface PopularitySignal {
   imdbScore?: number;
   imdbVotes?: number;
   rawPopularity?: number;
+  computedPopularityIndex?: number;
 }
 
 export interface QualityProfile {

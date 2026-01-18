@@ -75,6 +75,15 @@ function getTmdbScore(movie: RadarrMovie): number | undefined {
   return movie.ratings?.tmdb?.value ?? undefined;
 }
 
+function computePopularityIndex(votes?: number): number | undefined {
+  if (typeof votes !== 'number' || votes <= 0) return undefined;
+  const logMin = 3; // 1k votes
+  const logMax = 6; // 1M votes
+  const normalized = ((Math.log10(votes) - logMin) / (logMax - logMin)) * 100;
+  const clamped = Math.max(0, Math.min(100, normalized));
+  return Math.round(clamped * 10) / 10;
+}
+
 function buildPopularitySignal(movie: RadarrMovie): PopularitySignal {
   const tmdbScore = getTmdbScore(movie);
   const tmdbVotes = getTmdbVotes(movie);
@@ -93,6 +102,7 @@ function buildPopularitySignal(movie: RadarrMovie): PopularitySignal {
 
   const primaryScore = primarySource === 'tmdb' ? tmdbScore : primarySource === 'imdb' ? imdbScore : undefined;
   const primaryVotes = primarySource === 'tmdb' ? tmdbVotes : primarySource === 'imdb' ? imdbVotes : undefined;
+  const computedPopularityIndex = computePopularityIndex(primaryVotes);
 
   return {
     primarySource,
@@ -102,7 +112,8 @@ function buildPopularitySignal(movie: RadarrMovie): PopularitySignal {
     tmdbVotes: typeof tmdbVotes === 'number' ? tmdbVotes : undefined,
     imdbScore: typeof imdbScore === 'number' ? imdbScore : undefined,
     imdbVotes: typeof imdbVotes === 'number' ? imdbVotes : undefined,
-    rawPopularity: typeof rawPopularity === 'number' ? rawPopularity : undefined
+    rawPopularity: typeof rawPopularity === 'number' ? rawPopularity : undefined,
+    computedPopularityIndex
   };
 }
 
@@ -143,6 +154,11 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   if (!autoProfileId) {
     throw new Error(`Auto assign profile '${config.autoAssignProfile}' not found in Radarr.`);
   }
+  const reviseProfileName = (config.reviseQualityForProfile || '').trim();
+  const reviseProfileId = reviseProfileName ? resolveProfileId(profiles, reviseProfileName) : undefined;
+  if (reviseProfileName && !reviseProfileId) {
+    throw new Error(`Revise profile '${reviseProfileName}' not found in Radarr.`);
+  }
 
   const decisionProfileIds = config.decisionProfiles.map((name) => {
     const id = resolveProfileId(profiles, name);
@@ -155,7 +171,10 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     movie.tags.some((tid) => (tagsById.get(tid) || '').startsWith('demand-'));
 
   const candidates = movies
-    .filter((m) => m.qualityProfileId === autoProfileId && !hasDecisionTag(m))
+    .filter((m) => {
+      if (reviseProfileId) return m.qualityProfileId === reviseProfileId;
+      return m.qualityProfileId === autoProfileId && !hasDecisionTag(m);
+    })
     .slice(0, batchSize);
 
   if (!candidates.length) {

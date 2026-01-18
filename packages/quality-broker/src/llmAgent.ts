@@ -49,6 +49,7 @@ function buildPopularitySignal(movie: RadarrMovie): {
   imdbScore?: number;
   imdbVotes?: number;
   rawPopularity?: number;
+  computedPopularityIndex?: number;
 } {
   const tmdbScore = movie.ratings?.tmdb?.value;
   const tmdbVotes = getTmdbVotes(movie);
@@ -67,6 +68,7 @@ function buildPopularitySignal(movie: RadarrMovie): {
 
   const primaryScore = primarySource === 'tmdb' ? tmdbScore : primarySource === 'imdb' ? imdbScore : undefined;
   const primaryVotes = primarySource === 'tmdb' ? tmdbVotes : primarySource === 'imdb' ? imdbVotes : undefined;
+  const computedPopularityIndex = computePopularityIndex(primaryVotes);
 
   return {
     primarySource,
@@ -76,8 +78,18 @@ function buildPopularitySignal(movie: RadarrMovie): {
     tmdbVotes: typeof tmdbVotes === 'number' ? tmdbVotes : undefined,
     imdbScore: typeof imdbScore === 'number' ? imdbScore : undefined,
     imdbVotes: typeof imdbVotes === 'number' ? imdbVotes : undefined,
-    rawPopularity: typeof rawPopularity === 'number' ? rawPopularity : undefined
+    rawPopularity: typeof rawPopularity === 'number' ? rawPopularity : undefined,
+    computedPopularityIndex
   };
+}
+
+function computePopularityIndex(votes?: number): number | undefined {
+  if (typeof votes !== 'number' || votes <= 0) return undefined;
+  const logMin = 3; // 1k votes
+  const logMax = 6; // 1M votes
+  const normalized = ((Math.log10(votes) - logMin) / (logMax - logMin)) * 100;
+  const clamped = Math.max(0, Math.min(100, normalized));
+  return Math.round(clamped * 10) / 10;
 }
 
 function coercePopularityTier(v: unknown): PopularityTier | undefined {
@@ -204,9 +216,22 @@ export class LLMAgent {
 
     const criticSignal = getCriticSignal(movie);
     const criticScore = criticSignal.score;
-    const popularity = getPopularity(movie);
     const popularitySignal = buildPopularitySignal(movie);
+    const popularity = getPopularity(movie);
     const popularityVotes = popularitySignal.primaryVotes;
+    const computedPopularityIndex = popularitySignal.computedPopularityIndex;
+    const popularityForThreshold =
+      typeof computedPopularityIndex === 'number'
+        ? computedPopularityIndex
+        : typeof popularity === 'number'
+          ? popularity
+          : undefined;
+    const popularityForTier =
+      typeof computedPopularityIndex === 'number'
+        ? computedPopularityIndex
+        : typeof popularity === 'number'
+          ? popularity
+          : undefined;
 
     const currentQuality: string | undefined = movie.movieFile?.quality?.quality?.name;
     const lowq = isLowQ(currentQuality);
@@ -215,7 +240,7 @@ export class LLMAgent {
     const visualQualityDemandByGenreMatches = visualMatches.length;
     const currentIs4k = is4kQuality(currentQuality);
 
-    const weakPopularitySignal = popularity == null || popularity <= popTierMax;
+    const weakPopularitySignal = popularityForTier == null || popularityForTier <= popTierMax;
     const weakCriticSignal = criticScore == null;
     const allowPopularityTier = allowPopularityTierFallback && weakPopularitySignal && weakCriticSignal;
 
@@ -257,21 +282,14 @@ export class LLMAgent {
             ? criticScore >= thresholds.criticScoreMin
             : null,
         popularityHigh:
-          typeof popularity === 'number' && typeof thresholds.popularityHigh === 'number'
-            ? popularity >= thresholds.popularityHigh
+          typeof popularityForThreshold === 'number' && typeof thresholds.popularityHigh === 'number'
+            ? popularityForThreshold >= thresholds.popularityHigh
             : null,
         popularityLow:
-          typeof popularity === 'number' && typeof thresholds.popularityLow === 'number'
-            ? popularity <= thresholds.popularityLow
+          typeof popularityForThreshold === 'number' && typeof thresholds.popularityLow === 'number'
+            ? popularityForThreshold <= thresholds.popularityLow
             : null,
-        voteCountReliable:
-          typeof popularityVotes === 'number' && typeof thresholds.voteCountReliable === 'number'
-            ? popularityVotes >= thresholds.voteCountReliable
-            : null,
-        voteCountHigh:
-          typeof popularityVotes === 'number' && typeof thresholds.voteCountHigh === 'number'
-            ? popularityVotes >= thresholds.voteCountHigh
-            : null,
+        computedPopularityIndex: computedPopularityIndex ?? null,
         visualGenreMatches: visualMatches,
         visualQualityDemandByGenreMatches,
         currentIs4k,

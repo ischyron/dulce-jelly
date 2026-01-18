@@ -21,12 +21,16 @@ cp quality-broker/config/config.example.yaml \
 Key fields (see comments in example):
 - `batchSize` (default 10; CLI `--batch-size` overrides)
 - `autoAssignProfile`: Radarr profile name used as the intake queue
+- `reviseQualityForProfile`: optional Radarr profile name to re-evaluate all movies already in that profile
 - `decisionProfiles`: target profiles the LLM can pick from (must exist in Radarr/Recyclarr)
 - `radarr.apiKey` (config only); URL auto-derives from `LAN_HOSTNAME` + `RADARR_PORT` (or `http://radarr:7878` in Docker). Override via `radarr.url` only if you need a custom host. Ensure the container shares the `media_net` network (defined as external in compose).
 - `openai.apiKey` (required in config only), `openai.model` (default gpt-4-turbo)
 - `promptHints`: natural-language heuristics to steer choices
 - `remuxPenalty`: reminder that remux stays blocked (score -1000, 1MB/min cap)
 - `reasonTags`: allowed demand reasons → tags (e.g., popular, criticScore, visual, lowq)
+  
+Popularity signals:
+- `computedPopularityIndex` is derived from vote counts (log-scaled 0-100) and is preferred over raw TMDB popularity when present.
 
 Environment fallbacks: `QUALITY_BROKER_CONFIG` (override config path).
 

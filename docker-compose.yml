@@ -47,6 +47,7 @@ services:
       timeout: 5s
       retries: 3
       start_period: 1s
+
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
@@ -63,9 +64,15 @@ services:
       - ./data/jellyfin/config:/config
       - ./data/jellyfin/cache:/cache
       - ./data/jellyfin/config/index.html:/jellyfin/jellyfin-web/index.html
-      - "${JELLYFIN_MOVIES:-/Volumes/MEDIA1/Movies}:/Volumes/Movies"
-      - "${JELLYFIN_SERIES:-/Volumes/MEDIA1/Series}:/Volumes/Series"
+      # Stable host mounts → stable container mounts
+      - "${JELLYFIN_MOVIES}:/Volumes/Movies"
+      - "${JELLYFIN_SERIES}:/Volumes/Series"
+          # Keep Jellyfin's *existing* library roots stable by providing /Volumes/Movies + /Volumes/Series inside container
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - "mkdir -p /Volumes && ln -sfn /media/movies /Volumes/Movies && ln -sfn /media/series /Volumes/Series && exec /jellyfin/jellyfin"
 
+      
   jellyseerr:
     image: ghcr.io/fallenbagel/jellyseerr:latest
     container_name: jellyseerr
@@ -105,8 +112,8 @@ services:
       - "${QBITTORRENT_PEER_PORT:-6881}:6881/udp"
     volumes:
       - ./data/qbittorrent/config:/config
-      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/downloads}:/downloads"
-      - "${QBITTORRENT_WATCH:-/data/qbittorrent/watch}:/watch"
+      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/MediaCenter/downloads}:/downloads"
+      - "${QBITTORRENT_WATCH:-~/Downloads}:/watch"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ >/dev/null || exit 1"]
       interval: 30s
@@ -147,8 +154,8 @@ services:
       - "${RADARR_PORT:-3273}:7878"
     volumes:
       - ./data/radarr/config:/config
-      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/downloads}:/downloads"
-      - "${JELLYFIN_MOVIES:-/Volumes/MEDIA1/Movies}:/movies"
+      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/MediaCenter/downloads}:/downloads"
+      - "${JELLYFIN_MOVIES:-~/Media/MEDIA1/Movies}:/movies"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:7878/ >/dev/null || exit 1"]
       interval: 30s
@@ -170,8 +177,8 @@ services:
       - "${SABNZBD_PORT:-3274}:8080"
     volumes:
       - ./data/sabnzbd/config:/config
-      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/downloads}:/downloads"
-      - "${INCOMPLETE_ROOT:-/Volumes/SCRAPFS/downloads/incomplete}:/incomplete"
+      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/MediaCenter/downloads}:/downloads"
+      - "${INCOMPLETE_ROOT:-/Volumes/SCRAPFS/MediaCenter/downloads/incomplete}:/incomplete"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8080/ >/dev/null || exit 1"]
       interval: 30s
@@ -192,8 +199,8 @@ services:
       - "${SONARR_PORT:-3272}:8989"
     volumes:
       - ./data/sonarr/config:/config
-      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/downloads}:/downloads"
-      - "${JELLYFIN_SERIES:-/Volumes/MEDIA1/Series}:/series"
+      - "${DOWNLOADS_ROOT:-/Volumes/SCRAPFS/MediaCenter/downloads}:/downloads"
+      - "${JELLYFIN_SERIES:-~/Media/MEDIA1/Series}:/series"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:8989/ >/dev/null || exit 1"]
       interval: 30s
@@ -232,7 +239,6 @@ services:
       LOG_LEVEL: "debug"
     volumes:
       - ./data/recyclarr/config:/config
-
 
 networks:
   default:

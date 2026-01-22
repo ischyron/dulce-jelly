@@ -244,10 +244,10 @@ function selectDeterministicDecision(params: {
       addReason('weak');
     }
   } else if (typeof criticScore === 'number') {
-    if (strongPopularity && visualRich) {
+    if (strongPopularity) {
       profile = 'Efficient-4K';
       addReason('pop');
-      addReason('vis');
+      if (visualRich) addReason('vis');
     } else {
       profile = 'HD';
       addReason('weak');
@@ -368,19 +368,6 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     return { name, id };
   });
 
-  const tagsById = new Map(tags.map((t) => [t.id, t.label]));
-  const brokerManagedLabels = new Set(
-    Object.keys(config.reasonTags || {}).map((label) =>
-      `${label}`
-        .toLowerCase()
-        .replace(/[^a-z0-9-]+/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-+|-+$/g, '')
-    )
-  );
-  const hasDecisionTag = (movie: RadarrMovie) =>
-    movie.tags.some((tid) => brokerManagedLabels.has((tagsById.get(tid) || '').toLowerCase()));
-
   const compareTitles = (a: RadarrMovie, b: RadarrMovie) => {
     const at = (a.title || '').toLowerCase();
     const bt = (b.title || '').toLowerCase();
@@ -390,7 +377,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   const candidates = movies
     .filter((m) => {
       if (reviseProfileId) return m.qualityProfileId === reviseProfileId;
-      return m.qualityProfileId === autoProfileId && !hasDecisionTag(m);
+      return m.qualityProfileId === autoProfileId;
     })
     .sort(compareTitles)
     .slice(0, batchSize);

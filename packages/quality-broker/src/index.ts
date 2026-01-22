@@ -291,7 +291,18 @@ function selectDeterministicDecision(params: {
   if (reasons.includes('vis') && visualMatches.length) {
     reasoningParts.push(`visual score ${visualScore} (genres ${visualMatches.join(', ')})`);
   }
-  if (reasons.includes('weak')) reasoningParts.push('limited signal');
+  if (reasons.includes('weak')) {
+    const missingParts: string[] = [];
+    if (criticScore == null) missingParts.push('missing critic score');
+    if (popularity == null) missingParts.push('missing popularity');
+    if (typeof popularity === 'number' && popularity <= popularityLow) missingParts.push('low popularity');
+    if (visualScore === 0) missingParts.push('no visual genres');
+    if (!missingParts.length) {
+      reasoningParts.push('limited signal');
+    } else {
+      reasoningParts.push(`limited signal (${missingParts.join(', ')})`);
+    }
+  }
   if (reasons.includes('mix')) reasoningParts.push('mixed signals');
   if (!reasoningParts.length) reasoningParts.push('limited signal');
 

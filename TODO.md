@@ -7,6 +7,7 @@
 
 ### Todo Items/Issues
 - [TODO] delete only brokerManagedTags when processing a new movie in Radarr using quality broker
+- [TODO] Remove hardcoded decision profile names (HD/Efficient-4K/HighQuality-4K) from quality-broker code; derive only from config
 - [BLOCKED] Approch refinement needed: When logged in on mymedialibrary.example via Caddy I need same login to work for the sub domains like sab.mymedialibrary.example. Blocked on moving auth to Zero trust Cloudlfare as it supports only 5 domains in FREE and this is a re-usable tech stack and I dont want to rely on cost heavy setup. Current approch is to understad more details around DNS config to be made to allow *.mymedialibrary.example to be under auth mapping to tunnel domains and then add exclusion policy for jellyfin.
 - [BLOCKED] Set up Jellyseerr config in Jellyfin Enhanced plugin so Jellyfin users can add movies (requires Jellyfin UI access).
 

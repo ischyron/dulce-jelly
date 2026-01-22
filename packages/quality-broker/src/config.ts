@@ -31,9 +31,9 @@ const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
   constraints:
     'You are invoked only for ambiguous edge cases. Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
   inputs:
-    'Input JSON includes title, year, genres, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, lowq, thresholds, rulesEngine {weights, scoreThresholds}, visualGenresHigh, signalSummary, policies, hints. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
+    'Input JSON includes title, year, genres, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, lowq, thresholds, rulesEngine {weights, scoreThresholds, visualWeights, visualScoreConfig}, signalSummary, policies, hints. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
   groupsAndGenres:
-    'Visual genres with high payoff: {{visualGenresHigh}}.'
+    'Visual genres with high payoff (from visualWeights): {{visualGenres}}.'
 };
 
 function expandEnv(val: unknown): unknown {
@@ -182,7 +182,6 @@ export function loadConfig(baseDir: string): BrokerConfig {
     promptHints: raw.promptHints || '',
     reasonTags,
     thresholds,
-    visualGenresHigh: raw.visualGenresHigh,
     rulesEngine,
     policies,
     promptTemplate,

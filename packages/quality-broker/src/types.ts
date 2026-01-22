@@ -8,7 +8,6 @@ export interface BrokerConfig {
   promptHints?: string;
   reasonTags?: Record<string, string>;
   thresholds?: Thresholds;
-  visualGenresHigh?: string[];
   rulesEngine?: RulesEngineConfig;
   policies?: Policies;
   promptTemplate?: PromptTemplate;

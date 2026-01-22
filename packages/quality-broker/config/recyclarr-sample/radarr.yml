@@ -19,6 +19,12 @@ radarr:
     base_url: !secret radarr_url
     api_key: !secret radarr_api_key
 
+    # Include quality profiles from separate file
+    # Note: When deploying, move includes/ to be a sibling of configs/ (Recyclarr v8.0+)
+    # Production path: ../includes/radarr-quality-profiles.yml
+    include:
+      - config: ../includes/radarr-quality-profiles.yml
+
     # ------------------------------------------------------
     # Quality definitions (MB per minute)
     # For 120min movie: max × 120 = max file size in MB
@@ -49,89 +55,6 @@ radarr:
         - { name: Bluray-2160p, min: 45, preferred: 100, max: 170 }
 
     # ------------------------------------------------------
-    # Quality Profiles
-    # ------------------------------------------------------
-    quality_profiles:
-      - name: AutoAssignQuality
-        reset_unmatched_scores: { enabled: false }
-        upgrade: { allowed: false }
-        quality_sort: top
-        qualities:
-          - { name: Unknown, enabled: true }
-          - { name: Remux-2160p, enabled: false }
-          - { name: Remux-1080p, enabled: false }
-          - { name: HDTV-2160p, enabled: false }
-          - { name: HDTV-1080p, enabled: false }
-          - { name: HDTV-720p, enabled: false }
-          - { name: "WEB 2160p", enabled: false, qualities: [WEBRip-2160p, WEBDL-2160p] }
-          - { name: Bluray-2160p, enabled: false }
-          - { name: "WEB 1080p", enabled: false, qualities: [WEBRip-1080p, WEBDL-1080p] }
-          - { name: Bluray-1080p, enabled: false }
-          - { name: "WEB 720p", enabled: false, qualities: [WEBRip-720p, WEBDL-720p] }
-          - { name: Bluray-720p, enabled: false }
-
-      - name: HD
-        reset_unmatched_scores: { enabled: true }
-        upgrade: { allowed: true, until_quality: WEBDL-1080p, until_score: 60 }
-        min_format_score: 15
-        min_upgrade_format_score: 35
-        quality_sort: top
-        qualities:
-          - { name: Remux-2160p, enabled: false }
-          - { name: Remux-1080p, enabled: false }
-          - { name: HDTV-2160p, enabled: false }
-          - { name: HDTV-1080p, enabled: false }
-          - { name: HDTV-720p, enabled: false }
-          - { name: WEBDL-1080p }
-          - { name: WEBRip-1080p }
-          - { name: Bluray-1080p, enabled: true }
-          - { name: WEBDL-720p, enabled: false }
-          - { name: WEBRip-720p, enabled: false }
-          - { name: Bluray-720p, enabled: false }
-
-      - name: Efficient-4K
-        reset_unmatched_scores: { enabled: true }
-        upgrade: { allowed: true, until_quality: WEBDL-2160p, until_score: 70 }
-        min_format_score: 25
-        min_upgrade_format_score: 45
-        quality_sort: top
-        qualities:
-          - { name: Remux-2160p, enabled: false }
-          - { name: Remux-1080p, enabled: false }
-          - { name: HDTV-2160p, enabled: false }
-          - { name: HDTV-1080p, enabled: false }
-          - { name: WEBDL-2160p }
-          - { name: WEBRip-2160p }
-          - { name: Bluray-2160p, enabled: false }
-          - { name: WEBDL-1080p, enabled: false }
-          - { name: WEBRip-1080p, enabled: false }
-          - { name: Bluray-1080p, enabled: false }
-          - { name: WEBDL-720p, enabled: false }
-          - { name: WEBRip-720p, enabled: false }
-          - { name: Bluray-720p, enabled: false }
-
-      - name: HighQuality-4K
-        reset_unmatched_scores: { enabled: true }
-        upgrade: { allowed: true, until_quality: Bluray-2160p, until_score: 80 }
-        min_format_score: 20
-        min_upgrade_format_score: 40
-        quality_sort: top
-        qualities:
-          - { name: Remux-2160p, enabled: false }
-          - { name: Remux-1080p, enabled: false }
-          - { name: HDTV-2160p, enabled: false }
-          - { name: HDTV-1080p, enabled: false }
-          - { name: Bluray-2160p, enabled: true }
-          - { name: WEBDL-2160p }
-          - { name: WEBRip-2160p }
-          - { name: WEBDL-1080p, enabled: false }
-          - { name: WEBRip-1080p, enabled: false }
-          - { name: Bluray-1080p, enabled: false }
-          - { name: WEBDL-720p, enabled: false }
-          - { name: WEBRip-720p, enabled: false }
-          - { name: Bluray-720p, enabled: false }
-
-    # ------------------------------------------------------
     # Custom Formats
     # ------------------------------------------------------
     custom_formats:
@@ -160,31 +83,13 @@ radarr:
       # HDR / DV
       - trash_ids:
           - 493b6d1dbec3c3364c59d7607f7e3405 # HDR (unified)
+          - b337d6812e06c200ec9a2d3cfa9d20a7 # DV Boost
+          - caa37d0df9c348912df1fb1d88f9273a # HDR10+ Boost
+          - 9c38ebb7384dada637be8899efa68e6f # SDR
         assign_scores_to:
           - { name: HD, score: 20 }
           - { name: Efficient-4K, score: 30 }
           - { name: HighQuality-4K, score: 35 }
-
-      - trash_ids:
-          - b337d6812e06c200ec9a2d3cfa9d20a7 # DV Boost
-        assign_scores_to:
-          - { name: HD, score: 10 }
-          - { name: Efficient-4K, score: 20 }
-          - { name: HighQuality-4K, score: 30 }
-
-      - trash_ids:
-          - caa37d0df9c348912df1fb1d88f9273a # HDR10+ Boost
-        assign_scores_to:
-          - { name: HD, score: 10 }
-          - { name: Efficient-4K, score: 20 }
-          - { name: HighQuality-4K, score: 25 }
-
-      - trash_ids:
-          - 9c38ebb7384dada637be8899efa68e6f # SDR
-        assign_scores_to:
-          - { name: HD, score: -20 }
-          - { name: Efficient-4K, score: -25 }
-          - { name: HighQuality-4K, score: -20 }
 
       # Audio
       - trash_ids:
@@ -215,6 +120,13 @@ radarr:
           - { name: Efficient-4K, score: 15 }
           - { name: HighQuality-4K, score: 15 }
 
+      - trash_ids:
+          - 8e109e50e0a0b83a5098b056e13bf6db # DTS-HD HRA
+        assign_scores_to:
+          - { name: HD, score: 15 }
+          - { name: Efficient-4K, score: 15 }
+          - { name: HighQuality-4K, score: 15 }
+
       # Release hygiene
       - trash_ids:
           - e7718d7a3ce595f289bfee26adc178f5 # Repack/Proper
@@ -237,13 +149,13 @@ radarr:
           - { name: Efficient-4K, score: 7 }
           - { name: HighQuality-4K, score: 7 }
 
-      # Scene releases (mild penalty - not hard reject)
+      # Scene releases (blocked per TRaSH recommendation)
       - trash_ids:
           - f537cf427b64c38c8e36298f657e4828 # Scene
         assign_scores_to:
-          - { name: HD, score: -15 }
-          - { name: Efficient-4K, score: -15 }
-          - { name: HighQuality-4K, score: -20 }
+          - { name: HD, score: -10000 }
+          - { name: Efficient-4K, score: -10000 }
+          - { name: HighQuality-4K, score: -10000 }
 
       # ------------------------------------------------------
       # Streaming Services (tiered by quality reputation)
@@ -282,86 +194,64 @@ radarr:
           - { name: HighQuality-4K, score: 18 }
 
       # ------------------------------------------------------
-      # Release Groups - WEB Tiers
+      # Release Groups - WEB Tiers (TRaSH defaults)
       # ------------------------------------------------------
       - trash_ids:
           - c20f169ef63c5f40c2def54abaf4438e # WEB Tier 01
         assign_scores_to:
-          - { name: HD, score: 25 }
-          - { name: Efficient-4K, score: 30 }
-          - { name: HighQuality-4K, score: 35 }
+          - name: HD
+          - name: Efficient-4K
+          - name: HighQuality-4K
 
       - trash_ids:
           - 403816d65392c79236dcb6dd591aeda4 # WEB Tier 02
         assign_scores_to:
-          - { name: HD, score: 18 }
-          - { name: Efficient-4K, score: 22 }
-          - { name: HighQuality-4K, score: 25 }
+          - name: HD
+          - name: Efficient-4K
+          - name: HighQuality-4K
 
       - trash_ids:
           - af94e0fe497124d1f9ce732069ec8c3b # WEB Tier 03
         assign_scores_to:
-          - { name: HD, score: 12 }
-          - { name: Efficient-4K, score: 15 }
-          - { name: HighQuality-4K, score: 18 }
+          - name: HD
+          - name: Efficient-4K
+          - name: HighQuality-4K
 
       # ------------------------------------------------------
-      # Release Groups - UHD Bluray Tiers (HQ4K only)
+      # Release Groups - UHD Bluray Tiers (TRaSH defaults, HQ4K only)
       # ------------------------------------------------------
       - trash_ids:
           - 4d74ac4c4db0b64bff6ce0cffef99bf0 # UHD Bluray Tier 01
         assign_scores_to:
-          - { name: HighQuality-4K, score: 35 }
+          - name: HighQuality-4K
 
       - trash_ids:
           - a58f517a70193f8e578056642178419d # UHD Bluray Tier 02
         assign_scores_to:
-          - { name: HighQuality-4K, score: 28 }
+          - name: HighQuality-4K
 
       - trash_ids:
           - e71939fae578037e7aed3ee219bbe7c1 # UHD Bluray Tier 03
         assign_scores_to:
-          - { name: HighQuality-4K, score: 20 }
+          - name: HighQuality-4K
 
       # ------------------------------------------------------
-      # Release Groups - HD Bluray Tiers (for 1080p encodes)
+      # Release Groups - HD Bluray Tiers (TRaSH defaults, HD only)
       # ------------------------------------------------------
       - trash_ids:
           - ed27ebfef2f323e964fb1f61391bcb35 # HD Bluray Tier 01
         assign_scores_to:
-          - { name: HD, score: 25 }
+          - name: HD
 
       - trash_ids:
           - c20c8647f2746a1f4c4262b0fbbeeeae # HD Bluray Tier 02
         assign_scores_to:
-          - { name: HD, score: 18 }
+          - name: HD
 
       - trash_ids:
           - 5608c71bcebba0a5e666223bae8c9227 # HD Bluray Tier 03
         assign_scores_to:
-          - { name: HD, score: 12 }
-
-      # Individual trusted groups
-      - trash_ids:
-          - 7a0d1ad358fee9f5b074af3ef3f9d9ef # hallowed
-        assign_scores_to:
-          - { name: HD, score: 25 }
-          - { name: Efficient-4K, score: 25 }
-          - { name: HighQuality-4K, score: 30 }
-
-      - trash_ids:
-          - ff5bc9e8ce91d46c997ca3ac6994d6f8 # FraMeSToR
-        assign_scores_to:
-          - { name: HD, score: 20 }
-          - { name: Efficient-4K, score: 20 }
-          - { name: HighQuality-4K, score: 25 }
-
-      - trash_ids:
-          - e098247bc6652dd88c76644b275260ed # FLUX
-        assign_scores_to:
-          - { name: HD, score: 15 }
-          - { name: Efficient-4K, score: 18 }
-          - { name: HighQuality-4K, score: 20 }
+          - name: HD
 
       # Remux penalty (blocked by size, CF is safety net)
       - trash_ids:

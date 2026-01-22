@@ -1,0 +1,176 @@
+# Sonarr Quality Profiles
+# Include via: include: [{ config: includes/sonarr-quality-profiles.yml }]
+#
+# Note: Sonarr uses SPACES in quality group names (WEB 1080p not WEB-1080p)
+# Note: until_quality is required even when upgrade.allowed: false
+#
+# Profiles:
+#   - AutoAssignQuality: Intake/hold profile (no downloads)
+#   - HD: 1080p WEB/Bluray with upgrades
+#   - Efficient-4K: 4K WEB only (space-efficient)
+#   - HighQuality-4K: 4K WEB + Bluray encodes
+
+quality_profiles:
+  # AutoAssignQuality: Intake profile - requires until_quality even when disabled
+  - name: AutoAssignQuality
+    reset_unmatched_scores:
+      enabled: false
+    upgrade:
+      allowed: false
+      until_quality: HDTV-720p
+    quality_sort: top
+    qualities:
+      - name: HDTV-720p
+        enabled: true
+      - name: HDTV-1080p
+        enabled: false
+      - name: HDTV-2160p
+        enabled: false
+      - name: Bluray-2160p Remux
+        enabled: false
+      - name: Bluray-1080p Remux
+        enabled: false
+      - name: WEB 2160p
+        enabled: false
+        qualities:
+          - WEBDL-2160p
+          - WEBRip-2160p
+      - name: Bluray-2160p
+        enabled: false
+      - name: WEB 1080p
+        enabled: false
+        qualities:
+          - WEBDL-1080p
+          - WEBRip-1080p
+      - name: Bluray-1080p
+        enabled: false
+      - name: WEB 720p
+        enabled: false
+        qualities:
+          - WEBDL-720p
+          - WEBRip-720p
+      - name: Bluray-720p
+        enabled: false
+
+  # HD: 1080p content (WEB preferred, Bluray allowed)
+  - name: HD
+    reset_unmatched_scores:
+      enabled: true
+    upgrade:
+      allowed: true
+      until_quality: Bluray-1080p
+    quality_sort: top
+    qualities:
+      - name: Bluray-2160p Remux
+        enabled: false
+      - name: Bluray-1080p Remux
+        enabled: false
+      - name: HDTV-2160p
+        enabled: false
+      - name: HDTV-1080p
+        enabled: false
+      - name: HDTV-720p
+        enabled: false
+      - name: WEB 2160p
+        enabled: false
+        qualities:
+          - WEBDL-2160p
+          - WEBRip-2160p
+      - name: Bluray-2160p
+        enabled: false
+      - name: WEB 1080p
+        enabled: true
+        qualities:
+          - WEBDL-1080p
+          - WEBRip-1080p
+      - name: Bluray-1080p
+        enabled: true
+      - name: WEB 720p
+        enabled: false
+        qualities:
+          - WEBDL-720p
+          - WEBRip-720p
+      - name: Bluray-720p
+        enabled: false
+
+  # Efficient-4K: 4K WEB only (smaller files, no Bluray)
+  - name: Efficient-4K
+    reset_unmatched_scores:
+      enabled: true
+    upgrade:
+      allowed: true
+      until_quality: WEB 2160p
+    quality_sort: top
+    qualities:
+      - name: Bluray-2160p Remux
+        enabled: false
+      - name: Bluray-1080p Remux
+        enabled: false
+      - name: HDTV-2160p
+        enabled: false
+      - name: HDTV-1080p
+        enabled: false
+      - name: HDTV-720p
+        enabled: false
+      - name: WEB 2160p
+        enabled: true
+        qualities:
+          - WEBDL-2160p
+          - WEBRip-2160p
+      - name: Bluray-2160p
+        enabled: false
+      - name: WEB 1080p
+        enabled: false
+        qualities:
+          - WEBDL-1080p
+          - WEBRip-1080p
+      - name: Bluray-1080p
+        enabled: false
+      - name: WEB 720p
+        enabled: false
+        qualities:
+          - WEBDL-720p
+          - WEBRip-720p
+      - name: Bluray-720p
+        enabled: false
+
+  # HighQuality-4K: 4K WEB + Bluray encodes (best quality under size limits)
+  - name: HighQuality-4K
+    reset_unmatched_scores:
+      enabled: true
+    upgrade:
+      allowed: true
+      until_quality: Bluray-2160p
+    quality_sort: top
+    qualities:
+      - name: Bluray-2160p Remux
+        enabled: false
+      - name: Bluray-1080p Remux
+        enabled: false
+      - name: HDTV-2160p
+        enabled: false
+      - name: HDTV-1080p
+        enabled: false
+      - name: HDTV-720p
+        enabled: false
+      - name: Bluray-2160p
+        enabled: true
+      - name: WEB 2160p
+        enabled: true
+        qualities:
+          - WEBDL-2160p
+          - WEBRip-2160p
+      - name: WEB 1080p
+        enabled: false
+        qualities:
+          - WEBDL-1080p
+          - WEBRip-1080p
+      - name: Bluray-1080p
+        enabled: false
+      - name: WEB 720p
+        enabled: false
+        qualities:
+          - WEBDL-720p
+          - WEBRip-720p
+      - name: Bluray-720p
+        enabled: false

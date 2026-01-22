@@ -19,9 +19,7 @@ export interface RuleFacts {
   criticScorePresent: boolean;
   criticScoreHigh: boolean;
   criticScoreMidBand: boolean;
-  criticScoreLowBand: boolean;
   criticScoreBlockOrBelow: boolean;
-  criticScoreBelowLow: boolean;
   criticScoreAmbiguous: boolean;
   popularityValue?: number;
   popularityTier?: 'low' | 'mid' | 'high';
@@ -34,7 +32,6 @@ export interface RuleFacts {
   visualMatchCount: number;
   visualRich: boolean;
   visualScoreLow: boolean;
-  intenseVisual: boolean;
   lowq: boolean;
   currentIs4k: boolean;
   currentQuality?: string;
@@ -64,7 +61,6 @@ function buildFacts(movie: RadarrMovie, config: BrokerConfig): RuleFacts {
   const thresholds = config.thresholds || {};
   const criticHigh = thresholds.criticHigh as number;
   const criticMid = thresholds.criticMid as number;
-  const criticLow = thresholds.criticLow as number;
   const criticBlock = thresholds.criticBlock as number;
   const popularityHigh = thresholds.popularityHigh as number;
   const popularityLow = thresholds.popularityLow as number;
@@ -74,10 +70,7 @@ function buildFacts(movie: RadarrMovie, config: BrokerConfig): RuleFacts {
   const criticScoreHigh = criticScorePresent && criticScore >= criticHigh;
   const criticScoreMidBand =
     criticScorePresent && criticScore >= criticMid && criticScore < criticHigh;
-  const criticScoreLowBand =
-    criticScorePresent && criticScore >= criticLow && criticScore < criticMid;
   const criticScoreBlockOrBelow = criticScorePresent && criticScore <= criticBlock;
-  const criticScoreBelowLow = criticScorePresent && criticScore < criticLow && criticScore > criticBlock;
   const ambiguity = config.rulesEngine?.ambiguity || {};
   const criticMidDelta = typeof ambiguity.criticMidDelta === 'number' ? ambiguity.criticMidDelta : 1;
   const criticScoreAmbiguous =
@@ -95,8 +88,8 @@ function buildFacts(movie: RadarrMovie, config: BrokerConfig): RuleFacts {
     typeof popularityValue === 'number' && popularityValue > popularityLow && popularityValue < popularityHigh;
 
   const genres = Array.isArray(movie.genres) ? movie.genres : [];
-  const visualMatches = matchVisualGenres(genres, config.visualGenresHigh || []);
   const visualWeights = config.rulesEngine?.visualWeights || {};
+  const visualMatches = matchVisualGenres(genres, visualWeights);
   const visualScoreConfig = config.rulesEngine?.visualScoreConfig || {};
   const maxVisualScore = visualScoreConfig.maxScore as number;
   const visualRichMin = visualScoreConfig.richMin as number;
@@ -111,7 +104,6 @@ function buildFacts(movie: RadarrMovie, config: BrokerConfig): RuleFacts {
   const visualMatchCount = visualMatches.length;
   const visualRich = visualScore >= visualRichMin;
   const visualScoreLow = visualScore <= visualScoreLowMax;
-  const intenseVisual = genres.some((g) => /action|war/i.test(g));
 
   const currentQuality = movie.movieFile?.quality?.quality?.name;
   const lowq = isLowQ(currentQuality);
@@ -148,9 +140,7 @@ function buildFacts(movie: RadarrMovie, config: BrokerConfig): RuleFacts {
     criticScorePresent,
     criticScoreHigh,
     criticScoreMidBand,
-    criticScoreLowBand,
     criticScoreBlockOrBelow,
-    criticScoreBelowLow,
     criticScoreAmbiguous,
     popularityValue: typeof popularityValue === 'number' ? popularityValue : undefined,
     popularityTier,
@@ -163,7 +153,6 @@ function buildFacts(movie: RadarrMovie, config: BrokerConfig): RuleFacts {
     visualMatchCount,
     visualRich,
     visualScoreLow,
-    intenseVisual,
     lowq,
     currentIs4k,
     currentQuality,
@@ -236,7 +225,7 @@ function normalizeReasons(
     const add = (reason: string) => {
       if (allowedReasons.has(reason) && !normalized.includes(reason)) normalized.push(reason);
     };
-    if (facts.criticScoreHigh || facts.criticScoreMidBand || facts.criticScoreLowBand) add('crit');
+    if (facts.criticScoreHigh || facts.criticScoreMidBand) add('crit');
     if (facts.popularityStrong) add('pop');
     if (facts.visualRich) add('vis');
     if (facts.lowq) add('lowq');

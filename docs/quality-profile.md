@@ -1,155 +1,119 @@
-# Opinionated Radarr Quality Profile
+# Quality Profile Configuration
 
-How the **Quality Profile** + **Quality Broker** work together from an end‑user perspective, focused on configuration, behavior, and outcomes.
+This setup builds on the [TRaSH Guides](https://trash-guides.info/) — the authoritative resource for Radarr/Sonarr quality configuration. This document only covers **deviations** from TRaSH defaults.
 
-For setup steps and sync instructions, see the [Service Setup Guide → Automation (Recyclarr + Quality Broker)](./service-setup-guide.md#automation-recyclarr--quality-broker).
+## TRaSH Guide References
 
-## What you get
-- A consistent set of profiles: `AutoAssignQuality` → `HD` / `Efficient-4K` / `HighQuality-4K`
-- A deterministic broker driven by YAML weights and a short rule table; LLM is only used for ambiguous cases (optional)
-- Small, readable Radarr tags for decision traceability
-- A safety guard that prevents accidental downgrade of existing 2160p files (tagged `exceed`)
+- [Radarr Quality Settings](https://trash-guides.info/Radarr/radarr-setup-quality-profiles/)
+- [Radarr Custom Formats](https://trash-guides.info/Radarr/Radarr-collection-of-custom-formats/)
+- [Sonarr Quality Settings](https://trash-guides.info/Sonarr/sonarr-setup-quality-profiles/)
+- [Sonarr Custom Formats](https://trash-guides.info/Sonarr/sonarr-collection-of-custom-formats/)
+- [Recyclarr](https://recyclarr.dev/) — syncs TRaSH configs to *arr apps
 
-## How it works (simple mental model)
-1) **Intake**: everything starts in `AutoAssignQuality`.
-2) **Decision**: the broker computes a weighted score from critic, popularity, and visual-genre signals, then evaluates YAML rules to choose a profile.
-3) **Apply**: the profile is set and small tags are attached.
-4) **Protection**: if the broker would drop a 2160p file into `HD`, it blocks the downgrade and tags `exceed`.
+---
 
-## What you configure (high level)
-You only need to set a few things in `data/quality-broker/config/config.yaml`:
-- **Thresholds**: critic and popularity cutoffs that drive the deterministic rules
-- **Visual genres**: the genres that imply visual payoff (weights are fixed)
-- **Weights + score tiers**: `rulesEngine.weights`, `rulesEngine.visualWeights`, `rulesEngine.visualScoreConfig`, and `rulesEngine.scoreThresholds`
-- **Ambiguity gate**: `rulesEngine.ambiguity` controls when LLM is used
-- **Rules table**: `rulesEngine.rules` chooses the target profile
-- **Ambiguous policy**: `policyForAmbiguousCases` controls if LLM is used
-- **Downgrade guard**: controls whether a 2160p file can be moved to `HD`
+## Deviations from TRaSH Guide
 
-### Visual genre weighting (fixed)
-These weights shape “visual richness.” More weight = higher chance of 4K.
-- Action = 3  
-- War = 3  
-- Animation = 2  
-- Sci‑Fi = 2  
-- Fantasy = 2  
-- Adventure = 1  
-- Thriller = 1  
+| Aspect | TRaSH Default | Our Config | Rationale |
+|--------|---------------|------------|-----------|
+| **LQ penalty** | -10000 (hard reject) | -10/-15 | Allows YTS/compact groups when premium unavailable |
+| **Streaming services** | 0 (identification only) | +12 to +35 (tiered) | Scores provenance; ATVP highest, then AMZN/NF tier |
+| **Quality definitions** | TRaSH defaults | Custom MB/min limits | 15-20GB budget for 4K; tighter 1080p caps |
+| **Remux** | Allowed (scored) | Blocked (size + CF -1000) | Storage efficiency; no 40GB+ files |
+| **HDTV** | Allowed | Blocked (size caps) | Prefer WEB sources for modern content |
 
-## Profile intent (what each means)
-- **AutoAssignQuality**: intake/holding only; nothing “final” stays here.
-- **HD**: solid 1080p for low‑signal or low‑score titles.
-- **Efficient-4K**: 4K‑worthy, but size‑conscious.
-- **HighQuality-4K**: top‑tier critical reception and/or strong visual payoff.
+---
 
-## Tags you’ll see in Radarr
-Tags are short on purpose (for UI clarity); they represent the rule that was applied:
-- `crit` strong critic signal
-- `pop` strong popularity signal
-- `vis` visually rich signal
-- `weak` limited/low signal
-- `mix` mixed signals
-- `lowq` current file is 720p or below
-- `exceed` current file exceeds HD (2160p); downgrade was blocked
+## Custom Quality Definitions (MB per minute)
 
-## Score-based configuration (short example)
+Values: **min / preferred / max**.
+
+### Blocked Qualities
 ```yaml
-rulesEngine:
-  weights:
-    criticHighBoost: 10
-    popularityStrong: 3
-    visualRich: 2
-    visualScorePerPoint: 0.5
-  visualWeights:
-    Action: 3
-    Sci-Fi: 2
-  visualScoreConfig:
-    maxScore: 6
-    richMin: 3
-    lowMax: 1
-  scoreThresholds:
-    efficient4k: 3
-    high4k: 7
-  rules:
-    - name: score_high
-      priority: 800
-      conditions:
-        all:
-          - fact: decisionScoreTier
-            operator: equal
-            value: high
-      event:
-        type: decision
-        params:
-          profile: HighQuality-4K
+HDTV-720p:    { min: 0, preferred: 1, max: 1 }  # Deterministic reject
+HDTV-1080p:   { min: 0, preferred: 1, max: 1 }
+HDTV-2160p:   { min: 0, preferred: 1, max: 1 }
+Remux-1080p:  { min: 0, preferred: 1, max: 1 }
+Remux-2160p:  { min: 0, preferred: 1, max: 1 }
 ```
 
-## Ambiguous cases
-When the rules mark a case as ambiguous, the broker uses:
-- `policyForAmbiguousCases.useLLM` to decide whether to call the LLM.
-- `policyForAmbiguousCases.noLLMFallbackProfile` to pick a profile if LLM is disabled.
+### 720p (fallback)
+| Quality | Min | Pref | Max | ~Max Size (2hr) |
+|---------|-----|------|-----|-----------------|
+| WEBRip-720p | 5 | 10 | 20 | 2.4 GB |
+| WEBDL-720p | 6 | 12 | 22 | 2.6 GB |
+| Bluray-720p | 10 | 18 | 32 | 3.8 GB |
 
-Example (short):
+### 1080p
+| Quality | Min | Pref | Max | ~Max Size (2hr) |
+|---------|-----|------|-----|-----------------|
+| WEBRip-1080p | 8 | 22 | 45 | 5.4 GB |
+| WEBDL-1080p | 12 | 30 | 55 | 6.6 GB |
+| Bluray-1080p | 18 | 40 | 75 | 9.0 GB |
 
-```yaml
-policyForAmbiguousCases:
-  useLLM: true
-  noLLMFallbackProfile: AutoAssignQuality
+### 2160p / 4K
+| Quality | Min | Pref | Max | ~Max Size (2hr) |
+|---------|-----|------|-----|-----------------|
+| WEBRip-2160p | 20 | 55 | 110 | 13.2 GB |
+| WEBDL-2160p | 25 | 70 | 130 | 15.6 GB |
+| Bluray-2160p | 45 | 100 | 170 | 20.4 GB |
+
+---
+
+## Custom CF Scoring
+
+### Streaming Services (TRaSH uses 0)
+
+| Tier | Services | HD | Efficient-4K | HighQuality-4K |
+|------|----------|----|--------------| ---------------|
+| 1 | ATVP (Apple TV+) | +25 | +30 | +35 |
+| 2 | AMZN, NF, DSNP, HMAX | +18 | +22 | +25 |
+| 3 | PMTP, PCOK, Hulu, etc. | +12 | +15 | +18 |
+
+### LQ Penalties (TRaSH uses -10000)
+
+| CF | HD | Efficient-4K | HighQuality-4K |
+|----|----|--------------| ---------------|
+| LQ | -10 | 0 | -15 |
+| LQ (Release Title) | -10 | 0 | -15 |
+
+### Remux Penalty (TRaSH uses positive scores)
+
+All Remux tiers scored **-1000** as safety net (also blocked by size caps).
+
+---
+
+## Profile Thresholds
+
+Upgrades controlled by `until_quality` only. This aligns with TRaSH's approach when using high tier scores.
+
+| Profile | until_quality |
+|---------|---------------|
+| AutoAssignQuality | — (no upgrades) |
+| HD | Bluray-1080p |
+| Efficient-4K | WEBDL-2160p |
+| HighQuality-4K | Bluray-2160p |
+
+Size limits are enforced by quality definitions (MB/min), not profile thresholds.
+
+---
+
+## Quality Broker Integration
+
+The Quality Broker automatically assigns movies to profiles based on critic ratings, popularity, and visual genre signals. See [Quality Broker](./quality-broker.md) for details.
+
+---
+
+## Config Files
+
+```
+data/recyclarr/config/
+├── configs/
+│   ├── radarr.yml          # Quality defs + CFs
+│   └── sonarr.yml          # Quality defs + CFs
+└── includes/               # Sibling to configs/ (Recyclarr v8.0+)
+    ├── radarr-quality-profiles.yml
+    └── sonarr-quality-profiles.yml
 ```
 
-## The downgrade guard (“exceed”)
-Default: **downgrades are blocked** if the file is already 2160p.
-- If the broker decides **HD** but the file is **2160p**, it tags `exceed` and **keeps you at 4K**.
-- This prevents repeated reprocessing of the same item in `AutoAssignQuality`.
-
-If you explicitly want downgrades, set `downgradeQualityProfile: true` (dangerous).
-
-## Units and conversions (quality definitions)
-- Radarr size limits are **MB per minute**. To visualize bitrate: `MB/min × 0.1333 ≈ Mbps`.
-- Examples: 10 MB/min ≈ 1.33 Mbps; 35 MB/min ≈ 4.67 Mbps; 110 MB/min ≈ 14.7 Mbps.
-
-## Blocked tiers (all profiles)
-- `HDTV-720/1080/2160` and `Remux-1080/2160` use `min:0, pref:1, max:1` → deterministic reject while keeping Trash registry intact. 
-- `Remux` is also parsed as custom format (CF) and assigned -1000 to safely block from scoring.
-
-## Quality-definition caps (per quality)
-- Values below are **min / preferred / max (MB/min)** and the approximate max bitrate (Mbps):
-
-### 720p (fallback only)
-Rare cases when you need 720p. Ideally for modern day TV clients 720p is not preferred.
-- `WEBRip-720p`: 5 / 9 / 16 → max ≈ 2.1 Mbps (small HEVC WEB rips only).
-- `WEBDL-720p`: 6 / 10 / 18 → max ≈ 2.4 Mbps (tighter cap to avoid bloated 720p WEB-DL).
-- `Bluray-720p`: 9 / 15 / 26 → max ≈ 3.5 Mbps (only for legacy libraries; default disabled in profiles).
-
-### 1080p (primary HD tier)
-Not so great titles but still worthy of collection goes here.
-- `WEBRip-1080p`: 4 / 8 / 18 → max ≈ 2.4 Mbps (keeps small encodes viable while capping poor sources).
-- `WEBDL-1080p`: 8 / 12 / 20 → max ≈ 2.7 Mbps (preferred over WEBRip; still efficiency-focused HEVC targets).
-- `Bluray-1080p`: 12 / 18 / 40 → max ≈ 5.3 Mbps (allows cleaner disc encodes without inviting bloat).
-
-### 2160p / 4K (efficiency-first with controlled UHD)
-- `WEBRip-2160p`: 12 / 28 / 60 → max ≈ 8.0 Mbps (keeps compact 4K streams acceptable; rejects under/oversized rips).
-- `WEBDL-2160p`: 18 / 35 / 70 → max ≈ 9.3 Mbps (preferred WEB source for 4K; balances quality and size).
-- `Bluray-2160p`: 40 / 110 / 160 → max ≈ 21.3 Mbps (permits well-encoded UHD Bluray while bounding giant remux-like encodes).
-
-## Profile ordering & upgrade behavior
-- **HD**: `WEBDL-1080p` > `WEBRip-1080p` > `Bluray-1080p`
-- **Efficient-4K**: `WEBDL-2160p` > `WEBRip-2160p`
-- **HighQuality-4K**: `Bluray-2160p` > `WEBDL-2160p` > `WEBRip-2160p`
-
-Upgrades only fire when both the quality order and format-score gates are met. This prevents noisy side‑grades.
-
-## Custom Format (CF) scoring philosophy
-- Core boosts: 10-bit, HEVC, HDR/DV (bigger for 4K), Proper/Repack, good audio (TrueHD/Atmos > DD+/DTS-HD > plain DD+).
-- Penalties: SDR on UHD (-40), x264 (-25/-30 for 4K tracks), LQ tags, and remux tiers (-1000) as a safety net.
-- Trusted groups: Hallowed/FLUX/FraMeSToR receive mild boosts; Efficient-4K gets a smaller Hallowed bump to stay efficiency-first.
-- Remux is doubly discouraged: blocked by size and CF -1000, matching Trash guidance and keeping broker logic consistent.
-
-## How upgrades behave (auto + manual)
-- **Quality ordering + CF gates**: WEBDL outranks WEBRip, and (for HQ 4K) Bluray outranks WEB. Upgrades only fire when both the target quality tier and the CF score gates are met.
-- **Broker alignment**: Broker only assigns to `HD`, `Efficient-4K`, or `HighQuality-4K`; `AutoAssignQuality` is intake. Manual upgrades respect the same ordering/gates, preventing noisy sidegrades.
-
-## Release-group considerations (Usenet/Trash context)
-- Preferred signals: Proper/Repack, 10-bit HEVC, HDR/DV, good audio muxes. These correlate with reputable WEB groups and curated UHD encodes.
-- Avoided signals: Remux (blocked), LQ tags, SDR UHD, and oversized/undersized files that fall outside the MB/min bounds.
-- Mild group boosts mirror Trash’s trusted scene/UHD teams (Hallowed/FLUX/FraMeSToR) without overwhelming technical signals.
+Sample configs: `packages/quality-broker/config/recyclarr-sample/`

@@ -94,9 +94,10 @@ function normalizeName(value: string): string {
   return value.trim().toLowerCase();
 }
 
-function matchVisualGenres(genres: string[], visualGenresHigh: string[]): string[] {
-  if (!genres.length || !visualGenresHigh.length) return [];
-  const set = new Set(visualGenresHigh.map(normalizeName));
+function matchVisualGenres(genres: string[], visualWeights: Record<string, number>): string[] {
+  const keys = Object.keys(visualWeights || {});
+  if (!genres.length || !keys.length) return [];
+  const set = new Set(keys.map(normalizeName));
   return genres.filter((g) => set.has(normalizeName(g)));
 }
 
@@ -158,14 +159,14 @@ function buildSystemPrompt(config: BrokerConfig): string {
   const policies = config.policies || {};
   const tmpl = config.promptTemplate || {};
 
-  const visualGenres = (config.visualGenresHigh || []) as string[];
+  const visualGenres = Object.keys(config.rulesEngine?.visualWeights || {});
 
   const maxSent = policies.reasoning?.maxSentences ?? 2;
 
   const vars: Record<string, string> = {
     allowedReasons: JSON.stringify(reasons),
     allowedProfiles: JSON.stringify(config.decisionProfiles || []),
-    visualGenresHigh: JSON.stringify(visualGenres),
+    visualGenres: JSON.stringify(visualGenres),
     maxSentences: String(maxSent),
     thresholds: JSON.stringify(thresholds)
   };
@@ -224,8 +225,8 @@ export class LLMAgent {
 
     const currentQuality: string | undefined = movie.movieFile?.quality?.quality?.name;
     const lowq = isLowQ(currentQuality);
-    const visualMatches = matchVisualGenres(Array.isArray(movie.genres) ? movie.genres : [], this.config.visualGenresHigh || []);
     const visualWeights = this.config.rulesEngine?.visualWeights || {};
+    const visualMatches = matchVisualGenres(Array.isArray(movie.genres) ? movie.genres : [], visualWeights);
     const visualScoreConfig = this.config.rulesEngine?.visualScoreConfig || {};
     const maxVisualScore = typeof visualScoreConfig.maxScore === 'number' ? visualScoreConfig.maxScore : 6;
     const visualScore = computeVisualScore(visualMatches, visualWeights, maxVisualScore);
@@ -260,9 +261,10 @@ export class LLMAgent {
       thresholds,
       rulesEngine: {
         weights: this.config.rulesEngine?.weights || {},
-        scoreThresholds: this.config.rulesEngine?.scoreThresholds || {}
+        scoreThresholds: this.config.rulesEngine?.scoreThresholds || {},
+        visualWeights: this.config.rulesEngine?.visualWeights || {},
+        visualScoreConfig: this.config.rulesEngine?.visualScoreConfig || {}
       },
-      visualGenresHigh: this.config.visualGenresHigh || [],
       policies: this.config.policies || {},
 
       signalSummary: {

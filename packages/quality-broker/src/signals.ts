@@ -32,9 +32,10 @@ export function normalizeName(value: string): string {
   return value.trim().toLowerCase();
 }
 
-export function matchVisualGenres(genres: string[], visualGenresHigh: string[]): string[] {
-  if (!genres.length || !visualGenresHigh.length) return [];
-  const set = new Set(visualGenresHigh.map(normalizeName));
+export function matchVisualGenres(genres: string[], visualWeights: Record<string, number>): string[] {
+  const keys = Object.keys(visualWeights || {});
+  if (!genres.length || !keys.length) return [];
+  const set = new Set(keys.map(normalizeName));
   return genres.filter((g) => set.has(normalizeName(g)));
 }
 

@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { runCompose, runCommand } from './docker';
+import { runCompose, runComposeStreaming, runCommand } from './docker';
 import * as envLib from './env';
 import { resolveServiceLoose, parseUpArgs } from './utils';
 
@@ -33,11 +33,11 @@ export function stop(args: string[]): number {
   return runCompose(['stop', ...svcs]) as number;
 }
 
-export function logs(args: string[]): number {
+export function logs(args: string[]): Promise<number> {
   const svc = args && args.length ? resolveServiceLoose(args[0]) : null;
   const baseCmd = ['--ansi', 'always', 'logs', '-f'];
   if (svc) baseCmd.push(svc);
-  return runCompose(baseCmd) as number;
+  return runComposeStreaming(baseCmd);
 }
 
 export function restart(args: string[]): number {
@@ -68,7 +68,7 @@ export function qualityBrokerRun(args: string[]): number {
   return runCompose(['run', '--rm', 'quality-broker', 'node', 'dist/index.js', 'run', ...extra]) as number;
 }
 
-export function qualityBrokerLogs(): number {
+export function qualityBrokerLogs(): number | Promise<number> {
   // Prefer tailing latest broker JSON log if present (container is short-lived)
   const logDir = path.join(baseDir, 'data/quality-broker/logs');
   if (fs.existsSync(logDir)) {
@@ -80,7 +80,7 @@ export function qualityBrokerLogs(): number {
     }
   }
   console.log('No quality-broker log file found; falling back to compose logs');
-  return runCompose(['--profile', QB_PROFILE, 'logs', '-f', 'quality-broker']) as number;
+  return runComposeStreaming(['--profile', QB_PROFILE, 'logs', '-f', 'quality-broker']);
 }
 
 export function testCmd(baseDir: string): number {

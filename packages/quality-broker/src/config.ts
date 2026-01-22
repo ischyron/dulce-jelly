@@ -35,6 +35,8 @@ const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
   groupsAndGenres:
     'Visual genres with high payoff (from visualWeights): {{visualGenres}}.'
 };
+// Avoid 429s when large queues trigger many LLM calls back-to-back.
+const DEFAULT_LLM_REQUEST_DELAY_MS = 1200;
 
 function expandEnv(val: unknown): unknown {
   if (typeof val !== 'string') return val;
@@ -189,6 +191,10 @@ export function loadConfig(baseDir: string): BrokerConfig {
       useLLM,
       noLLMFallbackProfile
     },
-    downgradeQualityProfile: raw.downgradeQualityProfile === true
+    downgradeQualityProfile: raw.downgradeQualityProfile === true,
+    llmRequestDelayMs:
+      typeof raw.llmRequestDelayMs === 'number' && Number.isFinite(raw.llmRequestDelayMs) && raw.llmRequestDelayMs >= 0
+        ? raw.llmRequestDelayMs
+        : DEFAULT_LLM_REQUEST_DELAY_MS
   };
 }

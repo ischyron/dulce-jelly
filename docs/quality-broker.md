@@ -27,6 +27,7 @@ Key fields (see comments in example):
 - `autoAssignProfile`: Radarr profile name used as the intake queue
 - `reviseQualityForProfile`: optional Radarr profile name to re-evaluate all movies already in that profile
 - `decisionProfiles`: target profiles the broker can pick from (must exist in Radarr/Recyclarr)
+- `llmRequestDelayMs`: delay before LLM calls to avoid 429s on large queues (default 1200; set 0 to disable)
 - `radarr.apiKey` (config only); URL auto-derives from `LAN_HOSTNAME` + `RADARR_PORT` (or `http://radarr:7878` in Docker). Override via `radarr.url` only if you need a custom host. Ensure the container shares the `media_net` network (defined as external in compose).
 - `openai.apiKey` (required only if LLM fallback is enabled), `openai.model` (default gpt-4.1)
 - `policyForAmbiguousCases.useLLM` (default true)
@@ -43,6 +44,8 @@ Popularity signals:
 - `computedPopularityIndex` is derived from vote counts (log-scaled 0-100) and is preferred over raw TMDB popularity when present.
 
 Environment fallbacks: `QUALITY_BROKER_CONFIG` (override config path).
+Log checkpointing: `QUALITY_BROKER_LOG_FLUSH_EVERY` (entries, default 10) and `QUALITY_BROKER_LOG_FLUSH_INTERVAL_MS`
+(milliseconds, default 15000) to keep JSON array logs updated during long runs.
 
 ## Running
 

@@ -26,7 +26,7 @@ interface MountCheckResult {
   ok: boolean;
 }
 
-type CommandFunction = (args?: string[]) => number | void;
+type CommandFunction = (args?: string[]) => number | void | Promise<number | void>;
 
 const commands: Record<string, CommandFunction> = {
   help: () => printHelp(),
@@ -278,7 +278,7 @@ function usageError(msg: string): Error {
   return new Error(`Usage: ms ${msg}`);
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const [, , cmdArg, ...args] = process.argv;
   if (!cmdArg || cmdArg === '--help' || cmdArg === '-h') {
     printHelp();
@@ -291,7 +291,7 @@ function main(): void {
     process.exit(1);
   }
   try {
-    const code = fn(args);
+    const code = await fn(args);
     if (typeof code === 'number') process.exit(code);
     process.exit(0);
   } catch (err: unknown) {
@@ -301,4 +301,4 @@ function main(): void {
   }
 }
 
-main();
+void main();

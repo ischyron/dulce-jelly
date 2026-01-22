@@ -9,6 +9,10 @@ decisionProfiles:
   - Efficient-4K
   - HighQuality-4K
 
+# Delay (ms) before each LLM request to avoid 429s on large queues.
+# Set to 0 to disable.
+llmRequestDelayMs: 1200
+
 radarr:
   # URL auto-derives from LAN_HOSTNAME/RADARR_PORT (or radarr:7878 in Docker);
   # set this field only if you need a custom host.

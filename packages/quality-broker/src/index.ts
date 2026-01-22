@@ -38,6 +38,10 @@ function mapTagIdsToLabels(tags: RadarrTag[], ids: number[]): string[] {
   return ids.map((id) => map.get(id)).filter((label): label is string => Boolean(label));
 }
 
+function formatInfoLine(value: string): string {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
 async function run(batchSizeOverride?: number, verbose: boolean = false) {
   const config = loadConfig(baseDir);
 
@@ -118,7 +122,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   const finalize = (extra?: { reason?: string }) => {
     if (finalized) return;
     finalized = true;
-    const logPath = logger.writeLog(runLog);
+    const logPath = logger.checkpoint(runLog, true);
     const failedCount = runLog.length - successCount;
     const summary = {
       runAt: new Date().toISOString(),
@@ -146,16 +150,14 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     finalize({ reason: `unhandledRejection: ${String(err)}` });
     process.exit(1);
   });
-  const shouldDelayBetween = candidates.length > 100;
-  const interRequestDelayMs = 1500;
-  const interRequestDelaySeconds = (interRequestDelayMs / 1000).toFixed(1);
+  const llmDelayMs = typeof config.llmRequestDelayMs === 'number' ? config.llmRequestDelayMs : 0;
+  const interRequestDelaySeconds = (llmDelayMs / 1000).toFixed(1);
 
   if (verbose) {
     console.log(`[Verbose] Processing ${candidates.length} candidate(s).`);
-    if (shouldDelayBetween) {
-      console.log(`[Verbose] Large queue detected; delaying ${interRequestDelaySeconds}s between requests.`);
-    }
   }
+
+  logger.initLog();
 
   for (const movie of candidates) {
     let decisionSourceForLog: 'deterministic_rule' | 'llm' = 'deterministic_rule';
@@ -200,6 +202,12 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
       let skipUpdate = false;
 
       if (useLlm) {
+        if (verbose && llmDelayMs > 0) {
+          console.log(`[Verbose] LLM delay: waiting ${interRequestDelaySeconds}s before request.`);
+        }
+        if (llmDelayMs > 0) {
+          await sleep(llmDelayMs);
+        }
         decision = await agent.decide({
           movie,
           profileOptions: config.decisionProfiles,
@@ -296,6 +304,10 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
           decisionSource: decisionSourceForLog,
           success: true
         });
+        console.log(
+          `INFO decision title="${formatInfoLine(movie.title || 'unknown')}" decision=${formatInfoLine(decision.profile)} source=${decisionSourceForLog} reasoning="${formatInfoLine(decision.reasoning)}"`
+        );
+        logger.checkpoint(runLog);
       } else {
         successCount += 1;
         runLog.push({
@@ -323,6 +335,10 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
           decisionSource: decisionSourceForLog,
           success: true
         });
+        console.log(
+          `INFO decision title="${formatInfoLine(movie.title || 'unknown')}" decision=${formatInfoLine(decision.profile)} source=${decisionSourceForLog} reasoning="${formatInfoLine(decision.reasoning)}"`
+        );
+        logger.checkpoint(runLog);
       }
     } catch (err) {
       runLog.push({
@@ -352,14 +368,9 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         error: (err as Error).message
       });
       console.error(`Failed processing ${movie.title}: ${(err as Error).message}`);
+      logger.checkpoint(runLog);
     }
 
-    if (shouldDelayBetween) {
-      if (verbose) {
-        console.log(`[Verbose] Waiting ${interRequestDelaySeconds}s before next request.`);
-      }
-      await sleep(interRequestDelayMs);
-    }
   }
 
   const logPath = finalize();

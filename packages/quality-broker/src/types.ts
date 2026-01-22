@@ -13,6 +13,7 @@ export interface BrokerConfig {
   promptTemplate?: PromptTemplate;
   policyForAmbiguousCases?: AmbiguousCasePolicy;
   downgradeQualityProfile?: boolean;
+  llmRequestDelayMs?: number;
 }
 
 export interface RadarrConfig {

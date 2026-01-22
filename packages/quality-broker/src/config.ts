@@ -3,15 +3,17 @@ import path from 'path';
 
 import { parse } from 'yaml';
 
-import { BrokerConfig, Policies, PromptTemplate } from './types.js';
+import { BrokerConfig, LLMPolicy, Policies, PromptTemplate } from './types.js';
 
 const DEFAULT_BATCH = 10;
 const DEFAULT_REASON_TAGS = {
-  popular: 'upgrade because the film is popular (high popularity)',
-  criticScore: 'upgrade because critic score is strong',
-  visual: 'upgrade because it is visually rich (action/animation/HDR/DV benefits)',
-  lowq: 'upgrade because current file is 720p or below',
-  met: 'quality already meets demands'
+  pop: 'strong popularity signal',
+  crit: 'strong critic signal',
+  vis: 'visually rich signal (genre-based)',
+  lowq: 'current file is 720p or below',
+  weak: 'limited or low signal',
+  mix: 'mixed signals',
+  exceed: 'current file exceeds HD (2160p)'
 };
 
 const DEFAULT_POLICIES: Policies = {
@@ -28,7 +30,7 @@ const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
   header:
     'Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Include popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.',
   constraints:
-    'Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
+    'You are invoked only for ambiguous edge cases. Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
   inputs:
     'Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
   popularityTierPolicy:
@@ -98,11 +100,6 @@ export function loadConfig(baseDir: string): BrokerConfig {
   if (!radarrApiKey) {
     throw new Error('Radarr API key is required in data/quality-broker/config/config.yaml.');
   }
-  const openaiApiKey = raw.openai?.apiKey && String(raw.openai.apiKey).trim();
-  if (!openaiApiKey) {
-    throw new Error('OpenAI API key is required in data/quality-broker/config/config.yaml.');
-  }
-
   const policies: Policies = {
     reasoning: { ...DEFAULT_POLICIES.reasoning, ...(raw.policies?.reasoning || {}) }
   };
@@ -113,6 +110,31 @@ export function loadConfig(baseDir: string): BrokerConfig {
   };
 
   const reasonTags = raw.reasonTags && Object.keys(raw.reasonTags).length ? raw.reasonTags : DEFAULT_REASON_TAGS;
+
+  const llmPolicy: LLMPolicy = {
+    enabled: raw.llmPolicy?.enabled !== false,
+    useOnAmbiguousOnly: raw.llmPolicy?.useOnAmbiguousOnly !== false
+  };
+
+  const openaiApiKey = raw.openai?.apiKey && String(raw.openai.apiKey).trim();
+  if (llmPolicy.enabled && !openaiApiKey) {
+    throw new Error('OpenAI API key is required in data/quality-broker/config/config.yaml when LLM is enabled.');
+  }
+
+  const thresholds = raw.thresholds || {};
+  const requiredThresholds: Array<keyof typeof thresholds> = [
+    'criticHigh',
+    'criticMid',
+    'criticLow',
+    'criticBlock',
+    'popularityHigh',
+    'popularityLow'
+  ];
+  for (const key of requiredThresholds) {
+    if (typeof thresholds[key] !== 'number') {
+      throw new Error(`Missing required thresholds.${key} in data/quality-broker/config/config.yaml.`);
+    }
+  }
 
   return {
     batchSize,
@@ -131,9 +153,11 @@ export function loadConfig(baseDir: string): BrokerConfig {
     reviseQualityForProfile: typeof raw.reviseQualityForProfile === 'string' ? raw.reviseQualityForProfile : '',
     promptHints: raw.promptHints || '',
     reasonTags,
-    thresholds: raw.thresholds,
+    thresholds,
     visualGenresHigh: raw.visualGenresHigh,
     policies,
-    promptTemplate
+    promptTemplate,
+    llmPolicy,
+    downgradeQualityProfile: raw.downgradeQualityProfile === true
   };
 }

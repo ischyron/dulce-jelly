@@ -223,6 +223,28 @@ radarr:
           - { name: Efficient-4K, score: 50 }
           - { name: HighQuality-4K, score: 50 }
 
+      - trash_ids:
+          - ae43b294509409a6a13919dedd4764c4 # Repack2
+        assign_scores_to:
+          - { name: HD, score: 6 }
+          - { name: Efficient-4K, score: 6 }
+          - { name: HighQuality-4K, score: 6 }
+
+      - trash_ids:
+          - 5caaaa1c08c1742aa4342d8c4cc463f2 # Repack3
+        assign_scores_to:
+          - { name: HD, score: 7 }
+          - { name: Efficient-4K, score: 7 }
+          - { name: HighQuality-4K, score: 7 }
+
+      # Scene releases (mild penalty - not hard reject)
+      - trash_ids:
+          - f537cf427b64c38c8e36298f657e4828 # Scene
+        assign_scores_to:
+          - { name: HD, score: -15 }
+          - { name: Efficient-4K, score: -15 }
+          - { name: HighQuality-4K, score: -20 }
+
       # ------------------------------------------------------
       # Streaming Services (tiered by quality reputation)
       # ------------------------------------------------------
@@ -300,6 +322,24 @@ radarr:
           - e71939fae578037e7aed3ee219bbe7c1 # UHD Bluray Tier 03
         assign_scores_to:
           - { name: HighQuality-4K, score: 20 }
+
+      # ------------------------------------------------------
+      # Release Groups - HD Bluray Tiers (for 1080p encodes)
+      # ------------------------------------------------------
+      - trash_ids:
+          - ed27ebfef2f323e964fb1f61391bcb35 # HD Bluray Tier 01
+        assign_scores_to:
+          - { name: HD, score: 25 }
+
+      - trash_ids:
+          - c20c8647f2746a1f4c4262b0fbbeeeae # HD Bluray Tier 02
+        assign_scores_to:
+          - { name: HD, score: 18 }
+
+      - trash_ids:
+          - 5608c71bcebba0a5e666223bae8c9227 # HD Bluray Tier 03
+        assign_scores_to:
+          - { name: HD, score: 12 }
 
       # Individual trusted groups
       - trash_ids:

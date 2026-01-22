@@ -92,6 +92,13 @@ function computePopularityIndex(votes?: number): number | undefined {
   return Math.round(clamped * 10) / 10;
 }
 
+function computePopularityTier(value: number | undefined, low: number | undefined, high: number | undefined): PopularityTier | undefined {
+  if (typeof value !== 'number' || typeof low !== 'number' || typeof high !== 'number') return undefined;
+  if (value <= low) return 'low';
+  if (value >= high) return 'high';
+  return 'mid';
+}
+
 function coercePopularityTier(v: unknown): PopularityTier | undefined {
   if (v === 'low' || v === 'mid' || v === 'high') return v;
   return undefined;
@@ -105,6 +112,26 @@ function matchVisualGenres(genres: string[], visualGenresHigh: string[]): string
   if (!genres.length || !visualGenresHigh.length) return [];
   const set = new Set(visualGenresHigh.map(normalizeName));
   return genres.filter((g) => set.has(normalizeName(g)));
+}
+
+function computeVisualScore(matches: string[]): number {
+  if (!matches.length) return 0;
+  const weights: Record<string, number> = {
+    action: 3,
+    war: 3,
+    animation: 2,
+    'sci-fi': 2,
+    'sci fi': 2,
+    scifi: 2,
+    fantasy: 2,
+    adventure: 1,
+    thriller: 1
+  };
+  const total = matches.reduce((sum, g) => {
+    const key = normalizeName(g);
+    return sum + (weights[key] ?? 1);
+  }, 0);
+  return Math.min(6, total);
 }
 
 function is4kQuality(currentQuality?: string): boolean {
@@ -232,10 +259,16 @@ export class LLMAgent {
         : typeof popularity === 'number'
           ? popularity
           : undefined;
+    const popularityTierComputed = computePopularityTier(
+      popularityForTier,
+      thresholds.popularityLow,
+      thresholds.popularityHigh
+    );
 
     const currentQuality: string | undefined = movie.movieFile?.quality?.quality?.name;
     const lowq = isLowQ(currentQuality);
     const visualMatches = matchVisualGenres(Array.isArray(movie.genres) ? movie.genres : [], this.config.visualGenresHigh || []);
+    const visualScore = computeVisualScore(visualMatches);
     // Count matched genres to quantify visual payoff demand from genre signals.
     const visualQualityDemandByGenreMatches = visualMatches.length;
     const currentIs4k = is4kQuality(currentQuality);
@@ -260,6 +293,7 @@ export class LLMAgent {
       criticScore: criticScore ?? null,
       criticScoreSource: criticSignal.source ?? null,
       popularity: popularitySignal,
+      popularityTier: popularityTierComputed ?? null,
       metacriticScore: movie.ratings?.metacritic?.value ?? null,
       rtAudienceScore: movie.ratings?.rottenTomatoes?.value ?? null,
       rtAudienceVotes: movie.ratings?.rottenTomatoes?.votes ?? null,
@@ -289,8 +323,10 @@ export class LLMAgent {
           typeof popularityForThreshold === 'number' && typeof thresholds.popularityLow === 'number'
             ? popularityForThreshold <= thresholds.popularityLow
             : null,
+        popularityTier: popularityTierComputed ?? null,
         computedPopularityIndex: computedPopularityIndex ?? null,
         visualGenreMatches: visualMatches,
+        visualScore,
         visualQualityDemandByGenreMatches,
         currentIs4k,
         currentQuality: currentQuality ?? null,
@@ -436,25 +472,22 @@ export class LLMAgent {
     if (finalRules.includes('lowq') && currentQuality) {
       fallbackParts.push(`current quality is ${currentQuality}`);
     }
-    if (finalRules.includes('criticScore') && typeof criticScore === 'number') {
+    if (finalRules.includes('crit') && typeof criticScore === 'number') {
       const source = criticSignal.source ? ` (${criticSignal.source})` : '';
       fallbackParts.push(`critic score${source} ${criticScore}`);
     }
-    if (finalRules.includes('popular') && (typeof popularity === 'number' || popularitySignal.primaryScore != null)) {
+    if (finalRules.includes('pop') && (typeof popularity === 'number' || popularitySignal.primaryScore != null)) {
       const score = popularitySignal.primaryScore ?? popularity;
       const source = popularitySignal.primarySource ? ` (${popularitySignal.primarySource})` : '';
       const voteNote = typeof popularityVotes === 'number' ? ` with ${popularityVotes} votes` : '';
       fallbackParts.push(`popularity${source} ${score}${voteNote}`);
     }
-    if (finalRules.includes('visual') && visualMatches.length) {
+    if (finalRules.includes('vis') && visualMatches.length) {
       fallbackParts.push(`genres ${visualMatches.join(', ')}`);
     }
-    if (finalRules.includes('visual') && movie.movieFile?.mediaInfo?.videoDynamicRangeType) {
-      fallbackParts.push(`media info ${movie.movieFile.mediaInfo.videoDynamicRangeType}`);
-    }
-    if (finalRules.includes('met') && currentQuality) {
-      fallbackParts.push(`current quality ${currentQuality} already meets targets`);
-    }
+    // visual richness is genre-based; avoid using mediaInfo HDR/DV as a signal
+    if (finalRules.includes('weak')) fallbackParts.push('limited signal');
+    if (finalRules.includes('mix')) fallbackParts.push('mixed signals');
 
     const fallbackReasoning = fallbackParts.length
       ? `Chose ${profileName} because ${fallbackParts.join('; ')}.`

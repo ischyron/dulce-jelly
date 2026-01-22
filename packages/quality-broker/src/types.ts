@@ -11,6 +11,8 @@ export interface BrokerConfig {
   visualGenresHigh?: string[];
   policies?: Policies;
   promptTemplate?: PromptTemplate;
+  llmPolicy?: LLMPolicy;
+  downgradeQualityProfile?: boolean;
 }
 
 export interface RadarrConfig {
@@ -27,6 +29,10 @@ export interface OpenAIConfig {
 
 export interface Thresholds {
   criticScoreMin?: number;
+  criticHigh?: number;
+  criticMid?: number;
+  criticLow?: number;
+  criticBlock?: number;
   popularityHigh?: number;
   popularityLow?: number;
   allowPopularityTierFallback?: boolean;
@@ -41,6 +47,11 @@ export interface ReasoningPolicy {
 
 export interface Policies {
   reasoning?: ReasoningPolicy;
+}
+
+export interface LLMPolicy {
+  enabled?: boolean;
+  useOnAmbiguousOnly?: boolean;
 }
 
 export interface PromptTemplate {
@@ -144,6 +155,7 @@ export interface RunLogEntry {
   imdbId?: string;
   tmdbId?: number;
   popularity?: PopularitySignal;
+  popularityTier?: 'low' | 'mid' | 'high';
   metacriticScore?: number;
   rtAudienceScore?: number;
   rtAudienceVotes?: number;
@@ -158,6 +170,7 @@ export interface RunLogEntry {
   rulesApplied: string[];
   tagsAdded: string[];
   reasoning: string;
+  decisionSource?: 'deterministic_rule' | 'llm';
   success: boolean;
   error?: string;
 }

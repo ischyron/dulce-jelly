@@ -7,7 +7,7 @@ import { loadConfig } from './config.js';
 import { LLMAgent } from './llmAgent.js';
 import { RunLogger } from './logger.js';
 import { RadarrClient } from './radarrClient.js';
-import { BrokerConfig, DecisionResult, PopularitySignal, QualityProfile, RadarrMovie, RadarrTag } from './types.js';
+import { BrokerConfig, DecisionResult, PopularitySignal, QualityProfile, RadarrMovie, RadarrTag, RunLogEntry } from './types.js';
 
 const baseDir = fileURLToPath(new URL('..', import.meta.url));
 
@@ -31,6 +31,46 @@ function getCriticScoreSource(movie: RadarrMovie): string | undefined {
   if (typeof movie.ratings?.rtCritic?.value === 'number') return 'rtCritic';
   if (typeof movie.rottenTomatoesCriticScore === 'number') return 'rtCriticLegacy';
   return undefined;
+}
+
+function isLowQ(currentQuality?: string): boolean {
+  if (!currentQuality) return false;
+  return /(480p|576p|720p)/i.test(currentQuality);
+}
+
+function is4kQuality(currentQuality?: string): boolean {
+  if (!currentQuality) return false;
+  return /2160p/i.test(currentQuality);
+}
+
+function normalizeName(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function matchVisualGenres(genres: string[], visualGenresHigh: string[]): string[] {
+  if (!genres.length || !visualGenresHigh.length) return [];
+  const set = new Set(visualGenresHigh.map(normalizeName));
+  return genres.filter((g) => set.has(normalizeName(g)));
+}
+
+function computeVisualScore(matches: string[]): number {
+  if (!matches.length) return 0;
+  const weights: Record<string, number> = {
+    action: 3,
+    war: 3,
+    animation: 2,
+    'sci-fi': 2,
+    'sci fi': 2,
+    scifi: 2,
+    fantasy: 2,
+    adventure: 1,
+    thriller: 1
+  };
+  const total = matches.reduce((sum, g) => {
+    const key = normalizeName(g);
+    return sum + (weights[key] ?? 1);
+  }, 0);
+  return Math.min(6, total);
 }
 
 function getPopularity(movie: RadarrMovie): number | undefined {
@@ -117,6 +157,165 @@ function buildPopularitySignal(movie: RadarrMovie): PopularitySignal {
   };
 }
 
+function computePopularityTier(value: number | undefined, thresholds: BrokerConfig['thresholds']): 'low' | 'mid' | 'high' | undefined {
+  if (typeof value !== 'number' || !thresholds) return undefined;
+  const low = thresholds.popularityLow as number;
+  const high = thresholds.popularityHigh as number;
+  if (value <= low) return 'low';
+  if (value >= high) return 'high';
+  return 'mid';
+}
+
+function selectDeterministicDecision(params: {
+  movie: RadarrMovie;
+  config: BrokerConfig;
+}): { decision: DecisionResult; ambiguous: boolean } {
+  const { movie, config } = params;
+  const thresholds = config.thresholds || {};
+  const criticHigh = thresholds.criticHigh as number;
+  const criticMid = thresholds.criticMid as number;
+  const criticLow = thresholds.criticLow as number;
+  const criticBlock = thresholds.criticBlock as number;
+  const popularityHigh = thresholds.popularityHigh as number;
+  const popularityLow = thresholds.popularityLow as number;
+
+  const criticScore = getCriticScore(movie);
+  const popularitySignal = buildPopularitySignal(movie);
+  const popularity = typeof popularitySignal.computedPopularityIndex === 'number'
+    ? popularitySignal.computedPopularityIndex
+    : getPopularity(movie);
+
+  const strongPopularity = typeof popularity === 'number' && popularity >= popularityHigh;
+  const popMid = typeof popularity === 'number' && popularity > popularityLow && popularity < popularityHigh;
+
+  const currentQuality: string | undefined = movie.movieFile?.quality?.quality?.name;
+  const lowq = isLowQ(currentQuality);
+  void is4kQuality(currentQuality);
+
+  const visualMatches = matchVisualGenres(Array.isArray(movie.genres) ? movie.genres : [], config.visualGenresHigh || []);
+  const visualScore = computeVisualScore(visualMatches);
+  const visualRich = visualScore >= 3;
+
+  const genres = Array.isArray(movie.genres) ? movie.genres : [];
+  const hasAction = genres.some((g) => /action/i.test(g));
+  const hasWar = genres.some((g) => /war/i.test(g));
+  const intenseVisual = hasAction || hasWar;
+
+  const allowedReasons = new Set(Object.keys(config.reasonTags || {}));
+  const reasons: string[] = [];
+  const addReason = (reason: string) => {
+    if (allowedReasons.has(reason) && !reasons.includes(reason)) reasons.push(reason);
+  };
+
+  let profile = config.decisionProfiles[0] || 'HD';
+
+  if (typeof criticScore === 'number' && criticScore >= criticHigh) {
+    profile = 'HighQuality-4K';
+    addReason('crit');
+  } else if (typeof criticScore === 'number' && criticScore <= criticBlock) {
+    if (visualRich && intenseVisual && strongPopularity) {
+      profile = 'Efficient-4K';
+      addReason('vis');
+      addReason('pop');
+    } else {
+      profile = 'HD';
+      addReason('weak');
+    }
+  } else if (typeof criticScore === 'number' && criticScore >= criticMid) {
+    if (strongPopularity && visualRich) {
+      profile = 'HighQuality-4K';
+      addReason('crit');
+      addReason('pop');
+      addReason('vis');
+    } else {
+      profile = 'Efficient-4K';
+      addReason('crit');
+      if (strongPopularity) addReason('pop');
+      if (visualRich) addReason('vis');
+      if (!strongPopularity || !visualRich) addReason('mix');
+    }
+  } else if (typeof criticScore === 'number' && criticScore >= criticLow) {
+    if (strongPopularity) {
+      profile = 'Efficient-4K';
+      addReason('pop');
+      addReason('crit');
+    } else {
+      profile = 'HD';
+      addReason('weak');
+    }
+  } else if (typeof criticScore === 'number') {
+    if (strongPopularity && visualRich) {
+      profile = 'Efficient-4K';
+      addReason('pop');
+      addReason('vis');
+    } else {
+      profile = 'HD';
+      addReason('weak');
+    }
+  } else {
+    if (strongPopularity && visualRich) {
+      profile = 'Efficient-4K';
+      addReason('pop');
+      addReason('vis');
+    } else if (strongPopularity) {
+      profile = 'HD';
+      addReason('pop');
+      addReason('weak');
+    } else if (visualRich) {
+      profile = 'HD';
+      addReason('vis');
+      addReason('weak');
+    } else {
+      profile = 'HD';
+      addReason('weak');
+    }
+  }
+
+  if (lowq) addReason('lowq');
+
+  if (!reasons.length) {
+    addReason('weak');
+  }
+
+  const ambiguous =
+    typeof criticScore === 'number' &&
+    criticScore >= criticMid - 1 &&
+    criticScore <= criticMid + 1 &&
+    popMid &&
+    visualScore <= 1;
+
+  const reasoningParts: string[] = [];
+  if (reasons.includes('lowq') && currentQuality) reasoningParts.push(`current quality is ${currentQuality}`);
+  if (reasons.includes('crit') && typeof criticScore === 'number') reasoningParts.push(`critic score ${criticScore}`);
+  if (reasons.includes('pop') && typeof popularity === 'number') reasoningParts.push(`popularity index ${popularity}`);
+  if (reasons.includes('vis') && visualMatches.length) {
+    reasoningParts.push(`visual score ${visualScore} (genres ${visualMatches.join(', ')})`);
+  }
+  if (reasons.includes('weak')) reasoningParts.push('limited signal');
+  if (reasons.includes('mix')) reasoningParts.push('mixed signals');
+  if (!reasoningParts.length) reasoningParts.push('limited signal');
+
+  const maxSentences = config.policies?.reasoning?.maxSentences ?? 2;
+  const reasoning = reasoningParts.length
+    ? `Chose ${profile} because ${reasoningParts.join('; ')}.`
+    : `Chose ${profile} due to limited signal.`;
+
+  const sentenceMatch = reasoning.match(/[^.!?]+[.!?]*/g) || [reasoning];
+  const trimmedReasoning = sentenceMatch.length > maxSentences ? sentenceMatch.slice(0, maxSentences).join(' ').trim() : reasoning;
+
+  const allowedProfiles = config.decisionProfiles || [];
+  const finalProfile = allowedProfiles.includes(profile) ? profile : allowedProfiles[0] || profile;
+
+  return {
+    decision: {
+      profile: finalProfile,
+      rules: reasons,
+      reasoning: trimmedReasoning
+    },
+    ambiguous
+  };
+}
+
 function resolveProfileId(profiles: QualityProfile[], name: string): number | undefined {
   return profiles.find((p) => p.name === name)?.id;
 }
@@ -146,7 +345,10 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
 
   const radarr = new RadarrClient(config);
   const logger = new RunLogger(baseDir);
-  const agent = new LLMAgent(config);
+  const llmEnabled = config.llmPolicy?.enabled !== false;
+  const agent = llmEnabled ? new LLMAgent(config) : undefined;
+  const reasonDescriptions = config.reasonTags || {};
+  const describeRules = (rules: string[]) => rules.map((rule) => reasonDescriptions[rule] || rule);
 
   const [profiles, tags, movies] = await Promise.all([radarr.getQualityProfiles(), radarr.getTags(), radarr.getMovies()]);
 
@@ -167,14 +369,30 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   });
 
   const tagsById = new Map(tags.map((t) => [t.id, t.label]));
+  const brokerManagedLabels = new Set(
+    Object.keys(config.reasonTags || {}).map((label) =>
+      `${label}`
+        .toLowerCase()
+        .replace(/[^a-z0-9-]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '')
+    )
+  );
   const hasDecisionTag = (movie: RadarrMovie) =>
-    movie.tags.some((tid) => (tagsById.get(tid) || '').startsWith('demand-'));
+    movie.tags.some((tid) => brokerManagedLabels.has((tagsById.get(tid) || '').toLowerCase()));
+
+  const compareTitles = (a: RadarrMovie, b: RadarrMovie) => {
+    const at = (a.title || '').toLowerCase();
+    const bt = (b.title || '').toLowerCase();
+    return at.localeCompare(bt, 'en', { numeric: true, sensitivity: 'base' });
+  };
 
   const candidates = movies
     .filter((m) => {
       if (reviseProfileId) return m.qualityProfileId === reviseProfileId;
       return m.qualityProfileId === autoProfileId && !hasDecisionTag(m);
     })
+    .sort(compareTitles)
     .slice(0, batchSize);
 
   if (!candidates.length) {
@@ -182,8 +400,41 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     return;
   }
 
-  const runLog = [];
+  const runLog: RunLogEntry[] = [];
   let successCount = 0;
+  let finalized = false;
+
+  const finalize = (extra?: { reason?: string }) => {
+    if (finalized) return;
+    finalized = true;
+    const logPath = logger.writeLog(runLog);
+    const failedCount = runLog.length - successCount;
+    const summary = {
+      runAt: new Date().toISOString(),
+      batchSize,
+      processed: runLog.length,
+      succeeded: successCount,
+      failed: failedCount,
+      logPath,
+      ...(extra?.reason ? { reason: extra.reason } : {})
+    };
+    logger.writeStatus(summary);
+    return logPath;
+  };
+
+  const finalizeOnSignal = (reason: string) => () => finalize({ reason });
+  process.on('SIGINT', finalizeOnSignal('SIGINT'));
+  process.on('SIGTERM', finalizeOnSignal('SIGTERM'));
+  process.on('uncaughtException', (err) => {
+    console.error(err);
+    finalize({ reason: `uncaughtException: ${(err as Error).message}` });
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (err) => {
+    console.error(err);
+    finalize({ reason: `unhandledRejection: ${String(err)}` });
+    process.exit(1);
+  });
   const shouldDelayBetween = candidates.length > 100;
   const interRequestDelayMs = 1500;
   const interRequestDelaySeconds = (interRequestDelayMs / 1000).toFixed(1);
@@ -196,6 +447,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   }
 
   for (const movie of candidates) {
+    let decisionSourceForLog: 'deterministic_rule' | 'llm' = 'deterministic_rule';
     const fromProfile = profiles.find((p) => p.id === movie.qualityProfileId)?.name || 'unknown';
     const currentQuality = movie.movieFile?.quality?.quality?.name;
     const criticScore = getCriticScore(movie);
@@ -205,7 +457,10 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     const rtCriticScore = getRtCriticScore(movie);
     const rtCriticVotes = getRtCriticVotes(movie);
     const metacriticScore = getMetacriticScore(movie);
-    const popularity = buildPopularitySignal(movie);
+      const popularity = buildPopularitySignal(movie);
+      const popularityValue =
+        typeof popularity.computedPopularityIndex === 'number' ? popularity.computedPopularityIndex : getPopularity(movie);
+      const popularityTier = computePopularityTier(popularityValue, config.thresholds);
     const keywords = movie.keywords;
 
     try {
@@ -224,22 +479,52 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         console.log(`[Verbose] Signals for ${movie.title}: ${JSON.stringify(signalSummary)}`);
       }
 
-      const decision = await agent.decide({
-        movie,
-        profileOptions: config.decisionProfiles,
-        autoAssignProfile: config.autoAssignProfile
-      });
+      const deterministic = selectDeterministicDecision({ movie, config });
+      let decision: DecisionResult = deterministic.decision;
+      let decisionSource: 'deterministic_rule' | 'llm' = 'deterministic_rule';
+
+      const useLlm =
+        llmEnabled &&
+        agent &&
+        (config.llmPolicy?.useOnAmbiguousOnly === false ? true : deterministic.ambiguous);
+
+      if (useLlm) {
+        decision = await agent.decide({
+          movie,
+          profileOptions: config.decisionProfiles,
+          autoAssignProfile: config.autoAssignProfile
+        });
+        decisionSource = 'llm';
+      }
+      decisionSourceForLog = decisionSource;
       if (verbose) {
         const decisionLog = {
           profile: decision.profile,
           rules: decision.rules,
           reasoning: decision.reasoning,
-          ...(typeof decision.popularityTier === 'string' ? { popularityTier: decision.popularityTier } : {})
+          ...(typeof decision.popularityTier === 'string' ? { popularityTier: decision.popularityTier } : {}),
+          decisionSource
         };
         console.log(
           `[Verbose] Decision for ${movie.title}: ${JSON.stringify(decisionLog)}`
         );
       }
+      const currentIs4k = is4kQuality(currentQuality);
+      const blockDowngrade =
+        decision.profile === 'HD' && currentIs4k && config.downgradeQualityProfile !== true;
+      if (blockDowngrade && !decision.rules.includes('exceed')) {
+        const exceedTarget =
+          fromProfile === config.autoAssignProfile
+            ? (config.decisionProfiles.includes('Efficient-4K') ? 'Efficient-4K' : decision.profile)
+            : fromProfile;
+        decision = {
+          ...decision,
+          profile: exceedTarget,
+          rules: [...decision.rules, 'exceed'],
+          reasoning: `${decision.reasoning} Exceeding-quality file detected (2160p); downgrade blocked.`
+        };
+      }
+
       const result = await applyDecision({
         decision,
         movie,
@@ -259,6 +544,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         imdbId: movie.imdbId,
         tmdbId: movie.tmdbId,
         popularity,
+        popularityTier,
         metacriticScore,
         rtAudienceScore: tomatoScore,
         rtAudienceVotes: tomatoVotes,
@@ -270,9 +556,10 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         keywords,
         fromProfile,
         toProfile: decision.profile,
-        rulesApplied: decision.rules,
+        rulesApplied: describeRules(decision.rules),
         tagsAdded: result.tagsAdded,
         reasoning: decision.reasoning,
+        decisionSource: decisionSourceForLog,
         success: true
       });
     } catch (err) {
@@ -282,6 +569,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         imdbId: movie.imdbId,
         tmdbId: movie.tmdbId,
         popularity,
+        popularityTier,
         metacriticScore,
         rtAudienceScore: tomatoScore,
         rtAudienceVotes: tomatoVotes,
@@ -296,6 +584,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         rulesApplied: [],
         tagsAdded: [],
         reasoning: '',
+        decisionSource: decisionSourceForLog,
         success: false,
         error: (err as Error).message
       });
@@ -310,19 +599,10 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     }
   }
 
-  const logPath = logger.writeLog(runLog);
-  const failedCount = candidates.length - successCount;
-  const summary = {
-    runAt: new Date().toISOString(),
-    batchSize,
-    processed: candidates.length,
-    succeeded: successCount,
-    failed: failedCount,
-    logPath
-  };
-  logger.writeStatus(summary);
+  const logPath = finalize();
 
   const { default: chalk } = await import('chalk');
+  const failedCount = candidates.length - successCount;
   const statusText = failedCount === 0 ? chalk.green('Success') : chalk.red('Completed with failures');
   const counts = `${chalk.green(String(successCount))} succeeded, ${failedCount > 0 ? chalk.red(String(failedCount)) : '0'} failed`;
   console.log(`Run complete. ${statusText}: ${counts} out of ${candidates.length}. Log: ${logPath}`);

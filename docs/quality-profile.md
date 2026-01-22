@@ -1,10 +1,62 @@
-# Opinionated Radarr Quality Profile 
+# Opinionated Radarr Quality Profile
 
-This opinionated set powers the four Radarr profiles (`AutoAssignQuality`, `HD`, `Efficient-4K`, `HighQuality-4K`), the quality-definition caps (MB/min), and the upgrade/scoring logic tuned to Trash/Usenet norms. 
+How the **Quality Profile** + **Quality Broker** work together from an end‑user perspective, focused on configuration, behavior, and outcomes.
 
 For setup steps and sync instructions, see the [Service Setup Guide → Automation (Recyclarr + Quality Broker)](./service-setup-guide.md#automation-recyclarr--quality-broker).
 
-## Units and conversions
+## What you get
+- A consistent set of profiles: `AutoAssignQuality` → `HD` / `Efficient-4K` / `HighQuality-4K`
+- A deterministic broker that assigns profiles without LLM in most cases
+- Small, readable Radarr tags for decision traceability
+- A safety guard that prevents accidental downgrade of existing 2160p files (tagged `exceed`)
+
+## How it works (simple mental model)
+1) **Intake**: everything starts in `AutoAssignQuality`.
+2) **Decision**: the broker uses critic score, popularity, and visual-genre signals to choose a profile.
+3) **Apply**: the profile is set and small tags are attached.
+4) **Protection**: if the broker would drop a 2160p file into `HD`, it blocks the downgrade and tags `exceed`.
+
+## What you configure (high level)
+You only need to set a few things in `data/quality-broker/config/config.yaml`:
+- **Thresholds**: critic and popularity cutoffs that drive the deterministic rules
+- **Visual genres**: the genres that imply visual payoff (weights are fixed)
+- **LLM fallback**: optional, used only for ambiguous cases
+- **Downgrade guard**: controls whether a 2160p file can be moved to `HD`
+
+### Visual genre weighting (fixed)
+These weights shape “visual richness.” More weight = higher chance of 4K.
+- Action = 3  
+- War = 3  
+- Animation = 2  
+- Sci‑Fi = 2  
+- Fantasy = 2  
+- Adventure = 1  
+- Thriller = 1  
+
+## Profile intent (what each means)
+- **AutoAssignQuality**: intake/holding only; nothing “final” stays here.
+- **HD**: solid 1080p for low‑signal or low‑score titles.
+- **Efficient-4K**: 4K‑worthy, but size‑conscious.
+- **HighQuality-4K**: top‑tier critical reception and/or strong visual payoff.
+
+## Tags you’ll see in Radarr
+Tags are short on purpose (for UI clarity); they represent the rule that was applied:
+- `crit` strong critic signal
+- `pop` strong popularity signal
+- `vis` visually rich signal
+- `weak` limited/low signal
+- `mix` mixed signals
+- `lowq` current file is 720p or below
+- `exceed` current file exceeds HD (2160p); downgrade was blocked
+
+## The downgrade guard (“exceed”)
+Default: **downgrades are blocked** if the file is already 2160p.
+- If the broker decides **HD** but the file is **2160p**, it tags `exceed` and **keeps you at 4K**.
+- This prevents repeated reprocessing of the same item in `AutoAssignQuality`.
+
+If you explicitly want downgrades, set `downgradeQualityProfile: true` (dangerous).
+
+## Units and conversions (quality definitions)
 - Radarr size limits are **MB per minute**. To visualize bitrate: `MB/min × 0.1333 ≈ Mbps`.
 - Examples: 10 MB/min ≈ 1.33 Mbps; 35 MB/min ≈ 4.67 Mbps; 110 MB/min ≈ 14.7 Mbps.
 
@@ -32,22 +84,12 @@ Not so great titles but still worthy of collection goes here.
 - `WEBDL-2160p`: 18 / 35 / 70 → max ≈ 9.3 Mbps (preferred WEB source for 4K; balances quality and size).
 - `Bluray-2160p`: 40 / 110 / 160 → max ≈ 21.3 Mbps (permits well-encoded UHD Bluray while bounding giant remux-like encodes).
 
-## Profile intents and ordering
+## Profile ordering & upgrade behavior
+- **HD**: `WEBDL-1080p` > `WEBRip-1080p` > `Bluray-1080p`
+- **Efficient-4K**: `WEBDL-2160p` > `WEBRip-2160p`
+- **HighQuality-4K**: `Bluray-2160p` > `WEBDL-2160p` > `WEBRip-2160p`
 
-### AutoAssignQuality
-- Intake/hold only. `Unknown` enabled (blocked by size cap ~1 MB/min) to satisfy Radarr’s required allowed quality. All other tiers disabled.
-
-### HD (1080p-first)
-- Ordering: `WEBDL-1080p` > `WEBRip-1080p` > `Bluray-1080p` (Bluray allowed but WEBDL is the upgrade target). 720p tiers remain disabled by default.
-- Gates: `min_format_score 15`, `min_upgrade_format_score 35`, upgrade until `WEBDL-1080p` with `until_score 60`.
-
-### Efficient-4K (compact UHD)
-- Ordering: `WEBDL-2160p` > `WEBRip-2160p`; UHD Bluray disabled to keep files lean. 1080p fallback disabled.
-- Gates: `min_format_score 25`, `min_upgrade_format_score 45`, upgrade until `WEBDL-2160p` with `until_score 70`.
-
-### HighQuality-4K (premium UHD)
-- Ordering: `Bluray-2160p` top > `WEBDL-2160p` > `WEBRip-2160p`; 1080p fallbacks disabled.
-- Gates: `min_format_score 40`, `min_upgrade_format_score 65`, upgrade until `Bluray-2160p` with `until_score 90`.
+Upgrades only fire when both the quality order and format-score gates are met. This prevents noisy side‑grades.
 
 ## Custom Format (CF) scoring philosophy
 - Core boosts: 10-bit, HEVC, HDR/DV (bigger for 4K), Proper/Repack, good audio (TrueHD/Atmos > DD+/DTS-HD > plain DD+).

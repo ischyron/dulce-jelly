@@ -3,7 +3,7 @@ import path from 'path';
 
 import { parse } from 'yaml';
 
-import { BrokerConfig, LLMPolicy, Policies, PromptTemplate } from './types.js';
+import { BrokerConfig, Policies, PromptTemplate } from './types.js';
 
 const DEFAULT_BATCH = 10;
 const DEFAULT_REASON_TAGS = {
@@ -19,8 +19,7 @@ const DEFAULT_REASON_TAGS = {
 const DEFAULT_POLICIES: Policies = {
   reasoning: {
     maxSentences: 2,
-    forbidCurrentTrendsClaims: true,
-    allowTimelessCulturalInference: true
+    forbidCurrentTrendsClaims: true
   }
 };
 
@@ -28,13 +27,11 @@ const DEFAULT_PROMPT_TEMPLATE: PromptTemplate = {
   prelude:
     'You are a Radarr quality profile decision agent. Respond ONLY with a single JSON object matching the schema. No markdown or code blocks. Use only the provided input JSON.',
   header:
-    'Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Include popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.',
+    'Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Do not include other keys.',
   constraints:
-    'You are invoked only for ambiguous edge cases. Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
+    'You are invoked only for ambiguous edge cases. Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.',
   inputs:
-    'Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
-  popularityTierPolicy:
-    'If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference only. If false, omit popularityTier entirely.',
+    'Input JSON includes title, year, genres, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, lowq, thresholds, rulesEngine {weights, scoreThresholds}, visualGenresHigh, signalSummary, policies, hints. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.',
   groupsAndGenres:
     'Visual genres with high payoff: {{visualGenresHigh}}.'
 };
@@ -111,13 +108,15 @@ export function loadConfig(baseDir: string): BrokerConfig {
 
   const reasonTags = raw.reasonTags && Object.keys(raw.reasonTags).length ? raw.reasonTags : DEFAULT_REASON_TAGS;
 
-  const llmPolicy: LLMPolicy = {
-    enabled: raw.llmPolicy?.enabled !== false,
-    useOnAmbiguousOnly: raw.llmPolicy?.useOnAmbiguousOnly !== false
-  };
+  const ambiguousPolicy = raw.policyForAmbiguousCases || {};
+  const useLLM = ambiguousPolicy.useLLM !== false;
+  const noLLMFallbackProfile =
+    typeof ambiguousPolicy.noLLMFallbackProfile === 'string' && ambiguousPolicy.noLLMFallbackProfile.trim().length > 0
+      ? ambiguousPolicy.noLLMFallbackProfile.trim()
+      : raw.autoAssignProfile || 'AutoAssignQuality';
 
   const openaiApiKey = raw.openai?.apiKey && String(raw.openai.apiKey).trim();
-  if (llmPolicy.enabled && !openaiApiKey) {
+  if (useLLM && !openaiApiKey) {
     throw new Error('OpenAI API key is required in data/quality-broker/config/config.yaml when LLM is enabled.');
   }
 
@@ -134,6 +133,35 @@ export function loadConfig(baseDir: string): BrokerConfig {
     if (typeof thresholds[key] !== 'number') {
       throw new Error(`Missing required thresholds.${key} in data/quality-broker/config/config.yaml.`);
     }
+  }
+
+  const rulesEngine = raw.rulesEngine;
+  if (!rulesEngine || !Array.isArray(rulesEngine.rules) || rulesEngine.rules.length === 0) {
+    throw new Error('rulesEngine.rules must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (!rulesEngine.weights || typeof rulesEngine.weights !== 'object') {
+    throw new Error('rulesEngine.weights must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (!rulesEngine.scoreThresholds || typeof rulesEngine.scoreThresholds !== 'object') {
+    throw new Error('rulesEngine.scoreThresholds must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (!rulesEngine.visualWeights || typeof rulesEngine.visualWeights !== 'object') {
+    throw new Error('rulesEngine.visualWeights must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (!rulesEngine.visualScoreConfig || typeof rulesEngine.visualScoreConfig !== 'object') {
+    throw new Error('rulesEngine.visualScoreConfig must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (typeof rulesEngine.visualScoreConfig.maxScore !== 'number') {
+    throw new Error('rulesEngine.visualScoreConfig.maxScore must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (typeof rulesEngine.visualScoreConfig.richMin !== 'number') {
+    throw new Error('rulesEngine.visualScoreConfig.richMin must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (typeof rulesEngine.visualScoreConfig.lowMax !== 'number') {
+    throw new Error('rulesEngine.visualScoreConfig.lowMax must be defined in data/quality-broker/config/config.yaml.');
+  }
+  if (!rulesEngine.ambiguity || typeof rulesEngine.ambiguity !== 'object') {
+    throw new Error('rulesEngine.ambiguity must be defined in data/quality-broker/config/config.yaml.');
   }
 
   return {
@@ -155,9 +183,13 @@ export function loadConfig(baseDir: string): BrokerConfig {
     reasonTags,
     thresholds,
     visualGenresHigh: raw.visualGenresHigh,
+    rulesEngine,
     policies,
     promptTemplate,
-    llmPolicy,
+    policyForAmbiguousCases: {
+      useLLM,
+      noLLMFallbackProfile
+    },
     downgradeQualityProfile: raw.downgradeQualityProfile === true
   };
 }

@@ -6,13 +6,13 @@ For setup steps and sync instructions, see the [Service Setup Guide → Automati
 
 ## What you get
 - A consistent set of profiles: `AutoAssignQuality` → `HD` / `Efficient-4K` / `HighQuality-4K`
-- A deterministic broker that assigns profiles without LLM in most cases
+- A deterministic broker driven by YAML weights and a short rule table; LLM is only used for ambiguous cases (optional)
 - Small, readable Radarr tags for decision traceability
 - A safety guard that prevents accidental downgrade of existing 2160p files (tagged `exceed`)
 
 ## How it works (simple mental model)
 1) **Intake**: everything starts in `AutoAssignQuality`.
-2) **Decision**: the broker uses critic score, popularity, and visual-genre signals to choose a profile.
+2) **Decision**: the broker computes a weighted score from critic, popularity, and visual-genre signals, then evaluates YAML rules to choose a profile.
 3) **Apply**: the profile is set and small tags are attached.
 4) **Protection**: if the broker would drop a 2160p file into `HD`, it blocks the downgrade and tags `exceed`.
 
@@ -20,7 +20,10 @@ For setup steps and sync instructions, see the [Service Setup Guide → Automati
 You only need to set a few things in `data/quality-broker/config/config.yaml`:
 - **Thresholds**: critic and popularity cutoffs that drive the deterministic rules
 - **Visual genres**: the genres that imply visual payoff (weights are fixed)
-- **LLM fallback**: optional, used only for ambiguous cases
+- **Weights + score tiers**: `rulesEngine.weights`, `rulesEngine.visualWeights`, `rulesEngine.visualScoreConfig`, and `rulesEngine.scoreThresholds`
+- **Ambiguity gate**: `rulesEngine.ambiguity` controls when LLM is used
+- **Rules table**: `rulesEngine.rules` chooses the target profile
+- **Ambiguous policy**: `policyForAmbiguousCases` controls if LLM is used
 - **Downgrade guard**: controls whether a 2160p file can be moved to `HD`
 
 ### Visual genre weighting (fixed)
@@ -48,6 +51,51 @@ Tags are short on purpose (for UI clarity); they represent the rule that was app
 - `mix` mixed signals
 - `lowq` current file is 720p or below
 - `exceed` current file exceeds HD (2160p); downgrade was blocked
+
+## Score-based configuration (short example)
+```yaml
+rulesEngine:
+  weights:
+    criticHighBoost: 10
+    popularityStrong: 3
+    visualRich: 2
+    visualScorePerPoint: 0.5
+  visualWeights:
+    Action: 3
+    Sci-Fi: 2
+  visualScoreConfig:
+    maxScore: 6
+    richMin: 3
+    lowMax: 1
+  scoreThresholds:
+    efficient4k: 3
+    high4k: 7
+  rules:
+    - name: score_high
+      priority: 800
+      conditions:
+        all:
+          - fact: decisionScoreTier
+            operator: equal
+            value: high
+      event:
+        type: decision
+        params:
+          profile: HighQuality-4K
+```
+
+## Ambiguous cases
+When the rules mark a case as ambiguous, the broker uses:
+- `policyForAmbiguousCases.useLLM` to decide whether to call the LLM.
+- `policyForAmbiguousCases.noLLMFallbackProfile` to pick a profile if LLM is disabled.
+
+Example (short):
+
+```yaml
+policyForAmbiguousCases:
+  useLLM: true
+  noLLMFallbackProfile: AutoAssignQuality
+```
 
 ## The downgrade guard (“exceed”)
 Default: **downgrades are blocked** if the file is already 2160p.

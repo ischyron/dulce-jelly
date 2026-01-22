@@ -29,25 +29,26 @@ openai:
 
 
 thresholds:
-  # Critic score thresholds (0-100). These align with the deterministic rule table.
-  # criticHigh: top-tier critical reception (auto HighQuality-4K)
+  # Critic score thresholds (0-100). These define scoring bands and ambiguity checks.
+  # criticHigh: top-tier critic band (adds criticHighBoost weight).
   criticHigh: 76
-  # criticMid: strong critic reception (70-75)
+  # criticMid: strong critic band lower bound (adds criticMidBand weight).
   criticMid: 70
-  # criticLow: minimum critic signal to consider Efficient-4K
+  # criticLow: lower critic band (may still influence score).
   criticLow: 65
-  # criticBlock: hard block for HighQuality-4K at/below this score
+  # criticBlock: very low critic band (used for signal classification).
   criticBlock: 60
   # Popularity index thresholds (computedPopularityIndex preferred, 0-100).
   # Uses Metacritic-style RAG bands: red < 40, yellow 40–60, green > 60.
   popularityHigh: 60
   popularityLow: 40
-  allowPopularityTierFallback: true
-  popularityTierFallbackMaxPopularity: 2
 
-llmPolicy:
-  enabled: true
-  useOnAmbiguousOnly: true
+policyForAmbiguousCases:
+  # LLM is used only when rules mark a case as ambiguous.
+  useLLM: true
+  # When useLLM is false, ambiguous items use this fallback profile.
+  # Defaults to AutoAssignQuality (keeps profile unchanged).
+  noLLMFallbackProfile: AutoAssignQuality
 
 # DANGEROUS: when true, allows downgrading quality profiles even if the file is already 2160p.
 # When false, any HD decision for a current 2160p file will be blocked and tagged "exceed".
@@ -63,39 +64,73 @@ visualGenresHigh:
   - War
   - Thriller
 
+rulesEngine:
+  weights:
+    # Huge boost so critic-high always lands in HighQuality-4K tier.
+    criticHighBoost: 10
+    criticMidBand: 1
+    popularityStrong: 3
+    popularityMid: 1
+    visualRich: 2
+    visualScorePerPoint: 0.5
+  scoreThresholds:
+    efficient4k: 3
+    high4k: 7
+  visualWeights:
+    Action: 3
+    War: 3
+    Animation: 2
+    Sci-Fi: 2
+    Fantasy: 2
+    Adventure: 1
+    Thriller: 1
+  visualScoreConfig:
+    maxScore: 6
+    richMin: 3
+    lowMax: 1
+  ambiguity:
+    criticMidDelta: 1
+    requirePopularityTier: mid
+  # Rules run in priority order (higher wins). Each rule chooses a profile.
+  rules:
+    - name: score_high
+      priority: 800
+      conditions:
+        all:
+          - fact: decisionScoreTier
+            operator: equal
+            value: high
+      event:
+        type: decision
+        params:
+          profile: HighQuality-4K
+    - name: score_mid
+      priority: 700
+      conditions:
+        all:
+          - fact: decisionScoreTier
+            operator: equal
+            value: mid
+      event:
+        type: decision
+        params:
+          profile: Efficient-4K
+    - name: score_low
+      priority: 600
+      conditions:
+        all:
+          - fact: decisionScoreTier
+            operator: equal
+            value: low
+      event:
+        type: decision
+        params:
+          profile: HD
+
 policies:
   reasoning:
     maxSentences: 2
     forbidCurrentTrendsClaims: true
-    allowTimelessCulturalInference: true
-
-promptHints: |
-  - You are invoked only for ambiguous edge cases. Use only the provided fields and thresholds.
-  - Treat raw popularity as noisy; prefer computedPopularityIndex when available.
-  - Do not infer anything beyond criticScore, popularity, genre, and visual richness signals.
-  - Visual richness is a weighted score from visualGenresHigh matches:
-      Action=3, War=3, Animation=2, Sci-Fi=2, Fantasy=2, Adventure=1, Thriller=1.
-
-  - Deterministic rule table (use when ambiguous):
-      * criticScore >= criticHigh → HighQuality-4K.
-      * criticScore between criticMid and criticHigh:
-          - HighQuality-4K only if strong popularity AND visual richness.
-          - Otherwise Efficient-4K.
-      * criticScore between criticLow and criticMid:
-          - Efficient-4K only if strong popularity.
-          - Otherwise HD.
-      * criticScore <= criticBlock:
-          - Never HighQuality-4K.
-          - Efficient-4K only if visually rich with intense Action/War.
-          - Otherwise HD.
-      * Missing criticScore:
-          - Efficient-4K only if strong popularity AND visual richness.
-          - Otherwise HD.
-
-  - Profile intent summary:
-      - HighQuality-4K: top-tier critical reception or strong popularity + visual payoff.
-      - Efficient-4K: solid signals or strong popularity with visual payoff.
-      - HD: low-signal, low-score, or utility titles where 4K adds little value.
 
 reasonTags:
   pop: strong popularity signal
@@ -110,12 +145,24 @@ promptTemplate:
   prelude: |
     You are a Radarr quality profile decision agent. Respond ONLY with a single JSON object matching the schema. No markdown or code blocks.
   header: |
-    Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Include popularityTier (low|mid|high) ONLY when popularityTierPolicy.allow is true. Do not include other keys.
+    Return keys: profile (one of {{allowedProfiles}}), rules (array using allowedReasons {{allowedReasons}}), reasoning (<= {{maxSentences}} sentences). Do not include other keys.
   constraints: |
-    You are invoked only for ambiguous edge cases. Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, mediaInfo, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.
+    You are invoked only for ambiguous edge cases. Ground reasoning in provided fields/values (criticScore + criticScoreSource, popularity.primarySource/primaryScore/primaryVotes/computedPopularityIndex/rawPopularity, metacriticScore, rtAudienceScore, rtCriticScore, genres, currentQuality, lowq, signalSummary). If signals are missing or weak, choose the safer lower profile and say "limited signal". Use reasonDescriptions to pick rule(s). Avoid claims about current trends or unseen formats.
   inputs: |
-    Input JSON includes title, year, genres, runtime, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, popularityTier, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, mediaInfo, lowq, thresholds, visualGenresHigh, signalSummary, policies, hints, popularityTierPolicy.allow. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.
-  popularityTierPolicy: |
-    If popularityTierPolicy.allow is true, set popularityTier to low|mid|high using timeless popularity inference only. If false, omit popularityTier entirely.
+    Input JSON includes title, year, genres, criticScore, criticScoreSource, popularity {primarySource, primaryScore, primaryVotes, tmdbScore, tmdbVotes, imdbScore, imdbVotes, computedPopularityIndex, rawPopularity}, metacriticScore, rtAudienceScore, rtAudienceVotes, rtCriticScore, rtCriticVotes, currentQuality, lowq, thresholds, rulesEngine {weights, scoreThresholds}, visualGenresHigh, signalSummary, policies, hints. Base decisions only on these fields; if data is missing or weak, choose the safer lower profile.
   groupsAndGenres: |
     Visual genres with high payoff: {{visualGenresHigh}}.
+
+promptHints: |
+  - You are invoked only for ambiguous edge cases. Use only the provided fields and thresholds.
+  - Treat raw popularity as noisy; prefer computedPopularityIndex when available.
+  - Do not infer anything beyond criticScore, popularity, genre, and visual richness signals.
+  - Visual richness is a weighted score from visualGenresHigh matches:
+      Action=3, War=3, Animation=2, Sci-Fi=2, Fantasy=2, Adventure=1, Thriller=1.
+  - Deterministic choices are score-based:
+      * decisionScore is computed from rulesEngine.weights.
+      * decisionScoreTier uses rulesEngine.scoreThresholds.
+  - Profile intent summary:
+      - HighQuality-4K: score tier high (critic-high adds a large boost).
+      - Efficient-4K: score tier mid.
+      - HD: score tier low.

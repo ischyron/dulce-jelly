@@ -1,6 +1,6 @@
 # Quality Broker
 
-Deterministic-first Radarr quality profile assigner that batches movies, tags decisions, and keeps remux blocked. LLM is an edge-case fallback only.
+Deterministic-first Radarr quality profile assigner that batches movies and tags decisions. Decisions are score-based from YAML weights; LLM is only used for ambiguous cases when enabled.
 
 Start here:
 - End-user profile intent and behavior: [Quality Profile](./quality-profile.md)
@@ -29,10 +29,15 @@ Key fields (see comments in example):
 - `decisionProfiles`: target profiles the broker can pick from (must exist in Radarr/Recyclarr)
 - `radarr.apiKey` (config only); URL auto-derives from `LAN_HOSTNAME` + `RADARR_PORT` (or `http://radarr:7878` in Docker). Override via `radarr.url` only if you need a custom host. Ensure the container shares the `media_net` network (defined as external in compose).
 - `openai.apiKey` (required only if LLM fallback is enabled), `openai.model` (default gpt-4.1)
-- `llmPolicy.enabled` (default true), `llmPolicy.useOnAmbiguousOnly` (default true)
+- `policyForAmbiguousCases.useLLM` (default true)
+- `policyForAmbiguousCases.noLLMFallbackProfile` (default AutoAssignQuality)
 - `promptHints`: natural-language heuristics to steer choices
-- `remuxPenalty`: reminder that remux stays blocked (score -1000, 1MB/min cap)
 - `reasonTags`: allowed demand reasons → tags (short human-readable labels, e.g., crit, pop, vis, weak)
+- `rulesEngine.weights`: score inputs (critic/popularity/visual)
+- `rulesEngine.visualWeights` + `rulesEngine.visualScoreConfig`: visual score weights + thresholds
+- `rulesEngine.scoreThresholds`: score tiers for Efficient-4K / HighQuality-4K
+- `rulesEngine.ambiguity`: defines when a case is considered ambiguous (LLM gate)
+- `rulesEngine.rules`: minimal YAML rule table (priority-ordered) that selects the target profile
   
 Popularity signals:
 - `computedPopularityIndex` is derived from vote counts (log-scaled 0-100) and is preferred over raw TMDB popularity when present.
@@ -73,15 +78,51 @@ ms qb-run -- --batch-size 5
 ms qb-log
 ```
 
-Cron-safe: each run processes at most `batchSize`, prioritizing movies with the `autoAssignProfile` or missing any broker-managed tags.
+Cron-safe: each run processes at most `batchSize`, prioritizing movies with the `autoAssignProfile` (or `reviseQualityForProfile` if set).
 
 ## Behavior
 - Reads Radarr quality profiles dynamically; refuses to run if target profiles are missing.
-- Applies a deterministic rule table first using critic score, popularity index, and visual richness signals.
-- Invokes the LLM only for ambiguous edge cases when enabled.
+- Computes a weighted score from critic/popularity/visual signals, then evaluates a minimal YAML rule table via json-rules-engine.
+- Invokes the LLM only for ambiguous cases when enabled.
+- If the LLM errors, the movie is left unchanged and the run log records the error.
 - Applies Radarr quality profile and short reason tags (e.g., `crit`, `pop`, `vis`, `weak`).
 - Writes per-run log JSON and updates `status/last-run.json` with counts and timestamp.
-- Keeps remux blocked; prompt reiterates the -1000 score and 1MB/min cap.
+
+## Rules configuration (short example)
+Define weights + score tiers, then a short rules table:
+
+```yaml
+rulesEngine:
+  weights:
+    criticHighBoost: 10
+    popularityStrong: 3
+    visualRich: 2
+    visualScorePerPoint: 0.5
+  visualWeights:
+    Action: 3
+    Sci-Fi: 2
+  visualScoreConfig:
+    maxScore: 6
+    richMin: 3
+    lowMax: 1
+  scoreThresholds:
+    efficient4k: 3
+    high4k: 7
+  rules:
+    - name: score_high
+      priority: 800
+      conditions:
+        all:
+          - fact: decisionScoreTier
+            operator: equal
+            value: high
+      event:
+        type: decision
+        params:
+          profile: HighQuality-4K
+```
+
+Rule `name` appears in logs as `rulesApplied`. Short Radarr tags are derived from the signals that contributed to the score.
 
 ## Testing & Linting
 - Type-check/build: `npm run build`

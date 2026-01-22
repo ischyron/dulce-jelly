@@ -9,9 +9,10 @@ export interface BrokerConfig {
   reasonTags?: Record<string, string>;
   thresholds?: Thresholds;
   visualGenresHigh?: string[];
+  rulesEngine?: RulesEngineConfig;
   policies?: Policies;
   promptTemplate?: PromptTemplate;
-  llmPolicy?: LLMPolicy;
+  policyForAmbiguousCases?: AmbiguousCasePolicy;
   downgradeQualityProfile?: boolean;
 }
 
@@ -35,23 +36,20 @@ export interface Thresholds {
   criticBlock?: number;
   popularityHigh?: number;
   popularityLow?: number;
-  allowPopularityTierFallback?: boolean;
-  popularityTierFallbackMaxPopularity?: number;
 }
 
 export interface ReasoningPolicy {
   maxSentences?: number;
   forbidCurrentTrendsClaims?: boolean;
-  allowTimelessCulturalInference?: boolean;
 }
 
 export interface Policies {
   reasoning?: ReasoningPolicy;
 }
 
-export interface LLMPolicy {
-  enabled?: boolean;
-  useOnAmbiguousOnly?: boolean;
+export interface AmbiguousCasePolicy {
+  useLLM?: boolean;
+  noLLMFallbackProfile?: string;
 }
 
 export interface PromptTemplate {
@@ -59,7 +57,6 @@ export interface PromptTemplate {
   header?: string;
   constraints?: string;
   inputs?: string;
-  popularityTierPolicy?: string;
   groupsAndGenres?: string;
 }
 
@@ -146,7 +143,8 @@ export interface DecisionResult {
   profile: string;
   rules: string[];
   reasoning: string;
-  popularityTier?: 'low' | 'mid' | 'high';
+  ruleName?: string;
+  ambiguous?: boolean;
 }
 
 export interface RunLogEntry {
@@ -156,6 +154,7 @@ export interface RunLogEntry {
   tmdbId?: number;
   popularity?: PopularitySignal;
   popularityTier?: 'low' | 'mid' | 'high';
+  genres?: string[];
   metacriticScore?: number;
   rtAudienceScore?: number;
   rtAudienceVotes?: number;
@@ -182,4 +181,54 @@ export interface RunSummary {
   succeeded: number;
   failed: number;
   logPath: string;
+}
+
+export interface RulesEngineConfig {
+  rules: RuleDefinition[];
+  weights?: RuleWeights;
+  scoreThresholds?: ScoreThresholds;
+  visualWeights?: Record<string, number>;
+  visualScoreConfig?: VisualScoreConfig;
+  ambiguity?: AmbiguityConfig;
+}
+
+export interface RuleDefinition {
+  name: string;
+  priority?: number;
+  conditions: unknown;
+  event: {
+    type: 'decision';
+    params: {
+      profile: string;
+      reasons?: string[];
+      ruleName?: string;
+      ambiguous?: boolean;
+    };
+  };
+}
+
+export interface RuleWeights {
+  criticHighBoost?: number;
+  criticMidBand?: number;
+  popularityStrong?: number;
+  popularityMid?: number;
+  visualRich?: number;
+  visualScorePerPoint?: number;
+}
+
+export interface ScoreThresholds {
+  efficient4k?: number;
+  high4k?: number;
+}
+
+export interface VisualScoreConfig {
+  maxScore?: number;
+  richMin?: number;
+  lowMax?: number;
+}
+
+export interface AmbiguityConfig {
+  criticMidDelta?: number;
+  requirePopularityTier?: 'low' | 'mid' | 'high';
+  visualScoreMax?: number;
 }

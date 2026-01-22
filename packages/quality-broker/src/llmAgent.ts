@@ -5,8 +5,6 @@ import { BrokerConfig, DecisionInput, DecisionResult, RadarrMovie } from './type
 const MAX_LLM_ATTEMPTS = 3;
 const RETRY_DELAYS_SEC = [5, 10, 20, 40];
 
-type PopularityTier = 'low' | 'mid' | 'high';
-
 interface AgentOptions {
   client?: OpenAIClient;
 }
@@ -92,18 +90,6 @@ function computePopularityIndex(votes?: number): number | undefined {
   return Math.round(clamped * 10) / 10;
 }
 
-function computePopularityTier(value: number | undefined, low: number | undefined, high: number | undefined): PopularityTier | undefined {
-  if (typeof value !== 'number' || typeof low !== 'number' || typeof high !== 'number') return undefined;
-  if (value <= low) return 'low';
-  if (value >= high) return 'high';
-  return 'mid';
-}
-
-function coercePopularityTier(v: unknown): PopularityTier | undefined {
-  if (v === 'low' || v === 'mid' || v === 'high') return v;
-  return undefined;
-}
-
 function normalizeName(value: string): string {
   return value.trim().toLowerCase();
 }
@@ -114,24 +100,13 @@ function matchVisualGenres(genres: string[], visualGenresHigh: string[]): string
   return genres.filter((g) => set.has(normalizeName(g)));
 }
 
-function computeVisualScore(matches: string[]): number {
+function computeVisualScore(matches: string[], weights: Record<string, number>, maxScore: number): number {
   if (!matches.length) return 0;
-  const weights: Record<string, number> = {
-    action: 3,
-    war: 3,
-    animation: 2,
-    'sci-fi': 2,
-    'sci fi': 2,
-    scifi: 2,
-    fantasy: 2,
-    adventure: 1,
-    thriller: 1
-  };
   const total = matches.reduce((sum, g) => {
     const key = normalizeName(g);
-    return sum + (weights[key] ?? 1);
+    return sum + (weights[key] ?? 0);
   }, 0);
-  return Math.min(6, total);
+  return Math.min(maxScore, total);
 }
 
 function is4kQuality(currentQuality?: string): boolean {
@@ -200,7 +175,6 @@ function buildSystemPrompt(config: BrokerConfig): string {
     tmpl.header,
     tmpl.constraints,
     tmpl.inputs,
-    tmpl.popularityTierPolicy,
     tmpl.groupsAndGenres,
   ]
     .filter((p: unknown): p is string => typeof p === 'string' && p.trim().length > 0)
@@ -235,12 +209,6 @@ export class LLMAgent {
     const allowedReasons = Object.keys(reasonMap);
 
     const thresholds = this.config.thresholds || {};
-    const popTierMax: number =
-      typeof thresholds.popularityTierFallbackMaxPopularity === 'number'
-        ? thresholds.popularityTierFallbackMaxPopularity
-        : 2;
-    const allowPopularityTierFallback: boolean = thresholds.allowPopularityTierFallback !== false;
-
     const criticSignal = getCriticSignal(movie);
     const criticScore = criticSignal.score;
     const popularitySignal = buildPopularitySignal(movie);
@@ -253,36 +221,22 @@ export class LLMAgent {
         : typeof popularity === 'number'
           ? popularity
           : undefined;
-    const popularityForTier =
-      typeof computedPopularityIndex === 'number'
-        ? computedPopularityIndex
-        : typeof popularity === 'number'
-          ? popularity
-          : undefined;
-    const popularityTierComputed = computePopularityTier(
-      popularityForTier,
-      thresholds.popularityLow,
-      thresholds.popularityHigh
-    );
 
     const currentQuality: string | undefined = movie.movieFile?.quality?.quality?.name;
     const lowq = isLowQ(currentQuality);
     const visualMatches = matchVisualGenres(Array.isArray(movie.genres) ? movie.genres : [], this.config.visualGenresHigh || []);
-    const visualScore = computeVisualScore(visualMatches);
+    const visualWeights = this.config.rulesEngine?.visualWeights || {};
+    const visualScoreConfig = this.config.rulesEngine?.visualScoreConfig || {};
+    const maxVisualScore = typeof visualScoreConfig.maxScore === 'number' ? visualScoreConfig.maxScore : 6;
+    const visualScore = computeVisualScore(visualMatches, visualWeights, maxVisualScore);
     // Count matched genres to quantify visual payoff demand from genre signals.
     const visualQualityDemandByGenreMatches = visualMatches.length;
     const currentIs4k = is4kQuality(currentQuality);
 
-    const weakPopularitySignal = popularityForTier == null || popularityForTier <= popTierMax;
-    const weakCriticSignal = criticScore == null;
-    const allowPopularityTier = allowPopularityTierFallback && weakPopularitySignal && weakCriticSignal;
-
     const messageContent = {
       title: movie.title,
       year: movie.year,
-      studio: movie.studio,
       genres: Array.isArray(movie.genres) ? movie.genres : [],
-      runtime: movie.runtime,
 
       profiles: profileOptions,
       autoAssignProfile,
@@ -293,7 +247,6 @@ export class LLMAgent {
       criticScore: criticScore ?? null,
       criticScoreSource: criticSignal.source ?? null,
       popularity: popularitySignal,
-      popularityTier: popularityTierComputed ?? null,
       metacriticScore: movie.ratings?.metacritic?.value ?? null,
       rtAudienceScore: movie.ratings?.rottenTomatoes?.value ?? null,
       rtAudienceVotes: movie.ratings?.rottenTomatoes?.votes ?? null,
@@ -301,12 +254,14 @@ export class LLMAgent {
       rtCriticVotes: movie.ratings?.rtCritic?.votes ?? null,
 
       currentQuality: currentQuality ?? null,
-      mediaInfo: movie.movieFile?.mediaInfo ?? null,
-      filename: movie.movieFile?.relativePath ?? null,
 
       lowq,
 
       thresholds,
+      rulesEngine: {
+        weights: this.config.rulesEngine?.weights || {},
+        scoreThresholds: this.config.rulesEngine?.scoreThresholds || {}
+      },
       visualGenresHigh: this.config.visualGenresHigh || [],
       policies: this.config.policies || {},
 
@@ -323,7 +278,6 @@ export class LLMAgent {
           typeof popularityForThreshold === 'number' && typeof thresholds.popularityLow === 'number'
             ? popularityForThreshold <= thresholds.popularityLow
             : null,
-        popularityTier: popularityTierComputed ?? null,
         computedPopularityIndex: computedPopularityIndex ?? null,
         visualGenreMatches: visualMatches,
         visualScore,
@@ -335,11 +289,7 @@ export class LLMAgent {
 
       hints: configHints || this.config.promptHints || '',
 
-      popularityTierPolicy: {
-        allow: allowPopularityTier,
-        meaning:
-          'If allow=true, output popularityTier as low|mid|high using timeless archetype inference only. No current trend claims.'
-      }
+      
     };
 
     const systemPrompt = buildSystemPrompt(this.config);
@@ -363,10 +313,6 @@ export class LLMAgent {
       reasoning: { type: 'string', minLength: 1 }
     };
     const requiredKeys = ['profile', 'rules', 'reasoning'];
-    if (allowPopularityTier) {
-      schemaProperties.popularityTier = { type: 'string', enum: ['low', 'mid', 'high'] };
-      requiredKeys.push('popularityTier');
-    }
 
     const schemaResponseFormat = {
       type: 'json_schema',
@@ -386,7 +332,6 @@ export class LLMAgent {
       profile?: unknown;
       rules?: unknown;
       reasoning?: unknown;
-      popularityTier?: unknown;
       reasonDescription?: unknown;
     };
 
@@ -527,13 +472,10 @@ export class LLMAgent {
 
     reasoning = truncateSentences(reasoning, maxSentences);
 
-    const popularityTier = allowPopularityTier ? coercePopularityTier(parsed.popularityTier) : undefined;
-
     return {
       profile: returnedProfile,
       rules: finalRules,
-      reasoning,
-      ...(popularityTier ? { popularityTier } : {})
+      reasoning
     } as DecisionResult;
   }
 }

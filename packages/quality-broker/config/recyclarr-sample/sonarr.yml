@@ -1,0 +1,168 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/recyclarr/recyclarr/master/schemas/config-schema.json
+# ==============================================================================
+# Sonarr Configuration Example
+# ==============================================================================
+#
+# Copy this file to data/recyclarr/config/configs/sonarr.yml
+#
+# Key structure requirements:
+#   sonarr:                    <- Top-level service key (required)
+#     sonarr_main:             <- Instance name (user-defined, required)
+#       base_url: !secret ...  <- Connection via secrets reference
+#       api_key: !secret ...
+#       quality_definition:    <- Quality sizing rules
+#       quality_profiles:      <- Profile definitions
+#       custom_formats:        <- CF scoring
+#
+# ==============================================================================
+
+sonarr:
+  sonarr_main:
+    base_url: !secret sonarr_url
+    api_key: !secret sonarr_api_key
+
+    # Quality definitions control size limits (MB per minute)
+    quality_definition:
+      type: series
+      qualities:
+        # Blocked (deterministic reject via tiny size cap)
+        - { name: HDTV-720p,           min: 0, preferred: 1, max: 1 }
+        - { name: HDTV-1080p,          min: 0, preferred: 1, max: 1 }
+        - { name: HDTV-2160p,          min: 0, preferred: 1, max: 1 }
+        - { name: Bluray-1080p Remux,  min: 0, preferred: 1, max: 1 }
+        - { name: Bluray-2160p Remux,  min: 0, preferred: 1, max: 1 }
+
+        # 720p fallback
+        - { name: WEBDL-720p,          min: 6,  preferred: 10,  max: 18 }
+        - { name: WEBRip-720p,         min: 5,  preferred: 9,   max: 16 }
+        - { name: Bluray-720p,         min: 9,  preferred: 15,  max: 26 }
+
+        # 1080p primary
+        - { name: WEBDL-1080p,         min: 8,  preferred: 12,  max: 20 }
+        - { name: WEBRip-1080p,        min: 4,  preferred: 8,   max: 18 }
+        - { name: Bluray-1080p,        min: 12, preferred: 18,  max: 40 }
+
+        # 2160p / 4K
+        - { name: WEBDL-2160p,         min: 18, preferred: 35,  max: 70 }
+        - { name: WEBRip-2160p,        min: 12, preferred: 28,  max: 60 }
+        - { name: Bluray-2160p,        min: 40, preferred: 110, max: 160 }
+
+    quality_profiles:
+      # Hold profile: accepts anything, no upgrades
+      # Note: until_quality is required even when upgrades are disabled
+      - name: AutoAssignQuality
+        reset_unmatched_scores: { enabled: false }
+        upgrade: { allowed: false, until_quality: HDTV-720p }
+        quality_sort: top
+        qualities:
+          - { name: HDTV-720p, enabled: true }
+          - { name: HDTV-1080p, enabled: false }
+          - { name: HDTV-2160p, enabled: false }
+          - { name: Bluray-2160p Remux, enabled: false }
+          - { name: Bluray-1080p Remux, enabled: false }
+          - { name: WEB 2160p, enabled: false, qualities: [WEBDL-2160p, WEBRip-2160p] }
+          - { name: Bluray-2160p, enabled: false }
+          - { name: WEB 1080p, enabled: false, qualities: [WEBDL-1080p, WEBRip-1080p] }
+          - { name: Bluray-1080p, enabled: false }
+          - { name: WEB 720p, enabled: false, qualities: [WEBDL-720p, WEBRip-720p] }
+          - { name: Bluray-720p, enabled: false }
+
+      # HD profile: 1080p WEB preferred
+      - name: HD
+        reset_unmatched_scores: { enabled: true }
+        upgrade: { allowed: true, until_quality: WEB 1080p, until_score: 60 }
+        min_format_score: 15
+        min_upgrade_format_score: 35
+        quality_sort: top
+        qualities:
+          - { name: Bluray-2160p Remux, enabled: false }
+          - { name: Bluray-1080p Remux, enabled: false }
+          - { name: HDTV-2160p, enabled: false }
+          - { name: HDTV-1080p, enabled: false }
+          - { name: HDTV-720p, enabled: false }
+          - { name: WEB 2160p, enabled: false, qualities: [WEBDL-2160p, WEBRip-2160p] }
+          - { name: Bluray-2160p, enabled: false }
+          - { name: WEB 1080p, enabled: true, qualities: [WEBDL-1080p, WEBRip-1080p] }
+          - { name: Bluray-1080p, enabled: true }
+          - { name: WEB 720p, enabled: false, qualities: [WEBDL-720p, WEBRip-720p] }
+          - { name: Bluray-720p, enabled: false }
+
+      # Efficient 4K: compact 4K WEB encodes
+      - name: Efficient-4K
+        reset_unmatched_scores: { enabled: true }
+        upgrade: { allowed: true, until_quality: WEB 2160p, until_score: 70 }
+        min_format_score: 25
+        min_upgrade_format_score: 45
+        quality_sort: top
+        qualities:
+          - { name: Bluray-2160p Remux, enabled: false }
+          - { name: Bluray-1080p Remux, enabled: false }
+          - { name: HDTV-2160p, enabled: false }
+          - { name: HDTV-1080p, enabled: false }
+          - { name: HDTV-720p, enabled: false }
+          - { name: WEB 2160p, enabled: true, qualities: [WEBDL-2160p, WEBRip-2160p] }
+          - { name: Bluray-2160p, enabled: false }
+          - { name: WEB 1080p, enabled: false, qualities: [WEBDL-1080p, WEBRip-1080p] }
+          - { name: Bluray-1080p, enabled: false }
+          - { name: WEB 720p, enabled: false, qualities: [WEBDL-720p, WEBRip-720p] }
+          - { name: Bluray-720p, enabled: false }
+
+      # High Quality 4K: includes Bluray-2160p
+      - name: HighQuality-4K
+        reset_unmatched_scores: { enabled: true }
+        upgrade: { allowed: true, until_quality: Bluray-2160p, until_score: 90 }
+        min_format_score: 40
+        min_upgrade_format_score: 65
+        quality_sort: top
+        qualities:
+          - { name: Bluray-2160p Remux, enabled: false }
+          - { name: Bluray-1080p Remux, enabled: false }
+          - { name: HDTV-2160p, enabled: false }
+          - { name: HDTV-1080p, enabled: false }
+          - { name: HDTV-720p, enabled: false }
+          - { name: Bluray-2160p, enabled: true }
+          - { name: WEB 2160p, enabled: true, qualities: [WEBDL-2160p, WEBRip-2160p] }
+          - { name: WEB 1080p, enabled: false, qualities: [WEBDL-1080p, WEBRip-1080p] }
+          - { name: Bluray-1080p, enabled: false }
+          - { name: WEB 720p, enabled: false, qualities: [WEBDL-720p, WEBRip-720p] }
+          - { name: Bluray-720p, enabled: false }
+
+    custom_formats:
+      # Video encode quality
+      - trash_ids: [b2550eb333d27b75833e25b8c2557b38] # 10bit
+        assign_scores_to:
+          - { name: HD, score: 30 }
+          - { name: Efficient-4K, score: 35 }
+          - { name: HighQuality-4K, score: 40 }
+
+      - trash_ids: [c9eafd50846d299b862ca9bb6ea91950] # x265
+        assign_scores_to:
+          - { name: HD, score: 25 }
+          - { name: Efficient-4K, score: 30 }
+          - { name: HighQuality-4K, score: 30 }
+
+      - trash_ids: [cddfb4e32db826151d97352b8e37c648] # x264
+        assign_scores_to:
+          - { name: HD, score: -10 }
+          - { name: Efficient-4K, score: -25 }
+          - { name: HighQuality-4K, score: -30 }
+
+      # Release hygiene
+      - trash_ids: [ec8fa7296b64e8cd390a1600981f3923] # Repack/Proper
+        assign_scores_to:
+          - { name: HD, score: 50 }
+          - { name: Efficient-4K, score: 50 }
+          - { name: HighQuality-4K, score: 50 }
+
+      # LQ penalties
+      - trash_ids: [9c11cd3f07101cdba90a2d81cf0e56b4] # LQ
+        assign_scores_to:
+          - { name: HD, score: -20 }
+          - { name: Efficient-4K, score: 0 }
+          - { name: HighQuality-4K, score: -50 }
+
+      - trash_ids: [e2315f990da2e2cbfc9fa5b7a6fcfe48] # LQ (Release Title)
+        assign_scores_to:
+          - { name: HD, score: -20 }
+          - { name: Efficient-4K, score: 0 }
+          - { name: HighQuality-4K, score: -50 }

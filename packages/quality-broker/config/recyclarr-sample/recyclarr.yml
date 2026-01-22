@@ -1,0 +1,23 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/recyclarr/recyclarr/master/schemas/config-schema.json
+# ==============================================================================
+# Recyclarr Main Configuration (Scaffold)
+# ==============================================================================
+#
+# Copy this file to data/recyclarr/config/recyclarr.yml
+#
+# This file is auto-loaded by Recyclarr. It can be empty when using split configs.
+#
+# Directory structure:
+#   config/
+#   ├── recyclarr.yml      <- This file (auto-loaded)
+#   ├── secrets.yml        <- API keys/URLs (referenced via !secret)
+#   ├── settings.yml       <- Recyclarr behavior settings
+#   ├── configs/           <- Split service configs (auto-loaded)
+#   │   ├── radarr.yml
+#   │   └── sonarr.yml
+#   └── cache/             <- Internal cache (managed by Recyclarr)
+#
+# Documentation: https://recyclarr.dev/reference/config-examples/
+#
+# Note: All configs in configs/ are auto-loaded. No includes needed here.
+# ==============================================================================

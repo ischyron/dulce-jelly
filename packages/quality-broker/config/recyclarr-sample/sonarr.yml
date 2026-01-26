@@ -50,7 +50,7 @@ sonarr:
         - { name: Bluray-1080p, min: 18, preferred: 40,  max: 75 }
 
         # 2160p / 4K
-        - { name: WEBDL-2160p,  min: 25, preferred: 70,  max: 130 }
+        - { name: WEBDL-2160p,  min: 25, preferred: 70,  max: 135 }
         - { name: WEBRip-2160p, min: 20, preferred: 55,  max: 110 }
         - { name: Bluray-2160p, min: 45, preferred: 100, max: 170 }
 

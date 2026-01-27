@@ -45,7 +45,7 @@ sonarr:
         - { name: Bluray-720p, min: 10, preferred: 18,  max: 32 }
 
         # 1080p (increased to allow quality WEB-DLs)
-        - { name: WEBDL-1080p,  min: 12, preferred: 30,  max: 55 }
+        - { name: WEBDL-1080p,  min: 12, preferred: 30,  max: 75 }
         - { name: WEBRip-1080p, min: 8,  preferred: 22,  max: 45 }
         - { name: Bluray-1080p, min: 18, preferred: 40,  max: 75 }
 

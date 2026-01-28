@@ -113,3 +113,39 @@ groupReputation:
     - aXXo
     - KLAXXON
     - MeGusta
+
+# Rate limiting - prevents runaway upgrades
+rateLimits:
+  movies:
+    maxPerDay: 10           # Max movie upgrades per 24h
+    maxPerHour: 3           # Max movie upgrades per hour
+    cooldownMinutes: 30     # Min time between upgrades
+
+  episodes:
+    maxPerDay: 50           # Max episode upgrades per 24h
+    maxPerHour: 10          # Max episode upgrades per hour
+    cooldownMinutes: 5      # Min time between upgrades
+
+  global:
+    maxConcurrent: 2        # Max concurrent downloads
+    pauseOnDiskSpaceMB: 50000  # Pause if <50GB free
+
+# Recycle bin - soft delete instead of permanent
+recycleBin:
+  enabled: true
+  path: /media/.curatarr-recycle
+  retentionDays: 30         # Auto-purge after 30 days
+  maxSizeGB: 500            # Max recycle bin size
+
+  # ⚠️ DANGEROUS: Enable only if you understand the risk
+  # When true, allows permanent deletion from UI/CLI
+  # Deleted files CANNOT be recovered
+  allowPermanentDelete: false
+
+# Automatic upgrade polling
+upgradePolling:
+  enabled: false            # Disabled by default
+  schedule: "0 3 * * *"     # 3 AM daily (cron)
+  batchSize: 50             # Items to evaluate per run
+  minAgeHours: 48           # Don't upgrade files < 48h old
+  requireConfirmation: true # Require human approval

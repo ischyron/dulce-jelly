@@ -8,7 +8,13 @@ import path from 'node:path';
 
 import { parse } from 'yaml';
 
-import { CuratarrConfig, QualityProfile } from './types.js';
+import {
+  CuratarrConfig,
+  QualityProfile,
+  RateLimitConfig,
+  RecycleBinConfig,
+  UpgradePollingConfig,
+} from './types.js';
 
 const DEFAULT_PROFILES: QualityProfile[] = [
   {
@@ -70,6 +76,39 @@ const DEFAULT_GROUP_REPUTATION = {
   tier2: ['SPARKS', 'GECKOS', 'NTb', 'CMRG', 'SiGMA', 'TOMMY', 'EDITH'],
   tier3: ['YTS', 'YIFY', 'RARBG', 'EVO', 'FGT'],
   blocked: ['aXXo', 'KLAXXON', 'MeGusta', 'mSD', 'nSD'],
+};
+
+const DEFAULT_RATE_LIMITS: RateLimitConfig = {
+  movies: {
+    maxPerDay: 10,
+    maxPerHour: 3,
+    cooldownMinutes: 30,
+  },
+  episodes: {
+    maxPerDay: 50,
+    maxPerHour: 10,
+    cooldownMinutes: 5,
+  },
+  global: {
+    maxConcurrent: 2,
+    pauseOnDiskSpaceMB: 50000,
+  },
+};
+
+const DEFAULT_RECYCLE_BIN: RecycleBinConfig = {
+  enabled: true,
+  path: '/media/.curatarr-recycle',
+  retentionDays: 30,
+  maxSizeGB: 500,
+  allowPermanentDelete: false,  // Safe default
+};
+
+const DEFAULT_UPGRADE_POLLING: UpgradePollingConfig = {
+  enabled: false,
+  schedule: '0 3 * * *',  // 3 AM daily
+  batchSize: 50,
+  minAgeHours: 48,
+  requireConfirmation: true,
 };
 
 /**
@@ -189,6 +228,36 @@ export function loadConfig(baseDir: string): CuratarrConfig {
       tier2: raw.groupReputation?.tier2 ?? DEFAULT_GROUP_REPUTATION.tier2,
       tier3: raw.groupReputation?.tier3 ?? DEFAULT_GROUP_REPUTATION.tier3,
       blocked: raw.groupReputation?.blocked ?? DEFAULT_GROUP_REPUTATION.blocked,
+    },
+    rateLimits: {
+      movies: {
+        maxPerDay: raw.rateLimits?.movies?.maxPerDay ?? DEFAULT_RATE_LIMITS.movies.maxPerDay,
+        maxPerHour: raw.rateLimits?.movies?.maxPerHour ?? DEFAULT_RATE_LIMITS.movies.maxPerHour,
+        cooldownMinutes: raw.rateLimits?.movies?.cooldownMinutes ?? DEFAULT_RATE_LIMITS.movies.cooldownMinutes,
+      },
+      episodes: {
+        maxPerDay: raw.rateLimits?.episodes?.maxPerDay ?? DEFAULT_RATE_LIMITS.episodes.maxPerDay,
+        maxPerHour: raw.rateLimits?.episodes?.maxPerHour ?? DEFAULT_RATE_LIMITS.episodes.maxPerHour,
+        cooldownMinutes: raw.rateLimits?.episodes?.cooldownMinutes ?? DEFAULT_RATE_LIMITS.episodes.cooldownMinutes,
+      },
+      global: {
+        maxConcurrent: raw.rateLimits?.global?.maxConcurrent ?? DEFAULT_RATE_LIMITS.global.maxConcurrent,
+        pauseOnDiskSpaceMB: raw.rateLimits?.global?.pauseOnDiskSpaceMB ?? DEFAULT_RATE_LIMITS.global.pauseOnDiskSpaceMB,
+      },
+    },
+    recycleBin: {
+      enabled: raw.recycleBin?.enabled ?? DEFAULT_RECYCLE_BIN.enabled,
+      path: raw.recycleBin?.path ?? DEFAULT_RECYCLE_BIN.path,
+      retentionDays: raw.recycleBin?.retentionDays ?? DEFAULT_RECYCLE_BIN.retentionDays,
+      maxSizeGB: raw.recycleBin?.maxSizeGB ?? DEFAULT_RECYCLE_BIN.maxSizeGB,
+      allowPermanentDelete: raw.recycleBin?.allowPermanentDelete ?? DEFAULT_RECYCLE_BIN.allowPermanentDelete,
+    },
+    upgradePolling: {
+      enabled: raw.upgradePolling?.enabled ?? DEFAULT_UPGRADE_POLLING.enabled,
+      schedule: raw.upgradePolling?.schedule ?? DEFAULT_UPGRADE_POLLING.schedule,
+      batchSize: raw.upgradePolling?.batchSize ?? DEFAULT_UPGRADE_POLLING.batchSize,
+      minAgeHours: raw.upgradePolling?.minAgeHours ?? DEFAULT_UPGRADE_POLLING.minAgeHours,
+      requireConfirmation: raw.upgradePolling?.requireConfirmation ?? DEFAULT_UPGRADE_POLLING.requireConfirmation,
     },
   };
 

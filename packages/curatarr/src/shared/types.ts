@@ -68,6 +68,15 @@ export interface CuratarrConfig {
     tier3: string[];
     blocked: string[];
   };
+
+  // Rate limiting for upgrades
+  rateLimits: RateLimitConfig;
+
+  // Recycle bin for deleted files
+  recycleBin: RecycleBinConfig;
+
+  // Automatic upgrade polling
+  upgradePolling: UpgradePollingConfig;
 }
 
 // ============================================================================
@@ -369,4 +378,99 @@ export interface JellyfinLibrary {
   Name: string;
   CollectionType: 'movies' | 'tvshows' | 'music' | 'unknown';
   Path: string;
+}
+
+// ============================================================================
+// Rate Limiting
+// ============================================================================
+
+export interface RateLimitConfig {
+  movies: {
+    maxPerDay: number;
+    maxPerHour: number;
+    cooldownMinutes: number;
+  };
+  episodes: {
+    maxPerDay: number;
+    maxPerHour: number;
+    cooldownMinutes: number;
+  };
+  global: {
+    maxConcurrent: number;
+    pauseOnDiskSpaceMB: number;
+  };
+}
+
+export interface RateLimitState {
+  movies: {
+    countToday: number;
+    countThisHour: number;
+    lastUpgrade: string | null;
+    resetAt: string;
+  };
+  episodes: {
+    countToday: number;
+    countThisHour: number;
+    lastUpgrade: string | null;
+    resetAt: string;
+  };
+  concurrent: number;
+  paused: boolean;
+  pauseReason?: string;
+}
+
+// ============================================================================
+// Recycle Bin
+// ============================================================================
+
+export interface RecycleBinConfig {
+  enabled: boolean;
+  path: string;
+  retentionDays: number;
+  maxSizeGB: number;
+  allowPermanentDelete: boolean;  // Dangerous option
+}
+
+export interface RecycledItem {
+  id: string;
+  originalPath: string;
+  recyclePath: string;
+  fileName: string;
+  fileSize: number;
+  deletedAt: string;
+  expiresAt: string;
+  reason: string;
+  jellyfinId?: string;
+  tmdbId?: number;
+  title?: string;
+}
+
+export interface RecycleBinStats {
+  totalItems: number;
+  totalSizeBytes: number;
+  oldestItem: string | null;
+  newestItem: string | null;
+  expiringIn24h: number;
+}
+
+// ============================================================================
+// Upgrade Polling
+// ============================================================================
+
+export interface UpgradePollingConfig {
+  enabled: boolean;
+  schedule: string;           // Cron expression
+  batchSize: number;
+  minAgeHours: number;
+  requireConfirmation: boolean;
+}
+
+export interface UpgradeCandidate {
+  libraryItem: LibraryItem;
+  currentQuality: FileQuality;
+  targetProfile: string;
+  candidates: Release[];
+  bestCandidate?: Release;
+  upgradeScore: number;       // How much better the upgrade is
+  recommendation: 'upgrade' | 'skip' | 'review';
 }

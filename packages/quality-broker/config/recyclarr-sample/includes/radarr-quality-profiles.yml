@@ -3,6 +3,7 @@
 #
 # Profiles:
 #   - AutoAssignQuality: Intake/hold profile (no downloads)
+#   - DontUpgrade: Accepts HD + 4K WEB/Bluray without upgrades
 #   - HD: 1080p WEB/Bluray with upgrades
 #   - Efficient-4K: 4K WEB only (space-efficient)
 #   - HighQuality-4K: 4K WEB + Bluray encodes
@@ -47,6 +48,40 @@ quality_profiles:
         qualities:
           - WEBRip-720p
           - WEBDL-720p
+      - name: Bluray-720p
+        enabled: false
+
+  # DontUpgrade: Accepts HD + 4K WEB/Bluray but never upgrades
+  - name: DontUpgrade
+    reset_unmatched_scores:
+      enabled: true
+    upgrade:
+      allowed: false
+      until_quality: Bluray-2160p
+    quality_sort: top
+    qualities:
+      - name: Remux-2160p
+        enabled: false
+      - name: Remux-1080p
+        enabled: false
+      - name: HDTV-2160p
+        enabled: false
+      - name: HDTV-1080p
+        enabled: false
+      - name: HDTV-720p
+        enabled: false
+      - name: WEBDL-2160p
+      - name: WEBRip-2160p
+      - name: Bluray-2160p
+        enabled: true
+      - name: WEBDL-1080p
+      - name: WEBRip-1080p
+      - name: Bluray-1080p
+        enabled: true
+      - name: WEBDL-720p
+        enabled: false
+      - name: WEBRip-720p
+        enabled: false
       - name: Bluray-720p
         enabled: false
 

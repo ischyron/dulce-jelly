@@ -1,0 +1,278 @@
+/**
+ * Curatarr shared types
+ * Platform-agnostic - no OS-specific code
+ */
+
+// ============================================================================
+// Configuration
+// ============================================================================
+
+export interface CuratarrConfig {
+  // Library paths
+  library: {
+    moviePaths: string[];
+    tvPaths: string[];  // Future: TV support
+  };
+
+  // Indexer configuration (Newznab API)
+  indexer: {
+    url: string;
+    apiKey: string;
+    categories: {
+      movies: number[];  // Newznab category IDs
+      tv: number[];
+    };
+  };
+
+  // Download client
+  sabnzbd: {
+    url: string;
+    apiKey: string;
+    category: string;
+  };
+
+  // TMDB for metadata
+  tmdb: {
+    apiKey: string;
+  };
+
+  // Jellyfin integration
+  jellyfin: {
+    url: string;
+    apiKey: string;
+  };
+
+  // LLM configuration
+  llm: {
+    provider: 'openai' | 'anthropic';
+    apiKey: string;
+    model: string;
+    temperature: number;
+    maxTokens: number;
+  };
+
+  // Quality profiles
+  profiles: QualityProfile[];
+
+  // Cache settings
+  cache: {
+    dbPath: string;
+    searchTtlHours: number;
+    maxEntries: number;
+  };
+
+  // Release group reputation
+  groupReputation: {
+    tier1: string[];
+    tier2: string[];
+    tier3: string[];
+    blocked: string[];
+  };
+}
+
+// ============================================================================
+// Quality Profiles
+// ============================================================================
+
+export interface QualityProfile {
+  name: string;
+  resolution: '720p' | '1080p' | '2160p';
+  minBitrate: number;      // kbps
+  maxBitrate: number;      // kbps
+  preferredBitrate: number;
+  minSize: number;         // MB per minute
+  maxSize: number;         // MB per minute
+  preferredSize: number;
+  allowedCodecs: string[];
+  allowedSources: string[];
+  blockedGroups: string[];
+  preferHdr: boolean;
+}
+
+// ============================================================================
+// Library Items
+// ============================================================================
+
+export interface LibraryItem {
+  path: string;
+  folderName: string;
+  fileName: string;
+
+  // Metadata (from TMDB or folder parsing)
+  tmdbId?: number;
+  imdbId?: string;
+  title: string;
+  year: number;
+  genres: string[];
+
+  // FFprobe quality metrics
+  quality: FileQuality;
+
+  // Calculated scores
+  qualityScore: number;       // 0-100
+  upgradeRecommended: boolean;
+  targetProfile?: string;
+}
+
+export interface FileQuality {
+  // Video
+  resolution: string;         // "1920x1080"
+  resolutionCategory: '720p' | '1080p' | '2160p' | 'other';
+  videoBitrate: number;       // kbps
+  videoCodec: string;         // x264, x265, av1
+  hdrType: string | null;     // HDR10, DV, HLG, HDR10+
+  bitDepth: number;           // 8, 10, 12
+
+  // Audio
+  audioBitrate: number;       // kbps
+  audioCodec: string;         // aac, dts, truehd
+  audioChannels: string;      // 2.0, 5.1, 7.1
+
+  // File
+  fileSize: number;           // bytes
+  duration: number;           // seconds
+  container: string;          // mkv, mp4
+
+  // Calculated
+  bitratePerMinute: number;   // kbps per minute of content
+}
+
+// ============================================================================
+// Search & Releases
+// ============================================================================
+
+export interface SearchQuery {
+  title: string;
+  year?: number;
+  imdbId?: string;
+  tmdbId?: number;
+  profile?: string;
+}
+
+export interface Release {
+  guid: string;
+  indexer: string;
+  title: string;
+  size: number;              // bytes
+  age: number;               // days
+  grabs: number;
+  category: string;
+  imdbId?: string;
+  tvdbId?: string;
+
+  // Parsed from title
+  parsed: ParsedRelease;
+
+  // Scoring
+  qualityScore: number;
+  groupTier: 'tier1' | 'tier2' | 'tier3' | 'unknown' | 'blocked';
+  passesQualityGates: boolean;
+  sizeValid: boolean;        // size matches claimed quality
+
+  // LLM evaluation
+  evaluation?: LLMEvaluation;
+
+  // Final ranking
+  rank?: number;
+  recommendation: 'accept' | 'reject' | 'review';
+}
+
+export interface ParsedRelease {
+  title: string;
+  year?: number;
+  resolution?: string;
+  source?: string;           // WEB-DL, BluRay, HDTV
+  codec?: string;            // x264, x265, AV1
+  hdr?: string;              // HDR, HDR10, DV
+  audio?: string;            // DTS, Atmos, TrueHD
+  group?: string;
+  proper?: boolean;
+  repack?: boolean;
+  streaming?: string;        // AMZN, NF, ATVP
+}
+
+// ============================================================================
+// LLM Evaluation
+// ============================================================================
+
+export interface LLMEvaluation {
+  contentMatch: {
+    confidence: number;      // 0-100
+    reasoning: string;
+    isCorrectContent: boolean;
+    flags: ContentFlag[];
+  };
+
+  qualityAuthenticity: {
+    confidence: number;      // 0-100
+    reasoning: string;
+    isAuthentic: boolean;
+    flags: QualityFlag[];
+  };
+
+  upgradeValue?: {
+    confidence: number;
+    reasoning: string;
+    worthUpgrade: boolean;
+    sizeIncrease: string;    // "+5.2 GB"
+  };
+
+  recommendation: 'accept' | 'reject' | 'review';
+  overallConfidence: number;
+}
+
+export type ContentFlag =
+  | 'wrong_content_type'     // movie vs tv vs sports
+  | 'wrong_year'
+  | 'sequel_confusion'
+  | 'remake_confusion'
+  | 'similar_title'
+  | 'foreign_title';
+
+export type QualityFlag =
+  | 'size_mismatch'          // claimed 4K but 2GB
+  | 'unknown_group'
+  | 'blocked_group'
+  | 'suspicious_claims'      // too many quality keywords
+  | 'cam_or_ts'
+  | 'encode_of_encode';
+
+// ============================================================================
+// TMDB Types
+// ============================================================================
+
+export interface TMDBMovie {
+  id: number;
+  imdb_id: string;
+  title: string;
+  original_title: string;
+  release_date: string;
+  runtime: number;
+  genres: { id: number; name: string }[];
+  overview: string;
+  vote_average: number;
+  vote_count: number;
+  popularity: number;
+}
+
+// ============================================================================
+// Activity Logging
+// ============================================================================
+
+export interface ActivityLog {
+  id: string;
+  timestamp: string;
+  action: ActivityAction;
+  details: Record<string, unknown>;
+  success: boolean;
+  error?: string;
+}
+
+export type ActivityAction =
+  | 'scan_library'
+  | 'search'
+  | 'evaluate'
+  | 'grab'
+  | 'import'
+  | 'upgrade_check'
+  | 'jellyfin_rescan';

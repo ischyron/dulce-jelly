@@ -1,0 +1,115 @@
+# Curatarr Configuration Example
+# Copy to config.yaml and fill in your values
+# Environment variables can be used with ${VAR_NAME} syntax
+
+# Library paths to manage
+library:
+  moviePaths:
+    - /media/movies
+    # - /media/movies-4k
+  tvPaths: []  # TV support coming in future phase
+
+# Newznab-compatible indexer (replaces Prowlarr)
+indexer:
+  url: https://api.nzbgeek.info  # or your indexer
+  apiKey: ${INDEXER_API_KEY}
+  categories:
+    movies: [2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060]
+    tv: [5000, 5020, 5030, 5040, 5045, 5050, 5060]
+
+# SABnzbd download client
+sabnzbd:
+  url: http://localhost:8080
+  apiKey: ${SABNZBD_API_KEY}
+  category: movies
+
+# TMDB for movie metadata (used in LLM verification)
+tmdb:
+  apiKey: ${TMDB_API_KEY}
+
+# Jellyfin integration (optional)
+jellyfin:
+  url: http://localhost:8096
+  apiKey: ${JELLYFIN_API_KEY}
+
+# LLM configuration for content verification
+llm:
+  provider: openai  # or anthropic
+  apiKey: ${OPENAI_API_KEY}
+  model: gpt-4o
+  temperature: 0.1
+  maxTokens: 1024
+
+# Quality profiles (TRaSH-based defaults)
+profiles:
+  - name: HD
+    resolution: 1080p
+    minBitrate: 4000
+    maxBitrate: 15000
+    preferredBitrate: 8000
+    minSize: 8      # MB per minute
+    maxSize: 75
+    preferredSize: 30
+    allowedCodecs: [x264, x265, hevc]
+    allowedSources: [bluray, webdl, webrip]
+    blockedGroups: []
+    preferHdr: false
+
+  - name: Efficient-4K
+    resolution: 2160p
+    minBitrate: 8000
+    maxBitrate: 40000
+    preferredBitrate: 20000
+    minSize: 20
+    maxSize: 130
+    preferredSize: 70
+    allowedCodecs: [x265, hevc, av1]
+    allowedSources: [webdl, webrip]
+    blockedGroups: []
+    preferHdr: true
+
+  - name: HighQuality-4K
+    resolution: 2160p
+    minBitrate: 20000
+    maxBitrate: 80000
+    preferredBitrate: 45000
+    minSize: 45
+    maxSize: 170
+    preferredSize: 100
+    allowedCodecs: [x265, hevc, av1]
+    allowedSources: [bluray, webdl]
+    blockedGroups: []
+    preferHdr: true
+
+# Cache settings
+cache:
+  dbPath: ./data/curatarr.sqlite
+  searchTtlHours: 24
+  maxEntries: 50000
+
+# Release group reputation (affects scoring)
+groupReputation:
+  tier1:  # Premium P2P (+15 score)
+    - BHDStudio
+    - DON
+    - FraMeSToR
+    - HiFi
+    - playBD
+    - FLUX
+    - TEPES
+    - HONE
+  tier2:  # Reliable (+5 score)
+    - SPARKS
+    - GECKOS
+    - NTb
+    - CMRG
+    - SiGMA
+  tier3:  # Acceptable (0 score)
+    - YTS
+    - YIFY
+    - RARBG
+    - EVO
+  blocked:  # Hard reject (-1000)
+    - aXXo
+    - KLAXXON
+    - MeGusta

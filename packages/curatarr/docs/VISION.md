@@ -1,12 +1,12 @@
-# Refinery — Intelligent Media Library Management
+# Curatarr — Intelligent Media Library Management
 
 > **Status**: Vision Document (Draft)
 > **Branch**: `feat/nzb-search-module`
-> **Working name**: Refinery (open to alternatives)
+> **Working name**: Curatarr (open to alternatives)
 
 ## Executive Summary
 
-**Refinery** is an LLM-backed media acquisition and library management system that replaces the traditional *arr stack (Radarr, Sonarr, Prowlarr, Recyclarr) with a single intelligent system.
+**Curatarr** is an LLM-backed media acquisition and library management system that replaces the traditional *arr stack (Radarr, Sonarr, Prowlarr, Recyclarr) with a single intelligent system.
 
 **Core insight**: The *arr stack is complex, and its decision-making is rule-based. An LLM-backed system can make smarter decisions about content identity, quality authenticity, and upgrade worthiness — preventing incidents like wrong-content replacements while simplifying the stack.
 
@@ -69,11 +69,11 @@ Research into Radarr's source code revealed:
 
 ---
 
-## The Solution: Refinery
+## The Solution: Curatarr
 
 ### Value Proposition
 
-| Traditional *arr | Refinery |
+| Traditional *arr | Curatarr |
 |------------------|----------|
 | 4+ systems | 1 system |
 | Rule-based decisions | LLM-backed intelligence |
@@ -180,8 +180,8 @@ For each movie folder:
 
 **CLI:**
 ```bash
-refinery scan /media/movies --profile Efficient-4K
-refinery scan --report  # generate quality report
+curatarr scan /media/movies --profile Efficient-4K
+curatarr scan --report  # generate quality report
 ```
 
 ### 2. Intelligent Search & Verification
@@ -189,7 +189,7 @@ refinery scan --report  # generate quality report
 Search indexer with LLM-backed verification.
 
 ```
-User: refinery search "F1 2025" --profile Efficient-4K
+User: curatarr search "F1 2025" --profile Efficient-4K
     ↓
 Query indexer (Newznab API)
     ↓
@@ -223,7 +223,7 @@ Download with explicit user confirmation (legally compliant).
 ```
 User reviews search results
     ↓
-User: refinery grab <guid> --confirm
+User: curatarr grab <guid> --confirm
     ↓
 Send NZB to SABnzbd
     ↓
@@ -239,7 +239,7 @@ Handle completed downloads.
 ```
 SABnzbd completes download
     ↓
-Webhook → Refinery import handler
+Webhook → Curatarr import handler
     ↓
   ├─ Parse release name → identify movie
   ├─ Fetch TMDB metadata
@@ -256,7 +256,7 @@ Log import with quality metrics
 Periodically check library for upgrade opportunities.
 
 ```
-Scheduled: refinery poll --batch 10
+Scheduled: curatarr poll --batch 10
     ↓
 For each movie in library:
   ├─ Current quality metrics (from ffprobe)
@@ -414,12 +414,12 @@ Return JSON with confidence scores and reasoning.
 | qBittorrent | Torrent downloads | Keep |
 | Caddy | Reverse proxy | Keep |
 
-### After (Refinery)
+### After (Curatarr)
 
 | Service | Purpose |
 |---------|---------|
 | Jellyfin | Library + Player |
-| Refinery | Everything else |
+| Curatarr | Everything else |
 | SABnzbd | Usenet downloads |
 | qBittorrent | Torrent downloads |
 | Caddy | Reverse proxy |
@@ -435,12 +435,12 @@ Return JSON with confidence scores and reasoning.
 Build a Jellyfin plugin that:
 - Adds "Quality" badge to library items
 - Shows upgrade availability
-- "Send to Refinery" button for acquisitions
+- "Send to Curatarr" button for acquisitions
 - Replaces Jellyseerr for requests
 
 ### Option B: API Integration
 
-Refinery polls Jellyfin library:
+Curatarr polls Jellyfin library:
 - Uses Jellyfin as source of truth for "what I have"
 - Triggers Jellyfin rescan after imports
 - Jellyseerr continues to work (optional)
@@ -453,14 +453,14 @@ Refinery polls Jellyfin library:
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Sync strategy | On-demand | User runs `refinery sync`; no scheduled sync |
+| Sync strategy | On-demand | User runs `curatarr sync`; no scheduled sync |
 | Indexer | Single for MVP | Direct Newznab API; multi-indexer later |
 | REST API | Not MVP | CLI-first; API later for UI |
 | Download trigger | User-confirmed | `--confirm` flag required; legally compliant |
 | Content scope | Movies first | TV is more complex; post-MVP |
 | Prowlarr | Eliminate | Query indexer directly |
-| Radarr/Sonarr | Eliminate | Refinery handles search + import |
-| Recyclarr | Eliminate | Rules baked into Refinery |
+| Radarr/Sonarr | Eliminate | Curatarr handles search + import |
+| Recyclarr | Eliminate | Rules baked into Curatarr |
 
 ---
 
@@ -519,7 +519,7 @@ Refinery polls Jellyfin library:
 ## Project Structure
 
 ```
-refinery/                      # or packages/refinery/ if staying in monorepo
+curatarr/                      # or packages/curatarr/ if staying in monorepo
 ├── src/
 │   ├── cli/                   # CLI entry points
 │   │   ├── index.ts
@@ -589,13 +589,13 @@ refinery/                      # or packages/refinery/ if staying in monorepo
 
 | Name | Rationale |
 |------|-----------|
-| **Refinery** | Raw downloads → refined library; clear metaphor |
+| **Curatarr** | Raw downloads → refined library; clear metaphor |
 | **Curate** | Curated media collection |
 | **Criterion** | Reference to quality standard |
 | **Arbiter** | Makes quality judgments |
 | **Qualitarr** | Stays in *arr family, familiar to community |
 
-**Current working name**: Refinery
+**Current working name**: Curatarr
 
 ---
 
@@ -611,7 +611,7 @@ refinery/                      # or packages/refinery/ if staying in monorepo
    - htmx (minimal JS)
 
 3. **Jellyseerr replacement?**
-   - Build request management into Refinery
+   - Build request management into Curatarr
    - Or keep Jellyseerr, integrate via API
 
 4. **Torrent support in MVP?**

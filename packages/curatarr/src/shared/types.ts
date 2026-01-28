@@ -275,4 +275,98 @@ export type ActivityAction =
   | 'grab'
   | 'import'
   | 'upgrade_check'
-  | 'jellyfin_rescan';
+  | 'jellyfin_rescan'
+  | 'monitor_check'
+  | 'health_check';
+
+// ============================================================================
+// Monitor / Dashboard Types
+// ============================================================================
+
+export type IssueSeverity = 'info' | 'warning' | 'error';
+
+export interface LibraryIssue {
+  id: string;
+  severity: IssueSeverity;
+  type: LibraryIssueType;
+  title: string;
+  path: string;
+  jellyfinId?: string;
+  details: string;
+  detectedAt: string;
+  resolved: boolean;
+}
+
+export type LibraryIssueType =
+  | 'missing_file'           // File in Jellyfin but not on disk
+  | 'missing_folder'         // Folder in Jellyfin but not on disk
+  | 'multiple_video_files'   // More than 1 video file in movie folder
+  | 'empty_folder'           // Folder exists but no video files
+  | 'orphan_file'            // File on disk but not in Jellyfin
+  | 'metadata_mismatch';     // Title/year mismatch between Jellyfin and folder
+
+export interface HealthStatus {
+  service: ServiceName;
+  status: 'healthy' | 'degraded' | 'unreachable';
+  lastCheck: string;
+  latencyMs?: number;
+  error?: string;
+  details?: Record<string, unknown>;
+}
+
+export type ServiceName =
+  | 'jellyfin'
+  | 'indexer'
+  | 'sabnzbd'
+  | 'tmdb'
+  | 'llm'
+  | 'filesystem';
+
+export interface DashboardState {
+  // Library issues grouped by severity
+  library: {
+    info: LibraryIssue[];
+    warning: LibraryIssue[];
+    error: LibraryIssue[];
+    lastScan: string | null;
+    totalItems: number;
+  };
+
+  // Service health
+  health: {
+    overall: IssueSeverity;  // Aggregate: error if any error, warning if any warning
+    services: HealthStatus[];
+    lastCheck: string | null;
+  };
+}
+
+// ============================================================================
+// Jellyfin API Types
+// ============================================================================
+
+export interface JellyfinItem {
+  Id: string;
+  Name: string;
+  Path: string;
+  Type: 'Movie' | 'Series' | 'Episode' | 'Folder';
+  ProductionYear?: number;
+  ProviderIds?: {
+    Imdb?: string;
+    Tmdb?: string;
+  };
+  MediaSources?: JellyfinMediaSource[];
+}
+
+export interface JellyfinMediaSource {
+  Id: string;
+  Path: string;
+  Size: number;
+  Container: string;
+}
+
+export interface JellyfinLibrary {
+  Id: string;
+  Name: string;
+  CollectionType: 'movies' | 'tvshows' | 'music' | 'unknown';
+  Path: string;
+}

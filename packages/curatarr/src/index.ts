@@ -14,6 +14,7 @@ import { scanCommand } from './cli/scan.js';
 import { searchCommand } from './cli/search.js';
 import { grabCommand } from './cli/grab.js';
 import { cacheCommand } from './cli/cache.js';
+import { monitorCommand } from './cli/monitor.js';
 
 const baseDir = fileURLToPath(new URL('..', import.meta.url));
 
@@ -29,5 +30,6 @@ program.addCommand(scanCommand(baseDir));
 program.addCommand(searchCommand(baseDir));
 program.addCommand(grabCommand(baseDir));
 program.addCommand(cacheCommand(baseDir));
+program.addCommand(monitorCommand(baseDir));
 
 program.parseAsync(process.argv);

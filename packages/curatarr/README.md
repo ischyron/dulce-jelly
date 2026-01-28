@@ -38,6 +38,11 @@ curatarr grab <guid> --confirm    # Download release via SABnzbd
 curatarr cache sync               # Sync recent releases to cache
 curatarr cache stats              # Show cache statistics
 curatarr cache clear --confirm    # Clear search cache
+
+# Monitoring
+curatarr monitor run              # Run full monitoring check
+curatarr monitor health           # Check service connectivity
+curatarr monitor library          # Check for missing files
 ```
 
 ## Why Curatarr?
@@ -87,6 +92,12 @@ npm run test     # Run tests
 ```
 
 ## Implementation Status
+
+### Phase 0: Monitoring (Done)
+- [x] Health checker (service connectivity)
+- [x] Jellyfin client (batched API fetching)
+- [x] Library monitor (missing file detection)
+- [x] Monitor CLI commands
 
 ### Phase 1: Foundation (In Progress)
 - [x] Project structure

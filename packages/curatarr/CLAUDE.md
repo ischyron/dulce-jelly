@@ -23,7 +23,11 @@
 
 ```
 src/
-├── cli/           # CLI commands (scan, search, grab, cache)
+├── cli/           # CLI commands (scan, search, grab, cache, monitor)
+├── monitor/       # Library + health monitoring (IMPLEMENTED)
+│   ├── healthChecker.ts    # Service connectivity checks
+│   ├── jellyfinClient.ts   # Jellyfin API with batched fetching
+│   └── libraryMonitor.ts   # Missing file detection
 ├── scanner/       # FFprobe library analysis (PENDING)
 ├── search/        # Newznab indexer + SQLite cache (PENDING)
 ├── evaluator/     # LLM content/quality verification (PENDING)
@@ -32,6 +36,34 @@ src/
 ├── import/        # Post-download + Jellyfin rescan (PENDING)
 └── shared/        # Config, types, utilities (DONE)
 ```
+
+## Monitor Feature
+
+### Dashboard Concept
+
+Two-part dashboard:
+
+**1. Library** - Issues with library integrity
+- `error`: Missing files/folders (in Jellyfin but not on disk)
+- `warning`: Multiple video files in folder, metadata mismatch
+- `info`: Recently added, successful imports
+
+**2. Health** - Service connectivity
+- `info` (green): All services connected
+- `warning`: Degraded (slow response, auth issues)
+- `error`: Unreachable (timeout, connection refused)
+
+### Services Monitored
+- Jellyfin (library source)
+- Indexer (Newznab API)
+- SABnzbd (download client)
+- TMDB (metadata)
+- LLM provider (OpenAI/Anthropic)
+
+### Jellyfin API Integration
+- Batched fetching (configurable batch size)
+- Error resilience (continues on batch failure)
+- Fetches: Path, ProviderIds, MediaSources
 
 ## Implementation Priority
 
@@ -119,6 +151,9 @@ curatarr search "title year"      # Search + LLM verify
 curatarr grab <guid> --confirm    # Send to SABnzbd
 curatarr cache sync               # Fetch recent releases
 curatarr cache stats              # Show cache info
+curatarr monitor run              # Full monitor (library + health)
+curatarr monitor health           # Service connectivity check
+curatarr monitor library          # Library integrity check
 ```
 
 ## External APIs

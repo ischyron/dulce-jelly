@@ -43,8 +43,9 @@ export interface CuratarrConfig {
   };
 
   // LLM configuration
+  // Note: Only OpenAI supported in MVP. Provider architecture coming later.
   llm: {
-    provider: 'openai' | 'anthropic';
+    provider: 'openai';  // Hardcoded for MVP
     apiKey: string;
     model: string;
     temperature: number;

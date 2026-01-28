@@ -1,5 +1,10 @@
 # Curatarr Configuration Example
-# Copy to config.yaml and fill in your values
+# Copy to config.yaml and configure your settings
+#
+# SECRETS:
+# API keys should be stored in secrets.yaml (see secrets.example.yaml)
+# The secrets file is automatically loaded and merged with this config
+#
 # Environment variables can be used with ${VAR_NAME} syntax
 
 # Library paths to manage
@@ -10,32 +15,32 @@ library:
   tvPaths: []  # TV support coming in future phase
 
 # Newznab-compatible indexer (replaces Prowlarr)
+# API key loaded from secrets.yaml
 indexer:
   url: https://api.nzbgeek.info  # or your indexer
-  apiKey: ${INDEXER_API_KEY}
   categories:
     movies: [2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060]
     tv: [5000, 5020, 5030, 5040, 5045, 5050, 5060]
 
 # SABnzbd download client
+# API key loaded from secrets.yaml
 sabnzbd:
   url: http://localhost:8080
-  apiKey: ${SABNZBD_API_KEY}
   category: movies
 
 # TMDB for movie metadata (used in LLM verification)
-tmdb:
-  apiKey: ${TMDB_API_KEY}
+# API key loaded from secrets.yaml
+tmdb: {}
 
 # Jellyfin integration (optional)
+# API key loaded from secrets.yaml
 jellyfin:
   url: http://localhost:8096
-  apiKey: ${JELLYFIN_API_KEY}
 
 # LLM configuration for content verification
+# API key loaded from secrets.yaml
 llm:
   provider: openai  # or anthropic
-  apiKey: ${OPENAI_API_KEY}
   model: gpt-4o
   temperature: 0.1
   maxTokens: 1024

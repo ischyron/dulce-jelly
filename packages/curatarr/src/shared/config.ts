@@ -156,6 +156,56 @@ function findConfigFile(baseDir: string): string | null {
 }
 
 /**
+ * Find secrets file from multiple candidate locations
+ */
+function findSecretsFile(baseDir: string): string | null {
+  const candidates = [
+    process.env.CURATARR_SECRETS,
+    path.join(baseDir, 'config/secrets.yaml'),
+    path.join(baseDir, 'secrets.yaml'),
+    path.join(process.cwd(), 'secrets.yaml'),
+    path.join(process.cwd(), 'config/secrets.yaml'),
+  ].filter(Boolean) as string[];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+/**
+ * Deep merge two objects (secrets override config)
+ */
+function deepMerge(target: Record<string, unknown>, source: Record<string, unknown>): Record<string, unknown> {
+  const result = { ...target };
+
+  for (const key of Object.keys(source)) {
+    const sourceValue = source[key];
+    const targetValue = result[key];
+
+    if (
+      sourceValue &&
+      typeof sourceValue === 'object' &&
+      !Array.isArray(sourceValue) &&
+      targetValue &&
+      typeof targetValue === 'object' &&
+      !Array.isArray(targetValue)
+    ) {
+      result[key] = deepMerge(
+        targetValue as Record<string, unknown>,
+        sourceValue as Record<string, unknown>
+      );
+    } else if (sourceValue !== undefined && sourceValue !== null && sourceValue !== '') {
+      result[key] = sourceValue;
+    }
+  }
+
+  return result;
+}
+
+/**
  * Load and validate configuration
  */
 export function loadConfig(baseDir: string): CuratarrConfig {
@@ -168,7 +218,18 @@ export function loadConfig(baseDir: string): CuratarrConfig {
   }
 
   const content = fs.readFileSync(configPath, 'utf-8');
-  const raw = deepExpand(parse(content)) as Partial<CuratarrConfig>;
+  let merged = deepExpand(parse(content)) as Record<string, unknown>;
+
+  // Load secrets file if present and merge with config
+  const secretsPath = findSecretsFile(baseDir);
+  if (secretsPath) {
+    const secretsContent = fs.readFileSync(secretsPath, 'utf-8');
+    const secrets = deepExpand(parse(secretsContent)) as Record<string, unknown>;
+    merged = deepMerge(merged, secrets);
+  }
+
+  // Cast to partial config after merge
+  const raw = merged as Partial<CuratarrConfig>;
 
   // Validate required fields
   if (!raw.indexer?.url || !raw.indexer?.apiKey) {
@@ -211,7 +272,7 @@ export function loadConfig(baseDir: string): CuratarrConfig {
       apiKey: raw.jellyfin?.apiKey ?? '',
     },
     llm: {
-      provider: raw.llm.provider ?? 'openai',
+      provider: 'openai',  // Hardcoded for MVP - provider architecture coming later
       apiKey: raw.llm.apiKey,
       model: raw.llm.model ?? 'gpt-4o',
       temperature: raw.llm.temperature ?? 0.1,
@@ -269,4 +330,11 @@ export function loadConfig(baseDir: string): CuratarrConfig {
  */
 export function getConfigPath(baseDir: string): string | null {
   return findConfigFile(baseDir);
+}
+
+/**
+ * Get secrets file path for display
+ */
+export function getSecretsPath(baseDir: string): string | null {
+  return findSecretsFile(baseDir);
 }

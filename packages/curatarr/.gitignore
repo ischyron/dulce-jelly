@@ -4,3 +4,7 @@ dist/
 *.sqlite
 .env
 .env.local
+
+# Secrets - NEVER commit
+secrets.yaml
+config/secrets.yaml

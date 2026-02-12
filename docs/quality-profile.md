@@ -48,14 +48,14 @@ Remux-2160p:  { min: 0, preferred: 1, max: 1 }
 | Quality | Min | Pref | Max | ~Max Size (2hr) |
 |---------|-----|------|-----|-----------------|
 | WEBRip-1080p | 8 | 22 | 45 | 5.4 GB |
-| WEBDL-1080p | 12 | 30 | 55 | 6.6 GB |
+| WEBDL-1080p | 12 | 40 | 80 | 9.6 GB |
 | Bluray-1080p | 18 | 40 | 75 | 9.0 GB |
 
 ### 2160p / 4K
 | Quality | Min | Pref | Max | ~Max Size (2hr) |
 |---------|-----|------|-----|-----------------|
 | WEBRip-2160p | 20 | 55 | 110 | 13.2 GB |
-| WEBDL-2160p | 25 | 70 | 130 | 15.6 GB |
+| WEBDL-2160p | 25 | 85 | 170 | 20.4 GB |
 | Bluray-2160p | 45 | 100 | 170 | 20.4 GB |
 
 ---
@@ -85,14 +85,15 @@ All Remux tiers scored **-1000** as safety net (also blocked by size caps).
 
 ## Profile Thresholds
 
-Upgrades controlled by `until_quality` only. This aligns with TRaSH's approach when using high tier scores.
+Upgrades controlled by `until_quality` + `min_upgrade_format_score`. The upgrade score floor (2500) ensures only TRaSH-tiered release groups trigger upgrades — untiered P2P groups max out at ~2250 (DD+ 1750 + HDR 500) and are blocked.
 
-| Profile | until_quality |
-|---------|---------------|
-| AutoAssignQuality | — (no upgrades) |
-| HD | Bluray-1080p |
-| Efficient-4K | WEBDL-2160p |
-| HighQuality-4K | Bluray-2160p |
+| Profile | until_quality | min_format_score | min_upgrade_format_score |
+|---------|---------------|------------------|--------------------------|
+| AutoAssignQuality | — (no upgrades) | — | — |
+| DontUpgrade | Bluray-2160p | — | — (upgrades disabled) |
+| HD | Bluray-1080p | 0 | 2500 |
+| Efficient-4K | WEBDL-2160p | 0 | 2500 |
+| HighQuality-4K | Bluray-2160p | 0 | 2500 |
 
 Size limits are enforced by quality definitions (MB/min), not profile thresholds.
 

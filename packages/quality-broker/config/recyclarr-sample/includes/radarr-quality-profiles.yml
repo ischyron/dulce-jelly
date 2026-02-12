@@ -7,6 +7,11 @@
 #   - HD: 1080p WEB/Bluray with upgrades
 #   - Efficient-4K: 4K WEB only (space-efficient)
 #   - HighQuality-4K: 4K WEB + Bluray encodes
+#
+# Upgrade gate: min_upgrade_format_score requires a TRaSH-tiered release
+# group (WEB Tier 01-03 = 1600-1700, HD/UHD Bluray Tier 01-03 = 1700-1800)
+# plus decent audio (DD+ = 1750) to pass. Untiered P2P groups max out
+# around ~2250 (DD+ 1750 + HDR 500) and are blocked by the 2500 floor.
 
 quality_profiles:
   # AutoAssignQuality: Intake profile - allows one blocked quality
@@ -87,6 +92,8 @@ quality_profiles:
 
   # HD: 1080p content (WEB preferred, Bluray allowed)
   - name: HD
+    min_format_score: 0
+    min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
     upgrade:
@@ -117,6 +124,8 @@ quality_profiles:
 
   # Efficient-4K: 4K WEB only (smaller files, no Bluray)
   - name: Efficient-4K
+    min_format_score: 0
+    min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
     upgrade:
@@ -151,6 +160,8 @@ quality_profiles:
 
   # HighQuality-4K: 4K WEB + Bluray encodes (best quality under size limits)
   - name: HighQuality-4K
+    min_format_score: 0
+    min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
     upgrade:

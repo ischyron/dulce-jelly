@@ -384,7 +384,11 @@
     (function() {
       const proto = window.location.protocol;
       const host = window.location.hostname;
-      const isLanHome = host === 'dulce.local';
+      const isLanHome =
+        host === 'dulce.local' ||
+        host === 'localhost' ||
+        host.endsWith('.local') ||
+        /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
       const lanPathMap = {
         jellyfin: '/jellyfin',
         jellyseerr: '/jellyseerr',

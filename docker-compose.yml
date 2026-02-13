@@ -126,6 +126,8 @@ services:
     container_name: prowlarr
     hostname: prowlarr
     restart: unless-stopped
+    depends_on:
+      - flaresolverr
     environment:
       PUID: "${PUID:-1000}"
       PGID: "${PGID:-1000}"
@@ -226,6 +228,17 @@ services:
       - ./data/quality-broker:/data/quality-broker
     depends_on:
       - radarr
+
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    hostname: flaresolverr
+    restart: unless-stopped
+    environment:
+      TZ: "${TZ:-Asia/Tashkent}"
+      LOG_LEVEL: "${FLARESOLVERR_LOG_LEVEL:-info}"
+      LOG_HTML: "false"
+      CAPTCHA_SOLVER: "none"
 
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr:latest

@@ -13,6 +13,7 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 | SABnzbd | `http://localhost:3274` | `sabnzbd:8080` |
 | Radarr | `http://localhost:3273` | `radarr:7878` |
 | Sonarr | `http://localhost:3272` | `sonarr:8989` |
+| FlareSolverr | n/a (internal service) | `flaresolverr:8191` |
 
 ## Jellyfin
 1) Open `http://localhost:3278` and create an admin account.
@@ -40,6 +41,8 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 1) Open `http://localhost:3276`.
 2) Add indexers (Settings → Indexers).
 3) Connect apps (Settings → Apps): Radarr `http://radarr:7878`, Sonarr `http://sonarr:8989`; use API keys from each app.
+4) Optional (recommended for CF-protected indexers): add FlareSolverr under Settings → Indexer Proxies with host `http://flaresolverr:8191`.
+5) Optional API automation: set `PROWLARR_API_KEY` in `.env`, then call `POST /prowlarr/api/v1/indexerProxy` with header `X-Api-Key: <PROWLARR_API_KEY>` and FlareSolverr schema from `GET /prowlarr/api/v1/indexerProxy/schema`.
 
 ## Radarr
 1) Open `http://localhost:3273` and finish the wizard.

@@ -40,6 +40,7 @@ DulceJelly is a collection of open-source media management tools:
 - **[qBittorrent](https://www.qbittorrent.org/)** - BitTorrent client
 - **[SABnzbd](https://sabnzbd.org/)** - Usenet client
 - **[Recyclarr](https://recyclarr.dev/)** - Quality profile synchronization
+- **[Huntarr](https://github.com/plexguide/Huntarr.io)** - Continuous missing/upgrade search automation for *arr apps
 - **[Caddy](https://caddyserver.com/)** - Reverse proxy server
 - **[Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/)** - Secure remote access
 

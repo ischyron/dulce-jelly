@@ -216,7 +216,7 @@ services:
     hostname: huntarr
     restart: unless-stopped
     ports:
-      - "${HUNTARR_PORT:-9705}:9705"
+      - "${HUNTARR_PORT:-3271}:9705"
     environment:
       TZ: "${TZ:-Asia/Tashkent}"
       BASE_URL: "${HUNTARR_BASE_URL:-}"

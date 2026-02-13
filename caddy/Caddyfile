@@ -103,7 +103,7 @@ http://dulce.local {
   }
   handle_path /huntarr* {
     uri strip_prefix /huntarr
-    redir * http://{host}:9705{uri} 307
+    redir * http://{host}:3271{uri} 307
   }
 }
 

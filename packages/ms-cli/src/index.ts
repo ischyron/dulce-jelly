@@ -70,7 +70,7 @@ const commands: Record<string, CommandFunction> = {
       sabnzbd: d('SABNZBD_PORT', '3274'),
       radarr: d('RADARR_PORT', '3273'),
       sonarr: d('SONARR_PORT', '3272'),
-      huntarr: d('HUNTARR_PORT', '9705'),
+      huntarr: d('HUNTARR_PORT', '3271'),
       qb_peer: d('QBITTORRENT_PEER_PORT', '6881'),
     };
     Object.entries(ports).forEach(([k, v]) => console.log(`${k}: ${v}`));

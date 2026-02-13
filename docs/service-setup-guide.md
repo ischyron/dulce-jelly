@@ -14,7 +14,7 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 | Radarr | `http://localhost:3273` | `radarr:7878` |
 | Sonarr | `http://localhost:3272` | `sonarr:8989` |
 | FlareSolverr | n/a (internal service) | `flaresolverr:8191` |
-| Huntarr | `http://localhost:9705` | `huntarr:9705` |
+| Huntarr | `http://localhost:3271` | `huntarr:9705` |
 
 ## Jellyfin
 1) Open `http://localhost:3278` and create an admin account.
@@ -60,7 +60,7 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 5) Optional: Connect Jellyfin at `http://jellyfin:8096` using a Jellyfin API key.
 
 ## Huntarr
-1) Open `http://localhost:9705` and complete setup.
+1) Open `http://localhost:3271` and complete setup.
 2) Connect Huntarr to your Arr apps using internal URLs (for this stack): Sonarr `http://sonarr:8989`, Radarr `http://radarr:7878`, etc.
 3) Add API keys from each app and tune hunt limits/intervals to avoid aggressive indexer usage.
 

@@ -42,7 +42,11 @@ function formatInfoLine(value: string): string {
   return String(value || '').replace(/\s+/g, ' ').trim();
 }
 
-async function run(batchSizeOverride?: number, verbose: boolean = false) {
+function formatNumeric(value: number | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? String(value) : 'n/a';
+}
+
+async function run(batchSizeOverride?: number, verbose: boolean = false, dryRun: boolean = false) {
   const config = loadConfig(baseDir);
 
   const cliBatch =
@@ -59,6 +63,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   console.log(`Batch Size: ${config.batchSize}`);
   console.log(`Batch Size Override: ${override ?? 'none'}`);
   console.log(`Batch Size Effective: ${batchSize}`);
+  console.log(`Dry Run: ${dryRun ? 'yes' : 'no'}`);
 
   const radarr = new RadarrClient(config);
   const logger = new RunLogger(baseDir);
@@ -95,6 +100,14 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     if (!id) throw new Error(`Decision profile '${name}' not found in Radarr.`);
     return { name, id };
   });
+  const ignoredProfileNames = new Set(
+    (config.ignoredProfilesFromChanges || []).map((name) => name.trim()).filter((name) => name.length > 0)
+  );
+  const ignoredProfileIds = new Set<number>();
+  for (const name of ignoredProfileNames) {
+    const id = resolveProfileId(profiles, name);
+    if (id) ignoredProfileIds.add(id);
+  }
 
   const compareTitles = (a: RadarrMovie, b: RadarrMovie) => {
     const at = (a.title || '').toLowerCase();
@@ -122,6 +135,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   const finalize = (extra?: { reason?: string }) => {
     if (finalized) return;
     finalized = true;
+    if (dryRun) return undefined;
     const logPath = logger.checkpoint(runLog, true);
     const failedCount = runLog.length - successCount;
     const summary = {
@@ -157,12 +171,13 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     console.log(`[Verbose] Processing ${candidates.length} candidate(s).`);
   }
 
-  logger.initLog();
+  if (!dryRun) {
+    logger.initLog();
+  }
 
   for (const movie of candidates) {
     let decisionSourceForLog: 'deterministic_rule' | 'llm' = 'deterministic_rule';
     const fromProfile = profiles.find((p) => p.id === movie.qualityProfileId)?.name || 'unknown';
-    const currentQuality = movie.movieFile?.quality?.quality?.name;
     const criticScore = getCriticScore(movie);
     const criticScoreSource = getCriticScoreSource(movie);
     const tomatoScore = getTomatoScore(movie);
@@ -170,12 +185,51 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
     const rtCriticScore = getRtCriticScore(movie);
     const rtCriticVotes = getRtCriticVotes(movie);
     const metacriticScore = getMetacriticScore(movie);
+    const genres = Array.isArray(movie.genres) ? movie.genres : [];
+    const isIgnoredProfile =
+      ignoredProfileIds.has(movie.qualityProfileId) || (fromProfile !== 'unknown' && ignoredProfileNames.has(fromProfile));
+    if (isIgnoredProfile) {
+      const skipReason = `Profile '${fromProfile}' is configured to be ignored from changes.`;
+      successCount += 1;
+      runLog.push({
+        radarrMovieId: movie.id,
+        title: movie.title,
+        imdbId: movie.imdbId,
+        tmdbId: movie.tmdbId,
+        genres,
+        metacriticScore,
+        rtAudienceScore: tomatoScore,
+        rtAudienceVotes: tomatoVotes,
+        rtCriticScore,
+        rtCriticVotes,
+        criticScoreSource,
+        criticScore,
+        fromProfile,
+        toProfile: fromProfile,
+        rulesApplied: ['ignored_profile'],
+        tagsAdded: [],
+        reasoning: skipReason,
+        decisionSource: decisionSourceForLog,
+        success: true
+      });
+      console.log(
+        `INFO skipped title="${formatInfoLine(movie.title || 'unknown')}" profile=${formatInfoLine(fromProfile)} reason="${formatInfoLine(skipReason)}"`
+      );
+      if (dryRun) {
+        console.log(
+          `DRY-RUN title="${formatInfoLine(movie.title || 'unknown')}" before=${formatInfoLine(fromProfile)} after=${formatInfoLine(fromProfile)} criticScore=${formatNumeric(criticScore)} criticSource=${formatInfoLine(criticScoreSource || 'n/a')} rtCritic=${formatNumeric(rtCriticScore)} metacritic=${formatNumeric(metacriticScore)} rtAudience=${formatNumeric(tomatoScore)} genres="${formatInfoLine(genres.join(', ') || 'n/a')}" reason="${formatInfoLine(skipReason)}"`
+        );
+      } else {
+        logger.checkpoint(runLog);
+      }
+      continue;
+    }
+    const currentQuality = movie.movieFile?.quality?.quality?.name;
     const popularity = buildPopularitySignal(movie);
     const popularityValue =
       typeof popularity.computedPopularityIndex === 'number' ? popularity.computedPopularityIndex : getPopularity(movie);
     const popularityTier = computePopularityTier(popularityValue, config.thresholds);
     const keywords = movie.keywords;
-    const genres = Array.isArray(movie.genres) ? movie.genres : [];
 
     try {
       if (verbose) {
@@ -266,7 +320,38 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
         };
       }
 
-      if (!skipUpdate) {
+      if (dryRun) {
+        const effectiveProfile = skipUpdate ? fromProfile : decision.profile;
+        successCount += 1;
+        runLog.push({
+          radarrMovieId: movie.id,
+          title: movie.title,
+          imdbId: movie.imdbId,
+          tmdbId: movie.tmdbId,
+          popularity,
+          popularityTier,
+          genres,
+          metacriticScore,
+          rtAudienceScore: tomatoScore,
+          rtAudienceVotes: tomatoVotes,
+          rtCriticScore,
+          rtCriticVotes,
+          criticScoreSource,
+          currentQuality,
+          criticScore,
+          keywords,
+          fromProfile,
+          toProfile: effectiveProfile,
+          rulesApplied: describeRules(decision, decisionSourceForLog),
+          tagsAdded: [],
+          reasoning: decision.reasoning,
+          decisionSource: decisionSourceForLog,
+          success: true
+        });
+        console.log(
+          `DRY-RUN title="${formatInfoLine(movie.title || 'unknown')}" before=${formatInfoLine(fromProfile)} after=${formatInfoLine(effectiveProfile)} criticScore=${formatNumeric(criticScore)} criticSource=${formatInfoLine(criticScoreSource || 'n/a')} rtCritic=${formatNumeric(rtCriticScore)} metacritic=${formatNumeric(metacriticScore)} rtAudience=${formatNumeric(tomatoScore)} genres="${formatInfoLine(genres.join(', ') || 'n/a')}" reason="${formatInfoLine(decision.reasoning)}"`
+        );
+      } else if (!skipUpdate) {
         const result = await applyDecision({
           decision,
           movie,
@@ -379,7 +464,11 @@ async function run(batchSizeOverride?: number, verbose: boolean = false) {
   const failedCount = candidates.length - successCount;
   const statusText = failedCount === 0 ? chalk.green('Success') : chalk.red('Completed with failures');
   const counts = `${chalk.green(String(successCount))} succeeded, ${failedCount > 0 ? chalk.red(String(failedCount)) : '0'} failed`;
-  console.log(`Run complete. ${statusText}: ${counts} out of ${candidates.length}. Log: ${logPath}`);
+  if (dryRun) {
+    console.log(`Dry-run complete. ${statusText}: ${counts} out of ${candidates.length}. No changes were applied.`);
+  } else {
+    console.log(`Run complete. ${statusText}: ${counts} out of ${candidates.length}. Log: ${logPath}`);
+  }
 }
 
 async function applyDecision(params: {
@@ -455,10 +544,11 @@ program
   .description('Run a batch now')
   .option('--batch-size <n>', 'Override batch size')
   .option('--verbose', 'Log detailed per-movie signals and decisions')
+  .option('--dry-run', 'Compute decisions and print before/after without applying changes')
   .action(async (opts) => {
     try {
       const batchSize = opts.batchSize ? parseInt(String(opts.batchSize), 10) : undefined;
-      await run(batchSize, Boolean(opts.verbose));
+      await run(batchSize, Boolean(opts.verbose), Boolean(opts.dryRun));
     } catch (err) {
       console.error((err as Error).message);
       process.exit(1);

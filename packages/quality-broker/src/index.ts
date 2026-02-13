@@ -46,7 +46,12 @@ function formatNumeric(value: number | undefined): string {
   return typeof value === 'number' && Number.isFinite(value) ? String(value) : 'n/a';
 }
 
-async function run(batchSizeOverride?: number, verbose: boolean = false, dryRun: boolean = false) {
+async function run(
+  batchSizeOverride?: number,
+  verbose: boolean = false,
+  dryRun: boolean = false,
+  ignoreAutoflag: boolean = false
+) {
   const config = loadConfig(baseDir);
 
   const cliBatch =
@@ -64,6 +69,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false, dryRun:
   console.log(`Batch Size Override: ${override ?? 'none'}`);
   console.log(`Batch Size Effective: ${batchSize}`);
   console.log(`Dry Run: ${dryRun ? 'yes' : 'no'}`);
+  console.log(`Ignore Auto Flag: ${ignoreAutoflag ? 'yes' : 'no'}`);
 
   const radarr = new RadarrClient(config);
   const logger = new RunLogger(baseDir);
@@ -117,6 +123,7 @@ async function run(batchSizeOverride?: number, verbose: boolean = false, dryRun:
 
   const candidates = movies
     .filter((m) => {
+      if (ignoreAutoflag) return true;
       if (reviseProfileId) return m.qualityProfileId === reviseProfileId;
       return m.qualityProfileId === autoProfileId;
     })
@@ -545,10 +552,11 @@ program
   .option('--batch-size <n>', 'Override batch size')
   .option('--verbose', 'Log detailed per-movie signals and decisions')
   .option('--dry-run', 'Compute decisions and print before/after without applying changes')
+  .option('--ignore-autoflag', 'Process all movies instead of only autoAssign/revise queue')
   .action(async (opts) => {
     try {
       const batchSize = opts.batchSize ? parseInt(String(opts.batchSize), 10) : undefined;
-      await run(batchSize, Boolean(opts.verbose), Boolean(opts.dryRun));
+      await run(batchSize, Boolean(opts.verbose), Boolean(opts.dryRun), Boolean(opts.ignoreAutoflag));
     } catch (err) {
       console.error((err as Error).message);
       process.exit(1);

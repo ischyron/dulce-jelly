@@ -59,6 +59,8 @@ npm run build
 node dist/index.js run --batch-size 5
 # preview only (no Radarr profile/tag updates)
 node dist/index.js run --dry-run --batch-size 5
+# process all movies (ignore AutoAssign-only intake filtering)
+node dist/index.js run --ignore-autoflag --batch-size 5
 ```
 
 From container (after building image):
@@ -81,6 +83,8 @@ Via docker compose + ms CLI (service is profile-gated and runs on demand):
 ms qb-run -- --batch-size 5
 # preview impact only
 ms qb-run -- --dry-run --batch-size 5
+# process all movies
+ms qb-run -- --ignore-autoflag --batch-size 5
 
 # view latest log
 ms qb-log
@@ -88,6 +92,7 @@ ms qb-log
 
 Cron-safe: each run processes at most `batchSize`, prioritizing movies with the `autoAssignProfile` (or `reviseQualityForProfile` if set).
 Dry-run mode (`--dry-run`) computes decisions and prints per-movie before/after profile, critic fields, and genres without applying changes.
+Ignore-auto mode (`--ignore-autoflag`) scans all Radarr movies instead of only the `autoAssignProfile` (or `reviseQualityForProfile`) queue.
 
 ## Behavior
 - Reads Radarr quality profiles dynamically; refuses to run if target profiles are missing.

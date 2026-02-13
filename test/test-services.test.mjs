@@ -55,7 +55,8 @@ const openRoutes = [
   `http://${lanHostname}/radarr/`,
   `http://${lanHostname}/sonarr/`,
   `http://${lanHostname}/sab/`,
-  `http://${lanHostname}/prowlarr/`
+  `http://${lanHostname}/prowlarr/`,
+  `http://${lanHostname}/huntarr/`
 ]
 
 const publicHost = (subdomain) => (subdomain ? `${subdomain}.${publicDomain}` : publicDomain)
@@ -68,7 +69,8 @@ const httpsAuthRoutes = HAVE_PUBLIC_DOMAIN ? [
   publicUrl('radarr', '/'),
   publicUrl('sonarr', '/'),
   publicUrl('sab', '/'),
-  publicUrl('prowlarr', '/')
+  publicUrl('prowlarr', '/'),
+  publicUrl('huntarr', '/')
 ] : []
 
 const httpsOpenRoutes = HAVE_PUBLIC_DOMAIN ? [
@@ -83,6 +85,7 @@ const httpRedirectsToHttps = HAVE_PUBLIC_DOMAIN ? [
   { from: `http://${publicHost('sonarr')}/`, to: publicUrl('sonarr', '/') },
   { from: `http://${publicHost('sab')}/`, to: publicUrl('sab', '/') },
   { from: `http://${publicHost('prowlarr')}/`, to: publicUrl('prowlarr', '/') },
+  { from: `http://${publicHost('huntarr')}/`, to: publicUrl('huntarr', '/') },
   { from: `http://${publicHost('jellyfin')}/`, to: publicUrl('jellyfin', '/') },
   { from: `http://${publicHost(null)}/logos/jellyfin.png`, to: publicUrl(null, '/logos/jellyfin.png') },
   { from: `http://${publicHost(null)}/logos/shouldnotexist.png`, to: publicUrl(null, '/logos/shouldnotexist.png') }
@@ -107,7 +110,8 @@ const redirectRoutes = [
   { from: `http://${lanHostname}/sab/`, expected: `http://${lanHostname}:3274/sab` },
   { from: `http://${lanHostname}/radarr/`, expected: `http://${lanHostname}:3273/` },
   { from: `http://${lanHostname}/sonarr/`, expected: `http://${lanHostname}:3272/` },
-  { from: `http://${lanHostname}/prowlarr/`, expected: `http://${lanHostname}:3276/` }
+  { from: `http://${lanHostname}/prowlarr/`, expected: `http://${lanHostname}:3276/` },
+  { from: `http://${lanHostname}/huntarr/`, expected: `http://${lanHostname}:3271/` }
 ]
 
 const directServiceRoutes = [
@@ -117,7 +121,8 @@ const directServiceRoutes = [
   `http://${lanHostname}:3274/`, // sabnzbd
   `http://${lanHostname}:3273/`, // radarr
   `http://${lanHostname}:3272/`, // sonarr
-  `http://${lanHostname}:3276/` // prowlarr
+  `http://${lanHostname}:3276/`, // prowlarr
+  `http://${lanHostname}:3271/` // huntarr
 ]
 
 const assetRoutesHttps = HAVE_PUBLIC_DOMAIN ? [
@@ -418,7 +423,8 @@ describeHttpsAuth('Security: Admin services authentication', () => {
     { url: publicUrl('sonarr', '/'), name: 'Sonarr' },
     { url: publicUrl('qb', '/'), name: 'qBittorrent' },
     { url: publicUrl('prowlarr', '/'), name: 'Prowlarr' },
-    { url: publicUrl('sab', '/'), name: 'SABnzbd' }
+    { url: publicUrl('sab', '/'), name: 'SABnzbd' },
+    { url: publicUrl('huntarr', '/'), name: 'Huntarr' }
   ]
 
   for (const { url, name } of adminServiceUrls) {
@@ -493,6 +499,7 @@ describe('Smoke: LAN access remains functional', () => {
     const lanServices = [
       `http://${lanHostname}:3278/`, // Jellyfin
       `http://${lanHostname}:3277/`, // Jellyseerr
+      `http://${lanHostname}:3271/`, // Huntarr
     ]
 
     for (const url of lanServices) {

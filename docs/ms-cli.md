@@ -13,7 +13,7 @@ Short, pronounceable commands to run the media stack without typing long Docker 
 - `ms up` — Start stack (`docker compose up -d`).
 - `ms down` — Stop stack (`docker compose down`).
 - `ms status` — Show container status/health.
-- `ms logs [svc]` — Tail logs for a service (`jf|js|qb|ra|so|pr|sb|ca|cf|rc`) or all services when omitted.
+- `ms logs [svc]` — Tail logs for a service (`jf|js|qb|ra|so|pr|sb|fs|ht|ca|cf|rc`) or all services when omitted.
 - `ms restart <svc>` — Soft restart a service.
 - `ms reload caddy` — Graceful Caddy reload.
 - `ms reload tunnel` — Restart cloudflared.

@@ -72,6 +72,7 @@ print(json.dumps(out, indent=2))
 | `LQ` CF present | Drop |
 | quality is `TELESYNC`, `CAM`, `HDTV-*`, `WEBDL-480p`, `WEBDL-720p` | Drop |
 | `Remux-*` quality | Hold — see Remux policy below; not auto-dropped |
+| MB/min below quality minimum (see size table) | Drop — mislabeled or corrupt |
 | Language is not English and English alternative exists | Drop or rank below |
 | Multi-language (MULTI/VFQ/TRUEFRENCH) | Warn — keep only if no English-only alternative |
 
@@ -209,7 +210,9 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 | WEBRip-1080p | 8 | 45 |
 | WEBRip-2160p | 20 | 110 |
 
-Flag anything outside range as mislabeled or padded.
+- **Below minimum → DROP.** A 2160p file at 7MB/min is not a 2160p file. Move to DROPPED with reason `undersized for quality: X MB/m < Y min`.
+- **Above maximum → DROP.** Already handled by size cap filter above.
+- Only files within range proceed to ranking.
 
 **Tiebreaker and preference rules (apply in order):**
 

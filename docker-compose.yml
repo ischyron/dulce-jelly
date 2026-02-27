@@ -62,10 +62,10 @@ services:
       - "${JELLYFIN_HTTPS_PORT:-3279}:8920"
     volumes:
       - ./data/jellyfin/config:/config
+      - ./data/jellyfin/config/index.html:/jellyfin/jellyfin-web/index.html
       - ./data/jellyfin/cache:/cache
       # Transcode cache (expendable volume with free space)
       - "${JELLYFIN_TRANSCODE_PATH}:/cache/transcodes"
-      - ./data/jellyfin/config/index.html:/jellyfin/jellyfin-web/index.html
       # Stable host mounts → stable container mounts
       - "${JELLYFIN_MOVIES}:/Volumes/Movies"
       - "${JELLYFIN_SERIES}:/Volumes/Series"

@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+"""
+validate-media — scan MKV/video files for structural issues that correlate with
+freeze/stutter during playback in Jellyfin or similar players.
+
+Usage:
+  validate-media <dir> [--ext mkv,mp4] [--decode] [--output temp/media-report.json]
+
+Checks:
+  Fast (always run):
+    1. Container readability  — ffprobe fails = damaged file
+    2. Missing/zero duration  — container header corrupt
+    3. PTS discontinuity      — timestamp gaps or backward jumps → player stalls
+    4. PTS jitter             — abnormal variance in frame intervals → choppy playback
+    5. Missing keyframes      — excessive GOP size → seeking stalls
+
+  Slow (--decode):
+    6. Decode errors          — ffmpeg frame corruption, missing refs, invalid data
+
+Audio codec (DTS/TrueHD etc.) is NOT flagged — client passthrough/local decode
+handles these transparently. Only report it as INFO for awareness.
+
+False positive rate: ~10%. Human review expected.
+"""
+
+import argparse, json, subprocess, sys, time, statistics
+from pathlib import Path
+
+FFPROBE = "ffprobe"
+FFMPEG  = "ffmpeg"
+
+# ── thresholds ──────────────────────────────────────────────────────────────
+PTS_GAP_SEC         = 1.5    # gap between consecutive video pts values (seconds)
+PTS_BACKWARD_SEC    = 0.1    # backward pts jump → timestamp disorder
+PTS_JITTER_THRESH   = 0.5    # stdev of frame intervals above this = jitter flag
+GOP_MAX_SEC         = 10.0   # max expected seconds between keyframes
+DECODE_ERROR_WARN   = 3      # ffmpeg stderr error lines above this = flag
+
+# ── helpers ─────────────────────────────────────────────────────────────────
+
+def run(cmd, timeout=30):
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.stdout, r.stderr
+    except subprocess.TimeoutExpired:
+        return "", "TIMEOUT"
+    except FileNotFoundError as e:
+        sys.exit(f"Tool not found: {e}")
+
+
+def probe_streams(path):
+    out, _ = run([
+        FFPROBE, "-v", "quiet", "-print_format", "json",
+        "-show_streams", "-show_format", str(path)
+    ], timeout=15)
+    try:
+        data = json.loads(out)
+        return data.get("streams", []), data.get("format", {})
+    except json.JSONDecodeError:
+        return None, None
+
+
+def check_metadata(streams, fmt):
+    """Quick structural checks from format/stream headers."""
+    issues = []
+
+    dur = float(fmt.get("duration", 0))
+    if dur == 0:
+        issues.append(("FLAG", "zero duration in container header — file may be truncated or corrupt"))
+
+    nb_streams = int(fmt.get("nb_streams", 0))
+    if nb_streams == 0:
+        issues.append(("FLAG", "no streams found in container"))
+
+    has_video = any(s.get("codec_type") == "video" for s in streams)
+    has_audio = any(s.get("codec_type") == "audio" for s in streams)
+    if not has_video:
+        issues.append(("FLAG", "no video stream found"))
+    if not has_audio:
+        issues.append(("WARN", "no audio stream found"))
+
+    # INFO: report audio codecs for awareness without flagging
+    for s in streams:
+        if s.get("codec_type") == "audio":
+            cn = s.get("codec_name", "?")
+            lang = s.get("tags", {}).get("language", "?")
+            title = s.get("tags", {}).get("title", "")
+            chans = s.get("channels", "?")
+            issues.append(("INFO", f"audio [{lang}] {cn} {chans}ch '{title}'"))
+
+    return issues
+
+
+def check_pts(path, sample_packets=3000):
+    """
+    Sample video packet timestamps to detect:
+    - PTS gaps (player stalls waiting for next frame)
+    - Backward PTS (timestamp disorder → decoder confusion)
+    - PTS jitter (abnormal frame interval variance → choppy playback)
+    - Long GOP (too few keyframes → seeking hangs)
+    """
+    issues = []
+    out, err = run([
+        FFPROBE, "-v", "quiet",
+        "-select_streams", "v:0",
+        "-show_packets",
+        "-print_format", "json",
+        "-read_intervals", f"%+#{sample_packets}",
+        str(path)
+    ], timeout=90)
+
+    if "TIMEOUT" in err:
+        issues.append(("WARN", "PTS check timed out — file very large or slow to open"))
+        return issues
+
+    try:
+        pkts = json.loads(out).get("packets", [])
+    except json.JSONDecodeError:
+        issues.append(("WARN", "could not parse packet data"))
+        return issues
+
+    if not pkts:
+        issues.append(("FLAG", "no video packets returned — container or index damaged"))
+        return issues
+
+    pts_list, keyframe_pts = [], []
+    for p in pkts:
+        try:
+            pt = float(p["pts_time"])
+            pts_list.append(pt)
+            if p.get("flags", "").startswith("K"):
+                keyframe_pts.append(pt)
+        except (KeyError, ValueError):
+            continue
+
+    if len(pts_list) < 10:
+        issues.append(("WARN", f"only {len(pts_list)} parseable video packets in sample"))
+        return issues
+
+    # PTS gap and backward jump
+    gaps, backward = [], []
+    intervals = []
+    for i in range(1, len(pts_list)):
+        delta = pts_list[i] - pts_list[i-1]
+        if delta > PTS_GAP_SEC:
+            gaps.append(round(delta, 3))
+        elif delta < -PTS_BACKWARD_SEC:
+            backward.append(round(delta, 3))
+        elif 0 < delta < PTS_GAP_SEC:
+            intervals.append(delta)
+
+    if gaps:
+        issues.append(("FLAG", f"PTS gap(s) detected: {gaps[:5]} sec — player stalls at these points"))
+    if backward:
+        issues.append(("FLAG", f"backward PTS jump(s): {backward[:5]} sec — timestamp disorder"))
+
+    # Frame interval jitter
+    if len(intervals) > 20:
+        try:
+            jitter = statistics.stdev(intervals)
+            median = statistics.median(intervals)
+            if jitter > PTS_JITTER_THRESH:
+                issues.append(("WARN",
+                    f"high PTS jitter: stdev={jitter:.3f}s median={median:.3f}s — choppy frame pacing"))
+        except statistics.StatisticsError:
+            pass
+
+    # GOP / keyframe spacing
+    if len(keyframe_pts) >= 2:
+        gop_gaps = [keyframe_pts[i] - keyframe_pts[i-1] for i in range(1, len(keyframe_pts))]
+        max_gop = max(gop_gaps)
+        avg_gop = sum(gop_gaps) / len(gop_gaps)
+        if max_gop > GOP_MAX_SEC:
+            issues.append(("WARN",
+                f"large GOP: max keyframe gap {max_gop:.1f}s (avg {avg_gop:.1f}s) — seeking may stall"))
+    elif keyframe_pts:
+        issues.append(("WARN", "very few keyframes in sample — GOP detection unreliable"))
+
+    return issues
+
+
+def check_decode(path):
+    """
+    Full ffmpeg decode pass on first 300s. Slow but catches corrupt frames,
+    missing references, and muxing errors that fast checks miss.
+    """
+    issues = []
+    _, stderr = run([
+        FFMPEG, "-v", "error", "-i", str(path),
+        "-t", "300",
+        "-f", "null", "-"
+    ], timeout=600)
+
+    if "TIMEOUT" in stderr:
+        issues.append(("WARN", "decode check timed out after 600s"))
+        return issues
+
+    error_lines = [l.strip() for l in stderr.splitlines() if l.strip()]
+    corrupt = [l for l in error_lines if any(k in l.lower() for k in
+               ("corrupt", "invalid data", "error while decoding", "concealing",
+                "cabac", "slice", "no frame", "missing"))]
+    timing  = [l for l in error_lines if any(k in l.lower() for k in
+               ("non monoton", "pts", "dts", "resampling", "discontinuity"))]
+    total = len(error_lines)
+
+    if total == 0:
+        return issues
+    sev = "FLAG" if total > 10 or corrupt else "WARN"
+    issues.append((sev, f"{total} decode error line(s) in first 5min"))
+    if corrupt:
+        issues.append(("FLAG", f"frame corruption: {corrupt[0][:120]}"))
+    if timing:
+        issues.append(("WARN", f"timing/mux error: {timing[0][:120]}"))
+    return issues
+
+
+# ── main ─────────────────────────────────────────────────────────────────────
+
+def scan_file(path, do_decode=False):
+    result = {"file": str(path), "issues": [], "severity": "OK"}
+    streams, fmt = probe_streams(path)
+
+    if streams is None:
+        result["issues"] = [("FLAG", "ffprobe failed — unreadable or corrupt container")]
+        result["severity"] = "FLAG"
+        return result
+
+    issues = []
+    issues += check_metadata(streams, fmt)
+    issues += check_pts(path)
+    if do_decode:
+        issues += check_decode(path)
+
+    result["issues"] = issues
+    if any(s == "FLAG" for s, _ in issues):
+        result["severity"] = "FLAG"
+    elif any(s == "WARN" for s, _ in issues):
+        result["severity"] = "WARN"
+    return result
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("directory", help="Directory to scan (recursive)")
+    ap.add_argument("--ext", default="mkv", help="Comma-separated extensions (default: mkv)")
+    ap.add_argument("--decode", action="store_true",
+                    help="Run full ffmpeg decode pass on first 5min of each file (slow)")
+    ap.add_argument("--output", default="temp/media-report.json", help="JSON output path")
+    args = ap.parse_args()
+
+    exts = {"." + e.lstrip(".").lower() for e in args.ext.split(",")}
+    root = Path(args.directory)
+    files = sorted(p for p in root.rglob("*") if p.suffix.lower() in exts)
+
+    if not files:
+        sys.exit(f"No matching files in {root}")
+
+    print(f"Scanning {len(files)} file(s) in {root}")
+    if args.decode:
+        print("  decode pass enabled (slow — ~realtime per file)")
+    print()
+
+    results = []
+    flagged = warned = 0
+
+    for i, f in enumerate(files, 1):
+        size_mb = f.stat().st_size / 1e6
+        print(f"[{i:>3}/{len(files)}] {f.name[:72]}  ({size_mb:.0f}MB)")
+        t0 = time.time()
+        r = scan_file(f, do_decode=args.decode)
+        elapsed = time.time() - t0
+
+        for sev, msg in r["issues"]:
+            if sev == "FLAG":
+                print(f"  !! [FLAG] {msg}")
+            elif sev == "WARN":
+                print(f"   > [WARN] {msg}")
+            # INFO lines suppressed in per-file output to reduce noise
+
+        if r["severity"] == "FLAG":
+            flagged += 1
+        elif r["severity"] == "WARN":
+            warned += 1
+
+        print(f"       {elapsed:.1f}s  →  {r['severity']}")
+        results.append(r)
+
+    # Summary
+    print()
+    print("=" * 62)
+    print(f"  Total : {len(files)}")
+    print(f"  FLAG  : {flagged}  (likely problematic — replace or recheck)")
+    print(f"  WARN  : {warned}  (possible issue — human review)")
+    print(f"  OK    : {len(files) - flagged - warned}")
+    print()
+
+    review = [r for r in results if r["severity"] in ("FLAG", "WARN")]
+    if review:
+        print("Files needing review:")
+        for r in review:
+            name = Path(r["file"]).name
+            print(f"\n  [{r['severity']}] {name}")
+            for sev, msg in r["issues"]:
+                if sev in ("FLAG", "WARN"):
+                    print(f"    [{sev}] {msg}")
+
+    out_path = Path(args.output)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(out_path, "w") as fh:
+        json.dump({"scan_root": str(root), "results": results}, fh, indent=2)
+    print(f"\nFull report: {out_path}")
+
+
+if __name__ == "__main__":
+    main()

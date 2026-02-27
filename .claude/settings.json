@@ -1,8 +1,1 @@
-{
-  "mcpServers": {
-    "radarr-sonarr": {
-      "command": "bash",
-      "args": ["./bin/mcp-radarr-sonarr"]
-    }
-  }
-}
+{}

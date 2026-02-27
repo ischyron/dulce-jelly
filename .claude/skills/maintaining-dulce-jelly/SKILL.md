@@ -22,16 +22,12 @@ Always do this before touching anything:
 
 | What you want to do | Use |
 |---|---|
-| Query movies/series in the library | MCP: `get_available_movies`, `lookup_movie`, `get_available_series` |
-| Get episode list for a series | MCP: `get_series_episodes` |
-| Check Radarr/Sonarr API (writes, queue, history) | Bash → `curl http://localhost:3273/api/v3/...` with `$RADARR_API_KEY` |
+| Query or write to Radarr/Sonarr | Bash → `curl -H "X-Api-Key: $RADARR_API_KEY" http://localhost:3273/api/v3/...` |
 | Stack health, logs, restarts | `ms status`, `ms logs <alias>`, `ms restart <alias>` |
 | Quality profile sync | `ms sync` |
 | Run Quality Broker | `ms qb-run -- [flags]` |
 | Docker config change | Edit compose/env → `ms restart <svc>` → `ms test` |
 | TypeScript changes | Edit → `npm run build` → `ms test` |
-
-**MCP is read-only.** All Radarr/Sonarr writes (profile changes, tags, queue) go through the API via Bash.
 
 ---
 

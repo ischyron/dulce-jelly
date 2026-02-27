@@ -149,10 +149,15 @@ Rejection reason (if all blocked): <reason>
 
 RANK  SCORE  QUAL            SIZE    LANG   PROTO    SOURCE/GROUP        FLAGS
    1  +XXX   WEBDL-2160p    12.3GB  EN     usenet   ETHEL (Scene)       HDR — recommended
+         → Shelter.2026.HDR.2160p.WEB.h265-ETHEL
    2  +XXX   WEBDL-2160p    14.8GB  EN     usenet   QHstudIo (iTunes)   HDR10+, unverified group
+         → Shelter.2026.2160p.iTunes.WEB-DL.HEVC.10bit.HDR10+.DD5.1.2Audios-QHstudIo
    3  +XXX   WEBDL-1080p     6.7GB  EN     usenet   TORK (AMZN)         Best 1080p; switch profile to HD
+         → Shelter.2026.Siginak.AMZN.WEB-DL.1080p.H.264.DD5.1.E.AC3.ENG.TORK
    4  +XXX   WEBDL-1080p     5.9GB  EN     torrent  KyoGo (AMZN)        Torrent only
+         → Shelter.2026.1080p.AMZN.WEB-DL.DDP5.1.H.264-KyoGo
    5  +XXX   WEBRip-1080p    1.5GB  EN     usenet   NeoNoir             Compact re-encode; WEBRip source
+         → Shelter.2026.1080p.WEBRip.10Bit.DDP.5.1.x265-NeoNoir
 
 DROPPED (N filtered):
   - Slay3R 4K: French only (MULTi/VFQ), English alternative available
@@ -161,7 +166,7 @@ DROPPED (N filtered):
   - 3× TELESYNC: quality tier blocked
 ```
 
-Include a 1-line reasoning note per ranked entry. List all dropped releases with reason.
+Include a 1-line reasoning note per ranked entry. Always show the full release filename on the indented line below each rank. List all dropped releases with reason.
 
 ### 8. Push confirmed release to SABnzbd
 

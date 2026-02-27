@@ -71,9 +71,36 @@ print(json.dumps(out, indent=2))
 | `SDR` CF present and HDR alternative exists | Drop |
 | `LQ` CF present | Drop |
 | quality is `TELESYNC`, `CAM`, `HDTV-*`, `WEBDL-480p`, `WEBDL-720p` | Drop |
-| `Remux-*` quality | Drop (size policy + CF -1000) |
+| `Remux-*` quality | Hold — see Remux policy below; not auto-dropped |
 | Language is not English and English alternative exists | Drop or rank below |
 | Multi-language (MULTI/VFQ/TRUEFRENCH) | Warn — keep only if no English-only alternative |
+
+### Remux policy
+
+Remux is not an automatic pick. The CF score is -1000 by design (our Recyclarr config penalises it heavily) and Remux files run 40–80 GB for a 4K title. The bar for overriding this is high.
+
+**When Remux is appropriate:**
+
+Remux is worth considering only when the title meets **all three** of these conditions:
+
+1. **Landmark / exceptional film** — widely regarded as a technical or artistic reference title (cinematography, sound design, or restoration makes lossless video/audio meaningful). Examples: *The Dark Knight*, *Apocalypse Now*, *Blade Runner 2049*, *Mad Max: Fury Road*, *2001: A Space Odyssey*, *Dunkirk*, *Joker*. A routine blockbuster or streaming original does not qualify.
+2. **No satisfactory WEBDL or Bluray-2160p alternative** — if a Tier 01 WEB or a High-repute UHD Bluray encode is available, prefer it. Remux only wins when the encode alternatives are all Medium/Unknown repute or over size caps.
+3. **User has explicitly confirmed Remux is acceptable for this title** — never push a Remux automatically. State the size, group, and reason in the ranked output and wait for explicit confirmation.
+
+**In the ranked output:**
+
+Include Remux entries in a separate `REMUX (held)` section below the main candidates table — not inline with ranked picks — so they are visible but not treated as equals. Example:
+
+```
+REMUX (held — requires confirmation):
+  FraMeSToR  Remux-2160p  47.2GB  EN  High  usenet  TrueHD Atmos 7.1, HDR10
+       → Title.2024.UHD.BluRay.REMUX.HDR.TrueHD.7.1.Atmos-FraMeSToR
+  Note: qualifies only if this title meets the landmark criteria above.
+```
+
+Do not include Remux in the `DROPPED` section — it was held, not disqualified.
+
+---
 
 ### 5. Score and rank
 
@@ -114,7 +141,7 @@ TRaSH tier custom formats are synced by Recyclarr and appear directly in the API
 | `WEB Tier 01` / `WEB Tier 02` / `WEB Tier 03` | **High** | CMRG, FLUX, NTb, playWEB, TOMMY |
 | `HD Bluray Tier 01` / `02` / `03` | **High** | hallowed, BHDStudio, EDPH |
 | `UHD Bluray Tier 01` / `02` / `03` | **High** | W4NK3R, SPHD |
-| `Remux Tier 01` / `02` / `03` | **High** (but Remux is blocked by policy) | FraMeSToR, CiNEPHiLES |
+| `Remux Tier 01` / `02` / `03` | **High** (Remux held pending landmark check — see Remux policy) | FraMeSToR, CiNEPHiLES |
 | `LQ` or `LQ (Release Title)` | **Low** — drop | BTM, -E groups |
 
 If a tier CF is present, set Repute from the table above and skip Steps 2–3.
@@ -339,7 +366,7 @@ DROPPED (154 filtered):
   - CMRG 4K [High]: 38.7GB, 201MB/m — over WEBDL-2160p size cap (170MB/m)
   - CMRG 1080p usenet [High]: 15.9GB, 83MB/m — marginally over WEBDL-1080p cap (80MB/m)
   - hallowed Bluray-1080p [High]: 15.5GB, 81MB/m — over Bluray-1080p cap (75MB/m)
-  - FraMeSToR/CiNEPHiLES Remux [High]: 44-81GB — Remux blocked by policy
+  - FraMeSToR/CiNEPHiLES Remux [High]: 44-81GB — held; Avatar qualifies as a landmark title but High-repute WEBDL/UHD alternatives exist (prefer rank 1)
   - W4NK3R/SPHD/HDS Bluray-2160p [High/Unknown]: 46-62GB, 241-321MB/m — over size cap
   - CM/DVSUX WEBDL-2160p [Unknown]: 36-39GB, 188-202MB/m — over size cap
   - MgB WEBRip-2160p [Medium]: 38.2GB, 199MB/m — over WEBRip-2160p cap (110MB/m)

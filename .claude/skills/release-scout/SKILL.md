@@ -101,14 +101,18 @@ print(json.dumps(out, indent=2))
 | Scene CF (verified group) | +5 |
 | usenet protocol | +10 |
 
-**Group trust tiers (TRaSH-aligned):**
+**Group reputation (use your knowledge of usenet/P2P scene provenance):**
 
-| Tier | Examples | Bonus |
+Assign one of four labels: **High / Medium / Low / Unknown**
+
+| Repute | Criteria | Known groups |
 |---|---|---|
-| TRaSH WEB Tier 01–03 | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI | +30 |
-| Known P2P | KyoGo, SPARKS, FTW, YIFY (1080p only) | +10 |
-| Usenet packers / untiered | TORK, QHstudIo | 0 |
-| LQ / flagged | BTM, -E, PSA, YIFY (SD) | Drop |
+| **High** | TRaSH WEB/Bluray Tier 01–03; verified Scene; consistent source fidelity; proper tagging; no history of mislabeling or LQ flags | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI, YELL, TEPES, BHDStudio (Bluray), hallowed, EDPH, ETHEL, GGWP, GNOME |
+| **Medium** | Known P2P or usenet packer; reliable output but not TRaSH-tiered; occasionally repack-worthy but not problematic; source can be inferred from title tagging | KyoGo, NeoNoir, TORK, QHstudIo, SPARKS, FTW, YIFY (1080p only), Slay3R (French), Tigole, MkvCage |
+| **Low** | Flagged by TRaSH as LQ; known re-taggers, scene frauds, or groups with chronic mislabeling/padding/watermarking history | BTM, -E suffix groups (e.g. h265-E), PSA, YIFY (SD/720p), RARBG mirrors post-closure, KINGDOM, AOC |
+| **Unknown** | Group not recognised — no usenet/P2P history available; treat as unverified; note this explicitly | Any group not in the above lists |
+
+Score bonus: High → +30, Medium → +10, Low → drop or heavy penalty, Unknown → 0 (flag in output).
 
 **Size sanity check (MB/min against runtime):**
 
@@ -147,26 +151,26 @@ Always output this exact table format (usenet first within each rank tier):
 Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile>
 Rejection reason (if all blocked): <reason>
 
-RANK  SCORE  QUAL            SIZE    LANG   PROTO    SOURCE/GROUP        FLAGS
-   1  +XXX   WEBDL-2160p    12.3GB  EN     usenet   ETHEL (Scene)       HDR — recommended
+RANK  SCORE  QUAL            SIZE    LANG   REPUTE   PROTO    SOURCE/GROUP        FLAGS
+   1  +XXX   WEBDL-2160p    12.3GB  EN     High     usenet   ETHEL (Scene)       HDR — recommended
          → Shelter.2026.HDR.2160p.WEB.h265-ETHEL
-   2  +XXX   WEBDL-2160p    14.8GB  EN     usenet   QHstudIo (iTunes)   HDR10+, unverified group
+   2  +XXX   WEBDL-2160p    14.8GB  EN     Medium   usenet   QHstudIo (iTunes)   HDR10+, unverified group
          → Shelter.2026.2160p.iTunes.WEB-DL.HEVC.10bit.HDR10+.DD5.1.2Audios-QHstudIo
-   3  +XXX   WEBDL-1080p     6.7GB  EN     usenet   TORK (AMZN)         Best 1080p; switch profile to HD
+   3  +XXX   WEBDL-1080p     6.7GB  EN     Medium   usenet   TORK (AMZN)         Best 1080p; switch profile to HD
          → Shelter.2026.Siginak.AMZN.WEB-DL.1080p.H.264.DD5.1.E.AC3.ENG.TORK
-   4  +XXX   WEBDL-1080p     5.9GB  EN     torrent  KyoGo (AMZN)        Torrent only
+   4  +XXX   WEBDL-1080p     5.9GB  EN     Medium   torrent  KyoGo (AMZN)        Torrent only
          → Shelter.2026.1080p.AMZN.WEB-DL.DDP5.1.H.264-KyoGo
-   5  +XXX   WEBRip-1080p    1.5GB  EN     usenet   NeoNoir             Compact re-encode; WEBRip source
+   5  +XXX   WEBRip-1080p    1.5GB  EN     Medium   usenet   NeoNoir             Compact re-encode; WEBRip source
          → Shelter.2026.1080p.WEBRip.10Bit.DDP.5.1.x265-NeoNoir
 
 DROPPED (N filtered):
-  - Slay3R 4K: French only (MULTi/VFQ), English alternative available
-  - ETHEL 4K SDR: SDR — HDR alternative exists
-  - BTM 4K: LQ group flagged
+  - Slay3R 4K [Medium]: French only (MULTi/VFQ), English alternative available
+  - ETHEL 4K SDR [High]: SDR — HDR alternative exists
+  - BTM 4K [Low]: LQ group flagged by TRaSH
   - 3× TELESYNC: quality tier blocked
 ```
 
-Include a 1-line reasoning note per ranked entry. Always show the full release filename on the indented line below each rank. List all dropped releases with reason.
+Include a 1-line reasoning note per ranked entry. Always show the full release filename on the indented line below each rank. For dropped entries, include the group's repute label so the user understands what was discarded. List all dropped releases with reason.
 
 ### 8. Push confirmed release to SABnzbd
 

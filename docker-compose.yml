@@ -63,13 +63,15 @@ services:
     volumes:
       - ./data/jellyfin/config:/config
       - ./data/jellyfin/cache:/cache
+      # Transcode cache (expendable volume with free space)
+      - "${JELLYFIN_TRANSCODE_PATH}:/cache/transcodes"
       - ./data/jellyfin/config/index.html:/jellyfin/jellyfin-web/index.html
       # Stable host mounts → stable container mounts
       - "${JELLYFIN_MOVIES}:/Volumes/Movies"
       - "${JELLYFIN_SERIES}:/Volumes/Series"
-          # Keep Jellyfin's *existing* library roots stable by providing /Volumes/Movies + /Volumes/Series inside container
     entrypoint: ["/bin/sh", "-c"]
     command:
+      # Keep Jellyfin's *existing* library roots stable by providing /Volumes/Movies + /Volumes/Series inside container
       - "mkdir -p /Volumes && ln -sfn /media/movies /Volumes/Movies && ln -sfn /media/series /Volumes/Series && exec /jellyfin/jellyfin"
 
       

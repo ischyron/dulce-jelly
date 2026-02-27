@@ -276,6 +276,56 @@ curl -s -X PUT -H "X-Api-Key: $RADARR_API_KEY" \
 
 ---
 
+## Worked Example — Avatar: The Way of Water (2022)
+
+Efficient-4K profile, 192min runtime, file already present (upgrade scouting).
+435 releases found → 154 hard-filtered → 62 candidates → ranked below.
+
+```
+Movie: Avatar: The Way of Water (2022) | Runtime: 192min | Profile: Efficient-4K | Status: has file
+All rejected: existing file already at Efficient-4K quality
+
+RANK  SCORE  QUAL            SIZE    LANG   REPUTE   PROTO    SOURCE/GROUP              FLAGS
+   1  +4500  WEBDL-2160p    23.8GB  EN     High     usenet   PiRaTeS (DSNP)            DV+HDR10, 124MB/m ✓ — Medium group lifted by Disney+ verified source
+         → Avatar.The.Way.of.Water.2022.2160p.DSNP.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS
+   2  +6220  WEBDL-1080p    13.8GB  EN     High     usenet   FLUX (MA, WEB Tier 01)    DD+Atmos, 72MB/m ✓ — gold standard 1080p; below Efficient-4K target
+         → Avatar.The.Way.of.Water.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX
+   3  +6200  WEBDL-1080p    15.1GB  EN     High     torrent  CMRG (WEB Tier 01)        DD+Atmos, 79MB/m ✓ — Tier 01; no service tag; torrent only
+         → Avatar.The.Way.of.Water.2022.1080p.WEB-DL.DDP5.1.Atmos.H.264-CMRG
+   4  +4000  Bluray-2160p   18.1GB  EN     Medium   usenet   MgB (Bluray)              TrueHD Atmos 7.1, HDR10, 94MB/m ✓ — physical disc source, no streaming auth
+         → Avatar.The.Way.Of.Water.2022.UHD.4K.BluRay.2160p.HDR10.TrueHD.7.1.Atmos.H.265-MgB
+   5  +3000  WEBDL-1080p     9.4GB  EN     Medium   usenet   PiRaTeS (MAX)             DD+Atmos, 49MB/m ✓ — MAX source unscored by CF but streaming-authenticated
+         → Avatar.The.Way.of.Water.2022.1080p.MAX.WEB-DL.DDPA.5.1.H.265-PiRaTeS
+   6  +3005  WEBDL-1080p    12.8GB  EN     Medium   usenet   BANDOLEROS (WEB)          Nordic REPACK (prior issue corrected), untagged source, 67MB/m ✓
+         → Avatar.The.Way.of.Water.2022.NORDiC.REPACK.1080p.WEB-DL.H.264.DDP5.1.Atmos-BANDOLEROS
+   7  +1750  WEBDL-1080p    14.9GB  EN     Medium   torrent  CM (iTunes)               iT source lifts Unknown→Medium; torrent only
+         → Avatar.The.Way.of.Water.2022.1080p.iT.WEB-DL.DDP7.1.x264-CM
+   8  +4600  WEBRip-2160p    8.8GB  EN     Unknown  torrent  Asiimov                   DV+HDR10+, 46MB/m ✓ — no usenet, no scene history; flag
+         → Avatar: The Way of Water 2022 2160p WEBRip DDP5.1 Atmos DoVi HDR10+ x265-Asiimov
+
+DROPPED (154 filtered):
+  - CMRG 4K [High]: 38.7GB, 201MB/m — over WEBDL-2160p size cap (170MB/m)
+  - CMRG 1080p usenet [High]: 15.9GB, 83MB/m — marginally over WEBDL-1080p cap (80MB/m)
+  - hallowed Bluray-1080p [High]: 15.5GB, 81MB/m — over Bluray-1080p cap (75MB/m)
+  - FraMeSToR/CiNEPHiLES Remux [High]: 44-81GB — Remux blocked by policy
+  - W4NK3R/SPHD/HDS Bluray-2160p [High/Unknown]: 46-62GB, 241-321MB/m — over size cap
+  - CM/DVSUX WEBDL-2160p [Unknown]: 36-39GB, 188-202MB/m — over size cap
+  - MgB WEBRip-2160p [Medium]: 38.2GB, 199MB/m — over WEBRip-2160p cap (110MB/m)
+  - UnKn0wn Remux [Low]: self-named, mislabeled Remux pattern
+  - Musafirboy WEBRip-1080p [Low]: LQ group — MA source cannot elevate Low
+  - All SDR, HDTV, 720p, non-English variants
+```
+
+**Repute decisions called out:**
+- PiRaTeS (Medium) + DSNP → **High**: Disney+ is a paid authenticated source; someone paid to rip it
+- FLUX (High) + MA → **High**: WEB Tier 01 + Movies Anywhere = gold standard
+- MgB (Medium) + Bluray → **Medium**: physical disc has no service authentication; group tier holds
+- CM (Unknown) + iT → **Medium**: iTunes elevates Unknown to Medium but cannot reach High without group history
+- Asiimov (Unknown) + no service tag → **Unknown**: nothing to anchor trust; flag in output
+- Musafirboy (Low) + MA → **Low**: verified source cannot lift a Low group
+
+---
+
 ## Quick Reference
 
 **Profile IDs (this stack):**

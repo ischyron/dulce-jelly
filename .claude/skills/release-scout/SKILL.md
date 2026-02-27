@@ -122,11 +122,31 @@ Repute is not group-only. Source provenance is an independent reliability signal
 
 | Tier | Examples |
 |---|---|
-| High | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI, YELL, TEPES, BHDStudio, hallowed, EDPH, ETHEL, GGWP, GNOME |
-| Medium | KyoGo, NeoNoir, TORK, QHstudIo, SPARKS, FTW, YIFY (1080p only), Slay3R, Tigole, MkvCage |
-| Low | BTM, -E suffix groups, PSA, YIFY (SD/720p), KINGDOM, AOC, LAMA |
+| High | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI, YELL, TEPES, ETHEL, GGWP, GNOME — WEB Tier 01–03; BHDStudio, hallowed, W4NK3R, SPHD, FraMeSToR, CiNEPHiLES — Bluray/Remux Tier 01–03 |
+| Medium | KyoGo, NeoNoir, TORK, QHstudIo, MgB, PiRaTeS, MrTentsaw, BANDOLEROS, SPARKS, FTW, Slay3R, Tigole, MkvCage — reliable but untiered; may repack; source inferred from title |
+| Low | BTM, -E suffix groups (e.g. h265-E), PSA, YIFY (SD/720p), KINGDOM, AOC, LAMA, UnKn0wn, Musafirboy — LQ-flagged, re-taggers, watermarkers, or self-declared unknown |
+| Unknown | CM, DVSUX, Asiimov, HDS, BeiTai, SHB931 — not in TRaSH tiers, no established scene/usenet history; treat with caution; source tag is the main reliability signal |
 
-Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (flagged).
+**Key examples from practice:**
+
+| Release | Group | Source | Repute | Reasoning |
+|---|---|---|---|---|
+| `Avatar.2022.2160p.MA.WEB-DL.DDP5.1.Atmos.DV.HDR10.H.265-CMRG` | CMRG | MA (Movies Anywhere) | **High** | WEB Tier 01 group + Movies Anywhere = authenticated Disney/studio source |
+| `Avatar.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX` | FLUX | MA | **High** | WEB Tier 01 + MA — gold standard for 1080p |
+| `Avatar.2022.BluRay.1080p.DDP.5.1.x264-hallowed` | hallowed | Bluray | **High** | HD Bluray Tier 03; consistent physical media rips |
+| `Avatar.2022.2160p.DSNP.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS` | PiRaTeS | DSNP | **High** | Medium group elevated by verified Disney+ source — paid service, authenticated stream |
+| `Avatar.2022.2160p.iTunes.WEB-DL.HDR10+.DD5.1-QHstudIo` | QHstudIo | iTunes | **High** | Medium group elevated by iTunes — Apple's pipeline; financial barrier to mislabel |
+| `Shelter.2026.Siginak.AMZN.WEB-DL.1080p.H.264.DD5.1.E.AC3.ENG.TORK` | TORK | AMZN | **High** | Medium group elevated by AMZN tag — Amazon Prime authenticated rip |
+| `Avatar.2022.AMZN.4K.WEBRip.2160p.DoVi.HDR10+.DD+.x265-MgB` | MgB | AMZN | **High** | Medium group + AMZN = verified paid source overrides group tier |
+| `Avatar.2022.UHD.4K.BluRay.2160p.HDR10.TrueHD.7.1.Atmos.H.265-MgB` | MgB | Bluray | **Medium** | Same group, but Bluray source has no service authentication; group alone is Medium |
+| `Avatar.2022.2160p.MA.WEB-DL.DDP5.1.Atmos.DV.MKV.x265-CM` | CM | MA | **Medium** | MA source is verified; CM is Unknown group — source elevates to Medium but can't reach High without group history |
+| `Shelter.2026.HDR.2160p.WEB.h265-ETHEL` | ETHEL | untagged WEB | **High** | High group (Scene/TRaSH) — group reputation holds even without service tag |
+| `Avatar.2022.NORDIC.REPACK.1080p.WEB-DL.H.264.DDP5.1.Atmos-BANDOLEROS` | BANDOLEROS | untagged WEB | **Medium** | Known Nordic scene group, untiered; REPACK flag = prior issue fixed, acceptable |
+| `Avatar.2022.2160p.WEB-DL.DDP5.1.Atmos.DV.MKV.x265-DVSUX` | DVSUX | untagged WEB | **Unknown** | Name unknown; no TRaSH listing; no verified source tag — flag explicitly |
+| `Avatar.2022.UHD.BluRay.REMUX.HDR.TrueHD.7.1.Atmos-UnKn0wn` | UnKn0wn | Bluray Remux | **Low** | Self-named "unknown" = no credibility signal; chronic pattern with mislabeled Remux releases |
+| `Avatar.2022.IMAX.DS4K.1080p.MA.WEBRip.x265-Musafirboy` | Musafirboy | MA | **Low** | Known re-encoder; history of quality issues and inconsistent output; MA source doesn't save Low group |
+
+Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (flagged in output).
 
 **Size sanity check (MB/min against runtime):**
 

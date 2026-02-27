@@ -28,12 +28,16 @@ curl -s -H "X-Api-Key: $RADARR_API_KEY" \
 import json, sys
 for m in json.load(sys.stdin):
     if '<TITLE>' in m.get('title','').lower():
+        orig = m.get('originalLanguage', {}).get('name', 'English')
         print(m['id'], m['title'], m['year'],
               'profile=' + str(m['qualityProfileId']),
               'hasFile=' + str(m['hasFile']),
-              'runtime=' + str(m.get('runtime','?')) + 'min')
+              'runtime=' + str(m.get('runtime','?')) + 'min',
+              'originalLang=' + orig)
 "
 ```
+
+**Capture `originalLanguage` — it governs the MULTI/language filter logic below.**
 
 If not in library yet: `GET /api/v3/movie/lookup?term=<title>+<year>` to get tmdbId, then `POST /api/v3/movie` to add it.
 
@@ -73,8 +77,11 @@ print(json.dumps(out, indent=2))
 | quality is `TELESYNC`, `CAM`, `HDTV-*`, `WEBDL-480p`, `WEBDL-720p` | Drop |
 | `Remux-*` quality | Hold — see Remux policy below; not auto-dropped |
 | MB/min below quality minimum (see size table) | Drop — mislabeled or corrupt |
-| Language is not English and English alternative exists | Drop or rank below |
-| Multi-language (MULTI/VFQ/TRUEFRENCH) | Warn — keep only if no English-only alternative |
+| **English-original film:** language is not English and English alternative exists | Drop |
+| **English-original film:** MULTI/VFQ/TRUEFRENCH and English-only alternative exists | Keep but rank below English-only (see MULTI tiebreaker) |
+| **Non-English-original film:** English-only (no original language track) | Drop — flag as wrong language; e.g. Amélie is French, English dub only is wrong |
+| **Non-English-original film:** MULTI with original language + English | Keep — preferred |
+| **Non-English-original film:** original language with English as alternate audio | Keep — preferred |
 
 ### Remux policy
 
@@ -226,9 +233,13 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 4. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
 
-5. **usenet > torrent** (within the same score band).
+5. **English-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over a MULTI/VFQ/TRUEFRENCH release. MULTI tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
 
-6. **Verified group > unknown** (within the same protocol and score band).
+   **Inverted for non-English-original films:** For a film like Amélie (French original), MULTI (French+English) or original-language-with-English-alternate is the correct pick. English-only is dropped. State the original language prominently in the scout header.
+
+6. **usenet > torrent** (within the same score band).
+
+7. **Verified group > unknown** (within the same protocol and score band).
 
 ### 6. Profile assessment
 
@@ -251,7 +262,8 @@ curl -s -H "X-Api-Key: $RADARR_API_KEY" \
 Always output this exact table format (usenet first within each rank tier):
 
 ```
-Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile>
+Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile> | Lang: <originalLang>
+⚠ Non-English original (French) — English-only releases dropped; prefer MULTI or original+EN alternate  ← include this line only when originalLang ≠ English
 Rejection reason (if all blocked): <reason>
 
 RANK  SCORE  QUAL            SIZE    LANG   REPUTE   PROTO    SOURCE/GROUP        FLAGS

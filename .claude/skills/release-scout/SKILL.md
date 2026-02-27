@@ -77,28 +77,28 @@ print(json.dumps(out, indent=2))
 
 ### Remux policy
 
-Remux is not an automatic pick. The CF score is -1000 by design (our Recyclarr config penalises it heavily) and Remux files run 40–80 GB for a 4K title. The bar for overriding this is high.
+Remux files are 40–80 GB for a 4K title and our CF score penalises them (-1000) by default. The single gate is whether the title is **exceptional**.
 
-**When Remux is appropriate:**
+**Exceptional title → Remux preferred, overrides any WEB decision.**
 
-Remux is worth considering only when the title meets **all three** of these conditions:
+If a title is widely regarded as a technical or artistic reference work — where lossless video and audio are meaningfully distinguishable — Remux is the right pick regardless of what WEBDL or Bluray encodes are available. The exceptional classification alone is sufficient; no secondary conditions apply.
 
-1. **Landmark / exceptional film** — widely regarded as a technical or artistic reference title (cinematography, sound design, or restoration makes lossless video/audio meaningful). Examples: *The Dark Knight*, *Apocalypse Now*, *Blade Runner 2049*, *Mad Max: Fury Road*, *2001: A Space Odyssey*, *Dunkirk*, *Joker*. A routine blockbuster or streaming original does not qualify.
-2. **No satisfactory WEBDL or Bluray-2160p alternative** — if a Tier 01 WEB or a High-repute UHD Bluray encode is available, prefer it. Remux only wins when the encode alternatives are all Medium/Unknown repute or over size caps.
-3. **User has explicitly confirmed Remux is acceptable for this title** — never push a Remux automatically. State the size, group, and reason in the ranked output and wait for explicit confirmation.
+Examples of exceptional titles: *The Dark Knight*, *Joker*, *Apocalypse Now*, *Blade Runner 2049*, *Mad Max: Fury Road*, *2001: A Space Odyssey*, *Dunkirk*, *Interstellar*, *Lawrence of Arabia*. Routine blockbusters and streaming originals do not qualify.
 
-**In the ranked output:**
+**Not exceptional → Remux dropped.** Do not surface it in candidates or held — omit it entirely and note in DROPPED.
 
-Include Remux entries in a separate `REMUX (held)` section below the main candidates table — not inline with ranked picks — so they are visible but not treated as equals. Example:
+**Confirmation:** Never push a Remux automatically. Present it as rank 1 (if exceptional) with size, group, and the reasoning, and wait for explicit user confirmation before calling the SABnzbd API.
+
+**In the ranked output (exceptional title):** Remux appears inline as rank 1 with a note:
 
 ```
-REMUX (held — requires confirmation):
-  FraMeSToR  Remux-2160p  47.2GB  EN  High  usenet  TrueHD Atmos 7.1, HDR10
-       → Title.2024.UHD.BluRay.REMUX.HDR.TrueHD.7.1.Atmos-FraMeSToR
-  Note: qualifies only if this title meets the landmark criteria above.
+RANK  SCORE  QUAL            SIZE    LANG   REPUTE   PROTO    SOURCE/GROUP        FLAGS
+   1   —     Remux-2160p    47.2GB  EN     High     usenet   FraMeSToR           TrueHD 7.1 Atmos, HDR10 — exceptional title, Remux preferred; confirm before push
+         → Title.2024.UHD.BluRay.REMUX.HDR.TrueHD.7.1.Atmos-FraMeSToR
+   2  +4500  WEBDL-2160p    23.8GB  EN     High     usenet   FLUX (MA)           shown for reference
 ```
 
-Do not include Remux in the `DROPPED` section — it was held, not disqualified.
+Score is shown as `—` for Remux since the CF score (-1000) is a policy signal, not a quality signal, and should not affect rank when exceptional status applies.
 
 ---
 
@@ -366,7 +366,7 @@ DROPPED (154 filtered):
   - CMRG 4K [High]: 38.7GB, 201MB/m — over WEBDL-2160p size cap (170MB/m)
   - CMRG 1080p usenet [High]: 15.9GB, 83MB/m — marginally over WEBDL-1080p cap (80MB/m)
   - hallowed Bluray-1080p [High]: 15.5GB, 81MB/m — over Bluray-1080p cap (75MB/m)
-  - FraMeSToR/CiNEPHiLES Remux [High]: 44-81GB — held; Avatar qualifies as a landmark title but High-repute WEBDL/UHD alternatives exist (prefer rank 1)
+  - FraMeSToR/CiNEPHiLES Remux [High]: 44-81GB — dropped; Avatar: The Way of Water is not an exceptional/reference title by the Remux policy standard
   - W4NK3R/SPHD/HDS Bluray-2160p [High/Unknown]: 46-62GB, 241-321MB/m — over size cap
   - CM/DVSUX WEBDL-2160p [Unknown]: 36-39GB, 188-202MB/m — over size cap
   - MgB WEBRip-2160p [Medium]: 38.2GB, 199MB/m — over WEBRip-2160p cap (110MB/m)

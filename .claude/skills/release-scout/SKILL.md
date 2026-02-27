@@ -101,31 +101,55 @@ print(json.dumps(out, indent=2))
 | Scene CF (verified group) | +5 |
 | usenet protocol | +10 |
 
-**Repute — composite of group reputation AND source provenance:**
+**Repute — evaluate in this order: CF tier → source provenance → group name knowledge**
 
 Assign one of four labels: **High / Medium / Low / Unknown**
 
-Repute is not group-only. Source provenance is an independent reliability signal:
-- **Verified paid sources** (AMZN, NF, ATVP, iT, DSNP, HMAX) require a financial transaction to obtain. There is a meaningful barrier to mislabeling or fabricating the rip, and the encode pipeline starts from an authenticated stream. A Medium group releasing an iTunes or AMZN rip is often *more* reliable in practice than a High group releasing an untagged WEB.
-- **Untagged WEB** means the source is unknown — could be any streaming platform, re-encode, or private capture. Even a High group can only be trusted as far as their process; the underlying source is unverifiable.
+#### Step 1 — Check CFs for a TRaSH-detected tier (authoritative, no guessing)
 
-**Combined rubric:**
+TRaSH tier custom formats are synced by Recyclarr and appear directly in the API `customFormats` array. If present, they are the most reliable signal available — use them first.
 
-| Repute | When to assign |
+| CF detected | Repute | Examples seen in API |
+|---|---|---|
+| `WEB Tier 01` / `WEB Tier 02` / `WEB Tier 03` | **High** | CMRG, FLUX, NTb, playWEB, TOMMY |
+| `HD Bluray Tier 01` / `02` / `03` | **High** | hallowed, BHDStudio, EDPH |
+| `UHD Bluray Tier 01` / `02` / `03` | **High** | W4NK3R, SPHD |
+| `Remux Tier 01` / `02` / `03` | **High** (but Remux is blocked by policy) | FraMeSToR, CiNEPHiLES |
+| `LQ` or `LQ (Release Title)` | **Low** — drop | BTM, -E groups |
+
+If a tier CF is present, set Repute from the table above and skip Steps 2–3.
+
+#### Step 2 — Check CFs for a verified paid source (if no tier CF)
+
+Verified paid sources (AMZN, NF, ATVP, iT, DSNP, HMAX, MA) require a financial transaction. There is a meaningful barrier to mislabeling: the encode pipeline starts from an authenticated stream. A Medium group releasing an iTunes or DSNP rip is often more reliable than a High group releasing an untagged WEB.
+
+| Group tier | + Verified paid source CF | Repute |
+|---|---|---|
+| High | any | **High** |
+| Medium | AMZN, NF, ATVP, iT, DSNP, HMAX, MA | **High** |
+| Unknown | AMZN, NF, ATVP, iT, DSNP, HMAX, MA | **Medium** |
+| Low | any | **Low** — source cannot lift a Low group |
+| Any | untagged WEB / WEBRip | fall through to Step 3 |
+
+#### Step 3 — Fall back to group name knowledge (untagged sources only)
+
+Only reach here when no tier CF and no verified source CF. Use knowledge of the usenet/P2P scene.
+
+| Group tier | Repute |
 |---|---|
-| **High** | High group + any source, OR Medium/Unknown group + verified paid source (AMZN, NF, ATVP, iT, DSNP, HMAX) |
-| **Medium** | Medium group + untagged WEB or WEBRip, OR Unknown group + verified paid source |
-| **Low** | Low group regardless of source; OR any group with LQ CF flag |
-| **Unknown** | Unrecognised group + no verified source tag — flag explicitly, do not rank above Medium releases |
+| High (known TRaSH-aligned group releasing without a service tag) | **High** |
+| Medium (reliable but untiered group, untagged source) | **Medium** |
+| Low / flagged | **Low** |
+| Unrecognised | **Unknown** — flag explicitly in output |
 
-**Group tiers (feed into the rubric above):**
+**Group name reference (for Steps 2–3):**
 
-| Tier | Examples |
+| Tier | Known groups |
 |---|---|
-| High | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI, YELL, TEPES, ETHEL, GGWP, GNOME — WEB Tier 01–03; BHDStudio, hallowed, W4NK3R, SPHD, FraMeSToR, CiNEPHiLES — Bluray/Remux Tier 01–03 |
-| Medium | KyoGo, NeoNoir, TORK, QHstudIo, MgB, PiRaTeS, MrTentsaw, BANDOLEROS, SPARKS, FTW, Slay3R, Tigole, MkvCage — reliable but untiered; may repack; source inferred from title |
-| Low | BTM, -E suffix groups (e.g. h265-E), PSA, YIFY (SD/720p), KINGDOM, AOC, LAMA, UnKn0wn, Musafirboy — LQ-flagged, re-taggers, watermarkers, or self-declared unknown |
-| Unknown | CM, DVSUX, Asiimov, HDS, BeiTai, SHB931 — not in TRaSH tiers, no established scene/usenet history; treat with caution; source tag is the main reliability signal |
+| High | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI, YELL, TEPES, ETHEL, GGWP, GNOME, BHDStudio, hallowed, W4NK3R, SPHD, FraMeSToR, CiNEPHiLES |
+| Medium | KyoGo, NeoNoir, TORK, QHstudIo, MgB, PiRaTeS, MrTentsaw, BANDOLEROS, SPARKS, FTW, Slay3R, Tigole, MkvCage |
+| Low | BTM, -E suffix groups, PSA, YIFY (SD/720p), KINGDOM, AOC, LAMA, UnKn0wn, Musafirboy |
+| Unknown | CM, DVSUX, Asiimov, HDS, BeiTai, SHB931 — and any group not listed above |
 
 **Key examples from practice:**
 
@@ -159,7 +183,15 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 Flag anything outside range as mislabeled or padded.
 
-**Tiebreaker:** usenet > torrent; verified group > unknown.
+**Tiebreaker and preference rules (apply in order):**
+
+1. **Ambiguous/borderline critic score → prefer WEBDL.** If a movie's critical reception is uncertain (newly released, mixed reviews, RT/Metacritic split, or no reliable rating yet), lean toward WEBDL over Bluray or WEBRip. A streaming encode from an authenticated paid source is more consistent than a Bluray rip of unverified quality.
+
+2. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
+
+3. **usenet > torrent** (within the same score band).
+
+4. **Verified group > unknown** (within the same protocol and score band).
 
 ### 6. Profile assessment
 

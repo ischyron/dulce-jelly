@@ -213,15 +213,19 @@ Flag anything outside range as mislabeled or padded.
 
 **Tiebreaker and preference rules (apply in order):**
 
-1. **Dolby Vision wins close contests.** When two releases are within ~300 score points of each other, prefer the one with DV (`DV` or `DV Boost` CF present) over the non-DV alternative — even if the non-DV release has a marginally higher score, a slightly better source tag (e.g. AMZN vs HULU), or a higher Bluray tier (e.g. UHD Bluray Tier 01 without DV vs UHD Bluray Tier 02 with DV). DV is a meaningful display-layer upgrade that score arithmetic undersells. If the score gap is large (>300), score wins regardless of DV.
+1. **Dolby Vision wins close contests — except in Remux from non-High repute groups.** When two releases are within ~300 score points, prefer the one with DV (`DV` or `DV Boost` CF present). DV is a meaningful display-layer upgrade that score arithmetic undersells. If the score gap is large (>300), score wins regardless of DV.
 
-2. **Ambiguous/borderline critic score → prefer WEBDL.** If a movie's critical reception is uncertain (newly released, mixed reviews, RT/Metacritic split, or no reliable rating yet), lean toward WEBDL over Bluray or WEBRip. A streaming encode from an authenticated paid source is more consistent than a Bluray rip of unverified quality.
+   **Remux DV caveat:** Do not apply this preference when the DV release is a Remux from a Medium, Unknown, or Low repute group. DV layers in Remux from non-TRaSH-tiered groups have an elevated risk of being injected, mismatched, or inconsistently mastered. Only trust DV in Remux when the group's repute is High (i.e. confirmed by a `Remux Tier 01/02/03` CF or strong group history). For High-repute Remux, DV remains a valid differentiator.
 
-2. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
+2. **`-AsRequested` preferred on tied releases.** When two releases have identical or near-identical scores and the same base name (same group, same quality, essentially the same file posted twice or under variant names), prefer the one suffixed `-AsRequested`. It indicates the NZB was assembled to exactly match the profile request rather than a generic bulk post, which means better completeness and fewer segment gaps.
 
-3. **usenet > torrent** (within the same score band).
+3. **Ambiguous/borderline critic score → prefer WEBDL.** If a movie's critical reception is uncertain (newly released, mixed reviews, RT/Metacritic split, or no reliable rating yet), lean toward WEBDL over Bluray or WEBRip. A streaming encode from an authenticated paid source is more consistent than a Bluray rip of unverified quality.
 
-4. **Verified group > unknown** (within the same protocol and score band).
+4. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
+
+5. **usenet > torrent** (within the same score band).
+
+6. **Verified group > unknown** (within the same protocol and score band).
 
 ### 6. Profile assessment
 

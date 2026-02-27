@@ -92,7 +92,7 @@ quality_profiles:
 
   # HD: 1080p content (WEB preferred, Bluray allowed)
   - name: HD
-    min_format_score: 0
+    min_format_score: 2500
     min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
@@ -122,9 +122,9 @@ quality_profiles:
       - name: Bluray-720p
         enabled: false
 
-  # Efficient-4K: 4K WEB-DL only (smaller files, no Bluray, no WEBRip)
+  # Efficient-4K: 4K WEB-DL preferred, HD fallback if no 4K available
   - name: Efficient-4K
-    min_format_score: 0
+    min_format_score: 2500
     min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
@@ -147,11 +147,11 @@ quality_profiles:
       - name: Bluray-2160p
         enabled: false
       - name: WEBDL-1080p
-        enabled: false
+        enabled: true
       - name: WEBRip-1080p
-        enabled: false
+        enabled: true
       - name: Bluray-1080p
-        enabled: false
+        enabled: true
       - name: WEBDL-720p
         enabled: false
       - name: WEBRip-720p
@@ -161,7 +161,7 @@ quality_profiles:
 
   # HighQuality-4K: 4K WEB + Bluray encodes (best quality under size limits)
   - name: HighQuality-4K
-    min_format_score: 0
+    min_format_score: 2500
     min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true

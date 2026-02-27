@@ -36,23 +36,23 @@ radarr:
         - { name: HDTV-720p,   min: 0,  preferred: 1,   max: 1 }
         - { name: HDTV-1080p,  min: 0,  preferred: 1,   max: 1 }
         - { name: HDTV-2160p,  min: 0,  preferred: 1,   max: 1 }
+        - { name: WEBRip-720p, min: 0,  preferred: 1,   max: 1 }
+        - { name: WEBRip-1080p, min: 0, preferred: 1,   max: 1 }
+        - { name: WEBRip-2160p, min: 0, preferred: 1,   max: 1 }
         - { name: Remux-1080p, min: 0,  preferred: 1,   max: 1 }
         - { name: Remux-2160p, min: 0,  preferred: 1,   max: 1 }
 
         # 720p (fallback)
         - { name: WEBDL-720p,   min: 6,  preferred: 12,  max: 22 }
-        - { name: WEBRip-720p,  min: 5,  preferred: 10,  max: 20 }
         - { name: Bluray-720p,  min: 10, preferred: 18,  max: 32 }
 
         # 1080p (4-7 GB typical for quality WEB-DLs)
-        - { name: WEBDL-1080p,  min: 12, preferred: 40,  max: 80 }
-        - { name: WEBRip-1080p, min: 8,  preferred: 22,  max: 45 }
-        - { name: Bluray-1080p, min: 18, preferred: 40,  max: 75 }
+        - { name: WEBDL-1080p,  min: 12, preferred: 40,  max: 140 }
+        - { name: Bluray-1080p, min: 18, preferred: 40,  max: 140 }
 
-        # 2160p (15-20GB max for HQ4K)
-        - { name: WEBDL-2160p,  min: 25, preferred: 85,  max: 170 }
-        - { name: WEBRip-2160p, min: 20, preferred: 55,  max: 110 }
-        - { name: Bluray-2160p, min: 45, preferred: 100, max: 170 }
+        # 2160p (up to ~22GB for 2h titles)
+        - { name: WEBDL-2160p,  min: 25, preferred: 85,  max: 190 }
+        - { name: Bluray-2160p, min: 45, preferred: 100, max: 190 }
 
     # ------------------------------------------------------
     # Custom Formats
@@ -236,22 +236,25 @@ radarr:
           - name: HighQuality-4K
 
       # ------------------------------------------------------
-      # Release Groups - HD Bluray Tiers (TRaSH defaults, HD only)
+      # Release Groups - HD Bluray Tiers (HD + Efficient-4K fallback)
       # ------------------------------------------------------
       - trash_ids:
           - ed27ebfef2f323e964fb1f61391bcb35 # HD Bluray Tier 01
         assign_scores_to:
           - name: HD
+          - { name: Efficient-4K, score: 2800 }
 
       - trash_ids:
           - c20c8647f2746a1f4c4262b0fbbeeeae # HD Bluray Tier 02
         assign_scores_to:
           - name: HD
+          - { name: Efficient-4K, score: 2600 }
 
       - trash_ids:
           - 5608c71bcebba0a5e666223bae8c9227 # HD Bluray Tier 03
         assign_scores_to:
           - name: HD
+          - { name: Efficient-4K, score: 2500 }
 
       # Remux penalty (blocked by size, CF is safety net)
       - trash_ids:

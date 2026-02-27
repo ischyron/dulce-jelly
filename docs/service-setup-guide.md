@@ -66,5 +66,6 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 
 ## Automation (Recyclarr + Quality Broker)
 - **Recyclarr**: Customize and copy `quality-broker/config/recyclarr.example.yml` into `data/recyclarr/config/recyclarr.yml`, then run `npm run ms sync` to sync quality profiles.
+- **Radarr release profiles (YAML-driven)**: Edit `data/recyclarr/config/configs/radarr-release-profiles.yml` (sample at `packages/quality-broker/config/recyclarr-sample/radarr-release-profiles.yml`) and apply with `./bin/apply-radarr-release-profiles.sh`. This creates/updates Radarr release profiles idempotently (for example: block `WEBRip` and `HDTV`).
 - **Quality Broker**: Customize and copy  `quality-broker/config/config.example.yaml` to `data/quality-broker/config/config.yaml`, add your Radarr and OpenAI API keys (config file only), run a build from repo root (`npm run build --prefix quality-broker`), then test with `npm run ms qb-run -- --batch-size 1`. Cron runs daily via the `quality-broker` service (configure `QUALITY_BROKER_CRON`, applied as `CRON_SCHEDULE`).
 - **Run tests**: `node --test test/test-services.test.mjs` (requires `TEST_AUTH_USER` and `TEST_AUTH_PASS` environment variables).

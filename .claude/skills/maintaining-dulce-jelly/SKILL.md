@@ -152,6 +152,7 @@ Broker reads Radarr profile list at runtime; **refuses to run if target profiles
 - [ ] `TODO.md` updated if behavior changed or a TODO was resolved
 - [ ] Relevant doc updated if a new pattern or config was introduced
 - [ ] No credentials or real titles introduced in code/docs
+- [ ] No hardcoded absolute paths with usernames (use `$HOME` / `bash -c "$HOME/..."` — see CLAUDE.md §5a)
 
 ---
 

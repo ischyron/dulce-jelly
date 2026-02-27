@@ -1,8 +1,8 @@
 {
   "mcpServers": {
     "radarr-sonarr": {
-      "command": "/Users/haaris/.local/share/dulce-jelly-mcp/bin/python",
-      "args": ["-m", "radarr_sonarr_mcp.server"],
+      "command": "bash",
+      "args": ["-c", "$HOME/.local/share/dulce-jelly-mcp/bin/python -m radarr_sonarr_mcp.server"],
       "env": {
         "NAS_IP": "localhost",
         "RADARR_PORT": "3273",

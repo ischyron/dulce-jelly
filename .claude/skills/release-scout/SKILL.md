@@ -101,18 +101,32 @@ print(json.dumps(out, indent=2))
 | Scene CF (verified group) | +5 |
 | usenet protocol | +10 |
 
-**Group reputation (use your knowledge of usenet/P2P scene provenance):**
+**Repute — composite of group reputation AND source provenance:**
 
 Assign one of four labels: **High / Medium / Low / Unknown**
 
-| Repute | Criteria | Known groups |
-|---|---|---|
-| **High** | TRaSH WEB/Bluray Tier 01–03; verified Scene; consistent source fidelity; proper tagging; no history of mislabeling or LQ flags | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI, YELL, TEPES, BHDStudio (Bluray), hallowed, EDPH, ETHEL, GGWP, GNOME |
-| **Medium** | Known P2P or usenet packer; reliable output but not TRaSH-tiered; occasionally repack-worthy but not problematic; source can be inferred from title tagging | KyoGo, NeoNoir, TORK, QHstudIo, SPARKS, FTW, YIFY (1080p only), Slay3R (French), Tigole, MkvCage |
-| **Low** | Flagged by TRaSH as LQ; known re-taggers, scene frauds, or groups with chronic mislabeling/padding/watermarking history | BTM, -E suffix groups (e.g. h265-E), PSA, YIFY (SD/720p), RARBG mirrors post-closure, KINGDOM, AOC |
-| **Unknown** | Group not recognised — no usenet/P2P history available; treat as unverified; note this explicitly | Any group not in the above lists |
+Repute is not group-only. Source provenance is an independent reliability signal:
+- **Verified paid sources** (AMZN, NF, ATVP, iT, DSNP, HMAX) require a financial transaction to obtain. There is a meaningful barrier to mislabeling or fabricating the rip, and the encode pipeline starts from an authenticated stream. A Medium group releasing an iTunes or AMZN rip is often *more* reliable in practice than a High group releasing an untagged WEB.
+- **Untagged WEB** means the source is unknown — could be any streaming platform, re-encode, or private capture. Even a High group can only be trusted as far as their process; the underlying source is unverifiable.
 
-Score bonus: High → +30, Medium → +10, Low → drop or heavy penalty, Unknown → 0 (flag in output).
+**Combined rubric:**
+
+| Repute | When to assign |
+|---|---|
+| **High** | High group + any source, OR Medium/Unknown group + verified paid source (AMZN, NF, ATVP, iT, DSNP, HMAX) |
+| **Medium** | Medium group + untagged WEB or WEBRip, OR Unknown group + verified paid source |
+| **Low** | Low group regardless of source; OR any group with LQ CF flag |
+| **Unknown** | Unrecognised group + no verified source tag — flag explicitly, do not rank above Medium releases |
+
+**Group tiers (feed into the rubric above):**
+
+| Tier | Examples |
+|---|---|
+| High | FLUX, NTb, CMRG, playWEB, TOMMY, SMURF, MZABI, YELL, TEPES, BHDStudio, hallowed, EDPH, ETHEL, GGWP, GNOME |
+| Medium | KyoGo, NeoNoir, TORK, QHstudIo, SPARKS, FTW, YIFY (1080p only), Slay3R, Tigole, MkvCage |
+| Low | BTM, -E suffix groups, PSA, YIFY (SD/720p), KINGDOM, AOC, LAMA |
+
+Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (flagged).
 
 **Size sanity check (MB/min against runtime):**
 

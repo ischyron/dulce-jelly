@@ -293,46 +293,43 @@ Include a 1-line reasoning note per ranked entry. Always show the full release f
 
 ### 8. Push confirmed release to SABnzbd
 
-**Network note:** Claude/bash runs on the HOST. SABnzbd runs in Docker.
-- Call the SABnzbd API via `localhost:3274` (host-exposed port) ← from bash on host, this is correct
-- The `downloadUrl` from Radarr already contains `host.docker.internal:3276` ← SABnzbd (in Docker) uses this to reach Prowlarr; do NOT replace it with `localhost`
+**Always use `POST /api/v3/release` via Radarr — never push the `downloadUrl` directly to SABnzbd.**
+
+The `downloadUrl` from Radarr's release search is a Prowlarr link with a time-limited signed token. It expires within minutes. If you push it directly to SABnzbd's `addurl`, SABnzbd will try to fetch it later and get a 403/404, then loop on "Grabbing / wait and retry".
+
+The correct flow: pass the release `guid` (and `indexerId`) back to Radarr via `POST /api/v3/release`. Radarr re-fetches the NZB from Prowlarr using its own live credentials and pushes it directly to the configured download client (SABnzbd). No URL expiry issues.
 
 Wait for user to confirm which rank to grab, then:
 
 ```bash
 source .env 2>/dev/null
-SAB_KEY=$(grep '^api_key' data/sabnzbd/config/sabnzbd.ini | awk '{print $3}')
 
-# downloadUrl comes from the Radarr release JSON — already uses host.docker.internal
-NZB_URL="<downloadUrl>"
-NZB_NAME="<release title>"
+# guid and indexerId come from the release JSON fetched in step 3
+GUID="<release guid>"
+INDEXER_ID="<release indexerId>"
 
-curl -s "http://localhost:3274/api" \
-  --data-urlencode "mode=addurl" \
-  --data-urlencode "name=${NZB_URL}" \
-  --data-urlencode "nzbname=${NZB_NAME}" \
-  --data-urlencode "cat=movies" \
-  --data-urlencode "priority=0" \
-  --data-urlencode "apikey=${SAB_KEY}" | \
+curl -s -X POST \
+  -H "X-Api-Key: $RADARR_API_KEY" \
+  -H "Content-Type: application/json" \
+  "http://localhost:3273/api/v3/release" \
+  -d "{\"guid\": \"${GUID}\", \"indexerId\": ${INDEXER_ID}}" | \
   python3 -c "
 import json, sys
 r = json.load(sys.stdin)
-if r.get('status'):
-    print('✓ Queued in SABnzbd — job ID:', r.get('nzo_ids'))
-else:
-    print('✗ Failed:', r)
+print('✓ Radarr grabbed release — title:', r.get('title','?'))
 "
 ```
 
-Verify it landed:
+Verify it landed in SABnzbd:
 ```bash
+SAB_KEY=$(grep '^api_key' data/sabnzbd/config/sabnzbd.ini | awk '{print $3}')
 curl -s "http://localhost:3274/api?mode=queue&output=json&apikey=${SAB_KEY}" | \
   python3 -c "
 import json, sys
 q = json.load(sys.stdin)['queue']
 print(f'Queue: {q[\"noofslots\"]} slots, {q[\"mbleft\"]}MB remaining')
 for s in q.get('slots', [])[:5]:
-    print(f'  {s[\"status\"]:10} {s[\"filename\"]}')
+    print(f'  {s[\"status\"]:12} {s[\"filename\"]}')
 "
 ```
 

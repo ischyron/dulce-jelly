@@ -77,6 +77,7 @@ print(json.dumps(out, indent=2))
 | quality is `TELESYNC`, `CAM`, `HDTV-*`, `WEBDL-480p`, `WEBDL-720p` | Drop |
 | `Remux-*` quality | Hold — see Remux policy below; not auto-dropped |
 | MB/min below quality minimum (see size table) | Drop — mislabeled or corrupt |
+| Torrent with `seeders < 4` | Drop — effectively dead; flag as `low seeds (<4)` |
 | **English-original film:** language is not English and English alternative exists | Drop |
 | **English-original film:** MULTI/VFQ/TRUEFRENCH and English-only alternative exists | Keep but rank below English-only (see MULTI tiebreaker) |
 | **Non-English-original film:** English-only (no original language track) | Drop — flag as wrong language; e.g. Amélie is French, English dub only is wrong |
@@ -232,13 +233,17 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 4. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
 
-5. **English-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over a MULTI/VFQ/TRUEFRENCH release. MULTI tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
+5. **Usenet strongly preferred; torrent is last resort.** Always pick a usenet release over a torrent when both are available and quality is comparable. Only fall back to torrent if no usenet release passes filters, or if the torrent is substantially better (e.g. High-repute TRaSH-tiered torrent vs Unknown-repute usenet with no service tag). State clearly in FLAGS when a torrent is taken as last resort.
+
+6. **Discard torrents with fewer than 4 seeds.** A torrent with <4 seeds is effectively dead. Drop it regardless of repute or quality — flag in DROPPED as `low seeds (<4)`.
+
+7. **Atmos audio breaks ties when quality is ambiguous.** When two releases are close in score and repute (e.g. WEB Tier 1 without Atmos vs WEB Tier 3 with Atmos, or AMZN vs DSNP at similar score), prefer the release with Dolby Atmos (`TrueHD Atmos`, `DD+ Atmos`, `DDPA`, `Atmos` CF). Atmos is a meaningful audio upgrade that scoring doesn't fully capture.
+
+8. **English-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over a MULTI/VFQ/TRUEFRENCH release. MULTI tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
 
    **Inverted for non-English-original films:** For a film like Amélie (French original), the acceptable picks in order of preference are: MULTI (French+English) → original-only (French) → original+English-alternate. English-only is dropped regardless of quality or repute. State the original language prominently in the scout header.
 
-6. **usenet > torrent** (within the same score band).
-
-7. **Verified group > unknown** (within the same protocol and score band).
+9. **Verified group > unknown** (within the same protocol and score band).
 
 ### 6. Profile assessment
 
@@ -302,7 +307,7 @@ SAB_KEY=$(grep '^api_key' data/sabnzbd/config/sabnzbd.ini | awk '{print $3}')
 NZB_URL="<downloadUrl>"
 NZB_NAME="<release title>"
 
-curl -s "http://localhost:3274/sabnzbd/api" \
+curl -s "http://localhost:3274/api" \
   --data-urlencode "mode=addurl" \
   --data-urlencode "name=${NZB_URL}" \
   --data-urlencode "nzbname=${NZB_NAME}" \
@@ -321,7 +326,7 @@ else:
 
 Verify it landed:
 ```bash
-curl -s "http://localhost:3274/sabnzbd/api?mode=queue&output=json&apikey=${SAB_KEY}" | \
+curl -s "http://localhost:3274/api?mode=queue&output=json&apikey=${SAB_KEY}" | \
   python3 -c "
 import json, sys
 q = json.load(sys.stdin)['queue']

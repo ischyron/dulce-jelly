@@ -6,6 +6,8 @@ export const serviceMap: Record<string, string> = {
   so: 'sonarr',
   pr: 'prowlarr',
   sb: 'sabnzbd',
+  fs: 'flaresolverr',
+  ht: 'huntarr',
   rc: 'recyclarr',
   qbq: 'quality-broker',
   ca: 'caddy',

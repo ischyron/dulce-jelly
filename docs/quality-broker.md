@@ -26,6 +26,7 @@ Key fields (see comments in example):
 - `batchSize` (default 10; CLI `--batch-size` overrides)
 - `autoAssignProfile`: Radarr profile name used as the intake queue
 - `reviseQualityForProfile`: optional Radarr profile name to re-evaluate all movies already in that profile
+- `ignoredProfilesFromChanges`: profile names to hard-skip from any broker changes (default includes `DontUpgrade`)
 - `decisionProfiles`: target profiles the broker can pick from (must exist in Radarr/Recyclarr)
 - `llmRequestDelayMs`: delay before LLM calls to avoid 429s on large queues (default 1200; set 0 to disable)
 - `radarr.apiKey` (config only); URL auto-derives from `LAN_HOSTNAME` + `RADARR_PORT` (or `http://radarr:7878` in Docker). Override via `radarr.url` only if you need a custom host. Ensure the container shares the `media_net` network (defined as external in compose).
@@ -56,6 +57,10 @@ cd quality-broker
 npm install
 npm run build
 node dist/index.js run --batch-size 5
+# preview only (no Radarr profile/tag updates)
+node dist/index.js run --dry-run --batch-size 5
+# process all movies (ignore AutoAssign-only intake filtering)
+node dist/index.js run --ignore-autoflag --batch-size 5
 ```
 
 From container (after building image):
@@ -76,18 +81,25 @@ Via docker compose + ms CLI (service is profile-gated and runs on demand):
 ```bash
 # run a batch (appends args to the CLI)
 ms qb-run -- --batch-size 5
+# preview impact only
+ms qb-run -- --dry-run --batch-size 5
+# process all movies
+ms qb-run -- --ignore-autoflag --batch-size 5
 
 # view latest log
 ms qb-log
 ```
 
 Cron-safe: each run processes at most `batchSize`, prioritizing movies with the `autoAssignProfile` (or `reviseQualityForProfile` if set).
+Dry-run mode (`--dry-run`) computes decisions and prints per-movie before/after profile, critic fields, and genres without applying changes.
+Ignore-auto mode (`--ignore-autoflag`) scans all Radarr movies instead of only the `autoAssignProfile` (or `reviseQualityForProfile`) queue.
 
 ## Behavior
 - Reads Radarr quality profiles dynamically; refuses to run if target profiles are missing.
 - Computes a weighted score from critic/popularity/visual signals, then evaluates a minimal YAML rule table via json-rules-engine.
 - Invokes the LLM only for ambiguous cases when enabled.
 - If the LLM errors, the movie is left unchanged and the run log records the error.
+- Skips any movie currently in profiles listed by `ignoredProfilesFromChanges` (default: `DontUpgrade`).
 - Applies Radarr quality profile and short reason tags (e.g., `crit`, `pop`, `vis`, `weak`).
 - Writes per-run log JSON and updates `status/last-run.json` with counts and timestamp.
 

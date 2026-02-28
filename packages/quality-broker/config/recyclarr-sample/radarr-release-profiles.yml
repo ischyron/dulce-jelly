@@ -1,0 +1,16 @@
+{
+  "profiles": [
+    {
+      "name": "Block WEBRip and HDTV",
+      "enabled": true,
+      "required": [],
+      "ignored": [
+        "WEBRip",
+        "WEB-Rip",
+        "HDTV"
+      ],
+      "tags": [],
+      "indexerId": 0
+    }
+  ]
+}

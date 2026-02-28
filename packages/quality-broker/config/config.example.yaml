@@ -4,6 +4,10 @@ autoAssignProfile: AutoAssignQuality
 # Optional: set to a profile name to re-evaluate all movies in that profile.
 # Leave empty to only process AutoAssignQuality queue.
 reviseQualityForProfile: ""
+# Profiles in this list are never modified by quality-broker (no profile/tag updates).
+# Default behavior protects DontUpgrade titles from accidental reassignment.
+ignoredProfilesFromChanges:
+  - DontUpgrade
 decisionProfiles:
   - HD
   - Efficient-4K

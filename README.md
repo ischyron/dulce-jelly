@@ -36,9 +36,11 @@ DulceJelly is a collection of open-source media management tools:
 - **[Radarr](https://radarr.video/)** - Movie library manager and organizer
 - **[Sonarr](https://sonarr.tv/)** - TV show library manager and organizer
 - **[Prowlarr](https://prowlarr.com/)** - Indexer manager for content sources
+- **[FlareSolverr](https://github.com/FlareSolverr/FlareSolverr)** - Cloudflare challenge solver used by some indexers via Prowlarr
 - **[qBittorrent](https://www.qbittorrent.org/)** - BitTorrent client
 - **[SABnzbd](https://sabnzbd.org/)** - Usenet client
 - **[Recyclarr](https://recyclarr.dev/)** - Quality profile synchronization
+- **[Huntarr](https://github.com/plexguide/Huntarr.io)** - Continuous missing/upgrade search automation for *arr apps
 - **[Caddy](https://caddyserver.com/)** - Reverse proxy server
 - **[Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/)** - Secure remote access
 

@@ -95,6 +95,13 @@ export function loadConfig(baseDir: string): BrokerConfig {
 
   const batchSize = Number(raw.batchSize || DEFAULT_BATCH);
   const decisionProfiles = raw.decisionProfiles || ['HD', 'Efficient-4K', 'HighQuality-4K'];
+  const ignoredProfilesFromChanges = Array.from(
+    new Set(
+      (Array.isArray(raw.ignoredProfilesFromChanges) ? raw.ignoredProfilesFromChanges : ['DontUpgrade'])
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .filter((value) => value.length > 0)
+    )
+  );
   const radarrApiKey = raw.radarr?.apiKey;
   if (!radarrApiKey) {
     throw new Error('Radarr API key is required in data/quality-broker/config/config.yaml.');
@@ -179,6 +186,7 @@ export function loadConfig(baseDir: string): BrokerConfig {
       maxTokens: typeof raw.openai?.maxTokens === 'number' ? raw.openai.maxTokens : 320
     },
     decisionProfiles,
+    ignoredProfilesFromChanges,
     autoAssignProfile: raw.autoAssignProfile || 'AutoAssignQuality',
     reviseQualityForProfile: typeof raw.reviseQualityForProfile === 'string' ? raw.reviseQualityForProfile : '',
     promptHints: raw.promptHints || '',

@@ -62,14 +62,16 @@ services:
       - "${JELLYFIN_HTTPS_PORT:-3279}:8920"
     volumes:
       - ./data/jellyfin/config:/config
-      - ./data/jellyfin/cache:/cache
       - ./data/jellyfin/config/index.html:/jellyfin/jellyfin-web/index.html
+      - ./data/jellyfin/cache:/cache
+      # Transcode cache (expendable volume with free space)
+      - "${JELLYFIN_TRANSCODE_PATH}:/cache/transcodes"
       # Stable host mounts → stable container mounts
       - "${JELLYFIN_MOVIES}:/Volumes/Movies"
       - "${JELLYFIN_SERIES}:/Volumes/Series"
-          # Keep Jellyfin's *existing* library roots stable by providing /Volumes/Movies + /Volumes/Series inside container
     entrypoint: ["/bin/sh", "-c"]
     command:
+      # Keep Jellyfin's *existing* library roots stable by providing /Volumes/Movies + /Volumes/Series inside container
       - "mkdir -p /Volumes && ln -sfn /media/movies /Volumes/Movies && ln -sfn /media/series /Volumes/Series && exec /jellyfin/jellyfin"
 
       
@@ -126,6 +128,8 @@ services:
     container_name: prowlarr
     hostname: prowlarr
     restart: unless-stopped
+    depends_on:
+      - flaresolverr
     environment:
       PUID: "${PUID:-1000}"
       PGID: "${PGID:-1000}"
@@ -208,6 +212,25 @@ services:
       retries: 3
       start_period: 20s
 
+  huntarr:
+    image: huntarr/huntarr:latest
+    container_name: huntarr
+    hostname: huntarr
+    restart: unless-stopped
+    ports:
+      - "${HUNTARR_PORT:-3271}:9705"
+    environment:
+      TZ: "${TZ:-Asia/Tashkent}"
+      BASE_URL: "${HUNTARR_BASE_URL:-}"
+    volumes:
+      - ./data/huntarr/config:/config
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import requests; import sys; r = requests.get('http://localhost:9705/api/health', timeout=5); sys.exit(0 if r.status_code == 200 else 1)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   quality-broker:
     build:
       context: ./packages/quality-broker
@@ -226,6 +249,17 @@ services:
       - ./data/quality-broker:/data/quality-broker
     depends_on:
       - radarr
+
+  flaresolverr:
+    image: flaresolverr/flaresolverr:latest
+    container_name: flaresolverr
+    hostname: flaresolverr
+    restart: unless-stopped
+    environment:
+      TZ: "${TZ:-Asia/Tashkent}"
+      LOG_LEVEL: "${FLARESOLVERR_LOG_LEVEL:-info}"
+      LOG_HTML: "false"
+      CAPTCHA_SOLVER: "none"
 
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr:latest

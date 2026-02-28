@@ -354,6 +354,22 @@
         </div>
       </a>
 
+      <a class="card" data-domain="huntarr.dulcejelly.me" target="_blank" rel="noopener">
+        <img class="card-icon" src="logos/huntarr.png" alt="Huntarr" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Library Hunter</div>
+          <div class="card-subtitle">Huntarr · Automation</div>
+        </div>
+      </a>
+
+      <a class="card" href="#" target="_blank" rel="noopener" style="opacity: 0.6; pointer-events: none;">
+        <img class="card-icon" src="logos/flaresolverr.png" alt="FlareSolverr" loading="lazy" />
+        <div class="card-content">
+          <div class="card-title">Indexer Proxy</div>
+          <div class="card-subtitle">FlareSolverr · Background</div>
+        </div>
+      </a>
+
       <a class="card" href="#" target="_blank" rel="noopener" style="opacity: 0.6; pointer-events: none;">
         <img class="card-icon" src="logos/recyclarr.png" alt="Recyclarr" loading="lazy" />
         <div class="card-content">
@@ -367,8 +383,34 @@
   <script>
     (function() {
       const proto = window.location.protocol;
+      const host = window.location.hostname;
+      const isLanHome =
+        host === 'dulce.local' ||
+        host === 'localhost' ||
+        host.endsWith('.local') ||
+        /^\d{1,3}(?:\.\d{1,3}){3}$/.test(host);
+      const lanPathMap = {
+        jellyfin: '/jellyfin',
+        jellyseerr: '/jellyseerr',
+        qb: '/qb',
+        sab: '/sab',
+        radarr: '/radarr',
+        sonarr: '/sonarr',
+        prowlarr: '/prowlarr',
+        huntarr: '/huntarr'
+      };
+
       document.querySelectorAll('a[data-domain]').forEach(function(link) {
-        link.href = proto + '//' + link.dataset.domain;
+        const domain = link.dataset.domain;
+        if (isLanHome) {
+          const subdomain = domain.split('.')[0];
+          const path = lanPathMap[subdomain];
+          if (path) {
+            link.href = proto + '//' + host + path;
+            return;
+          }
+        }
+        link.href = proto + '//' + domain;
       });
     })();
   </script>

@@ -11,6 +11,7 @@
 3) **LAN access:** Prefer direct server IP:port or `<hostname>:port` on LAN; path-based routing deprecated due to each web UI having internal quirks with changes to its webroot.
 4) **Public/Cloudflare path:** Must continue to work over Cloudflare Tunnel on `*.yourdomain.example` (routing, auth, UI/API, streaming, WebSockets/SSE). Caddy serves yourdomain.example paths/subdomains; no hostname path prefixes.
 5) **Credentials:** Never hardcode creds/defaults in code; use .env/.envrc/config.
+5a) **Portable paths:** Never hardcode absolute paths containing a username (e.g. `/Users/haaris/`, `/home/alice/`). Use `$HOME` in shell scripts and `bash -c "$HOME/..."` in JSON configs where tilde expansion is unavailable. This repo must stay reusable across machines and users.
 6) **Data mount:** Treat `data/` as mounted state, not code (backup-backed).
 7) **Agent workspace**: Use `temp/` directory for work logs, summaries, and temporary analysis files (gitignored).
 

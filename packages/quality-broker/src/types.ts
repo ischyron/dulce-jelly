@@ -3,6 +3,7 @@ export interface BrokerConfig {
   radarr: RadarrConfig;
   openai: OpenAIConfig;
   decisionProfiles: string[];
+  ignoredProfilesFromChanges?: string[];
   autoAssignProfile: string;
   reviseQualityForProfile?: string;
   promptHints?: string;

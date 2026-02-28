@@ -3,9 +3,15 @@
 #
 # Profiles:
 #   - AutoAssignQuality: Intake/hold profile (no downloads)
+#   - DontUpgrade: Accepts HD + 4K WEB/Bluray without upgrades
 #   - HD: 1080p WEB/Bluray with upgrades
 #   - Efficient-4K: 4K WEB only (space-efficient)
 #   - HighQuality-4K: 4K WEB + Bluray encodes
+#
+# Upgrade gate: min_upgrade_format_score requires a TRaSH-tiered release
+# group (WEB Tier 01-03 = 1600-1700, HD/UHD Bluray Tier 01-03 = 1700-1800)
+# plus decent audio (DD+ = 1750) to pass. Untiered P2P groups max out
+# around ~2250 (DD+ 1750 + HDR 500) and are blocked by the 2500 floor.
 
 quality_profiles:
   # AutoAssignQuality: Intake profile - allows one blocked quality
@@ -50,8 +56,44 @@ quality_profiles:
       - name: Bluray-720p
         enabled: false
 
+  # DontUpgrade: Accepts HD + 4K WEB/Bluray but never upgrades
+  - name: DontUpgrade
+    reset_unmatched_scores:
+      enabled: true
+    upgrade:
+      allowed: false
+      until_quality: Bluray-2160p
+    quality_sort: top
+    qualities:
+      - name: Remux-2160p
+        enabled: false
+      - name: Remux-1080p
+        enabled: false
+      - name: HDTV-2160p
+        enabled: false
+      - name: HDTV-1080p
+        enabled: false
+      - name: HDTV-720p
+        enabled: false
+      - name: WEBDL-2160p
+      - name: WEBRip-2160p
+      - name: Bluray-2160p
+        enabled: true
+      - name: WEBDL-1080p
+      - name: WEBRip-1080p
+      - name: Bluray-1080p
+        enabled: true
+      - name: WEBDL-720p
+        enabled: false
+      - name: WEBRip-720p
+        enabled: false
+      - name: Bluray-720p
+        enabled: false
+
   # HD: 1080p content (WEB preferred, Bluray allowed)
   - name: HD
+    min_format_score: 2500
+    min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
     upgrade:
@@ -80,8 +122,10 @@ quality_profiles:
       - name: Bluray-720p
         enabled: false
 
-  # Efficient-4K: 4K WEB only (smaller files, no Bluray)
+  # Efficient-4K: 4K WEB-DL preferred, HD fallback if no 4K available
   - name: Efficient-4K
+    min_format_score: 2500
+    min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
     upgrade:
@@ -99,14 +143,15 @@ quality_profiles:
         enabled: false
       - name: WEBDL-2160p
       - name: WEBRip-2160p
+        enabled: false
       - name: Bluray-2160p
         enabled: false
       - name: WEBDL-1080p
-        enabled: false
+        enabled: true
       - name: WEBRip-1080p
-        enabled: false
+        enabled: true
       - name: Bluray-1080p
-        enabled: false
+        enabled: true
       - name: WEBDL-720p
         enabled: false
       - name: WEBRip-720p
@@ -116,6 +161,8 @@ quality_profiles:
 
   # HighQuality-4K: 4K WEB + Bluray encodes (best quality under size limits)
   - name: HighQuality-4K
+    min_format_score: 2500
+    min_upgrade_format_score: 2500
     reset_unmatched_scores:
       enabled: true
     upgrade:

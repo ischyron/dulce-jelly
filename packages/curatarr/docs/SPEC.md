@@ -999,6 +999,71 @@ MISMATCHES:
   ...
 ```
 
+### 5.11 Playback Verification Modes (Soft/Hard)
+
+Curatarr supports two user-selectable playback verification modes for on-demand checks in Movie Detail:
+
+- `soft`: filename signal analysis + FFprobe stream metadata checks + device-risk heuristic scoring.
+- `hard`: all `soft` checks, plus simulated playback negotiation and decode stress validation against a target client profile (no real TV required).
+
+#### 5.11.1 Soft Verify
+
+Soft verify is fast and non-invasive. It inspects:
+
+- container, codec, profile, level, bitrate, frame rate, dimensions
+- HDR/DV signaling (HDR10/HDR10+, DOVI profile if present)
+- audio track layout and channel count
+- filename risk indicators (e.g., `2160p` + `DV|HDR` baseline with optional risk deltas such as `x265`, `7.1`, `TrueHD|DTS-HD MA|DTS:X`)
+
+Output:
+
+- `riskScore` (0-100)
+- `verdict`: `safe` | `caution` | `high_risk`
+- structured `reasons[]` and evidence payload from FFprobe
+
+#### 5.11.2 Hard Verify (VM/Container Probe)
+
+Hard verify is an optional deeper check intended for edge cases that frequently freeze/stutter on TV clients.
+
+Hard verify runs in an isolated probe runtime and validates:
+
+- playback negotiation response for a configured client profile (example: Google TV class client)
+- decode probe over a short sample window (startup + seek + sustained playback)
+- timestamp/stream anomaly signals (PTS/DTS disorder, frequent backward jumps, decode errors)
+
+Hard verify does not require real-device ADB enrollment. It is designed to be deterministic and safe for consumer setups.
+
+#### 5.11.3 CLI
+
+```bash
+# Fast heuristic + ffprobe check
+curatarr verify "The Lion King (1994)" --mode soft
+
+# Deep verification against a client profile
+curatarr verify "The Lion King (1994)" --mode hard --client-profile googletv
+
+# Machine-readable output
+curatarr verify "/media/movies/The.Lion.King...mkv" --mode hard --json
+```
+
+#### 5.11.4 Result Shape
+
+```ts
+interface PlaybackVerifyResult {
+  mode: 'soft' | 'hard';
+  clientProfile?: string;
+  riskScore: number; // 0-100
+  verdict: 'safe' | 'caution' | 'high_risk';
+  reasons: string[];
+  evidence: {
+    ffprobe: unknown;
+    negotiation?: unknown;
+    decodeProbe?: unknown;
+  };
+  durationMs: number;
+}
+```
+
 ---
 
 ## 6. Configuration
@@ -1036,6 +1101,24 @@ sabnzbd:
 jellyfin:
   url: http://localhost:8096
   apiKey: ${JELLYFIN_API_KEY}
+
+playbackVerification:
+  enabled: true
+  defaultMode: soft                 # soft | hard
+  hardVerifyTimeoutSeconds: 180
+  decodeProbeSeconds: 120
+  clientProfiles:
+    googletv:
+      container: [mkv, mp4]
+      videoCodecs: [h264, hevc]
+      audioCodecs: [aac, ac3, eac3]
+      maxChannels: 8
+      maxBitrateKbps: 120000
+  riskWeights:
+    base2160HdrOrDv: 40             # applies when 2160p + (DV or HDR*)
+    x265: 10
+    channels7_1OrMore: 10
+    truehdOrDtshdOrDtsx: 20
 
 tmdb:
   apiKey: ${TMDB_API_KEY}
@@ -1470,6 +1553,24 @@ The home screen: health panel, rate-limit gauges, library issues, and recent act
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### 7.7 Playback Verify UI
+
+Playback verification is exposed in Movie Detail and Settings:
+
+- Movie Detail:
+  - `Verify Playback` action button.
+  - Mode selector: `Soft` (default) or `Hard`.
+  - Optional client profile selector for hard mode (default: `googletv`).
+  - Results panel with risk score, verdict badge, reasons, and evidence snippets.
+  - Verification history list with timestamp, mode, profile, duration, and rerun action.
+- Settings:
+  - Global default mode and hard-verify timeout.
+  - Enabled client profiles and risk-weight tuning.
+- UX constraints:
+  - Non-blocking execution; UI remains usable while verify job runs.
+  - Explicit timeout, cancellation, and partial-result states.
+  - Hard verify failures must be recoverable and must not impact scout/download pipeline health.
+
 ---
 
 ## 8. API Reference
@@ -1481,6 +1582,11 @@ The home screen: health panel, rate-limit gauges, library issues, and recent act
 curatarr scan [path]                    # Scan library with FFprobe
 curatarr scan --profile HD              # Compare against profile
 curatarr scan --report                  # Generate quality report
+
+# Playback verification
+curatarr verify <movie|path> --mode soft
+curatarr verify <movie|path> --mode hard --client-profile googletv
+curatarr verify <movie|path> --mode hard --json
 
 # Searching
 curatarr search "Movie 2024"            # Search indexer

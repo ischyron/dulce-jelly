@@ -19,12 +19,13 @@ library:
   tvPaths: []  # TV support coming in a future phase
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Indexer (Newznab / Torznab compatible)
-# Prowlarr is the recommended option — it aggregates multiple indexers and
-# already has TRaSH CF scoring built in.
+# Indexer — Prowlarr (primary / recommended)
+# Prowlarr aggregates multiple Newznab/Torznab indexers into a single API
+# endpoint and is the intended integration point. A direct Newznab URL also
+# works for simple single-indexer setups.
 # ─────────────────────────────────────────────────────────────────────────────
 indexer:
-  url: http://localhost:9696   # Prowlarr, or direct Newznab indexer URL
+  url: http://localhost:9696   # Prowlarr default port; or a direct Newznab/Torznab URL
   # apiKey: set CURATARR_INDEXER_API_KEY env var
   categories:
     movies: [2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060]

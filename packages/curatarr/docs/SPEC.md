@@ -22,22 +22,26 @@
 
 ## 1. Executive Summary
 
-**Curatarr** is an LLM-backed intelligent media library management system that replaces the traditional *arr stack (Radarr, Sonarr, Prowlarr, Recyclarr) with a single, smarter system.
+**Curatarr** is an LLM-backed media library management system that replaces Radarr (and potentially Sonarr in a future phase) and Recyclarr with a single intelligent system. **Prowlarr** is retained as the indexer manager. **SABnzbd and qBittorrent** are the first-class download clients.
 
 ### Key Differentiators
 
-| Traditional *arr | Curatarr |
-|------------------|----------|
-| 4+ systems to configure | Single system |
-| Rule-based decisions | LLM-backed intelligence |
+| Traditional | Curatarr |
+|-------------|----------|
+| Radarr + Recyclarr (separate systems) | Single system for movies |
+| Rule-based CF decisions | LLM-backed intelligence |
 | Filename-based matching | Semantic content verification |
-| Additive CF scoring | Size-to-quality validation |
-| Complex configuration | Quality profiles baked in |
+| Additive CF scoring only | CF scoring + size-to-quality validation |
+| TRaSH sync via Recyclarr (separate) | TRaSH sync built in |
 
 ### Stack Simplification
 
-**Before**: Jellyfin + Radarr + Sonarr + Prowlarr + Recyclarr + SABnzbd
-**After**: Jellyfin + Curatarr + SABnzbd
+**Before**: Jellyfin + Radarr + Recyclarr + Prowlarr + SABnzbd + qBittorrent
+**After**: Jellyfin + Curatarr + Prowlarr + SABnzbd + qBittorrent
+
+Prowlarr, SABnzbd, qBittorrent, and Jellyfin are retained integrations.
+Radarr and Recyclarr are the systems Curatarr replaces.
+Sonarr (TV) is a future phase — out of scope for MVP.
 
 ---
 
@@ -57,7 +61,7 @@ A "4K HDR Remux" from unknown group at 2GB passed CF scoring because keywords ma
 
 ### 2.3 Stack Complexity
 
-Managing 4+ systems with interconnected configurations is error-prone and time-consuming.
+Managing Radarr + Recyclarr as separate systems with interconnected CF profile configurations is error-prone and time-consuming. Recyclarr config drift causes silent scoring regressions; Radarr profile changes must be hand-synced across both tools.
 
 ---
 
@@ -129,9 +133,10 @@ Managing 4+ systems with interconnected configurations is error-prone and time-c
 └──────────────────────────────────────────────────────────────────────────┘
          │                    │                    │
          ▼                    ▼                    ▼
-   ┌──────────┐        ┌──────────┐         ┌──────────┐
-   │ Jellyfin │        │ SABnzbd  │         │ Indexer  │
-   └──────────┘        └──────────┘         └──────────┘
+   ┌──────────┐     ┌──────────────────┐    ┌──────────────────────┐
+   │ Jellyfin │     │ SABnzbd          │    │ Prowlarr             │
+   │ (library)│     │ qBittorrent      │    │ (Torznab aggregator) │
+   └──────────┘     └──────────────────┘    └──────────────────────┘
 ```
 
 ### 4.2 Module Structure
@@ -143,6 +148,7 @@ src/
 │   ├── search.ts
 │   ├── grab.ts
 │   ├── cache.ts
+│   ├── trash.ts            # curatarr trash sync / status
 │   └── monitor.ts
 │
 ├── monitor/                # ✅ IMPLEMENTED
@@ -156,12 +162,12 @@ src/
 │   └── qualityAnalyzer.ts  # Quality scoring
 │
 ├── search/                 # 🔲 PENDING
-│   ├── indexerClient.ts    # Newznab API
+│   ├── indexerClient.ts    # Prowlarr Torznab/Newznab API
 │   ├── cache.ts            # SQLite cache
 │   └── titleParser.ts      # Release title parsing
 │
 ├── evaluator/              # 🔲 PENDING
-│   ├── llmClient.ts        # OpenAI/Anthropic
+│   ├── llmClient.ts        # Anthropic/OpenAI/Ollama/OpenRouter
 │   ├── contentVerifier.ts  # Content identity
 │   ├── qualityChecker.ts   # Quality authenticity
 │   └── prompts.ts          # LLM prompts
@@ -169,10 +175,13 @@ src/
 ├── quality/                # 🔲 PENDING
 │   ├── profiles.ts         # Quality profiles
 │   ├── sizeValidation.ts   # Size-to-quality
-│   └── groupReputation.ts  # Release groups
+│   ├── groupReputation.ts  # Release groups
+│   ├── trashSync.ts        # TRaSH guide sync (replaces Recyclarr)
+│   └── cfScoring.ts        # CF scoring rules (ordered YAML)
 │
 ├── download/               # 🔲 PENDING
-│   ├── sabnzbdClient.ts    # SABnzbd API
+│   ├── sabnzbdClient.ts    # SABnzbd API (usenet)
+│   ├── qbittorrentClient.ts # qBittorrent API (torrents)
 │   └── grabHandler.ts      # Download orchestration
 │
 ├── import/                 # 🔲 PENDING

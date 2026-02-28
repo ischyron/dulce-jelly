@@ -35,12 +35,14 @@ for m in json.load(sys.stdin):
         mc  = r.get('metacritic', {}).get('value') or '?'
         rt  = r.get('rottenTomatoes', {}).get('value') or '?'
         imd = r.get('imdb', {}).get('value') or '?'
+        iv  = r.get('imdb', {}).get('votes', 0)
+        votes_fmt = f'{iv/1e6:.1f}M' if iv >= 1_000_000 else (f'{iv//1000}K' if iv >= 1000 else str(iv))
         print(m['id'], m['title'], m['year'],
               'profile=' + str(m['qualityProfileId']),
               'hasFile=' + str(m['hasFile']),
               'runtime=' + str(m.get('runtime','?')) + 'min',
               'originalLang=' + orig,
-              f'MC={mc} RT={rt}% IMDb={imd}')
+              f'MC={mc} RT={rt}% IMDb={imd} ({votes_fmt} votes)')
 "
 ```
 
@@ -132,6 +134,25 @@ Remux files are 40–80 GB for a 4K title and our CF score penalises them (-1000
 | MC ≥ 85, pop-culture test fails (cinephile-only) | **Still qualifies as Tier B** via critic-score path — see below |
 | MC < 75 | Reject exceptional classification outright regardless of name recognition |
 | MC unavailable (0 or null) | Fall back to RT ≥ 85% as primary; if also unavailable, IMDb ≥ 8.2; flag `MC unavailable` in output |
+
+**IMDb vote count — corroborating indicator only, never a gate:**
+
+Votes reflect how many people have seen and rated a film, not whether it is a cultural landmark. Use them to strengthen or question a classification, never to make it.
+
+| Vote count | What it indicates |
+|---|---|
+| > 1M | Genuine mass-audience reach — corroborates Tier A or B claim |
+| 300K–1M | Solid mainstream film — corroborates Tier B |
+| 50K–300K | Moderate reach — neutral; rely on MC/RT and LLM knowledge |
+| < 50K | Niche or very old title — do not penalise; MC/RT carry the weight |
+
+**Fad and franchise skew — distrust votes in these patterns:**
+- Recent horror franchise entries (*Scream* sequels, *Halloween* revivals) attract concentrated fandom voting that inflates counts relative to cultural weight
+- Superhero sequels and extended universe entries accumulate votes from franchise loyalty, not standalone cultural standing
+- Films with a large internet subcommunity (cult horror, extreme cinema, certain anime) can have disproportionate vote counts
+- When any of these patterns are present, discard the vote count as a signal and rely entirely on MC, RT, and LLM knowledge of the film
+
+**LLM knowledge takes precedence over vote counts.** A film the LLM recognises as a genuine cultural landmark — based on its place in film history, critical reception, and cross-cultural recognition — should be classified accordingly regardless of how many IMDb votes it has accumulated. Votes are a sanity check, not an authority.
 
 **Critic-score path to Tier B (overrides the name-recognition test):** A title with MC ≥ 85 is a critical landmark by definition — even if a non-film-buff wouldn't recognise it. *Rashomon* (MC ≈ 100), *Ikiru*, *Stalker* fail the pop-culture test but pass the critic-score gate and qualify as Tier B. This path is specifically relevant when Remux is the only viable option: surface it with the scores prominently and require confirmation.
 
@@ -375,8 +396,8 @@ State the profile assessment prominently at the top of the scout output, especia
 Always output this exact table format (usenet first within each rank tier):
 
 ```
-Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile> | Lang: <originalLang> | MC:<val> RT:<val>% IMDb:<val>
-         ↑ RT is primary critic signal; if RT unavailable (?), IMDb is the fallback. MC is always shown when available.
+Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile> | Lang: <originalLang> | MC:<val> RT:<val>% IMDb:<val> (<votes> votes)
+         ↑ RT is primary critic signal; if RT unavailable (?), IMDb is the fallback. MC is always shown when available. Vote count is a corroborating indicator only — see vote signal rules below.
 ⚠ Non-English original (French) — English-only releases dropped; prefer MULTI or original+EN alternate  ← include this line only when originalLang ≠ English
 Rejection reason (if all blocked): <reason>
 

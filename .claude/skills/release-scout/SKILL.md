@@ -285,30 +285,30 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 4. **Ambiguous/borderline critic score → prefer WEBDL.** If a movie's critical reception is uncertain (newly released, mixed reviews, RT/Metacritic split, or no reliable rating yet), lean toward WEBDL over Bluray or WEBRip. A streaming encode from an authenticated paid source is more consistent than a Bluray rip of unverified quality.
 
-4. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
+5. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
 
-5. **Usenet strongly preferred; torrent is last resort — warn before grabbing.**
-   - Never pick a torrent when a comparable usenet release exists. "Comparable" means same resolution tier and repute within one step (e.g. usenet Medium vs torrent High is not comparable enough to justify torrent).
-   - Only fall back to torrent when: (a) no usenet release passes all filters, OR (b) the torrent is meaningfully superior and no usenet equivalent will plausibly appear (e.g. a TRaSH Tier 01 torrent where the title has no usenet indexer coverage at all).
-   - **Mandatory warning when only torrents are available:** Before grabbing, surface a prominent warning in the output:
-     ```
-     ⚠ TORRENT ONLY — no usenet release passed filters for this title.
-       Torrent grab goes to qBittorrent (not SABnzbd). Confirm to proceed.
-     ```
-   - State `torrent only — last resort` in FLAGS for every torrent entry ranked above any usenet alternative.
-   - If both usenet and torrent candidates exist, never rank a torrent above a usenet release of the same or comparable quality tier.
+6. **Atmos audio breaks ties when quality is ambiguous.** When two releases are close in score and repute (e.g. WEB Tier 1 without Atmos vs WEB Tier 3 with Atmos, or AMZN vs DSNP at similar score), prefer the release with Dolby Atmos (`TrueHD Atmos`, `DD+ Atmos`, `DDPA`, `Atmos` CF). Atmos is a meaningful audio upgrade that scoring doesn't fully capture.
 
-6. **Discard torrents with fewer than 4 seeds.** A torrent with <4 seeds is effectively dead. Drop it regardless of repute or quality — flag in DROPPED as `low seeds (<4)`.
+7. **DD+/EAC3 preferred over DTS-HD MA in close contests.** When two releases are within ~200 score points and otherwise equivalent, prefer the one with DD+/EAC3 audio over DTS-HD MA. DTS-HD MA requires Jellyfin to transcode on Google TV clients and is not passthrough-compatible with Sonos; DD+/EAC3 streams natively. This is not a hard drop — a substantially better release (higher tier, superior video) with DTS-HD MA should still win. Always flag DTS-HD MA releases in FLAGS with `⚠ DTS-HD MA (transcode req.)`.
 
-7. **Atmos audio breaks ties when quality is ambiguous.** When two releases are close in score and repute (e.g. WEB Tier 1 without Atmos vs WEB Tier 3 with Atmos, or AMZN vs DSNP at similar score), prefer the release with Dolby Atmos (`TrueHD Atmos`, `DD+ Atmos`, `DDPA`, `Atmos` CF). Atmos is a meaningful audio upgrade that scoring doesn't fully capture.
-
-8. **DD+/EAC3 preferred over DTS-HD MA in close contests.** When two releases are within ~200 score points and otherwise equivalent, prefer the one with DD+/EAC3 audio over DTS-HD MA. DTS-HD MA requires Jellyfin to transcode on Google TV clients and is not passthrough-compatible with Sonos; DD+/EAC3 streams natively. This is not a hard drop — a substantially better release (higher tier, superior video) with DTS-HD MA should still win. Always flag DTS-HD MA releases in FLAGS with `⚠ DTS-HD MA (transcode req.)`.
-
-9. **Original-language-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over one carrying a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC). Extra language tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
+8. **Original-language-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over one carrying a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC). Extra language tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
 
    **Inverted for non-English-original films:** The original language track is required. Acceptable picks in order of preference: MULTI (original + any other language) → original-only → original + alternate. Any dub-only release (no original language track) is dropped regardless of quality or repute, as per the hard filter. State the film's original language prominently in the scout header (e.g. `Lang: Italian`, `Lang: French`).
 
-10. **Verified group > unknown** (within the same protocol and score band).
+9. **Verified group > unknown** (within the same protocol and score band).
+
+10. **Usenet strongly preferred; torrent is last resort — warn before grabbing.**
+    - Never pick a torrent when a comparable usenet release exists. "Comparable" means same resolution tier and repute within one step (e.g. usenet Medium vs torrent High is not comparable enough to justify torrent).
+    - Only fall back to torrent when: (a) no usenet release passes all filters, OR (b) the torrent is meaningfully superior and no usenet equivalent will plausibly appear (e.g. a TRaSH Tier 01 torrent where the title has no usenet indexer coverage at all).
+    - **Mandatory warning when only torrents are available:** Before grabbing, surface a prominent warning in the output:
+      ```
+      ⚠ TORRENT ONLY — no usenet release passed filters for this title.
+        Torrent grab goes to qBittorrent (not SABnzbd). Confirm to proceed.
+      ```
+    - State `torrent only — last resort` in FLAGS for every torrent entry when no usenet alternative exists.
+    - If both usenet and torrent candidates exist, never rank a torrent above a usenet release of the same or comparable quality tier.
+
+11. **Discard torrents with fewer than 4 seeds.** A torrent with <4 seeds is effectively dead. Drop it regardless of repute or quality — flag in DROPPED as `low seeds (<4)`.
 
 ### 6. Profile assessment
 

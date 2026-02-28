@@ -12,13 +12,19 @@ Given a movie title (and optional year), fetch all available releases from Radar
 
 ## Execution Steps
 
-### 1. Load credentials
+### 1. Load credentials and create session directory
 
 ```bash
 source .env 2>/dev/null
 # Available after source: $RADARR_API_KEY, $SABNZBD_API_KEY
 # qBittorrent has no API key — all grabs (usenet and torrent) go through Radarr's
 # POST /api/v3/release endpoint. Verify via GET /api/v3/queue (covers both protocols).
+
+# Session temp directory — all intermediate files land here
+SCOUT_TS=$(date '+%Y-%m-%d_%H-%M')          # e.g. 2026-02-28_15-30
+SCOUT_DIR="temp/release-scout/${SCOUT_TS}"
+mkdir -p "$SCOUT_DIR"
+echo "Session dir: $SCOUT_DIR"
 ```
 
 ### 2. Find movie in Radarr
@@ -71,10 +77,13 @@ for r in rs:
         'rejected':    r.get('rejected'),
         'rejections':  r.get('rejections'),
         'downloadUrl': r.get('downloadUrl'),
+        'guid':        r.get('guid'),
+        'indexerId':   r.get('indexerId'),
     })
 out.sort(key=lambda x: x['cf_score'] or 0, reverse=True)
 print(json.dumps(out, indent=2))
-"
+" | tee "${SCOUT_DIR}/releases-raw.json"
+# Saved to ${SCOUT_DIR}/releases-raw.json for reference during the session
 ```
 
 ### 4. Hard filters (drop before ranking)
@@ -591,6 +600,25 @@ DROPPED (154 filtered):
 | 10 | HighQuality-4K | 2500 | Yes → Bluray-2160p |
 | 12 | HD | 2500 | Yes → Bluray-1080p |
 | 13 | DontUpgrade | 0 | No |
+
+**Temp file layout:**
+
+```
+temp/release-scout/
+└── 2026-02-28_15-30/          # one directory per run (YYYY-MM-DD_HH-MM)
+    ├── releases-raw.json      # full API response from step 3 (tee'd automatically)
+    └── ranked.txt             # optional: redirect final ranked output here
+                               #   e.g.  ... | tee "${SCOUT_DIR}/ranked.txt"
+```
+
+Session dir is set in step 1:
+```bash
+SCOUT_TS=$(date '+%Y-%m-%d_%H-%M')
+SCOUT_DIR="temp/release-scout/${SCOUT_TS}"
+mkdir -p "$SCOUT_DIR"
+```
+
+`temp/` is gitignored. Clean up with `rm -rf temp/release-scout/`.
 
 **Key docs:**
 - [docs/quality-profile.md](../../../docs/quality-profile.md) — size caps, CF scores, TRaSH deviations

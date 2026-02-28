@@ -16,7 +16,6 @@ Given a movie title (and optional year), fetch all available releases from Radar
 
 ```bash
 source .env 2>/dev/null
-SAB_KEY=$(grep '^api_key' data/sabnzbd/config/sabnzbd.ini | awk '{print $3}')
 ```
 
 ### 2. Find movie in Radarr
@@ -72,16 +71,41 @@ print(json.dumps(out, indent=2))
 
 | Condition | Action |
 |---|---|
+| **Quality tier downgrade** — candidate resolution tier is lower than existing file | **Drop** — never downgrade tier regardless of CF score or repute (see note below) |
 | `SDR` CF present and HDR alternative exists | Drop |
 | `LQ` CF present | Drop |
 | quality is `TELESYNC`, `CAM`, `HDTV-*`, `WEBDL-480p`, `WEBDL-720p` | Drop |
 | `Remux-*` quality | Hold — see Remux policy below; not auto-dropped |
 | MB/min below quality minimum (see size table) | Drop — mislabeled or corrupt |
 | Torrent with `seeders < 4` | Drop — effectively dead; flag as `low seeds (<4)` |
-| **English-original film:** language is not English and English alternative exists | Drop |
-| **English-original film:** MULTI/VFQ/TRUEFRENCH and English-only alternative exists | Keep but rank below English-only (see MULTI tiebreaker) |
-| **Non-English-original film:** English-only (no original language track) | Drop — flag as wrong language; e.g. Amélie is French, English dub only is wrong |
-| **Non-English-original film:** MULTI (original+EN), original+EN-alternate, or original-only | Keep — all preferred over English-only |
+| **English-original film:** release language is not English and an English alternative exists | Drop |
+| **English-original film:** release carries a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC) and an English-only alternative exists | Keep but rank below English-only (see MULTI tiebreaker) |
+| **Non-English-original film:** dub-only — no original language audio track present (e.g. a French original released with English-only or German-only audio) | Drop — wrong language regardless of quality or repute |
+| **Non-English-original film:** includes original language track — whether original-only, or MULTI (original + any other language) | Keep — all preferred over any dub-only release |
+
+**Quality tier downgrade rule:** Resolution tier is a hard ceiling — a low-quality 2160p (YTS, LQ, SDR, AAC) is still preferable to the best 1080p release, because the upgrade path ends at the existing tier. Tiers in descending order: `2160p > 1080p > 720p`. If the existing file is any 2160p quality (Bluray-2160p, WEBDL-2160p, WEBRip-2160p, Remux-2160p — including YTS), drop all 1080p and lower candidates entirely. Radarr will also reject them, but filter them before ranking so they don't appear in output as false candidates.
+
+### Upgrade priority
+
+When scouting for YTS/LQ replacements, assess urgency before grabbing. Apply in order:
+
+| Priority | Condition | Action |
+|---|---|---|
+| **P1 — Grab now** | Exceptional title (pop-culture meme, see Remux policy) + usenet available | Auto-grab or Remux confirm |
+| **P1 — Grab now** | Current file is **WEBRip** (any quality) and a WEB-DL alternative exists — regardless of critic score | Always replace — WEBRip is a re-encode from stream; WEB-DL is a direct lossless download |
+| **P1 — Grab now** | Audio is AAC **stereo/2.0** (actual surround downmix) + RT ≥ 90 + usenet available | Always replace — real downgrade |
+| **P2 — Grab when quota allows** | Audio is AAC 5.1 + SDR + undersized (< 8 GB 2160p) — tolerable alone, but combined signals a poor overall encode | Queue |
+| **P2 — Grab when quota allows** | SDR on a title where HDR is available and meaningful (action, sci-fi, vivid colour grading) | Queue for next batch |
+| **P2 — Grab when quota allows** | File is grotesquely undersized (< 8 GB for 2160p, < 3 GB for 1080p) | Queue |
+| **P3 — Defer** | B&W film with decent YTS size (B&W encodes efficiently; quality gap is smaller) | Not urgent |
+| **P3 — Defer** | YTS file is 1080p on HD profile and size is reasonable | Acceptable; skip unless quota is free |
+| **Skip** | Score < 2500 (no tiered usenet release exists yet) | Wait for better release |
+| **Skip** | Foreign-language original: proper-language releases exist but all fail other filters (size cap, Remux policy, score threshold) | Keep YTS; note in DROPPED what blocked each release and what to wait for |
+| **Skip** | Foreign-language original: no release with original language track exists at all (only non-original dubs available) | Keep YTS — hard filter already drops dub-only releases; nothing actionable |
+
+**Foreign-language Skip — what "proper-language" means:** A release that includes the original language audio track, either as the only track or as part of a MULTI (original+EN) release. Any release without the original language audio track is already hard-filtered out regardless of which dub language it carries (English, German, or any other). "No alternative" means either: (a) zero releases with original language exist on any indexer, or (b) proper-language releases exist but are all blocked by other hard filters — Remux not in profile, over size cap, or below score threshold. In case (b), list each blocked release in DROPPED with the specific blocker (e.g. `FraMeSToR Remux-2160p [High, IT]: Remux not in profile — wait for tiered Bluray-2160p IT+EN encode`), so the user knows what to watch for.
+
+**Disk quota rule:** Each swap costs 3–5× the YTS file size. Confirm with user when total queued batch exceeds ~100 GB.
 
 ### Remux policy
 
@@ -89,11 +113,24 @@ Remux files are 40–80 GB for a 4K title and our CF score penalises them (-1000
 
 **Exceptional title → Remux preferred, overrides any WEB decision.**
 
-If a title is widely regarded as a technical or artistic reference work — where lossless video and audio are meaningfully distinguishable — Remux is the right pick regardless of what WEBDL or Bluray encodes are available. The exceptional classification alone is sufficient; no secondary conditions apply.
+A title is exceptional if it is **widely known beyond cinephile circles** — a non-film-buff would recognise it. Two tiers both qualify:
 
-Examples of exceptional titles: *The Dark Knight*, *Joker*, *Apocalypse Now*, *Blade Runner 2049*, *Mad Max: Fury Road*, *2001: A Space Odyssey*, *Dunkirk*, *Interstellar*, *Lawrence of Arabia*. Routine blockbusters and streaming originals do not qualify.
+**Tier A — Pop-culture meme titles:** Mass cultural penetration, referenced in internet/mainstream culture, audiovisual spectacle is central to re-watch appeal.
+- Examples: *The Dark Knight*, *Joker*, *Mad Max: Fury Road*, *Blade Runner 2049*, *Interstellar*, *Dunkirk*, *Apocalypse Now*, *2001: A Space Odyssey*
+
+**Tier B — Cultural landmarks:** Universally known by general educated audiences — not meme-level, but any non-enthusiast has heard of them. Often historically significant or widely taught.
+- Examples: *Schindler's List*, *Lawrence of Arabia*, *The Godfather*, *Casablanca*, *Apocalypse Now*
+
+**Not exceptional — cinephile/expert-only titles:** Require film education to know or appreciate. Niche Criterion catalogue, festival circuit, or regional classics.
+- Examples: *Rashomon*, *Ikiru*, *Stalker*, *A Brighter Summer Day*, *Jeanne Dielman*
+
+The test: *"Would a non-film-buff recognise this title?"* Yes → exceptional. No → not exceptional. Routine blockbusters and streaming originals do not qualify regardless.
+
+**Sequels and franchise entries:** Only the culturally defining entry qualifies, not the whole franchise. *Avatar* (2009) redefined 3D cinema and is a cultural landmark — Tier A. *Avatar: The Way of Water* (2022) is a well-made sequel with great visuals but does not carry the same cultural weight independently — not exceptional, no Remux. Apply the same logic to any series: the entry that *defined* the franchise or moment qualifies; follow-ups generally do not unless they independently achieved landmark status (e.g. *The Dark Knight* qualifies on its own merits, not just as "the Batman sequel").
 
 **Not exceptional → Remux dropped.** Do not surface it in candidates or held — omit it entirely and note in DROPPED.
+
+**Profile does not override exceptional status.** If the current profile blocks Remux (e.g. HighQuality-4K ceiling is Bluray-2160p, or Remux-2160p is not in the wanted quality list), do not silently accept the profile as the final word for an exceptional title. Explicitly recommend a profile change that would allow Remux, and surface the Remux as the preferred pick with the blocker noted. The profile is a configuration — it can and should be adjusted for titles that genuinely warrant lossless quality. This aligns with the general rule to re-evaluate the profile rather than trust it blindly.
 
 **Confirmation:** Never push a Remux automatically. Present it as rank 1 (if exceptional) with size, group, and the reasoning, and wait for explicit user confirmation before calling the SABnzbd API.
 
@@ -107,6 +144,16 @@ RANK  SCORE  QUAL            SIZE    LANG   REPUTE   PROTO    SOURCE/GROUP      
 ```
 
 Score is shown as `—` for Remux since the CF score (-1000) is a policy signal, not a quality signal, and should not affect rank when exceptional status applies.
+
+**When a title is exceptional or approaching exceptional but Remux is excluded**, always surface a named `⚠ Remux excluded` line at the top of DROPPED — never bury it silently. State the specific blocker so the user understands what would need to change:
+
+```
+DROPPED:
+  ⚠ Remux excluded — FraMeSToR Remux-2160p [High, 93GB]: Remux-2160p not in profile (HighQuality-4K ceiling is Bluray-2160p) — title qualifies as Tier B exceptional; would require a profile that includes Remux in wanted qualities
+  ⚠ Remux excluded — FraMeSToR Remux-2160p [High, 93GB]: profile size cap set to 129MB for Remux (effectively blocked regardless of quality)
+```
+
+Use `⚠ Remux excluded` (not just a generic dropped line) whenever the title's exceptional status makes Remux the theoretically correct pick but a hard constraint prevents it. This makes the gap visible for future profile decisions.
 
 ---
 
@@ -133,7 +180,8 @@ Score is shown as `—` for Remux since the CF score (-1000) is a policy signal,
 | Dolby Vision (`DV` or `DV Boost` CF) | +25 |
 | HDR10+ Boost CF | +20 |
 | HDR CF | +10 |
-| DD+ / DDP audio | +8 |
+| DD+ / DDP / EAC3 audio | +8 |
+| DTS-HD MA | 0 — no bonus; deprioritised (Google TV requires transcode; Sonos passthrough unsupported) |
 | Scene CF (verified group) | +5 |
 | usenet protocol | +10 |
 
@@ -229,7 +277,9 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 2. **`-AsRequested` preferred on tied releases.** When two releases have identical or near-identical scores and the same base name (same group, same quality, essentially the same file posted twice or under variant names), prefer the one suffixed `-AsRequested`. It indicates the NZB was assembled to exactly match the profile request rather than a generic bulk post, which means better completeness and fewer segment gaps.
 
-3. **Ambiguous/borderline critic score → prefer WEBDL.** If a movie's critical reception is uncertain (newly released, mixed reviews, RT/Metacritic split, or no reliable rating yet), lean toward WEBDL over Bluray or WEBRip. A streaming encode from an authenticated paid source is more consistent than a Bluray rip of unverified quality.
+3. **WEB-DL always beats WEBRip at the same resolution tier.** WEBRip is a re-encode from a streamed source; WEB-DL is a direct lossless download. At equal resolution (e.g. both WEBDL-2160p vs WEBRip-2160p), WEB-DL wins unconditionally regardless of score gap, repute, or critic rating. Score arithmetic already reflects this (baseline gap of 25 points) but the preference is absolute — never rank a WEBRip above a WEB-DL of the same resolution.
+
+4. **Ambiguous/borderline critic score → prefer WEBDL.** If a movie's critical reception is uncertain (newly released, mixed reviews, RT/Metacritic split, or no reliable rating yet), lean toward WEBDL over Bluray or WEBRip. A streaming encode from an authenticated paid source is more consistent than a Bluray rip of unverified quality.
 
 4. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
 
@@ -239,11 +289,13 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 7. **Atmos audio breaks ties when quality is ambiguous.** When two releases are close in score and repute (e.g. WEB Tier 1 without Atmos vs WEB Tier 3 with Atmos, or AMZN vs DSNP at similar score), prefer the release with Dolby Atmos (`TrueHD Atmos`, `DD+ Atmos`, `DDPA`, `Atmos` CF). Atmos is a meaningful audio upgrade that scoring doesn't fully capture.
 
-8. **English-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over a MULTI/VFQ/TRUEFRENCH release. MULTI tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
+8. **DD+/EAC3 preferred over DTS-HD MA in close contests.** When two releases are within ~200 score points and otherwise equivalent, prefer the one with DD+/EAC3 audio over DTS-HD MA. DTS-HD MA requires Jellyfin to transcode on Google TV clients and is not passthrough-compatible with Sonos; DD+/EAC3 streams natively. This is not a hard drop — a substantially better release (higher tier, superior video) with DTS-HD MA should still win. Always flag DTS-HD MA releases in FLAGS with `⚠ DTS-HD MA (transcode req.)`.
 
-   **Inverted for non-English-original films:** For a film like Amélie (French original), the acceptable picks in order of preference are: MULTI (French+English) → original-only (French) → original+English-alternate. English-only is dropped regardless of quality or repute. State the original language prominently in the scout header.
+9. **Original-language-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over one carrying a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC). Extra language tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
 
-9. **Verified group > unknown** (within the same protocol and score band).
+   **Inverted for non-English-original films:** The original language track is required. Acceptable picks in order of preference: MULTI (original + any other language) → original-only → original + alternate. Any dub-only release (no original language track) is dropped regardless of quality or repute, as per the hard filter. State the film's original language prominently in the scout header (e.g. `Lang: Italian`, `Lang: French`).
+
+10. **Verified group > unknown** (within the same protocol and score band).
 
 ### 6. Profile assessment
 
@@ -253,11 +305,25 @@ curl -s -H "X-Api-Key: $RADARR_API_KEY" \
   python3 -c "import json,sys; [print(f'id={p[\"id\"]:2} {p[\"name\"]:20} min_score={p.get(\"minFormatScore\",0):5} upgrades={p.get(\"upgradeAllowed\")}') for p in json.load(sys.stdin)]"
 ```
 
+**Re-evaluate the profile — do not take the current assignment for granted.**
+
+Before accepting the current profile as correct, assess whether it fits the title. Ask:
+
+1. **Does the profile's upgrade target exist for this title?** If the profile targets WEBDL-2160p (Efficient-4K) but no streaming service has released a 4K version (common for pre-2000 films, niche releases), the upgrade target will never appear. Radarr will spin forever and reject perfectly good Bluray-2160p options. → Switch to `HighQuality-4K` or `DontUpgrade`.
+
+2. **Is the title acclaimed enough to deserve a higher-quality profile?** A film with strong critical reception (e.g. RT ≥ 85, Metacritic ≥ 75, or a known critics' favourite even without mass cultural penetration) warrants a higher-quality target than a generic blockbuster. If it's on `Efficient-4K` but a Bluray-2160p from a tiered group exists, switching to `HighQuality-4K` gets you a better encode. If it approaches Tier B exceptional status, consider whether Remux is justified.
+
+3. **Is the title on an over-ambitious profile relative to what's actually available?** A 1960s black-and-white film assigned to `HighQuality-4K` will rarely have a 4K release at all — `HD` may be the right ceiling.
+
+State the profile assessment prominently at the top of the scout output, especially when the current profile is mismatched or when a change would unlock a better grab.
+
 **Profile change guidance:**
 
 | Situation | Action |
 |---|---|
 | All releases rejected due to `min_format_score: 2500`, no TRaSH-tiered group released yet | After manual push, switch to `DontUpgrade` (id=13) to stop Radarr spinning |
+| Profile targets WEBDL-2160p but no streaming 4K release exists for this title (e.g. pre-2000 or niche film) | Switch to `HighQuality-4K` (id=10) to allow Bluray-2160p, or `DontUpgrade` if no good Bluray-2160p exists yet |
+| Title is critically acclaimed or approaching exceptional — profile is undershooting | Upgrade to `HighQuality-4K` (id=10); consider Remux if title meets exceptional threshold |
 | Movie on 4K profile but only 1080p sources are quality-appropriate | Switch to `HD` (id=12) via Quality Broker reassignment |
 | Movie on HD profile but good 4K is available | Switch to `Efficient-4K` (id=9) or `HighQuality-4K` (id=10) |
 
@@ -322,8 +388,7 @@ print('✓ Radarr grabbed release — title:', r.get('title','?'))
 
 Verify it landed in SABnzbd:
 ```bash
-SAB_KEY=$(grep '^api_key' data/sabnzbd/config/sabnzbd.ini | awk '{print $3}')
-curl -s "http://localhost:3274/api?mode=queue&output=json&apikey=${SAB_KEY}" | \
+curl -s "http://localhost:3274/api?mode=queue&output=json&apikey=${SABNZBD_API_KEY}" | \
   python3 -c "
 import json, sys
 q = json.load(sys.stdin)['queue']

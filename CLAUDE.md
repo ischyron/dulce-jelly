@@ -18,6 +18,7 @@
 ## Host & Storage
 - **Host:** Any system capable of running Docker (tested on macOS/Linux).
 - **Storage:** DAS or NAS with primary and backup volumes recommended.
+- **Runtime ground truth:** Use `config/hosting.info.yaml` (local, user-specific; gitignored). Start from `config/hosting.info.example.yaml`. Read this first during RCA/troubleshooting storage/performance incidents.
 - **SSD paths:** Unified downloads root at `/Volumes/SCRAPFS/downloads` (configurable via `DOWNLOADS_ROOT` env var) shared across SABnzbd, qBittorrent, Radarr, and Sonarr for efficient file handling. Subfolders: `usenet/` (SABnzbd completed), `torrents/` (qBittorrent), `incomplete/` (SABnzbd in-progress).
 - **Backups:** Regular backups of data volumes recommended; snapshot support optional.
 - **Monitoring:** Use appropriate drive health monitoring tools for your platform.

@@ -58,6 +58,7 @@ caddy/config/caddy/autosave.json
 caddy/data/
 
 temp/
+config/hosting.info.yaml
 
 # Backup scripts (keep samples and scripts; ignore the rest)
 !scripts/backup/

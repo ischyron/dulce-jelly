@@ -1,0 +1,17 @@
+# Copy to: config/hosting.info.yaml
+
+hosting_server_config: "Mac Mini M2 16GB RAM 256GB SSD"
+cpu: "Apple M2"
+
+storages:
+  - name: "Storage A"
+    type: "HDD" # HDD | SSD
+    function: "Media"
+
+  - name: "Storage B"
+    type: "SSD"
+    function: "Docker VM"
+
+mappings:
+  docker_vm_storage: "Storage B"
+  media_storage: "Storage A"

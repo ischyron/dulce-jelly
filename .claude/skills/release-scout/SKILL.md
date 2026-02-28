@@ -31,11 +31,16 @@ import json, sys
 for m in json.load(sys.stdin):
     if '<TITLE>' in m.get('title','').lower():
         orig = m.get('originalLanguage', {}).get('name', 'English')
+        r = m.get('ratings', {})
+        mc  = r.get('metacritic', {}).get('value') or '?'
+        rt  = r.get('rottenTomatoes', {}).get('value') or '?'
+        imd = r.get('imdb', {}).get('value') or '?'
         print(m['id'], m['title'], m['year'],
               'profile=' + str(m['qualityProfileId']),
               'hasFile=' + str(m['hasFile']),
               'runtime=' + str(m.get('runtime','?')) + 'min',
-              'originalLang=' + orig)
+              'originalLang=' + orig,
+              f'MC={mc} RT={rt}% IMDb={imd}')
 "
 ```
 
@@ -95,13 +100,15 @@ When scouting for YTS/LQ replacements, assess urgency before grabbing. Apply in 
 | Priority | Condition | Action |
 |---|---|---|
 | **P1 — Grab now** | Exceptional title (pop-culture meme, see Remux policy) + usenet available | Auto-grab or Remux confirm |
+| **P1 — Grab now** | MC ≥ 85 AND (RT ≥ 85% or IMDb ≥ 8.0 if RT unavailable) AND current audio is AAC or DTS-HD MA | Escalate to P1 regardless of genre — landmark titles warrant audio upgrade |
 | **P1 — Grab now** | Current file is **WEBRip** (any quality) and a WEB-DL alternative exists — regardless of critic score | Always replace — WEBRip is a re-encode from stream; WEB-DL is a direct lossless download |
-| **P1 — Grab now** | Audio is AAC **stereo/2.0** (actual surround downmix) + RT ≥ 90 + usenet available | Always replace — real downgrade |
+| **P1 — Grab now** | Audio is AAC **stereo/2.0** (actual surround downmix) + RT ≥ 90 (fallback IMDb ≥ 8.0) + usenet available | Always replace — real downgrade |
 | **P2 — Grab when quota allows** | Audio is AAC 5.1 + SDR + undersized (< 8 GB 2160p) — tolerable alone, but combined signals a poor overall encode | Queue |
 | **P2 — Grab when quota allows** | SDR on a title where HDR is available and meaningful (action, sci-fi, vivid colour grading) | Queue for next batch |
 | **P2 — Grab when quota allows** | File is grotesquely undersized (< 8 GB for 2160p, < 3 GB for 1080p) | Queue |
 | **P3 — Defer** | B&W film with decent YTS size (B&W encodes efficiently; quality gap is smaller) | Not urgent |
 | **P3 — Defer** | YTS file is 1080p on HD profile and size is reasonable | Acceptable; skip unless quota is free |
+| **P3 — Cap** | MC < 65 (weak critical reception) — never auto-escalate regardless of audio or size flaws | Wait or skip; not worth prioritising disk spend |
 | **Skip** | Score < 2500 (no tiered usenet release exists yet) | Wait for better release |
 | **Skip** | Foreign-language original: proper-language releases exist but all fail other filters (size cap, Remux policy, score threshold) | Keep YTS; note in DROPPED what blocked each release and what to wait for |
 | **Skip** | Foreign-language original: no release with original language track exists at all (only non-original dubs available) | Keep YTS — hard filter already drops dub-only releases; nothing actionable |
@@ -116,25 +123,46 @@ Remux files are 40–80 GB for a 4K title and our CF score penalises them (-1000
 
 **Exceptional title → Remux preferred, overrides any WEB decision.**
 
-A title is exceptional if it is **widely known beyond cinephile circles** — a non-film-buff would recognise it. Two tiers both qualify:
+**Run the data-driven cross-check first (from Radarr ratings, no extra API call):**
+
+| Signal | Classification gate |
+|---|---|
+| MC ≥ 88 AND (RT ≥ 85% or IMDb ≥ 8.0 if RT unavailable) | Strong Tier B candidate — proceed to pop-culture / genre check |
+| MC ≥ 80 AND (RT ≥ 75% or IMDb ≥ 7.5 if RT unavailable) | Eligible for Tier B — apply genre and recognition checks |
+| MC ≥ 85, pop-culture test fails (cinephile-only) | **Still qualifies as Tier B** via critic-score path — see below |
+| MC < 75 | Reject exceptional classification outright regardless of name recognition |
+| MC unavailable (0 or null) | Fall back to RT ≥ 85% as primary; if also unavailable, IMDb ≥ 8.2; flag `MC unavailable` in output |
+
+**Critic-score path to Tier B (overrides the name-recognition test):** A title with MC ≥ 85 is a critical landmark by definition — even if a non-film-buff wouldn't recognise it. *Rashomon* (MC ≈ 100), *Ikiru*, *Stalker* fail the pop-culture test but pass the critic-score gate and qualify as Tier B. This path is specifically relevant when Remux is the only viable option: surface it with the scores prominently and require confirmation.
+
+A title is otherwise exceptional if it is **widely known beyond cinephile circles** — a non-film-buff would recognise it. Two tiers both qualify:
 
 **Tier A — Pop-culture meme titles:** Live-action films with mass cultural penetration, referenced in internet/mainstream culture, where audiovisual spectacle is central to re-watch appeal.
 - Examples: *The Dark Knight*, *Joker*, *Mad Max: Fury Road*, *Blade Runner 2049*, *Interstellar*, *Dunkirk*, *Apocalypse Now*, *2001: A Space Odyssey*
 - **Genre cap:** Animation, Documentary, and Musical titles are capped at Tier B regardless of pop-culture penetration. Even universally known titles like *The Lion King*, *Shrek*, *Toy Story*, *Fantasia*, or *Woodstock* do not reach Tier A — the audiovisual spectacle argument applies less strongly and lossless vs. compressed differences are less perceptible in these formats.
 
-**Tier B — Cultural landmarks:** Universally known by general educated audiences — not meme-level, but any non-enthusiast has heard of them. Often historically significant or widely taught. Maximum tier for Animation, Documentary, and Musical regardless of cultural impact.
-- Examples: *Schindler's List*, *Lawrence of Arabia*, *The Godfather*, *Casablanca*, *Apocalypse Now*, *The Lion King* (Animation), *Ghost in the Shell* (Animation)
+**Tier B — Cultural landmarks:** Universally known by general educated audiences, OR MC ≥ 85 via critic-score path above. Often historically significant or widely taught. Maximum tier for Animation, Documentary, and Musical regardless of cultural impact.
+- Examples (name-recognition path): *Schindler's List*, *Lawrence of Arabia*, *The Godfather*, *Casablanca*, *The Lion King* (Animation), *Ghost in the Shell* (Animation)
+- Examples (critic-score path): *Rashomon* (MC≈100), *Ikiru*, *Stalker*, *A Brighter Summer Day* — cinephile-only by name recognition but critic landmarks by score
 
-**Not exceptional — cinephile/expert-only titles:** Require film education to know or appreciate. Niche Criterion catalogue, festival circuit, or regional classics.
-- Examples: *Rashomon*, *Ikiru*, *Stalker*, *A Brighter Summer Day*, *Jeanne Dielman*
+**Not exceptional:** MC < 75 and fails name-recognition test. Routine blockbusters, streaming originals, and well-liked genre films that don't reach either threshold.
 
-The test: *"Would a non-film-buff recognise this title?"* Yes → exceptional. No → not exceptional. Routine blockbusters and streaming originals do not qualify regardless.
+The primary test: *"Would a non-film-buff recognise this title?"* Yes → exceptional. No → check MC. MC ≥ 85 → still Tier B. MC < 75 → not exceptional.
 
 **Sequels and franchise entries:** Only the culturally defining entry qualifies, not the whole franchise. *Avatar* (2009) redefined 3D cinema and is a cultural landmark — Tier A. *Avatar: The Way of Water* (2022) is a well-made sequel with great visuals but does not carry the same cultural weight independently — not exceptional, no Remux. Apply the same logic to any series: the entry that *defined* the franchise or moment qualifies; follow-ups generally do not unless they independently achieved landmark status (e.g. *The Dark Knight* qualifies on its own merits, not just as "the Batman sequel").
 
 **Not exceptional → Remux dropped.** Do not surface it in candidates or held — omit it entirely and note in DROPPED.
 
 **Profile does not override exceptional status.** If the current profile blocks Remux (e.g. HighQuality-4K ceiling is Bluray-2160p, or Remux-2160p is not in the wanted quality list), do not silently accept the profile as the final word for an exceptional title. Explicitly recommend a profile change that would allow Remux, and surface the Remux as the preferred pick with the blocker noted. The profile is a configuration — it can and should be adjusted for titles that genuinely warrant lossless quality. This aligns with the general rule to re-evaluate the profile rather than trust it blindly.
+
+**Auto-surface Remux when it is the only viable option and MC ≥ 85:** If all non-Remux candidates fail filters AND the title has MC ≥ 85 AND (RT ≥ 85% or IMDb ≥ 8.0 as fallback) AND at least one Remux from a High-repute group exists — surface the Remux automatically with scores displayed, even if the profile technically blocks it. Example output:
+
+```
+⚠ Remux-only situation — MC:98 RT:99% — critic landmark; no other viable release passed filters.
+  FraMeSToR Remux-2160p [High, 54GB] — TrueHD Atmos, HDR10 — confirm to grab / switch profile first
+```
+
+Do not auto-surface Remux when MC < 85, or when High-repute Remux does not exist, or when the title is not exceptional by either path.
 
 **Confirmation:** Never push a Remux automatically. Present it as rank 1 (if exceptional) with size, group, and the reasoning, and wait for explicit user confirmation before calling the SABnzbd API.
 
@@ -291,6 +319,8 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 7. **DD+/EAC3 preferred over DTS-HD MA in close contests.** When two releases are within ~200 score points and otherwise equivalent, prefer the one with DD+/EAC3 audio over DTS-HD MA. DTS-HD MA requires Jellyfin to transcode on Google TV clients and is not passthrough-compatible with Sonos; DD+/EAC3 streams natively. This is not a hard drop — a substantially better release (higher tier, superior video) with DTS-HD MA should still win. Always flag DTS-HD MA releases in FLAGS with `⚠ DTS-HD MA (transcode req.)`.
 
+   **MC ≥ 85 exception:** For landmark titles (MC ≥ 85), reduce the DTS-HD MA penalty — the transcode cost is worth tolerating for a critical reference title, especially when the DTS-HD MA release is otherwise superior (better group, larger file, higher tier). Do not penalise DTS-HD MA in the ~200-point tiebreaker band; still flag it in FLAGS but do not let it drive the decision.
+
 8. **Original-language-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over one carrying a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC). Extra language tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
 
    **Inverted for non-English-original films:** The original language track is required. Acceptable picks in order of preference: MULTI (original + any other language) → original-only → original + alternate. Any dub-only release (no original language track) is dropped regardless of quality or repute, as per the hard filter. State the film's original language prominently in the scout header (e.g. `Lang: Italian`, `Lang: French`).
@@ -345,7 +375,8 @@ State the profile assessment prominently at the top of the scout output, especia
 Always output this exact table format (usenet first within each rank tier):
 
 ```
-Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile> | Lang: <originalLang>
+Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile> | Lang: <originalLang> | MC:<val> RT:<val>% IMDb:<val>
+         ↑ RT is primary critic signal; if RT unavailable (?), IMDb is the fallback. MC is always shown when available.
 ⚠ Non-English original (French) — English-only releases dropped; prefer MULTI or original+EN alternate  ← include this line only when originalLang ≠ English
 Rejection reason (if all blocked): <reason>
 

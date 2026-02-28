@@ -16,6 +16,9 @@ Given a movie title (and optional year), fetch all available releases from Radar
 
 ```bash
 source .env 2>/dev/null
+# Available after source: $RADARR_API_KEY, $SABNZBD_API_KEY
+# qBittorrent has no API key — all grabs (usenet and torrent) go through Radarr's
+# POST /api/v3/release endpoint. Verify via GET /api/v3/queue (covers both protocols).
 ```
 
 ### 2. Find movie in Radarr
@@ -115,11 +118,12 @@ Remux files are 40–80 GB for a 4K title and our CF score penalises them (-1000
 
 A title is exceptional if it is **widely known beyond cinephile circles** — a non-film-buff would recognise it. Two tiers both qualify:
 
-**Tier A — Pop-culture meme titles:** Mass cultural penetration, referenced in internet/mainstream culture, audiovisual spectacle is central to re-watch appeal.
+**Tier A — Pop-culture meme titles:** Live-action films with mass cultural penetration, referenced in internet/mainstream culture, where audiovisual spectacle is central to re-watch appeal.
 - Examples: *The Dark Knight*, *Joker*, *Mad Max: Fury Road*, *Blade Runner 2049*, *Interstellar*, *Dunkirk*, *Apocalypse Now*, *2001: A Space Odyssey*
+- **Genre cap:** Animation, Documentary, and Musical titles are capped at Tier B regardless of pop-culture penetration. Even universally known titles like *The Lion King*, *Shrek*, *Toy Story*, *Fantasia*, or *Woodstock* do not reach Tier A — the audiovisual spectacle argument applies less strongly and lossless vs. compressed differences are less perceptible in these formats.
 
-**Tier B — Cultural landmarks:** Universally known by general educated audiences — not meme-level, but any non-enthusiast has heard of them. Often historically significant or widely taught.
-- Examples: *Schindler's List*, *Lawrence of Arabia*, *The Godfather*, *Casablanca*, *Apocalypse Now*
+**Tier B — Cultural landmarks:** Universally known by general educated audiences — not meme-level, but any non-enthusiast has heard of them. Often historically significant or widely taught. Maximum tier for Animation, Documentary, and Musical regardless of cultural impact.
+- Examples: *Schindler's List*, *Lawrence of Arabia*, *The Godfather*, *Casablanca*, *Apocalypse Now*, *The Lion King* (Animation), *Ghost in the Shell* (Animation)
 
 **Not exceptional — cinephile/expert-only titles:** Require film education to know or appreciate. Niche Criterion catalogue, festival circuit, or regional classics.
 - Examples: *Rashomon*, *Ikiru*, *Stalker*, *A Brighter Summer Day*, *Jeanne Dielman*
@@ -283,7 +287,16 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
 4. **WEBDL over Bluray when Bluray group repute is Unknown or Low.** An authenticated WEBDL from AMZN/NF/ATVP/DSNP (even from a Medium group) is more reliable than a Bluray from an untiered or unknown group. The financial barrier of a streaming transaction provides a quality floor that physical disc rips from unrecognised encoders do not.
 
-5. **Usenet strongly preferred; torrent is last resort.** Always pick a usenet release over a torrent when both are available and quality is comparable. Only fall back to torrent if no usenet release passes filters, or if the torrent is substantially better (e.g. High-repute TRaSH-tiered torrent vs Unknown-repute usenet with no service tag). State clearly in FLAGS when a torrent is taken as last resort.
+5. **Usenet strongly preferred; torrent is last resort — warn before grabbing.**
+   - Never pick a torrent when a comparable usenet release exists. "Comparable" means same resolution tier and repute within one step (e.g. usenet Medium vs torrent High is not comparable enough to justify torrent).
+   - Only fall back to torrent when: (a) no usenet release passes all filters, OR (b) the torrent is meaningfully superior and no usenet equivalent will plausibly appear (e.g. a TRaSH Tier 01 torrent where the title has no usenet indexer coverage at all).
+   - **Mandatory warning when only torrents are available:** Before grabbing, surface a prominent warning in the output:
+     ```
+     ⚠ TORRENT ONLY — no usenet release passed filters for this title.
+       Torrent grab goes to qBittorrent (not SABnzbd). Confirm to proceed.
+     ```
+   - State `torrent only — last resort` in FLAGS for every torrent entry ranked above any usenet alternative.
+   - If both usenet and torrent candidates exist, never rank a torrent above a usenet release of the same or comparable quality tier.
 
 6. **Discard torrents with fewer than 4 seeds.** A torrent with <4 seeds is effectively dead. Drop it regardless of repute or quality — flag in DROPPED as `low seeds (<4)`.
 
@@ -386,13 +399,26 @@ print('✓ Radarr grabbed release — title:', r.get('title','?'))
 "
 ```
 
-Verify it landed in SABnzbd:
+Verify it landed — use Radarr queue (covers both usenet and torrent):
+```bash
+curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+  "http://localhost:3273/api/v3/queue" | \
+  python3 -c "
+import json, sys
+d = json.load(sys.stdin)
+print(f'Radarr queue: {d[\"totalRecords\"]} records')
+for r in d.get('records', [])[:8]:
+    print(f'  [{r[\"status\"]}] {r[\"title\"][:60]} — {r[\"protocol\"]} — {round(r.get(\"size\",0)/1e9,1)}GB')
+"
+```
+
+Optional — SABnzbd-only detail (usenet slots):
 ```bash
 curl -s "http://localhost:3274/api?mode=queue&output=json&apikey=${SABNZBD_API_KEY}" | \
   python3 -c "
 import json, sys
 q = json.load(sys.stdin)['queue']
-print(f'Queue: {q[\"noofslots\"]} slots, {q[\"mbleft\"]}MB remaining')
+print(f'SABnzbd: {q[\"noofslots\"]} slots, {q[\"mbleft\"]}MB remaining, speed: {q[\"speed\"]}')
 for s in q.get('slots', [])[:5]:
     print(f'  {s[\"status\"]:12} {s[\"filename\"]}')
 "

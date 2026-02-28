@@ -69,18 +69,26 @@ Managing 4+ systems with interconnected configurations is error-prone and time-c
 |---------|----------|--------|-------|
 | Health monitoring | P0 | ✅ Done | 0 |
 | Library monitoring | P0 | ✅ Done | 0 |
-| FFprobe library scanning | P0 | 🔲 Pending | 1 |
-| Newznab indexer search | P0 | 🔲 Pending | 1 |
+| FFprobe hard quality checks (DV/audio/resolution) | P0 | 🔲 Pending | 1 |
+| Newznab / Torznab indexer search | P0 | 🔲 Pending | 1 |
+| Title parser (release name → structured metadata) | P0 | 🔲 Pending | 1 |
+| SQLite search cache | P0 | 🔲 Pending | 1 |
+| TRaSH guide sync (group tiers + CF definitions) | P0 | 🔲 Pending | 2 |
+| CF scoring rules (ordered YAML, UI drag-reorder) | P0 | 🔲 Pending | 2 |
 | LLM content verification | P0 | 🔲 Pending | 2 |
-| Quality profile matching | P0 | 🔲 Pending | 2 |
-| SABnzbd integration | P0 | 🔲 Pending | 3 |
-| Post-download import | P1 | 🔲 Pending | 3 |
+| Quality profile matching + size validation | P0 | 🔲 Pending | 2 |
+| Download client integration (SABnzbd / NZBGet / qBT) | P0 | 🔲 Pending | 3 |
+| Post-download import + Jellyfin rescan | P1 | 🔲 Pending | 3 |
 | Upgrade scout daemon | P1 | 🔲 Pending | 4 |
 | Human intervention queue | P1 | 🔲 Pending | 4 |
+| Batch operations (select, tag, bulk-scout, bulk-grab) | P1 | 🔲 Pending | 4 |
+| Movie tags (user labels + filter) | P1 | 🔲 Pending | 4 |
 | Rate limiting | P1 | 🔲 Pending | 4 |
 | Recycle bin | P1 | 🔲 Pending | 4 |
-| FFprobe hard quality checks | P0 | 🔲 Pending | 1 |
-| Web UI (library + file detail) | P1 | 🔲 Pending | 4 |
+| Web UI (library + file detail + queue) | P1 | 🔲 Pending | 4 |
+| LLM provider settings + API key management | P1 | 🔲 Pending | 4 |
+| Playback verification (soft / hard) | P2 | 🔲 Pending | 5 |
+| Notification webhooks (ntfy / Apprise) | P2 | 🔲 Pending | 5 |
 | TV show support | P2 | 🔲 Pending | 6 |
 | Jellyfin plugin | P3 | 🔲 Pending | 7 |
 
@@ -1066,6 +1074,310 @@ interface PlaybackVerifyResult {
 
 ---
 
+### 5.12 Group Reputation & TRaSH Guide Sync
+
+#### 5.12.1 Status: 🔲 PENDING (Phase 2)
+
+#### 5.12.2 Design Philosophy
+
+Curatarr does **not** hard-code specific group names into its default configuration. Group names are community knowledge that changes over time — groups emerge, disappear, or change quality. Instead:
+
+- **TRaSH sync** is the authoritative source for group tiers (`high` = Tier 01/02/03, `lq` = LQ custom format)
+- Config allows **additions and overrides** on top of synced data
+- The `lq` label describes a **behavioral pattern**, not a named list: releases that consistently misrepresent quality through misleading filenames, aggressive re-encoding, or inflated quality claims
+
+#### 5.12.3 Group Reputation Labels
+
+| Label | Meaning | Source |
+|-------|---------|--------|
+| `high` | TRaSH-confirmed Tier 01/02/03, or verified via paid streaming source (AMZN/NF/ATVP/DSNP/HMAX/MA) | TRaSH sync + manual |
+| `medium` | Reliable but not TRaSH-tiered; consistent output | Manual |
+| `lq` | Pattern of misleading filenames, aggressive re-encoding, or non-standard specs — regardless of name recognition | TRaSH LQ CF sync + manual |
+| `blocked` | Hard-reject: never surface in results | Manual |
+
+**LQ behavioral indicators** (any two or more = LQ candidate):
+- Files consistently smaller than expected for claimed quality (e.g. 2 GB claimed 4K)
+- Filename claims not supported by FFprobe hard checks
+- Re-encodes of already-encoded sources (encode-of-encode)
+- Missing HDR/DV metadata despite filename claims
+- Non-standard or invented quality tier names
+
+#### 5.12.4 TRaSH Sync
+
+```bash
+curatarr trash sync           # Fetch latest CF definitions + group tiers from TRaSH
+curatarr trash sync --dry-run # Preview changes without applying
+curatarr trash status         # Show last sync time, version, group counts
+```
+
+Sync source: `https://github.com/TRaSH-Guides/Guides` (raw JSON definitions, same source as Recyclarr). Curatarr parses:
+- `docs/json/radarr/custom-formats/*.json` — CF definitions and group lists
+- WEB Tier 01/02/03 CFs → `high` group tier
+- HD Bluray Tier 01/02/03 CFs → `high` group tier
+- UHD Bluray Tier 01/02/03 CFs → `high` group tier
+- Remux Tier 01/02/03 CFs → `high` group tier (Remux-specific)
+- `LQ` and `LQ (Release Title)` CFs → `lq` group tier
+
+Synced data is stored in SQLite and merged with manual config overrides at runtime. Config overrides always win.
+
+Config:
+```yaml
+trash:
+  enabled: true
+  syncSchedule: "0 4 * * 1"   # Weekly Monday 4 AM
+  source: github               # github | local (for air-gapped setups)
+  localPath: null              # path to cloned TRaSH-Guides repo (if source: local)
+```
+
+---
+
+### 5.13 CF Scoring Rules (Ordered YAML)
+
+#### 5.13.1 Status: 🔲 PENDING (Phase 2)
+
+#### 5.13.2 Purpose
+
+The release-scout skill's 11 tiebreaker rules — refined through real-world scouting sessions — are the opinionated starter config shipped with Curatarr. Users can read, reorder, enable/disable, and tune each rule in `scoring-rules.yaml`. The UI renders them as a drag-reorderable card list.
+
+This replaces Radarr's opaque additive CF point system with human-readable sentences. Each rule has a name, a plain-English description, optional numeric parameters, and an enabled flag.
+
+#### 5.13.3 Scoring Model
+
+Scoring is two-stage:
+
+**Stage 1 — Raw score** (computed from quality tier + add-ons, not configurable per-user):
+
+| Quality | Base score |
+|---------|-----------|
+| WEBDL-2160p | 100 |
+| Bluray-2160p | 90 |
+| WEBRip-2160p | 75 |
+| WEBDL-1080p | 70 |
+| Bluray-1080p | 65 |
+| WEBRip-1080p | 55 |
+
+Score add-ons (cumulative):
+
+| Signal | Points |
+|--------|--------|
+| ATVP source | +25 |
+| AMZN / NF / DSNP / HMAX / MA source | +18 |
+| iTunes (iT) source | +10 |
+| Dolby Vision (`DV` or `DV Boost`) | +25 |
+| HDR10+ | +20 |
+| HDR10 | +10 |
+| DD+ / EAC3 audio | +8 |
+| Usenet protocol | +10 |
+| Repute: High | +30 |
+| Repute: Medium | +10 |
+| Repute: Low | drop |
+
+TRaSH CF scores from a connected Prowlarr/Radarr instance can also be ingested as a raw score signal when available.
+
+**Stage 2 — Tiebreakers** (ordered rules, applied in sequence):
+
+#### 5.13.4 Default Scoring Rules (shipped config)
+
+```yaml
+# scoring-rules.yaml
+# These are Curatarr's opinionated defaults derived from real-world scouting experience.
+# Edit, reorder, enable/disable, or tune parameters to match your preferences.
+# The UI renders these as draggable cards — order here = order in UI.
+
+tiebreakers:
+  - order: 1
+    name: dolby-vision-close-contest
+    enabled: true
+    description: >
+      Within {{ threshold }} score points, prefer the release with Dolby Vision.
+      DV is a meaningful display-layer upgrade that arithmetic undersells.
+    params:
+      threshold: 300
+    exceptions:
+      - "Do not apply when DV release is a Remux from a non-High-repute group
+         (DV layers in untiered Remux have elevated risk of injection or mismatch)"
+
+  - order: 2
+    name: as-requested-suffix
+    enabled: true
+    description: >
+      On releases with identical or near-identical scores from the same group,
+      prefer the one with an -AsRequested suffix.
+      It was assembled to exactly match the profile request rather than a bulk post.
+    params:
+      threshold: 50
+
+  - order: 3
+    name: webdl-over-webrip-strict
+    enabled: true
+    description: >
+      Always prefer WEBDL over WEBRip regardless of score gap.
+      WEBDL is a direct lossless download from an authenticated source.
+      WEBRip is a screen capture — a re-encode with quality loss by definition.
+    params:
+      strict: true   # applies even when score gap favours WEBRip
+
+  - order: 4
+    name: webdl-for-ambiguous-title
+    enabled: true
+    description: >
+      For newly released or mixed-reception titles (uncertain critical consensus),
+      lean toward WEBDL over Bluray or WEBRip.
+      An authenticated streaming encode is more consistent than an unverified disc rip.
+
+  - order: 5
+    name: webdl-over-unknown-bluray
+    enabled: true
+    description: >
+      Prefer an authenticated WEBDL (AMZN/NF/ATVP/DSNP) over a Bluray from an
+      Unknown or Low-repute group.
+      The financial barrier of a streaming transaction provides a quality floor
+      that physical disc rips from unrecognised encoders do not.
+
+  - order: 6
+    name: atmos-audio
+    enabled: true
+    description: >
+      Within {{ threshold }} score points, prefer the release with Atmos audio
+      (TrueHD+Atmos or DD+Atmos) over non-Atmos alternatives.
+    params:
+      threshold: 200
+
+  - order: 7
+    name: ddplus-over-dtshd
+    enabled: true
+    description: >
+      Prefer DD+/EAC3 over DTS-HD MA for streaming-sourced content.
+      DD+ is the native codec on streaming platforms; DTS-HD MA on a streaming
+      release often means the audio was re-encoded, adding a generation of loss.
+    exceptions:
+      - "Reduce this preference for titles with MC ≥ 85 — lossless DTS-HD MA
+         is less of a concern when the encode pipeline is high-repute"
+
+  - order: 8
+    name: original-language-over-multi
+    enabled: true
+    description: >
+      Prefer the original-language release over MULTI/VFQ/TRUEFRENCH when an
+      English-language or original-language alternative exists.
+      Only keep MULTI when no single-language version passes other filters.
+
+  - order: 9
+    name: verified-group-over-unknown
+    enabled: true
+    description: >
+      Within the same protocol and score band, prefer a verified (tiered or
+      source-confirmed) group over an unrecognised one.
+
+  - order: 10
+    name: usenet-preferred
+    enabled: true
+    description: >
+      Strongly prefer usenet over torrent. Only use torrent as a last resort
+      when no comparable usenet release exists. Always surface a visible warning
+      when recommending a torrent.
+    params:
+      warn_label: "⚠ TORRENT ONLY"
+
+  - order: 11
+    name: minimum-seeds
+    enabled: true
+    description: >
+      Discard torrents with fewer than {{ min_seeds }} seeds.
+      Under-seeded torrents risk stalling mid-download with no recovery path.
+    params:
+      min_seeds: 4
+```
+
+#### 5.13.5 UI (Scoring Rules Page)
+
+Rules render as draggable cards. Each card shows:
+- The rule name as a heading
+- The description paragraph (with parameters interpolated)
+- An enable/disable toggle
+- A parameter editor for numeric thresholds (inline, no modal)
+- The current order number (updates live as cards are dragged)
+
+```
+SCORING RULES   [Reset to defaults]  [Save]
+
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  ⠿  1  Dolby Vision (close contest)                         [✓ On]  │
+  │     Within [300▲▼] score points, prefer the release with Dolby       │
+  │     Vision. DV is a meaningful display-layer upgrade that            │
+  │     arithmetic undersells.                                           │
+  │     ⚠ Exception: not applied for Remux from non-High-repute group   │
+  └──────────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  ⠿  2  -AsRequested suffix                                  [✓ On]  │
+  │     On tied releases (within [50▲▼] pts), prefer -AsRequested.      │
+  └──────────────────────────────────────────────────────────────────────┘
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  ⠿  3  WEBDL over WEBRip (strict)                           [✓ On]  │
+  │     Always prefer WEBDL over WEBRip regardless of score gap.        │
+  └──────────────────────────────────────────────────────────────────────┘
+  ...
+  ┌──────────────────────────────────────────────────────────────────────┐
+  │  ⠿  11  Minimum seeds                                       [✓ On]  │
+  │     Discard torrents with fewer than [4▲▼] seeds.                   │
+  └──────────────────────────────────────────────────────────────────────┘
+
+  + Add custom rule
+```
+
+---
+
+### 5.14 Movie Tags
+
+#### 5.14.1 Status: 🔲 PENDING (Phase 4)
+
+#### 5.14.2 Purpose
+
+Tags are user-defined labels on movies, inspired by Radarr's tag system but with more UI integration. Tags drive filtering, batch operations, and scout behaviour.
+
+#### 5.14.3 Tag Semantics
+
+Tags are arbitrary strings. Curatarr ships with a set of suggested tags but does not require them:
+
+| Suggested tag | Convention |
+|--------------|-----------|
+| `kids` | Lower quality threshold is fine; prioritise availability over quality |
+| `4k-priority` | Expedite scout for 4K upgrade even if below P2 threshold |
+| `anime` | Animated, typically Japanese — different audio/subtitle expectations |
+| `exceptional` | Manually mark as exceptional to trigger Remux consideration |
+| `skip-upgrade` | Do not scout upgrades for this title (user is satisfied) |
+| `waiting` | Release not yet out — suppress scout noise |
+| `language:<code>` | e.g. `language:ja` — expect original-language audio in Japanese |
+
+#### 5.14.4 SQLite Schema
+
+```sql
+CREATE TABLE tags (
+  id    INTEGER PRIMARY KEY AUTOINCREMENT,
+  name  TEXT NOT NULL UNIQUE,
+  color TEXT,   -- hex colour for UI chip, e.g. "#4f46e5"
+  note  TEXT
+);
+
+CREATE TABLE movie_tags (
+  movie_id TEXT NOT NULL,
+  tag_id   INTEGER NOT NULL REFERENCES tags(id),
+  added_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (movie_id, tag_id)
+);
+```
+
+#### 5.14.5 CLI
+
+```bash
+curatarr tag add "Shrek (2001)" kids exceptional
+curatarr tag remove "Shrek (2001)" kids
+curatarr tag list                       # All defined tags with movie counts
+curatarr tag list --movie "Shrek (2001)"
+```
+
+---
+
 ## 6. Configuration
 
 ### 6.1 Complete Configuration Reference
@@ -1259,32 +1571,34 @@ The web UI is a React SPA served by Curatarr's built-in HTTP server. It communic
 
 ### 7.1 Library View
 
-The primary view: all movies in a sortable, filterable table with inline quality chips derived from FFprobe hard checks. Quality chips are green (verified), amber (suspicious/unverified claim), or red (mismatch).
+The primary view: all movies in a sortable, filterable table with inline quality chips derived from FFprobe hard checks, batch selection, and tag management. Quality chips are green (verified), amber (suspicious/unverified), or red (mismatch).
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│  CURATARR  Movies (247)    [Scanner: idle]  ● 3 queue    [+ Add Movie]  [⚙ Settings]   │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│  Filter: [All ▼]  Quality: [All ▼]  HDR: [All ▼]  Sort: [Title A→Z ▼]  [🔍 Search  ] │
-├────────────────────────────┬───────────────────────────────────────┬────────┬──────────┤
-│  TITLE                     │  QUALITY                              │  SIZE  │  STATUS  │
-├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
-│  Alien: Romulus (2024)     │  [WEBDL-2160p] [DV✓] [HDR10✓] [Atmos✓] │ 23.1GB │  ✓ OK   │
-│                            │  FLUX · DSNP · 120 MB/min             │        │          │
-├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
-│  Ghost in the Shell (1995) │  [BDRip-2160p] [DV?] [HDR✓]           │  9.1GB │  ⚠ warn  │
-│                            │  NAHOM · no usenet NZB found           │        │          │
-├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
-│  Monsters, Inc. (2001)     │  [WEBDL-2160p] [DV✓] [HDR10✓] [Atmos✓] │ 12.1GB │  ✓ OK   │
-│                            │  HONE · DSNP · 130 MB/min             │        │          │
-├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
-│  The Substance (2024)      │  [BLU-2160p]   [HDR✓]  [AAC✗]         │  1.8GB │  ✗ fake  │
-│                            │  Unknown · size mismatch: 10 MB/min   │        │          │
-├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
-│  Shrek (2001)              │  [WEBDL-2160p] [HDR✓]  [AAC]          │ 11.5GB │  ✓ OK    │
-│                            │  playWEB · SKST · 103 MB/min          │        │          │
-└────────────────────────────┴───────────────────────────────────────┴────────┴──────────┘
-
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│  CURATARR  Movies (247)    [Scanner: idle]  ● 3 queue    [+ Add Movie]  [⚙ Settings]            │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  Status:[All▼]  Quality:[All▼]  HDR:[All▼]  Tag:[kids][×][4k-priority][×][+tag▼]              │
+│  Score: [0 — 10000] ──●────────────── min [500▲▼]   Sort:[Score ↓▼]   [🔍 Search title... ]   │
+├──────────────────────────────────────────────────────────────────────────────────────────────────┤
+│  [☐ Select all (247)]                         3 selected  [Tag ▼]  [Scout now]  [Change profile] │
+├──┬──────────────────────────┬──────────────────────────────────────┬────────┬───────────────────┤
+│☐ │  TITLE                   │  QUALITY                             │  SIZE  │  STATUS   SCORE   │
+├──┼──────────────────────────┼──────────────────────────────────────┼────────┼───────────────────┤
+│☑ │  Alien: Romulus (2024)   │  [WEBDL-2160p][DV✓][HDR10✓][Atmos✓] │ 23.1GB │  ✓ OK    +7800   │
+│  │  [kids] [4k-priority]    │  FLUX · DSNP · 120 MB/min           │        │                   │
+├──┼──────────────────────────┼──────────────────────────────────────┼────────┼───────────────────┤
+│☑ │  Ghost in the Shell '95  │  [BDRip-2160p][DV?][HDR✓]           │  9.1GB │  ⚠ warn   n/a    │
+│  │  [exceptional][anime]    │  Tier: lq · no usenet NZB found     │        │                   │
+├──┼──────────────────────────┼──────────────────────────────────────┼────────┼───────────────────┤
+│☐ │  Monsters, Inc. (2001)   │  [WEBDL-2160p][DV✓][HDR10✓][Atmos✓] │ 12.1GB │  ✓ OK    +7700   │
+│  │  [kids]                  │  HONE · DSNP · 130 MB/min           │        │                   │
+├──┼──────────────────────────┼──────────────────────────────────────┼────────┼───────────────────┤
+│☑ │  The Substance (2024)    │  [BLU-2160p][HDR✓][AAC✗]            │  1.8GB │  ✗ fake   n/a    │
+│  │                          │  lq · size mismatch: 10 MB/min      │        │                   │
+├──┼──────────────────────────┼──────────────────────────────────────┼────────┼───────────────────┤
+│☐ │  Shrek (2001)            │  [WEBDL-2160p][HDR✓][AAC]           │ 11.5GB │  ✓ OK    +3500   │
+│  │  [kids][exceptional]     │  playWEB · SKST · 103 MB/min        │        │                   │
+└──┴──────────────────────────┴──────────────────────────────────────┴────────┴───────────────────┘
   Showing 1-5 of 247  [‹ Prev]  [1] [2] ... [50]  [Next ›]
 ```
 
@@ -1294,14 +1608,30 @@ The primary view: all movies in a sortable, filterable table with inline quality
 - `[DV?]` — DV present in filename but file not yet scanned (amber)
 - `[DV✗]` — DV claimed but hard check failed (red)
 - `[Atmos✓]` / `[DTS-HD MA✓]` — audio profile verified
-- `[AAC]` — lossy audio, no lossless claim in filename (neutral, not a failure)
-- `[AAC✗]` — lossless audio claimed in filename but actual is AAC (red)
+- `[AAC]` — lossy audio, no lossless claim in filename (neutral)
+- `[AAC✗]` — lossless audio claimed but actual is AAC (red)
 
-**Status column:**
-- `✓ OK` — FFprobe verified, size within range, no issues
-- `⚠ warn` — FFprobe scan pending or soft concern (suspicious size, DV Profile 5)
-- `✗ fake` — one or more hard checks failed (mismatch verdict)
-- `↑ queue` — upgrade in SABnzbd/qBittorrent queue
+**Status / Score column:**
+- `✓ OK` / `⚠ warn` / `✗ fake` / `↑ queue` — FFprobe verdict
+- Score — last scout raw score for best available candidate (`n/a` = not yet scouted or no releases found)
+
+**Filters:**
+- **Tag filter** — multi-select chips; AND logic by default (AND/OR toggle available)
+- **Score filter** — slider or numeric input for min/max scout score; hides un-scouted rows when active
+- **Quality / HDR / Status** — standard dropdowns
+
+**Batch operations (active when ≥1 row selected):**
+
+| Action | Behaviour |
+|--------|-----------|
+| `Tag ▼` | Add or remove tags on all selected movies |
+| `Scout now` | Trigger an immediate scout session limited to selected movies |
+| `Change profile` | Update quality profile on all selected (prompts for target profile) |
+| `Mark skip-upgrade` | Add `skip-upgrade` tag to all selected |
+| `Scan files` | Run FFprobe on all selected movie files immediately |
+| `Move to Recycle` | Soft-delete files for all selected (with confirmation dialog) |
+
+"Select all" selects all rows matching the **current filter** — not the full library. The count badge updates to reflect the filtered set.
 
 ### 7.2 Movie Detail Page
 
@@ -1522,36 +1852,64 @@ The home screen: health panel, rate-limit gauges, library issues, and recent act
 
 ### 7.6 Settings Page
 
+Settings are organised into tabs. The **AI Provider** tab is where users enter their own LLM API key — Curatarr ships with no bundled key; users bring their own.
+
 ```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│  SETTINGS                                                                   │
-├─────────────────────────────────────────────────────────────────────────────┤
-│  General          Rate Limits          Recycle Bin          Danger Zone      │
-│  ─────────────────────────────────────────────────────────────────────────  │
-│  Timezone:                    [America/New_York        ▼]                   │
-│  Log Level:                   [Info                    ▼]                   │
-│  LLM Provider:                [Anthropic (Claude)      ▼]                   │
-│  LLM Model:                   [claude-sonnet-4-6          ]                 │
-│                                                                             │
-│  Rate Limits                                                                │
-│  ─────────────────────────────────────────────────────────────────────────  │
-│  Max movies per day:          [10        ]                                  │
-│  Scout session budget:        [30 min    ]  Movies per session: [10  ]      │
-│  Cooldown between grabs:      [30 min    ]                                  │
-│                                                                             │
-│  Recycle Bin                                                                │
-│  ─────────────────────────────────────────────────────────────────────────  │
-│  Recycle folder:              [/media/.curatarr-recycle                  ]  │
-│  Retention (days):            [30        ]  Max size (GB): [500       ]     │
-│                                                                             │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  DANGER ZONE                                                         │   │
-│  │  Allow permanent delete                              [ ] Enable      │   │
-│  │  When enabled, files bypass the recycle bin. Cannot be undone.      │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                    [Cancel]  [Save]         │
-└─────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  SETTINGS                                                                            │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│  [General]  [AI Provider]  [Services]  [Scoring Rules]  [Rate Limits]  [Danger Zone] │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  ── General ───────────────────────────────────────────────────────────────────────  │
+│  Timezone:              [America/New_York              ▼]                            │
+│  Log Level:             [Info                          ▼]                            │
+│  Language:              [English                       ▼]                            │
+│                                                                                      │
+│  ── AI Provider ────────────────────────────────────────────────────────────────────  │
+│  Provider:              [Anthropic (Claude)            ▼]                            │
+│                         ○ Anthropic   ○ OpenAI   ○ Ollama (local)   ○ OpenRouter    │
+│                                                                                      │
+│  API Key:               [sk-ant-••••••••••••••••••••••]    [Show] [Test connection] │
+│                         Stored encrypted in curatarr.sqlite. Never written to disk  │
+│                         in plaintext. Set via env var CURATARR_LLM_API_KEY to       │
+│                         avoid entering it in the UI.                                 │
+│                                                                                      │
+│  Model:                 [claude-sonnet-4-6             ]  ← type any model name     │
+│  Temperature:           [0.1      ]                                                  │
+│  Max tokens/session:    [50000    ]  ← cost guard; scout aborts if exceeded         │
+│                                                                                      │
+│  ┌ Ollama (local LLM — no API key required) ──────────────────────────────────────┐ │
+│  │  Base URL:  [http://localhost:11434        ]                                    │ │
+│  │  Model:     [llama3.3                      ]                                    │ │
+│  │  Note: local inference is slower; expect 5–30s per evaluation vs 1–3s cloud    │ │
+│  └────────────────────────────────────────────────────────────────────────────────┘ │
+│                                                                                      │
+│  [Test connection →]  Last test: ✓ 1.2s  claude-sonnet-4-6 responded correctly     │
+│                                                                                      │
+│  ── Rate Limits ────────────────────────────────────────────────────────────────────  │
+│  Max grabs per day:     [10       ]  Scout budget:    [30 min]  per session: [10]   │
+│  Cooldown between grabs:[30 min   ]  Disk pause if < [50  GB] free                 │
+│                                                                                      │
+│  ── Recycle Bin ────────────────────────────────────────────────────────────────────  │
+│  Recycle folder:        [/media/.curatarr-recycle                               ]   │
+│  Retention (days):      [30       ]  Max size (GB): [500      ]                    │
+│                                                                                      │
+│  ┌ Danger Zone ───────────────────────────────────────────────────────────────────┐  │
+│  │  Allow permanent delete              [ ] Enable                                │  │
+│  │  When enabled, files bypass the recycle bin. Cannot be undone.                │  │
+│  └────────────────────────────────────────────────────────────────────────────────┘  │
+│                                                                          [Save]      │
+└──────────────────────────────────────────────────────────────────────────────────────┘
 ```
+
+**API key storage:**
+- Keys are stored AES-256 encrypted in `curatarr.sqlite`, encrypted with a machine-derived key
+- Alternatively: set `CURATARR_LLM_API_KEY` env var — the env var always takes precedence over the stored value, making Docker secrets and `.env` files the recommended path for production deployments
+- Keys are never written to `config.yaml` or any plaintext file
+- The "Test connection" button sends a minimal `ping` prompt and shows latency + model echo
+
+**Scoring Rules tab** links to the drag-reorder card UI (§5.13.5) — editing scoring rules is a first-class settings action, not buried in config files.
 
 ### 7.7 Playback Verify UI
 
@@ -1907,3 +2265,9 @@ To keep Curatarr focused and maintainable, the following are explicitly out of s
 | 2026-02-28 | Ties explicitly surfaced in queue UI | When two candidates are within ~200 score points, the tie-break rule used is shown inline so the user can override if they prefer |
 | 2026-02-28 | FFprobe hard checks are binary pass/fail per claim | Scoring approaches can be gamed by keyword stuffing; hard checks on actual bitstream data cannot |
 | 2026-02-28 | DV Profile 5 always routes to intervention | Profile 5 requires a DV-capable display; auto-grabbing it risks silent colour corruption on HDR-only TVs |
+| 2026-02-28 | No specific group names in default config | Group names are community knowledge that changes; TRaSH sync is the authoritative source; config ships empty and auto-populates |
+| 2026-02-28 | LQ is a behavioral label, not a named list | Describes patterns (misleading filenames, re-encoding, inflated claims) rather than naming groups — avoids embedding opinions that become stale |
+| 2026-02-28 | Users supply their own LLM API key | No bundled key; CURATARR_LLM_API_KEY env var takes precedence; UI stores key encrypted in SQLite; never written to config.yaml |
+| 2026-02-28 | CF scoring rules as ordered YAML sentences | Human-readable, drag-reorderable in UI; replaces Radarr's opaque additive point system; SKILL.md rules are the opinionated shipped defaults |
+| 2026-02-28 | TRaSH sync is Phase 2 / P0 | Without group tier data the scoring is just size + quality tier; TRaSH sync makes repute-based decisions reliable |
+| 2026-02-28 | Batch operations select against current filter | "Select all" means all rows matching the active filter, not the full library — prevents accidental bulk operations on the entire collection |

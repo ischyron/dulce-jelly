@@ -8,76 +8,159 @@
 // ============================================================================
 
 export interface CuratarrConfig {
-  // Library paths
   library: {
     moviePaths: string[];
-    tvPaths: string[];  // Future: TV support
+    tvPaths: string[];
   };
 
-  // Indexer configuration (Newznab API)
   indexer: {
     url: string;
-    apiKey: string;
-    categories: {
-      movies: number[];  // Newznab category IDs
-      tv: number[];
-    };
+    // apiKey resolved from CURATARR_INDEXER_API_KEY env var or UI settings
+    categories: { movies: number[]; tv: number[] };
   };
 
-  // Download client
-  sabnzbd: {
+  downloadClients: {
+    usenet?: { type: 'sabnzbd' | 'nzbget'; url: string; category: string };
+    torrent?: { type: 'qbittorrent' | 'transmission' | 'deluge'; url: string; category: string };
+  };
+
+  mediaServer: {
+    type: 'jellyfin' | 'plex' | 'emby';
     url: string;
-    apiKey: string;
-    category: string;
+    // apiKey resolved from env or UI settings
   };
 
-  // TMDB for metadata
-  tmdb: {
-    apiKey: string;
-  };
+  tmdb: Record<string, never>;  // apiKey resolved from env or UI settings
 
-  // Jellyfin integration
-  jellyfin: {
-    url: string;
-    apiKey: string;
-  };
+  // LLM provider — user supplies their own key; never stored in config.yaml
+  llm: LLMProviderConfig;
 
-  // LLM configuration
-  // Note: Only OpenAI supported in MVP. Provider architecture coming later.
-  llm: {
-    provider: 'openai';  // Hardcoded for MVP
-    apiKey: string;
-    model: string;
-    temperature: number;
-    maxTokens: number;
-  };
+  // TRaSH guide sync
+  trash: TrashSyncConfig;
 
-  // Quality profiles
+  // Group reputation — merged with TRaSH-synced data at runtime
+  groupReputation: GroupReputationConfig;
+
   profiles: QualityProfile[];
-
-  // Cache settings
-  cache: {
-    dbPath: string;
-    searchTtlHours: number;
-    maxEntries: number;
-  };
-
-  // Release group reputation
-  groupReputation: {
-    tier1: string[];
-    tier2: string[];
-    tier3: string[];
-    blocked: string[];
-  };
-
-  // Rate limiting for upgrades
+  cache: { dbPath: string; searchTtlHours: number; maxEntries: number };
+  scout: ScoutConfig;
   rateLimits: RateLimitConfig;
-
-  // Recycle bin for deleted files
   recycleBin: RecycleBinConfig;
+  playbackVerification?: PlaybackVerificationConfig;
+}
 
-  // Automatic upgrade polling
-  upgradePolling: UpgradePollingConfig;
+// ============================================================================
+// LLM Provider
+// ============================================================================
+
+export type LLMProviderName = 'anthropic' | 'openai' | 'ollama' | 'openrouter';
+
+export interface LLMProviderConfig {
+  provider: LLMProviderName;
+  model: string;
+  temperature: number;
+  /** Cost guard: scout session aborts if this token budget is exceeded */
+  maxTokensPerSession: number;
+  /** Base URL for Ollama or OpenRouter */
+  baseUrl?: string;
+  // API key resolved from CURATARR_LLM_API_KEY env var first, then SQLite encrypted store.
+  // Never read from config.yaml.
+}
+
+// ============================================================================
+// TRaSH Guide Sync
+// ============================================================================
+
+export interface TrashSyncConfig {
+  enabled: boolean;
+  syncSchedule: string;          // Cron expression
+  source: 'github' | 'local';
+  localPath?: string;            // Path to cloned TRaSH-Guides repo (local only)
+}
+
+export interface TrashSyncStatus {
+  lastSync: string | null;
+  version: string | null;        // Git SHA of last synced TRaSH-Guides commit
+  groupCounts: { high: number; lq: number };
+  cfCount: number;
+}
+
+// ============================================================================
+// Group Reputation
+// ============================================================================
+
+export interface GroupReputationConfig {
+  // TRaSH sync auto-populates from Tier 01/02/03 CFs; manual entries merged on top
+  high: string[];
+  medium: string[];
+  // LQ describes a behavioral pattern: misleading filenames, re-encoding, inflated claims.
+  // TRaSH sync populates from the LQ custom format.
+  lq: string[];
+  blocked: string[];
+}
+
+export type GroupRepute = 'high' | 'medium' | 'lq' | 'blocked' | 'unknown';
+
+// ============================================================================
+// CF Scoring Rules
+// ============================================================================
+
+export interface ScoringRulesConfig {
+  tiebreakers: TiebreakerRule[];
+}
+
+export interface TiebreakerRule {
+  order: number;
+  name: string;
+  enabled: boolean;
+  /** Plain-English description; {{ param }} placeholders for interpolated values */
+  description: string;
+  params?: Record<string, number | string | boolean>;
+  exceptions?: string[];
+  /** If true, applies regardless of score gap (not a tiebreaker — a hard preference) */
+  strict?: boolean;
+}
+
+// ============================================================================
+// Movie Tags
+// ============================================================================
+
+export interface Tag {
+  id: number;
+  name: string;
+  color?: string;   // Hex colour for UI chip, e.g. "#4f46e5"
+  note?: string;
+}
+
+/** Suggested tag names — conventional, not enforced */
+export const SUGGESTED_TAGS = [
+  'kids',           // Lower quality threshold acceptable
+  '4k-priority',    // Scout 4K upgrade with higher urgency
+  'anime',          // Japanese animation — different audio/subtitle expectations
+  'exceptional',    // Manually marked — triggers Remux consideration in scout
+  'skip-upgrade',   // Do not scout upgrades; user is satisfied with current file
+  'waiting',        // Content not yet released; suppress scout noise
+] as const;
+
+export type SuggestedTag = (typeof SUGGESTED_TAGS)[number];
+
+// ============================================================================
+// Playback Verification
+// ============================================================================
+
+export interface PlaybackVerificationConfig {
+  enabled: boolean;
+  defaultMode: 'soft' | 'hard';
+  hardVerifyTimeoutSeconds: number;
+  clientProfiles: Record<string, ClientProfile>;
+}
+
+export interface ClientProfile {
+  container: string[];
+  videoCodecs: string[];
+  audioCodecs: string[];
+  maxChannels: number;
+  maxBitrateKbps: number;
 }
 
 // ============================================================================

@@ -1,0 +1,458 @@
+#!/usr/bin/env python3
+"""
+tv-probe — discover a smart TV on LAN and probe AV1/codec support via ADB.
+
+Usage:
+  tv-probe tcl              # auto-discover TCL TV, connect, probe
+  tv-probe samsung          # same for another brand
+  tv-probe 192.168.1.42     # skip discovery, use IP directly
+  tv-probe --list-brands    # show supported brand names
+
+Requires: adb   (brew install android-platform-tools)
+Optional: nmap  (brew install nmap)  — used as port-scan fallback
+"""
+
+import argparse, re, socket, subprocess, sys, time
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
+
+# ── OUI table: MAC prefix (first 3 octets, lowercase) → brand ─────────────────
+OUI_TABLE = {
+    # TCL
+    "54:b8:02": "tcl", "c4:70:0b": "tcl", "e4:aa:5d": "tcl",
+    "28:ba:b5": "tcl", "a8:4e:3f": "tcl", "00:1b:fb": "tcl",
+    "9c:8c:d8": "tcl", "b4:7c:9c": "tcl", "f0:43:47": "tcl",
+    "30:d3:2d": "tcl", "ec:f6:45": "tcl", "28:2c:b2": "tcl",
+    # Samsung
+    "00:12:47": "samsung", "a4:c4:94": "samsung", "e4:40:e2": "samsung",
+    "cc:e8:ac": "samsung", "3c:5a:b4": "samsung", "f0:e7:7e": "samsung",
+    "f4:7b:5e": "samsung", "34:14:5f": "samsung", "00:7f:28": "samsung",
+    # LG
+    "00:1e:75": "lg", "00:24:83": "lg", "a0:f1:dc": "lg",
+    "10:f9:6f": "lg", "04:b1:67": "lg", "bc:f5:ac": "lg",
+    # Sony
+    "00:13:a9": "sony", "00:1a:80": "sony", "ac:9b:0a": "sony",
+    "fc:0f:e6": "sony", "00:1d:ba": "sony", "28:0d:fc": "sony",
+    # Hisense
+    "cc:6d:a0": "hisense", "04:55:c8": "hisense", "28:76:cd": "hisense",
+    "e8:8d:28": "hisense", "50:86:5b": "hisense",
+    # Vizio
+    "00:60:d9": "vizio", "bc:8c:cd": "vizio", "74:13:ea": "vizio",
+    "c0:25:e9": "vizio", "d0:03:df": "vizio",
+    # Nvidia (Shield TV)
+    "00:04:4b": "nvidia", "04:4b:ed": "nvidia",
+    # Philips / TP Vision
+    "00:12:fb": "philips", "00:90:8f": "philips",
+    # Sharp
+    "00:e0:00": "sharp",
+}
+
+BRAND_ALIASES = {
+    "tcl": "tcl", "samsung": "samsung", "lg": "lg", "sony": "sony",
+    "hisense": "hisense", "vizio": "vizio", "nvidia": "nvidia",
+    "shield": "nvidia", "philips": "philips", "sharp": "sharp",
+}
+
+# MIME → friendly codec name
+MIME_MAP = {
+    "video/av01":           "AV1",
+    "video/hevc":           "HEVC / H.265",
+    "video/avc":            "H.264 / AVC",
+    "video/x-vnd.on2.vp9": "VP9",
+    "video/x-vnd.on2.vp8": "VP8",
+    "video/mp4v-es":        "MPEG-4",
+    "video/mpeg2":          "MPEG-2",
+}
+
+# Prefixes that identify hardware-accelerated decoders
+HW_PREFIXES = (
+    "omx.mtk.", "omx.qcom.", "omx.qti.", "omx.exynos.", "omx.hisi.",
+    "omx.rk.", "omx.amlogic.", "omx.aml.", "omx.brcm.", "omx.intel.",
+    "omx.nvidia.", "c2.mtk.", "c2.qti.", "c2.exynos.", "c2.hisi.",
+    "c2.rk.", "c2.amlogic.", "c2.nvidia.", "c2.broadcom.",
+)
+SW_PREFIXES = ("c2.android.", "omx.google.", "omx.sw.", "omx.ffmpeg.")
+
+
+# ── helpers ───────────────────────────────────────────────────────────────────
+
+def die(msg):
+    print(f"\n  ✗  {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def check_deps():
+    missing = []
+    for cmd in ("adb", "arp"):
+        if subprocess.run(["which", cmd], capture_output=True).returncode != 0:
+            missing.append(cmd)
+    if missing:
+        print("\n✗  Missing required tools:\n")
+        hints = {
+            "adb": "brew install android-platform-tools",
+            "arp": "built into macOS — reinstall via: brew install iproute2mac",
+        }
+        for m in missing:
+            print(f"   {m:6}  →  {hints.get(m, 'install manually')}")
+        print()
+        sys.exit(1)
+    has_nmap = subprocess.run(["which", "nmap"], capture_output=True).returncode == 0
+    return has_nmap
+
+
+# ── network discovery ─────────────────────────────────────────────────────────
+
+def arp_entries():
+    """Return list of (ip, mac_prefix_3octets) from macOS arp -a."""
+    out = subprocess.run(["arp", "-a"], capture_output=True, text=True).stdout
+    entries = []
+    for line in out.splitlines():
+        m = re.search(r'\(([0-9.]+)\).*at ([0-9a-f:]{5,17})', line, re.I)
+        if not m:
+            continue
+        ip  = m.group(1)
+        mac = m.group(2).lower()
+        # Normalize short octets: 5:72 → 05:72
+        parts  = [p.zfill(2) for p in mac.split(":")]
+        prefix = ":".join(parts[:3])
+        entries.append((ip, prefix))
+    return entries
+
+
+def local_subnet():
+    """Best-guess /24 subnet base from default route, e.g. '192.168.1'."""
+    try:
+        out = subprocess.run(
+            ["route", "-n", "get", "default"],
+            capture_output=True, text=True
+        ).stdout
+        m = re.search(r'gateway:\s+(\d+\.\d+\.\d+)', out)
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+    return "192.168.1"
+
+
+def probe_port(ip, port=5555, timeout=0.4):
+    try:
+        s = socket.create_connection((ip, port), timeout=timeout)
+        s.close()
+        return ip
+    except Exception:
+        return None
+
+
+def discover(brand):
+    """Return list of candidate IPs: OUI match first, port scan fallback."""
+    found = []
+
+    print(f"  Scanning ARP table for {brand.upper()} MAC prefixes ...")
+    for ip, prefix in arp_entries():
+        if OUI_TABLE.get(prefix) == brand:
+            print(f"  OUI match  →  {ip}  (prefix {prefix})")
+            found.append(ip)
+
+    if found:
+        return found
+
+    # Note: many modern TVs use MAC randomisation — OUI won't match
+    print("  No OUI match (TV may use randomised MAC) — scanning port 5555 ...")
+    base = local_subnet()
+    ips  = [f"{base}.{i}" for i in range(1, 255)]
+    with ThreadPoolExecutor(max_workers=64) as ex:
+        results = list(ex.map(probe_port, ips))
+    found = [ip for ip in results if ip]
+    if found:
+        print(f"  ADB port open  →  {', '.join(found)}")
+    return found
+
+
+# ── ADB ───────────────────────────────────────────────────────────────────────
+
+def adb(ip, args, timeout=20):
+    cmd = ["adb", "-s", f"{ip}:5555"] + args
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return r.stdout.strip()
+    except subprocess.TimeoutExpired:
+        return ""
+
+
+def adb_connect(ip):
+    r = subprocess.run(
+        ["adb", "connect", f"{ip}:5555"],
+        capture_output=True, text=True, timeout=10
+    )
+    out = r.stdout.lower() + r.stderr.lower()
+    return "connected" in out or "already connected" in out
+
+
+def device_info(ip):
+    props = {
+        "model":   "ro.product.model",
+        "brand":   "ro.product.brand",
+        "android": "ro.build.version.release",
+        "sdk":     "ro.build.version.sdk",
+        "chipset": "ro.board.platform",
+        "hw":      "ro.hardware",
+        "arch":    "ro.product.cpu.abi",
+    }
+    return {k: adb(ip, ["shell", "getprop", v]) or "?" for k, v in props.items()}
+
+
+# ── codec parsing ─────────────────────────────────────────────────────────────
+
+def hw_class(name):
+    """True = hardware, False = software, None = unknown."""
+    nl = name.lower()
+    if any(nl.startswith(p) for p in HW_PREFIXES):
+        return True
+    if any(nl.startswith(p) for p in SW_PREFIXES):
+        return False
+    return None
+
+
+def parse_codecs(ip):
+    """
+    Parse `dumpsys media.codec` → list of decoder dicts:
+      {mime, name, hw(bool|None), max_res(str|None)}
+
+    Handles two output formats:
+      Android 12+  MediaCodec{c2.mtk.av1.decoder, video/av01, rank=0}
+      Legacy       [codec name="c2.mtk.av1.decoder" type="video/av01"]
+    """
+    raw  = adb(ip, ["shell", "dumpsys", "media.codec"], timeout=25)
+    seen = set()
+    results = []
+
+    def add(name, mime, max_res=None):
+        key = (name.lower(), mime.lower())
+        if key in seen:
+            return
+        if not mime.lower().startswith("video/"):
+            return
+        if "encoder" in name.lower():
+            return
+        seen.add(key)
+        results.append({
+            "mime":    mime.lower(),
+            "name":    name,
+            "hw":      hw_class(name),
+            "max_res": max_res,
+        })
+
+    # Format 1: MediaCodec{name, mime, ...}
+    for m in re.finditer(
+        r'MediaCodec\{([^,\}]+),\s*(video/[^,\s\}]+)', raw, re.I
+    ):
+        add(m.group(1).strip(), m.group(2).strip())
+
+    # Format 2: [codec name="..." type="video/..."]
+    if not results:
+        for m in re.finditer(
+            r'codec[^"]*name="([^"]+)"[^/]*(?:type="(video/[^"]+)")?', raw, re.I
+        ):
+            name = m.group(1).strip()
+            mime = (m.group(2) or "").strip()
+            if not mime:
+                # type may be on the next line — scan nearby
+                pos   = m.end()
+                chunk = raw[pos:pos+200]
+                tm    = re.search(r'type[^"]*"(video/[^"]+)"', chunk, re.I)
+                mime  = tm.group(1).strip() if tm else ""
+            if mime:
+                add(name, mime)
+
+    # Try to enrich max_res from lines like:  size: 64x64-3840x2160
+    for entry in results:
+        short = entry["name"].lower().replace(".", r"\.")
+        pat   = re.compile(rf'{short}.*?size[:\s]+\S+-(\d+x\d+)', re.I | re.S)
+        m     = pat.search(raw[:8000])  # search first 8KB to avoid slow full scan
+        if m:
+            entry["max_res"] = m.group(1)
+
+    return results
+
+
+def best_per_mime(decoders):
+    """Keep best decoder per MIME: prefer HW, then highest res."""
+    best = {}
+    for d in decoders:
+        mime = d["mime"]
+        ex   = best.get(mime)
+        if not ex:
+            best[mime] = d
+        elif d["hw"] is True and ex["hw"] is not True:
+            best[mime] = d
+        elif d["max_res"] and not ex.get("max_res"):
+            best[mime]["max_res"] = d["max_res"]
+    return best
+
+
+# ── output ────────────────────────────────────────────────────────────────────
+
+def print_table(rows, headers):
+    if not rows:
+        return
+    w0  = max(len(headers[0]), max(len(r[0]) for r in rows))
+    w1  = max(len(headers[1]), max(len(r[1]) for r in rows))
+    sep = "  " + "─" * (w0 + w1 + 4 + 52)
+    print()
+    print(f"  {headers[0]:{w0}}  {headers[1]:{w1}}  {headers[2]}")
+    print(sep)
+    for prop, val, note in rows:
+        print(f"  {prop:{w0}}  {val:{w1}}  {note}")
+    print(sep)
+
+
+# ── main ─────────────────────────────────────────────────────────────────────
+
+def main():
+    ap = argparse.ArgumentParser(
+        description=__doc__,
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    ap.add_argument("target", nargs="?",
+                    help="Brand name (tcl, samsung…) or IP address")
+    ap.add_argument("--list-brands", action="store_true",
+                    help="List supported brand names")
+    args = ap.parse_args()
+
+    if args.list_brands:
+        print("\nSupported brands:")
+        for b in sorted(set(BRAND_ALIASES.values())):
+            print(f"  {b}")
+        print()
+        sys.exit(0)
+
+    if not args.target:
+        ap.print_help()
+        sys.exit(1)
+
+    check_deps()
+
+    # ── resolve IP ─────────────────────────────────────────────────────────
+    target = args.target.strip().lower()
+    print()
+
+    if re.match(r'^\d+\.\d+\.\d+\.\d+$', target):
+        ip = target
+        print(f"  Using IP directly: {ip}")
+    else:
+        brand = BRAND_ALIASES.get(target)
+        if not brand:
+            die(f"Unknown brand '{target}'. Run with --list-brands to see options.")
+        print(f"  Looking for {brand.upper()} TV on LAN ...")
+        ips = discover(brand)
+        if not ips:
+            print()
+            print("  ✗  No TV found.\n")
+            print("  To enable ADB over WiFi on Google TV / Android TV:")
+            print("    Settings → System → About → click Build number 7× (unlocks Developer Options)")
+            print("    Settings → System → Developer Options → USB debugging ON + Network debugging ON")
+            print("    Some TCL firmware labels this 'ADB debugging' only.")
+            print()
+            sys.exit(1)
+        ip = ips[0]
+        if len(ips) > 1:
+            print(f"  Multiple devices found: {ips}")
+            print(f"  Using: {ip}  (pass IP directly to target another)")
+
+    # ── ADB connect ────────────────────────────────────────────────────────
+    print(f"\n  Connecting  →  {ip}:5555 ...")
+    if not adb_connect(ip):
+        print()
+        print(f"  ✗  ADB connection failed to {ip}:5555\n")
+        print("  Check:")
+        print("    • Developer Options → USB debugging is ON")
+        print("    • Network debugging / ADB over WiFi is ON")
+        print("    • Accept the authorisation prompt that appeared on the TV screen")
+        print(f"    • Manual test: adb connect {ip}:5555")
+        print()
+        sys.exit(1)
+
+    # ── device info ────────────────────────────────────────────────────────
+    print("  Gathering device info ...")
+    info    = device_info(ip)
+    brand_s = info["brand"].title()
+    model   = f"{brand_s} {info['model']}".strip()
+    android = f"Android {info['android']}  (API {info['sdk']})"
+    chipset = info["chipset"] if info["chipset"] not in ("?", "") else info["hw"]
+    arch    = info["arch"]
+
+    bar = "─" * max(0, 54 - len(model) - len(ip))
+    print()
+    print(f"  ┌─ {model}  @  {ip}  {bar}┐")
+    print(f"  │  {android}")
+    print(f"  │  Chipset  {chipset}    Arch  {arch}")
+    print(f"  └{'─' * 56}┘")
+
+    # ── codec probe ────────────────────────────────────────────────────────
+    print("\n  Probing codecs (may take a few seconds) ...")
+    decoders = parse_codecs(ip)
+    best     = best_per_mime(decoders)
+
+    codec_rows = []
+    priority_mimes = [
+        "video/av01",
+        "video/hevc",
+        "video/avc",
+        "video/x-vnd.on2.vp9",
+        "video/x-vnd.on2.vp8",
+        "video/mp4v-es",
+        "video/mpeg2",
+    ]
+    for mime in priority_mimes:
+        friendly = MIME_MAP.get(mime, mime)
+        entry    = best.get(mime)
+        if not entry:
+            codec_rows.append((friendly, "✗ Not found", ""))
+            continue
+
+        hw = entry["hw"]
+        if hw is True:
+            hw_str = "✓ Hardware"
+        elif hw is False:
+            hw_str = "  Software"
+        else:
+            hw_str = "  Unknown"
+
+        res  = entry["max_res"] or "?"
+        name = re.sub(r'^(?:omx|c2)\.[^.]+\.', '', entry["name"], flags=re.I)
+
+        if mime == "video/av01":
+            if hw is True:
+                note = f"HW decode confirmed · max {res} · {name}"
+            elif hw is False:
+                note = f"⚠ SW only — Jellyfin will transcode · {name}"
+            else:
+                note = f"Decoder found, HW status unknown · {name}"
+        else:
+            note = f"max {res} · {name}" if res != "?" else name
+
+        codec_rows.append((friendly, hw_str, note))
+
+    print_table(codec_rows, ("Codec", "Decode", "Details"))
+
+    # ── audio passthrough (static — known Android TV / Google TV behaviour) ──
+    audio_rows = [
+        ("DD+ / EAC3",       "✓ Passthrough",    "Native on Android TV + Sonos"),
+        ("Dolby Atmos",      "✓ Passthrough",    "DD+ Atmos / DDPA — object metadata preserved"),
+        ("AC3",              "✓ Passthrough",    "Dolby Digital — native"),
+        ("TrueHD / Atmos",   "✗ No passthrough", "Transcodes to AC3; Atmos object layer lost"),
+        ("DTS-HD MA",        "✗ No passthrough", "Transcodes to AC3; lossless not delivered"),
+        ("DTS:X",            "✗ No passthrough", "Object layer lost on transcode"),
+        ("DTS core",         "⚠ Limited",        "Passthrough inconsistent; may transcode"),
+        ("AAC",              "✓ Decode",         "Native decode; no transcode"),
+        ("PCM / FLAC",       "✗ No passthrough", "Lossless — Jellyfin transcodes; Android TV cannot passthrough"),
+    ]
+    print()
+    print("  Audio passthrough  (Android TV / Google TV — all devices)")
+    print_table(audio_rows, ("Format", "Status", "Note"))
+
+    print()
+
+
+if __name__ == "__main__":
+    main()

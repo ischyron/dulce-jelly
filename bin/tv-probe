@@ -1,56 +1,31 @@
 #!/usr/bin/env python3
 """
-tv-probe — discover a smart TV on LAN and probe AV1/codec support via ADB.
+tv-probe — discover smart TVs on LAN, or probe Android/Google TV codecs via ADB.
 
 Usage:
-  tv-probe tcl              # auto-discover TCL TV, connect, probe
-  tv-probe samsung          # same for another brand
-  tv-probe 192.168.1.42     # skip discovery, use IP directly
-  tv-probe --list-brands    # show supported brand names
+  tv-probe                    # ARP-based LAN probe for likely TVs
+  tv-probe <query>           # LAN probe filtered by free-text query
+  tv-probe 192.168.1.42      # direct ADB codec probe for known IP
 
 Requires: adb   (brew install android-platform-tools)
 Optional: nmap  (brew install nmap)  — used as port-scan fallback
 """
 
-import argparse, re, socket, subprocess, sys, time
+import argparse, ipaddress, json, re, socket, ssl, subprocess, sys, time
 from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
-# ── OUI table: MAC prefix (first 3 octets, lowercase) → brand ─────────────────
-OUI_TABLE = {
-    # TCL
-    "54:b8:02": "tcl", "c4:70:0b": "tcl", "e4:aa:5d": "tcl",
-    "28:ba:b5": "tcl", "a8:4e:3f": "tcl", "00:1b:fb": "tcl",
-    "9c:8c:d8": "tcl", "b4:7c:9c": "tcl", "f0:43:47": "tcl",
-    "30:d3:2d": "tcl", "ec:f6:45": "tcl", "28:2c:b2": "tcl",
-    # Samsung
-    "00:12:47": "samsung", "a4:c4:94": "samsung", "e4:40:e2": "samsung",
-    "cc:e8:ac": "samsung", "3c:5a:b4": "samsung", "f0:e7:7e": "samsung",
-    "f4:7b:5e": "samsung", "34:14:5f": "samsung", "00:7f:28": "samsung",
-    # LG
-    "00:1e:75": "lg", "00:24:83": "lg", "a0:f1:dc": "lg",
-    "10:f9:6f": "lg", "04:b1:67": "lg", "bc:f5:ac": "lg",
-    # Sony
-    "00:13:a9": "sony", "00:1a:80": "sony", "ac:9b:0a": "sony",
-    "fc:0f:e6": "sony", "00:1d:ba": "sony", "28:0d:fc": "sony",
-    # Hisense
-    "cc:6d:a0": "hisense", "04:55:c8": "hisense", "28:76:cd": "hisense",
-    "e8:8d:28": "hisense", "50:86:5b": "hisense",
-    # Vizio
-    "00:60:d9": "vizio", "bc:8c:cd": "vizio", "74:13:ea": "vizio",
-    "c0:25:e9": "vizio", "d0:03:df": "vizio",
-    # Nvidia (Shield TV)
-    "00:04:4b": "nvidia", "04:4b:ed": "nvidia",
-    # Philips / TP Vision
-    "00:12:fb": "philips", "00:90:8f": "philips",
-    # Sharp
-    "00:e0:00": "sharp",
-}
-
-BRAND_ALIASES = {
-    "tcl": "tcl", "samsung": "samsung", "lg": "lg", "sony": "sony",
-    "hisense": "hisense", "vizio": "vizio", "nvidia": "nvidia",
-    "shield": "nvidia", "philips": "philips", "sharp": "sharp",
+# ── Known TV OUI prefixes (first 3 octets, lowercase) ────────────────────────
+KNOWN_TV_OUI_PREFIXES = {
+    "54:b8:02", "c4:70:0b", "e4:aa:5d", "28:ba:b5", "a8:4e:3f", "00:1b:fb",
+    "9c:8c:d8", "b4:7c:9c", "f0:43:47", "30:d3:2d", "ec:f6:45", "28:2c:b2",
+    "00:12:47", "a4:c4:94", "e4:40:e2", "cc:e8:ac", "3c:5a:b4", "f0:e7:7e",
+    "f4:7b:5e", "34:14:5f", "00:7f:28", "00:1e:75", "00:24:83", "a0:f1:dc",
+    "10:f9:6f", "04:b1:67", "bc:f5:ac", "00:13:a9", "00:1a:80", "ac:9b:0a",
+    "fc:0f:e6", "00:1d:ba", "28:0d:fc", "cc:6d:a0", "04:55:c8", "28:76:cd",
+    "e8:8d:28", "50:86:5b", "00:60:d9", "bc:8c:cd", "74:13:ea", "c0:25:e9",
+    "d0:03:df", "00:04:4b", "04:4b:ed", "00:12:fb", "00:90:8f", "00:e0:00",
 }
 
 # MIME → friendly codec name
@@ -72,6 +47,7 @@ HW_PREFIXES = (
     "c2.rk.", "c2.amlogic.", "c2.nvidia.", "c2.broadcom.",
 )
 SW_PREFIXES = ("c2.android.", "omx.google.", "omx.sw.", "omx.ffmpeg.")
+LAN_PROBE_PORTS = (7000, 8008, 8009, 8443)
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────
@@ -81,9 +57,10 @@ def die(msg):
     sys.exit(1)
 
 
-def check_deps():
+def check_deps(require_adb=True):
     missing = []
-    for cmd in ("adb", "arp"):
+    required = ["arp"] + (["adb"] if require_adb else [])
+    for cmd in required:
         if subprocess.run(["which", cmd], capture_output=True).returncode != 0:
             missing.append(cmd)
     if missing:
@@ -134,38 +111,178 @@ def local_subnet():
     return "192.168.1"
 
 
-def probe_port(ip, port=5555, timeout=0.4):
+def host_port_open(ip, port, timeout=0.35):
     try:
-        s = socket.create_connection((ip, port), timeout=timeout)
-        s.close()
-        return ip
+        with socket.create_connection((ip, port), timeout=timeout):
+            return True
     except Exception:
-        return None
+        return False
 
 
-def discover(brand):
-    """Return list of candidate IPs: OUI match first, port scan fallback."""
-    found = []
+def scan_open_ports(ips):
+    open_map = {ip: [] for ip in ips}
 
-    print(f"  Scanning ARP table for {brand.upper()} MAC prefixes ...")
-    for ip, prefix in arp_entries():
-        if OUI_TABLE.get(prefix) == brand:
-            print(f"  OUI match  →  {ip}  (prefix {prefix})")
-            found.append(ip)
+    def check(item):
+        ip, port = item
+        return ip, port, host_port_open(ip, port)
 
-    if found:
-        return found
+    tasks = [(ip, port) for ip in ips for port in LAN_PROBE_PORTS]
+    with ThreadPoolExecutor(max_workers=128) as ex:
+        for ip, port, is_open in ex.map(check, tasks):
+            if is_open:
+                open_map[ip].append(port)
 
-    # Note: many modern TVs use MAC randomisation — OUI won't match
-    print("  No OUI match (TV may use randomised MAC) — scanning port 5555 ...")
+    for ip in open_map:
+        open_map[ip].sort()
+    return open_map
+
+
+def http_probe(ip, port, path="/", timeout=1.5):
+    scheme = "https" if port in (443, 8443) else "http"
+    url = f"{scheme}://{ip}:{port}{path}"
+    req = Request(url, headers={"User-Agent": "tv-probe/1.0", "Connection": "close"})
+    context = ssl._create_unverified_context() if scheme == "https" else None
+    try:
+        with urlopen(req, timeout=timeout, context=context) as resp:
+            body = resp.read(2048).decode("utf-8", errors="ignore")
+            headers = "\n".join(f"{k}: {v}" for k, v in resp.headers.items()).lower()
+            return True, headers, body.lower()
+    except Exception:
+        return False, "", ""
+
+
+def classify_device(ip, open_ports):
+    score = 0
+    reasons = []
+    details = []
+    cast_text = ""
+    model = None
+
+    # Chromecast / Google TV endpoint
+    if 8008 in open_ports:
+        ok, _, body = http_probe(ip, 8008, "/setup/eureka_info?params=name,model_name")
+        if ok and ("eureka_info" in body or '"model_name"' in body or "chromecast" in body):
+            score += 5
+            reasons.append("Google Cast endpoint")
+            try:
+                payload = json.loads(body)
+                cast_name = payload.get("name")
+                cast_model = payload.get("model_name")
+                if cast_name or cast_model:
+                    details.append(
+                        "cast: "
+                        + (cast_name or "?")
+                        + (" / " + cast_model if cast_model else "")
+                    )
+                    cast_text = f"{cast_name or ''} {cast_model or ''}".strip()
+            except Exception:
+                pass
+            if not model:
+                for key in ('"model_name"', '"name"'):
+                    m = re.search(rf'{key}\s*:\s*"([^"]+)"', body, re.I)
+                    if m:
+                        model = m.group(1).strip()
+                        break
+
+    return {
+        "ip": ip,
+        "model": model or "?",
+        "score": score,
+        "ports": open_ports,
+        "reasons": reasons,
+        "details": details,
+        "cast_text": cast_text,
+    }
+
+
+def arp_prefix_for_ip(ip):
+    for e_ip, prefix in arp_entries():
+        if e_ip == ip:
+            return prefix
+    return None
+
+
+def probe_single_ip(ip):
+    open_ports = [p for p in LAN_PROBE_PORTS if host_port_open(ip, p)]
+    return classify_device(ip, open_ports)
+
+
+def lan_probe(cast_filter=None):
+    if cast_filter:
+        print(f"\n  LAN probe: scanning ARP neighbors for cast query '{cast_filter}' ...")
+    else:
+        print("\n  LAN probe: scanning ARP neighbors for TV fingerprints ...")
+    entries = arp_entries()
+    if not entries:
+        print("  No ARP neighbors found.")
+        return 1
+
     base = local_subnet()
-    ips  = [f"{base}.{i}" for i in range(1, 255)]
-    with ThreadPoolExecutor(max_workers=64) as ex:
-        results = list(ex.map(probe_port, ips))
-    found = [ip for ip in results if ip]
-    if found:
-        print(f"  ADB port open  →  {', '.join(found)}")
-    return found
+    candidates = []
+    for ip, prefix in entries:
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            continue
+        if not addr.is_private or addr.is_multicast:
+            continue
+        if not ip.startswith(f"{base}."):
+            continue
+        candidates.append((ip, prefix))
+
+    # de-dupe while preserving order
+    seen_ips = set()
+    deduped = []
+    for ip, prefix in candidates:
+        if ip in seen_ips:
+            continue
+        seen_ips.add(ip)
+        deduped.append((ip, prefix))
+
+    if not deduped:
+        print(f"  No private neighbors in {base}.0/24 found.")
+        return 1
+
+    print(f"  Probing {len(deduped)} hosts on common TV ports ...")
+    ip_to_prefix = {ip: prefix for ip, prefix in deduped}
+    open_map = scan_open_ports(list(ip_to_prefix.keys()))
+
+    results = []
+    for ip, prefix in deduped:
+        open_ports = open_map.get(ip, [])
+        if not open_ports:
+            continue
+        result = classify_device(ip, open_ports)
+        if result["score"] > 0:
+            results.append(result)
+
+    if cast_filter:
+        needle = cast_filter.lower()
+        results = [r for r in results if needle in r.get("cast_text", "").lower()]
+
+    if not results:
+        if cast_filter:
+            print(f"  No likely TV devices matched cast query '{cast_filter}'.")
+        else:
+            print("  No likely TV devices detected from current ARP set.")
+        return 1
+
+    results.sort(key=lambda x: (-x["score"], x["ip"]))
+    print()
+    print("  Likely TV devices:")
+    print("  IP               Score  Open Ports                  Evidence")
+    print("  -------------------------------------------------------------------------------------------")
+    for r in results:
+        ports = ",".join(str(p) for p in r["ports"]) if r["ports"] else "-"
+        reason = "; ".join(r["reasons"][:2]) if r["reasons"] else "-"
+        detail = "; ".join(r.get("details", [])[:1])
+        evidence = f"{reason} | {detail}" if detail else reason
+        print(f"  {r['ip']:<15}  {r['score']:<5}  {ports:<25}  {evidence}")
+
+    print()
+    print("  Tip: run `tv-probe <ip>` against a candidate with port 5555 open for codec details.")
+    print()
+    return 0
 
 
 # ── ADB ───────────────────────────────────────────────────────────────────────
@@ -314,7 +431,7 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     ap.add_argument("target", nargs="?",
-                    help="Brand name (tcl, samsung…) or IP address")
+                    help="IP for ADB probe, or brand filter for LAN scan (tcl, samsung...)")
     ap.add_argument("--list-brands", action="store_true",
                     help="List supported brand names")
     args = ap.parse_args()
@@ -326,38 +443,40 @@ def main():
         print()
         sys.exit(0)
 
+    # Default mode: LAN scan of ARP-discovered hosts
     if not args.target:
-        ap.print_help()
-        sys.exit(1)
+        check_deps(require_adb=False)
+        sys.exit(lan_probe())
 
-    check_deps()
-
-    # ── resolve IP ─────────────────────────────────────────────────────────
     target = args.target.strip().lower()
+
+    # Brand string => LAN scan with brand filter
+    if not re.match(r'^\d+\.\d+\.\d+\.\d+$', target):
+        check_deps(require_adb=False)
+        brand = BRAND_ALIASES.get(target, target)
+        sys.exit(lan_probe(brand_filter=brand))
+
+    # IP => ADB codec probe path
+    check_deps(require_adb=True)
     print()
 
+    # ── resolve IP ─────────────────────────────────────────────────────────
     if re.match(r'^\d+\.\d+\.\d+\.\d+$', target):
         ip = target
         print(f"  Using IP directly: {ip}")
     else:
-        brand = BRAND_ALIASES.get(target)
-        if not brand:
-            die(f"Unknown brand '{target}'. Run with --list-brands to see options.")
-        print(f"  Looking for {brand.upper()} TV on LAN ...")
-        ips = discover(brand)
-        if not ips:
-            print()
-            print("  ✗  No TV found.\n")
-            print("  To enable ADB over WiFi on Google TV / Android TV:")
-            print("    Settings → System → About → click Build number 7× (unlocks Developer Options)")
-            print("    Settings → System → Developer Options → USB debugging ON + Network debugging ON")
-            print("    Some TCL firmware labels this 'ADB debugging' only.")
-            print()
-            sys.exit(1)
-        ip = ips[0]
-        if len(ips) > 1:
-            print(f"  Multiple devices found: {ips}")
-            print(f"  Using: {ip}  (pass IP directly to target another)")
+        die("Internal error: target is not an IP address")
+
+    # Show transparent non-ADB fingerprint evidence first
+    fp = probe_single_ip(ip)
+    fp_ports = ",".join(str(p) for p in fp["ports"]) if fp["ports"] else "-"
+    fp_reason = "; ".join(fp["reasons"][:2]) if fp["reasons"] else "no TV markers"
+    fp_detail = "; ".join(fp.get("details", [])[:1])
+    print(f"  Fingerprint   →  ports [{fp_ports}]")
+    if fp_detail:
+        print(f"  Evidence      →  {fp_reason} | {fp_detail}")
+    else:
+        print(f"  Evidence      →  {fp_reason}")
 
     # ── ADB connect ────────────────────────────────────────────────────────
     print(f"\n  Connecting  →  {ip}:5555 ...")

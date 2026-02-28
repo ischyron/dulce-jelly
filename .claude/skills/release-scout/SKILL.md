@@ -10,6 +10,20 @@ Given a movie title (and optional year), fetch all available releases from Radar
 
 ---
 
+## Configuration
+
+Tuneable parameters read from `.env` (or environment) with defaults. Set any of these in `.env` to override without touching the skill logic.
+
+| Variable | Default | Description |
+|---|---|---|
+| `REMUX_MAX_GB` | `55` | Hard size ceiling for Remux releases (GB). Any Remux above this is dropped, even from High-repute groups. Exists because Remux files (40–100 GB) can exceed quota or storage budgets. |
+| `SCOUT_RADARR_PORT` | `3273` | Radarr port (overrides CLAUDE.md default if set) |
+| `SCOUT_SABNZBD_PORT` | `3274` | SABnzbd port |
+
+**Skills support configuration natively** — they are plain bash/python, so any variable sourced from `.env` is automatically available. No plugin or framework change needed. Just add `REMUX_MAX_GB=55` to `.env`.
+
+---
+
 ## Execution Steps
 
 ### 1. Load credentials and create session directory
@@ -19,6 +33,13 @@ source .env 2>/dev/null
 # Available after source: $RADARR_API_KEY, $SABNZBD_API_KEY
 # qBittorrent has no API key — all grabs (usenet and torrent) go through Radarr's
 # POST /api/v3/release endpoint. Verify via GET /api/v3/queue (covers both protocols).
+
+# Configurable parameters (override in .env; defaults applied here)
+REMUX_MAX_GB=${REMUX_MAX_GB:-55}
+RADARR_PORT=${SCOUT_RADARR_PORT:-${RADARR_PORT:-3273}}
+SABNZBD_PORT=${SCOUT_SABNZBD_PORT:-${SABNZBD_PORT:-3274}}
+
+echo "Config: REMUX_MAX_GB=${REMUX_MAX_GB}  RADARR_PORT=${RADARR_PORT}  SABNZBD_PORT=${SABNZBD_PORT}"
 
 # Session temp directory — all intermediate files land here
 SCOUT_TS=$(date '+%d%b-%I%M%p' | tr '[:upper:]' '[:lower:]')  # e.g. 28feb-0230pm
@@ -130,7 +151,18 @@ When scouting for YTS/LQ replacements, assess urgency before grabbing. Apply in 
 
 ### Remux policy
 
-Remux files are 40–80 GB for a 4K title and our CF score penalises them (-1000) by default. The single gate is whether the title is **exceptional**.
+Remux files are 40–80 GB for a 4K title and our CF score penalises them (-1000) by default. Two gates apply: size cap and exceptional status.
+
+**Size cap (`REMUX_MAX_GB`, default 55 GB):** Any Remux release above this threshold is dropped before the exceptional check, regardless of group repute. This is a hard storage/quota constraint. Show it in DROPPED as:
+```
+ Remux-2160p    93.0GB   usenet   High      FraMeSToR     over REMUX_MAX_GB cap (93GB > 55GB)
+```
+If all Remux candidates exceed the cap, note it prominently:
+```
+⚠ Remux excluded — all Remux releases exceed REMUX_MAX_GB=55GB (smallest: 90.6GB). Increase REMUX_MAX_GB in .env to unlock.
+```
+
+The single remaining gate for Remux within the size cap is whether the title is **exceptional**.
 
 **Exceptional title → Remux preferred, overrides any WEB decision.**
 
@@ -244,14 +276,22 @@ Use `⚠ Remux excluded` (not just a generic dropped line) whenever the title's 
 | HDR CF | +10 |
 | DD+ / DDP / EAC3 audio | +8 |
 | DTS-HD MA | 0 — no bonus; deprioritised (Google TV requires transcode; Sonos passthrough unsupported) |
+| AV1 video codec | −30 — compatibility penalty; many Google TV/Android TV chipsets lack AV1 hardware decode, forcing full video transcode |
 | Scene CF (verified group) | +5 |
 | usenet protocol | +10 |
+
+**AV1 codec note:** AV1 is a score penalty, not a hard drop. It is a modern, efficient codec but hardware decode support on Google TV (Android TV) varies widely by chipset generation. When AV1 is present:
+- Apply the −30 score penalty.
+- Always flag in FLAGS: `⚠ AV1 (transcode risk on Google TV)`.
+- If no H.264/H.265 alternative exists at the same quality tier, keep the AV1 release and annotate: `⚠ AV1 only option at this tier; validate playback before grab`.
+- When AV1 + DTS-HD MA are both present (the worst-case combo), both penalties apply and the FLAGS note becomes: `⚠ AV1 + DTS-HD MA — full transcode likely on Google TV`.
 
 **Playback-Risk Heuristic (name-based; soft penalty, never auto-drop):**
 
 - Base gate (must match):
   - `2160p` AND (`DV`/`DoVi` OR `HDR`/`HDR10`/`HDR10+`)
 - Risk points (additive):
+  - `+20` if `AV1` appears in release name or title (codec compatibility risk — equivalent to DTS-HD MA; playback issues on Google TV)
   - `+10` if `x265` or `H.265` appears in release name
   - `+10` if `7.1` appears in release name
   - `+20` if `TrueHD` or `DTS-HD MA` or `DTS:X` appears in release name
@@ -431,34 +471,53 @@ State the profile assessment prominently at the top of the scout output, especia
 
 ### 7. Present ranked output
 
-Always output this exact table format (usenet first within each rank tier):
+Always use the table format below. Header block first, then CANDIDATES table, then DROPPED table. Both tables include a PROTO column (usenet / torrent) so the source is visible at a glance in both sections.
 
 ```
-Movie: <Title> (<Year>) | Runtime: <N>min | Profile: <name> | Status: <hasFile> | Lang: <originalLang> | MC:<val> RT:<val>% IMDb:<val> (<votes> votes)
-         ↑ RT is primary critic signal; if RT unavailable (?), IMDb is the fallback. MC is always shown when available. Vote count is a corroborating indicator only — see vote signal rules below.
-⚠ Non-English original (French) — English-only releases dropped; prefer MULTI or original+EN alternate  ← include this line only when originalLang ≠ English
-Rejection reason (if all blocked): <reason>
+Movie: <Title> (<Year>)   Runtime: <N>min   Profile: <name>   Status: <hasFile>
+Lang: <originalLang>   MC:<val>  RT:<val>%  IMDb:<val> (<votes> votes)
+  ↑ RT is primary; IMDb fallback when RT unavailable. Votes are corroborating only.
+⚠ Non-English original (<lang>) — English-only releases dropped; prefer MULTI or original+EN
+  ← include the line above only when originalLang ≠ English
+⚠ TORRENT ONLY — no usenet release passed filters. Confirm to proceed.
+  ← include only when every candidate is torrent
 
-RANK  SCORE  QUAL            SIZE    LANG   REPUTE   PROTO    SOURCE/GROUP        FLAGS
-   1  +XXX   WEBDL-2160p    12.3GB  EN     High     usenet   ETHEL (Scene)       HDR — recommended
-         → Shelter.2026.HDR.2160p.WEB.h265-ETHEL
-   2  +XXX   WEBDL-2160p    14.8GB  EN     Medium   usenet   QHstudIo (iTunes)   HDR10+, unverified group
-         → Shelter.2026.2160p.iTunes.WEB-DL.HEVC.10bit.HDR10+.DD5.1.2Audios-QHstudIo
-   3  +XXX   WEBDL-1080p     6.7GB  EN     Medium   usenet   TORK (AMZN)         Best 1080p; switch profile to HD
-         → Shelter.2026.Siginak.AMZN.WEB-DL.1080p.H.264.DD5.1.E.AC3.ENG.TORK
-   4  +XXX   WEBDL-1080p     5.9GB  EN     Medium   torrent  KyoGo (AMZN)        Torrent only
-         → Shelter.2026.1080p.AMZN.WEB-DL.DDP5.1.H.264-KyoGo
-   5  +XXX   WEBRip-1080p    1.5GB  EN     Medium   usenet   NeoNoir             Compact re-encode; WEBRip source
-         → Shelter.2026.1080p.WEBRip.10Bit.DDP.5.1.x265-NeoNoir
+CANDIDATES (<N> ranked) ──────────────────────────────────────────────────────────────────────
+ #   SCORE    QUALITY         SIZE     PROTO    REPUTE    GROUP              AUDIO      FLAGS
+──────────────────────────────────────────────────────────────────────────────────────────────
+ 1   +XXX     WEBDL-2160p    12.3GB   usenet   High      ETHEL (Scene)      DD+        HDR — recommended
+              → Shelter.2026.HDR.2160p.WEB.h265-ETHEL
+              1-line reasoning note
+ 2   +XXX     WEBDL-2160p    14.8GB   usenet   Medium    QHstudIo (iTunes)  DD+        HDR10+
+              → Shelter.2026.2160p.iTunes.WEB-DL.HEVC.10bit.HDR10+.DD5.1.2Audios-QHstudIo
+              Unverified group lifted by iTunes source
+ 3   +XXX     WEBDL-1080p     6.7GB   usenet   Medium    TORK (AMZN)        DD+        —
+              → Shelter.2026.Siginak.AMZN.WEB-DL.1080p.H.264.DD5.1.E.AC3.ENG.TORK
+              Best 1080p; switch profile to HD if keeping
+ 4   +XXX     WEBDL-1080p     5.9GB   torrent  Medium    KyoGo (AMZN)       DD+        torrent only — last resort
+              → Shelter.2026.1080p.AMZN.WEB-DL.DDP5.1.H.264-KyoGo
+              No usenet equivalent; torrent fallback
+ 5   +XXX     WEBRip-1080p    1.5GB   usenet   Medium    NeoNoir            DD+        WEBRip re-encode
+              → Shelter.2026.1080p.WEBRip.10Bit.DDP.5.1.x265-NeoNoir
+              Compact re-encode; WEBRip source
 
-DROPPED (N filtered):
-  - Slay3R 4K [Medium]: French only (MULTi/VFQ), English alternative available
-  - ETHEL 4K SDR [High]: SDR — HDR alternative exists
-  - BTM 4K [Low]: LQ group flagged by TRaSH
-  - 3× TELESYNC: quality tier blocked
+DROPPED (<N> filtered) ───────────────────────────────────────────────────────────────────────
+ QUALITY         SIZE     PROTO    REPUTE    GROUP              REASON
+──────────────────────────────────────────────────────────────────────────────────────────────
+ WEBDL-2160p    14.2GB   usenet   Medium    Slay3R             French only (MULTi/VFQ); English alternative exists
+ WEBDL-2160p    12.1GB   usenet   High      ETHEL              SDR — HDR alternative exists
+ WEBDL-2160p     8.9GB   usenet   Low       BTM                LQ group flagged by TRaSH
+ TELESYNC        1.1GB   torrent  Low       (3 releases)       quality tier blocked
+──────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
-Include a 1-line reasoning note per ranked entry. Always show the full release filename on the indented line below each rank. For dropped entries, include the group's repute label so the user understands what was discarded. List all dropped releases with reason.
+Rules:
+- Show PROTO (usenet / torrent) in both CANDIDATES and DROPPED — never omit it.
+- Show the full release filename indented under each candidate row (→ prefix).
+- Follow with a 1-line reasoning note on the next indented line.
+- For DROPPED: one row per release (or one summary row for bulk-same-reason groups like "3× TELESYNC").
+- Include repute in DROPPED so the user knows what was discarded and why.
+- Remux candidates that require confirmation appear in CANDIDATES with score shown as `—` and an explicit confirm note in FLAGS.
 
 ### 8. Push confirmed release to SABnzbd
 
@@ -545,38 +604,51 @@ Efficient-4K profile, 192min runtime, file already present (upgrade scouting).
 435 releases found → 154 hard-filtered → 62 candidates → ranked below.
 
 ```
-Movie: Avatar: The Way of Water (2022) | Runtime: 192min | Profile: Efficient-4K | Status: has file
-All rejected: existing file already at Efficient-4K quality
+Movie: Avatar: The Way of Water (2022)   Runtime: 192min   Profile: Efficient-4K   Status: hasFile
+Lang: English   MC:—  RT:91%  IMDb:7.6 (600K votes)
 
-RANK  SCORE  QUAL            SIZE    LANG   REPUTE   PROTO    SOURCE/GROUP              FLAGS
-   1  +4500  WEBDL-2160p    23.8GB  EN     High     usenet   PiRaTeS (DSNP)            DV+HDR10, 124MB/m ✓ — Medium group lifted by Disney+ verified source
-         → Avatar.The.Way.of.Water.2022.2160p.DSNP.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS
-   2  +6220  WEBDL-1080p    13.8GB  EN     High     usenet   FLUX (MA, WEB Tier 01)    DD+Atmos, 72MB/m ✓ — gold standard 1080p; below Efficient-4K target
-         → Avatar.The.Way.of.Water.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX
-   3  +6200  WEBDL-1080p    15.1GB  EN     High     torrent  CMRG (WEB Tier 01)        DD+Atmos, 79MB/m ✓ — Tier 01; no service tag; torrent only
-         → Avatar.The.Way.of.Water.2022.1080p.WEB-DL.DDP5.1.Atmos.H.264-CMRG
-   4  +4000  Bluray-2160p   18.1GB  EN     Medium   usenet   MgB (Bluray)              TrueHD Atmos 7.1, HDR10, 94MB/m ✓ — physical disc source, no streaming auth
-         → Avatar.The.Way.Of.Water.2022.UHD.4K.BluRay.2160p.HDR10.TrueHD.7.1.Atmos.H.265-MgB
-   5  +3000  WEBDL-1080p     9.4GB  EN     Medium   usenet   PiRaTeS (MAX)             DD+Atmos, 49MB/m ✓ — MAX source unscored by CF but streaming-authenticated
-         → Avatar.The.Way.of.Water.2022.1080p.MAX.WEB-DL.DDPA.5.1.H.265-PiRaTeS
-   6  +3005  WEBDL-1080p    12.8GB  EN     Medium   usenet   BANDOLEROS (WEB)          Nordic REPACK (prior issue corrected), untagged source, 67MB/m ✓
-         → Avatar.The.Way.of.Water.2022.NORDiC.REPACK.1080p.WEB-DL.H.264.DDP5.1.Atmos-BANDOLEROS
-   7  +1750  WEBDL-1080p    14.9GB  EN     Medium   torrent  CM (iTunes)               iT source lifts Unknown→Medium; torrent only
-         → Avatar.The.Way.of.Water.2022.1080p.iT.WEB-DL.DDP7.1.x264-CM
-   8  +4600  WEBRip-2160p    8.8GB  EN     Unknown  torrent  Asiimov                   DV+HDR10+, 46MB/m ✓ — no usenet, no scene history; flag
-         → Avatar: The Way of Water 2022 2160p WEBRip DDP5.1 Atmos DoVi HDR10+ x265-Asiimov
+CANDIDATES (8 ranked) ────────────────────────────────────────────────────────────────────────────────
+ #   SCORE    QUALITY         SIZE     PROTO    REPUTE    GROUP                  AUDIO       FLAGS
+─────────────────────────────────────────────────────────────────────────────────────────────────────
+ 1   +4500    WEBDL-2160p    23.8GB   usenet   High      PiRaTeS (DSNP)         DD+ Atmos   DV+HDR10
+              → Avatar.The.Way.of.Water.2022.2160p.DSNP.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS
+              Medium group lifted by Disney+ verified source; 124MB/m ✓
+ 2   +6220    WEBDL-1080p    13.8GB   usenet   High      FLUX (MA, WEB Tier 01) DD+ Atmos   —
+              → Avatar.The.Way.of.Water.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX
+              Gold standard 1080p; below Efficient-4K target (72MB/m ✓)
+ 3   +6200    WEBDL-1080p    15.1GB   torrent  High      CMRG (WEB Tier 01)     DD+ Atmos   torrent only — last resort
+              → Avatar.The.Way.of.Water.2022.1080p.WEB-DL.DDP5.1.Atmos.H.264-CMRG
+              Tier 01; no service tag; no usenet equivalent
+ 4   +4000    Bluray-2160p   18.1GB   usenet   Medium    MgB (Bluray)           TrueHD 7.1  HDR10
+              → Avatar.The.Way.Of.Water.2022.UHD.4K.BluRay.2160p.HDR10.TrueHD.7.1.Atmos.H.265-MgB
+              Physical disc, no streaming auth; 94MB/m ✓ — ⚠ DTS-HD MA (transcode req.)
+ 5   +3000    WEBDL-1080p     9.4GB   usenet   Medium    PiRaTeS (MAX)          DD+ Atmos   —
+              → Avatar.The.Way.of.Water.2022.1080p.MAX.WEB-DL.DDPA.5.1.H.265-PiRaTeS
+              MAX source unscored by CF but streaming-authenticated; 49MB/m ✓
+ 6   +3005    WEBDL-1080p    12.8GB   usenet   Medium    BANDOLEROS (WEB)       DD+ Atmos   NORDIC REPACK
+              → Avatar.The.Way.of.Water.2022.NORDiC.REPACK.1080p.WEB-DL.H.264.DDP5.1.Atmos-BANDOLEROS
+              Nordic scene group; REPACK = prior issue corrected; untagged source; 67MB/m ✓
+ 7   +1750    WEBDL-1080p    14.9GB   torrent  Medium    CM (iTunes)            DD+ 7.1     torrent only — last resort
+              → Avatar.The.Way.of.Water.2022.1080p.iT.WEB-DL.DDP7.1.x264-CM
+              iT source lifts Unknown→Medium; no usenet equivalent
+ 8   +4600    WEBRip-2160p    8.8GB   torrent  Unknown   Asiimov                DD+ Atmos   DV+HDR10+ — ⚠ Unknown group
+              → Avatar: The Way of Water 2022 2160p WEBRip DDP5.1 Atmos DoVi HDR10+ x265-Asiimov
+              No usenet, no scene history; 46MB/m ✓
 
-DROPPED (154 filtered):
-  - CMRG 4K [High]: 38.7GB, 201MB/m — over WEBDL-2160p size cap (170MB/m)
-  - CMRG 1080p usenet [High]: 15.9GB, 83MB/m — marginally over WEBDL-1080p cap (80MB/m)
-  - hallowed Bluray-1080p [High]: 15.5GB, 81MB/m — over Bluray-1080p cap (75MB/m)
-  - FraMeSToR/CiNEPHiLES Remux [High]: 44-81GB — dropped; Avatar: The Way of Water is not an exceptional/reference title by the Remux policy standard
-  - W4NK3R/SPHD/HDS Bluray-2160p [High/Unknown]: 46-62GB, 241-321MB/m — over size cap
-  - CM/DVSUX WEBDL-2160p [Unknown]: 36-39GB, 188-202MB/m — over size cap
-  - MgB WEBRip-2160p [Medium]: 38.2GB, 199MB/m — over WEBRip-2160p cap (110MB/m)
-  - UnKn0wn Remux [Low]: self-named, mislabeled Remux pattern
-  - Musafirboy WEBRip-1080p [Low]: LQ group — MA source cannot elevate Low
-  - All SDR, HDTV, 720p, non-English variants
+DROPPED (154 filtered) ───────────────────────────────────────────────────────────────────────────────
+ QUALITY         SIZE     PROTO    REPUTE    GROUP                  REASON
+─────────────────────────────────────────────────────────────────────────────────────────────────────
+ WEBDL-2160p    38.7GB   usenet   High      CMRG                   oversized 201 MB/m (cap 170)
+ WEBDL-1080p    15.9GB   usenet   High      CMRG                   oversized 83 MB/m (cap 80)
+ Bluray-1080p   15.5GB   usenet   High      hallowed               oversized 81 MB/m (cap 75)
+ Remux-2160p    44-81GB  usenet   High      FraMeSToR / CiNEPHiLES not exceptional — Remux excluded (sequel, not culturally defining entry)
+ Bluray-2160p   46-62GB  usenet   High/Unk  W4NK3R / SPHD / HDS    oversized 241-321 MB/m (cap 200)
+ WEBDL-2160p    36-39GB  usenet   Unknown   CM / DVSUX              oversized 188-202 MB/m (cap 170)
+ WEBRip-2160p   38.2GB   usenet   Medium    MgB                    oversized 199 MB/m (cap 110)
+ Remux-2160p     n/a     usenet   Low       UnKn0wn                LQ group — self-named; mislabeled Remux pattern
+ WEBRip-1080p    3.1GB   usenet   Low       Musafirboy             LQ group; MA source cannot elevate Low
+ (various)       —       mixed    —         (90+ releases)         SDR / HDTV / 720p / non-English
+─────────────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
 **Repute decisions called out:**

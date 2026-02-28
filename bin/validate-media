@@ -94,9 +94,19 @@ def build_summary(streams, fmt):
             except Exception:
                 fps_str = "?fps"
 
-            # level label: AV1 uses raw int; H.264/H.265 use encoded int (51 → 5.1)
-            if cn == "AV1":
+            # Level encoding differs by codec:
+            #   AV1:  raw integer (e.g. 12 → L12)
+            #   HEVC: general_level_idc = level × 30  (150 → 5.0, 153 → 5.1)
+            #   H264: level_idc = level × 10           (51 → 5.1, 40 → 4.0)
+            raw_codec = s.get("codec_name", "").lower()
+            if raw_codec == "av1":
                 lvl_str = f"L{level}" if level else ""
+            elif raw_codec == "hevc":
+                try:
+                    lv = int(level)
+                    lvl_str = f"L{lv // 30}.{(lv % 30) // 3}"
+                except Exception:
+                    lvl_str = f"L{level}" if level else ""
             else:
                 try:
                     lv = int(level)
@@ -188,9 +198,15 @@ def build_summary(streams, fmt):
             if not depth:
                 pix   = s.get("pix_fmt", "")
                 depth = "10" if "10" in pix else ("12" if "12" in pix else "8" if pix else "?")
-            lvl_str = f"L{level}" if cn == "AV1" else (
-                f"L{int(level)//10}.{int(level)%10}" if str(level).isdigit() else f"L{level}"
-            ) if level else ""
+            cn_raw = s.get("codec_name", "").lower()
+            if cn_raw == "av1":
+                lvl_str = f"L{level}" if level else ""
+            elif cn_raw == "hevc":
+                try: lvl_str = f"L{int(level)//30}.{(int(level)%30)//3}"
+                except Exception: lvl_str = f"L{level}" if level else ""
+            else:
+                try: lvl_str = f"L{int(level)//10}.{int(level)%10}"
+                except Exception: lvl_str = f"L{level}" if level else ""
             val = f"{cn} {profile} {lvl_str}".strip()
 
             if cn == "AV1":

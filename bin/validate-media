@@ -17,9 +17,6 @@ Checks:
   Slow (--decode):
     6. Decode errors          — ffmpeg frame corruption, missing refs, invalid data
 
-Audio codec (DTS/TrueHD etc.) is NOT flagged — client passthrough/local decode
-handles these transparently. Only report it as INFO for awareness.
-
 False positive rate: ~10%. Human review expected.
 """
 
@@ -52,7 +49,7 @@ def probe_streams(path):
     out, _ = run([
         FFPROBE, "-v", "quiet", "-print_format", "json",
         "-show_streams", "-show_format", str(path)
-    ], timeout=15)
+    ], timeout=60)
     try:
         data = json.loads(out)
         return data.get("streams", []), data.get("format", {})
@@ -60,33 +57,255 @@ def probe_streams(path):
         return None, None
 
 
+def build_summary(streams, fmt):
+    """Compact human-readable summary: video, audio tracks, subtitle count."""
+    dur_s    = float(fmt.get("duration", 0))
+    size_gb  = int(fmt.get("size", 0)) / 1e9
+    br_kbps  = int(fmt.get("bit_rate", 0)) // 1000
+    dur_str  = f"{int(dur_s // 3600)}h{int((dur_s % 3600) // 60)}m"
+
+    video_str    = None
+    audio_tracks = []
+    sub_count    = 0
+    sub_langs    = []
+
+    for s in streams:
+        ct = s.get("codec_type", "")
+
+        # ── video ──────────────────────────────────────────────────────────
+        if ct == "video":
+            cn      = s.get("codec_name", "?").upper()
+            profile = s.get("profile", "")
+            level   = s.get("level", "")
+            w, h    = s.get("width", "?"), s.get("height", "?")
+            # AV1 encodes bit depth in pix_fmt (yuv420p10le = 10-bit); fall back to that
+            depth = s.get("bits_per_raw_sample") or s.get("bits_per_coded_sample")
+            if not depth:
+                pix = s.get("pix_fmt", "")
+                depth = "10" if "10" in pix else ("12" if "12" in pix else "8" if pix else "?")
+            xfer    = s.get("color_transfer", "")
+
+            # framerate
+            fps_raw = s.get("r_frame_rate", "0/1")
+            try:
+                num, den = fps_raw.split("/")
+                fps = float(num) / float(den)
+                fps_str = f"{fps:.3f}".rstrip("0").rstrip(".") + "fps"
+            except Exception:
+                fps_str = "?fps"
+
+            # level label: AV1 uses raw int; H.264/H.265 use encoded int (51 → 5.1)
+            if cn == "AV1":
+                lvl_str = f"L{level}" if level else ""
+            else:
+                try:
+                    lv = int(level)
+                    lvl_str = f"L{lv // 10}.{lv % 10}"
+                except Exception:
+                    lvl_str = f"L{level}" if level else ""
+
+            # HDR: parse side data
+            hdr_parts = []
+            for sd in s.get("side_data_list", []):
+                sdt = sd.get("side_data_type", "")
+                if "dovi" in sdt.lower() or "dov" in sdt.lower():
+                    dv_p  = sd.get("dv_profile", "?")
+                    el    = sd.get("el_present_flag", 0)
+                    compat = sd.get("dv_bl_signal_compatibility_id", "")
+                    layer = "MEL" if not el else "FEL"
+                    # compat_id=1 means BL is HDR10-compatible (standard); omit for brevity
+                    hdr_parts.append(f"DV p{dv_p} {layer}")
+                elif "mastering" in sdt.lower() or "hdr" in sdt.lower():
+                    hdr_parts.append("HDR10")
+            if not hdr_parts:
+                if xfer == "smpte2084":
+                    hdr_parts.append("HDR10")
+                elif xfer == "arib-std-b67":
+                    hdr_parts.append("HLG")
+                else:
+                    hdr_parts.append("SDR")
+
+            hdr_str  = " + ".join(hdr_parts)
+            profile_str = f" {profile}" if profile else ""
+            lvl_part    = f" {lvl_str}" if lvl_str else ""
+            video_str = (
+                f"{cn}{profile_str}{lvl_part} | {w}×{h} | {depth}-bit | {fps_str} | {hdr_str}"
+            )
+
+        # ── audio ──────────────────────────────────────────────────────────
+        elif ct == "audio":
+            cn      = s.get("codec_name", "?")
+            profile = s.get("profile", "")
+            lang    = s.get("tags", {}).get("language", "?")
+            title   = s.get("tags", {}).get("title", "")
+            chans   = s.get("channels", "?")
+            layout  = s.get("channel_layout", "")
+            sr      = s.get("sample_rate", "")
+            depth   = s.get("bits_per_raw_sample") or s.get("bits_per_coded_sample") or ""
+            br      = s.get("bit_rate", "")
+
+            codec_label = profile if (profile and profile not in ("unknown", "None")) else cn.upper()
+            ch_label    = layout if layout else f"{chans}ch"
+            parts = [f"{codec_label}", f"{ch_label}", f"[{lang}]"]
+            if depth:
+                parts.append(f"{depth}-bit")
+            if sr:
+                parts.append(f"{int(sr) // 1000}kHz")
+            if br:
+                parts.append(f"{int(br) // 1000}kbps")
+            if title:
+                parts.append(f'"{title}"')
+            audio_tracks.append("  ".join(parts))
+
+        # ── subtitles ──────────────────────────────────────────────────────
+        elif ct == "subtitle":
+            sub_count += 1
+            lang = s.get("tags", {}).get("language", "")
+            if lang and lang not in sub_langs:
+                sub_langs.append(lang)
+
+    # subtitle summary
+    if sub_count == 0:
+        sub_str = "none"
+    else:
+        max_show = 8
+        shown = ", ".join(sub_langs[:max_show])
+        overflow = f" +{len(sub_langs) - max_show}" if len(sub_langs) > max_show else ""
+        sub_str = f"{sub_count} tracks ({shown}{overflow})"
+
+    # ── playback impact table ──────────────────────────────────────────────
+    # Rows: (property, value, impact_note)
+    playback_rows = []
+
+    for s in streams:
+        ct = s.get("codec_type", "")
+
+        if ct == "video":
+            cn      = s.get("codec_name", "?").upper()
+            profile = s.get("profile", "")
+            level   = s.get("level", "")
+            depth   = s.get("bits_per_raw_sample") or s.get("bits_per_coded_sample")
+            if not depth:
+                pix   = s.get("pix_fmt", "")
+                depth = "10" if "10" in pix else ("12" if "12" in pix else "8" if pix else "?")
+            lvl_str = f"L{level}" if cn == "AV1" else (
+                f"L{int(level)//10}.{int(level)%10}" if str(level).isdigit() else f"L{level}"
+            ) if level else ""
+            val = f"{cn} {profile} {lvl_str}".strip()
+
+            if cn == "AV1":
+                note = "⚠ No HW decode on many Google TV/Android TV chipsets → forces full video transcode"
+            elif cn in ("HEVC", "H265", "H.265"):
+                note = "HW decode on most modern devices; direct play on Jellyfin Android clients"
+            elif cn in ("H264", "H.264", "AVC"):
+                note = "Universally supported; direct play on all clients"
+            else:
+                note = "Verify client support"
+            playback_rows.append(("Video codec", val, note))
+
+            # bit depth note
+            if str(depth) == "10":
+                playback_rows.append(("Bit depth", "10-bit", "Standard for HDR; supported by all HDR-capable clients"))
+            elif str(depth) == "12":
+                playback_rows.append(("Bit depth", "12-bit", "Rare; may require transcode on some clients"))
+
+            # HDR / DV rows
+            for sd in s.get("side_data_list", []):
+                sdt = sd.get("side_data_type", "")
+                if "dovi" in sdt.lower() or "dov" in sdt.lower():
+                    dv_p    = sd.get("dv_profile", "?")
+                    el      = sd.get("el_present_flag", 0)
+                    layer   = "MEL" if not el else "FEL"
+                    compat  = sd.get("dv_bl_signal_compatibility_id", "")
+                    dv_notes = {
+                        4: "Dual-layer FEL; requires DV-capable player for EL; may not play on all clients",
+                        5: "Single-layer DV-only — NO HDR10 fallback; requires DV display or player",
+                        7: "Dual-layer FEL; large files; most widely supported by hardware players",
+                        8: "Single-layer MEL; HDR10-compatible BL → clean fallback on non-DV displays; most compatible",
+                        9: "Single-layer; HDR10-compatible; common on streaming services",
+                    }
+                    dv_note = dv_notes.get(int(dv_p) if str(dv_p).isdigit() else -1,
+                                           f"Profile {dv_p} — verify client DV support")
+                    playback_rows.append(("DV profile", f"p{dv_p} {layer}", dv_note))
+
+            xfer = s.get("color_transfer", "")
+            if xfer == "smpte2084":
+                playback_rows.append(("HDR transfer", "PQ / SMPTE ST 2084", "Standard HDR10; widely supported"))
+            elif xfer == "arib-std-b67":
+                playback_rows.append(("HDR transfer", "HLG", "Hybrid Log-Gamma; broadcast HDR"))
+
+            br_kbps_v = int(fmt.get("bit_rate", 0)) // 1000
+            if br_kbps_v:
+                if br_kbps_v < 20_000 and "2160" in str(s.get("height", "")):
+                    note = "Low for 2160p — compressed encode, not a Remux"
+                elif br_kbps_v > 60_000:
+                    note = "High bitrate — likely Remux or high-quality encode"
+                else:
+                    note = ""
+                playback_rows.append(("Container BR", f"{br_kbps_v:,} kbps", note))
+
+        elif ct == "audio":
+            cn      = s.get("codec_name", "?")
+            profile = s.get("profile", "")
+            lang    = s.get("tags", {}).get("language", "?")
+            chans   = s.get("channels", "?")
+            layout  = s.get("channel_layout", "")
+            depth   = s.get("bits_per_raw_sample") or s.get("bits_per_coded_sample") or ""
+            codec_label = profile if (profile and profile not in ("unknown", "None")) else cn.upper()
+            ch_label    = layout if layout else f"{chans}ch"
+            val = f"{codec_label}  {ch_label}  [{lang}]"
+            if depth:
+                val += f"  {depth}-bit"
+
+            upper = (profile + " " + cn).upper()
+            if "TRUEHD" in upper and "ATMOS" in upper:
+                note = "⚠ No passthrough on Android TV → transcodes to AC3; Atmos object metadata lost on transcode"
+            elif "TRUEHD" in upper:
+                note = "⚠ No passthrough on Android TV → Jellyfin transcodes to AC3"
+            elif "DTS-HD MA" in upper or ("DTS" in upper and "MA" in upper):
+                note = "⚠ No passthrough on Android TV/Sonos → Jellyfin transcodes to AC3; lossless quality not delivered"
+            elif "DTS:X" in upper or "DTSX" in upper:
+                note = "⚠ No passthrough on Android TV → transcodes; DTS:X object layer lost"
+            elif "DTS" in upper:
+                note = "⚠ DTS core — passthrough limited on Android TV; may transcode"
+            elif "EAC3" in upper or "DDP" in upper or "DD+" in upper:
+                note = "DD+ / EAC3 — native passthrough on Android TV and Sonos; no transcode needed"
+            elif "AAC" in upper:
+                note = "AAC — native decode on all clients; no transcode"
+            elif "AC3" in upper or "AC-3" in upper:
+                note = "AC3 / Dolby Digital — native passthrough on Android TV; no transcode"
+            elif "FLAC" in upper or "PCM" in upper:
+                note = "⚠ Lossless PCM/FLAC — Android TV cannot passthrough; Jellyfin transcodes"
+            else:
+                note = "Verify passthrough support on target client"
+            playback_rows.append(("Audio", val, note))
+
+    return {
+        "video":          video_str or "?",
+        "audio":          audio_tracks,
+        "subs":           sub_str,
+        "duration":       dur_str,
+        "size_gb":        round(size_gb, 2),
+        "bitrate_kbps":   br_kbps,
+        "playback_rows":  playback_rows,
+    }
+
+
 def check_metadata(streams, fmt):
-    """Quick structural checks from format/stream headers."""
+    """Structural checks — no audio INFO spam; that lives in summary now."""
     issues = []
 
     dur = float(fmt.get("duration", 0))
     if dur == 0:
         issues.append(("FLAG", "zero duration in container header — file may be truncated or corrupt"))
 
-    nb_streams = int(fmt.get("nb_streams", 0))
-    if nb_streams == 0:
+    if int(fmt.get("nb_streams", 0)) == 0:
         issues.append(("FLAG", "no streams found in container"))
 
-    has_video = any(s.get("codec_type") == "video" for s in streams)
-    has_audio = any(s.get("codec_type") == "audio" for s in streams)
-    if not has_video:
+    if not any(s.get("codec_type") == "video" for s in streams):
         issues.append(("FLAG", "no video stream found"))
-    if not has_audio:
+    if not any(s.get("codec_type") == "audio" for s in streams):
         issues.append(("WARN", "no audio stream found"))
-
-    # INFO: report audio codecs for awareness without flagging
-    for s in streams:
-        if s.get("codec_type") == "audio":
-            cn = s.get("codec_name", "?")
-            lang = s.get("tags", {}).get("language", "?")
-            title = s.get("tags", {}).get("title", "")
-            chans = s.get("channels", "?")
-            issues.append(("INFO", f"audio [{lang}] {cn} {chans}ch '{title}'"))
 
     return issues
 
@@ -137,11 +356,9 @@ def check_pts(path, sample_packets=3000):
         issues.append(("WARN", f"only {len(pts_list)} parseable video packets in sample"))
         return issues
 
-    # PTS gap and backward jump
-    gaps, backward = [], []
-    intervals = []
+    gaps, backward, intervals = [], [], []
     for i in range(1, len(pts_list)):
-        delta = pts_list[i] - pts_list[i-1]
+        delta = pts_list[i] - pts_list[i - 1]
         if delta > PTS_GAP_SEC:
             gaps.append(round(delta, 3))
         elif delta < -PTS_BACKWARD_SEC:
@@ -150,11 +367,10 @@ def check_pts(path, sample_packets=3000):
             intervals.append(delta)
 
     if gaps:
-        issues.append(("FLAG", f"PTS gap(s) detected: {gaps[:5]} sec — player stalls at these points"))
+        issues.append(("FLAG", f"PTS gap(s): {gaps[:5]} sec — player stalls at these points"))
     if backward:
         issues.append(("FLAG", f"backward PTS jump(s): {backward[:5]} sec — timestamp disorder"))
 
-    # Frame interval jitter
     if len(intervals) > 20:
         try:
             jitter = statistics.stdev(intervals)
@@ -165,14 +381,17 @@ def check_pts(path, sample_packets=3000):
         except statistics.StatisticsError:
             pass
 
-    # GOP / keyframe spacing
     if len(keyframe_pts) >= 2:
-        gop_gaps = [keyframe_pts[i] - keyframe_pts[i-1] for i in range(1, len(keyframe_pts))]
+        gop_gaps = [keyframe_pts[i] - keyframe_pts[i - 1] for i in range(1, len(keyframe_pts))]
         max_gop = max(gop_gaps)
         avg_gop = sum(gop_gaps) / len(gop_gaps)
         if max_gop > GOP_MAX_SEC:
             issues.append(("WARN",
-                f"large GOP: max keyframe gap {max_gop:.1f}s (avg {avg_gop:.1f}s) — seeking may stall"))
+                f"large GOP: max keyframe gap {max_gop:.1f}s (avg {avg_gop:.1f}s) — "
+                f"keyframes are the only points a player can jump to when seeking; "
+                f"with gaps this large, skipping forward/backward will snap to the nearest "
+                f"keyframe up to {max_gop:.0f}s away, causing visible seek inaccuracy or a "
+                f"brief stall while the decoder catches up"))
     elif keyframe_pts:
         issues.append(("WARN", "very few keyframes in sample — GOP detection unreliable"))
 
@@ -217,13 +436,15 @@ def check_decode(path):
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def scan_file(path, do_decode=False):
-    result = {"file": str(path), "issues": [], "severity": "OK"}
+    result = {"file": str(path), "issues": [], "summary": {}, "severity": "OK"}
     streams, fmt = probe_streams(path)
 
     if streams is None:
         result["issues"] = [("FLAG", "ffprobe failed — unreadable or corrupt container")]
         result["severity"] = "FLAG"
         return result
+
+    result["summary"] = build_summary(streams, fmt)
 
     issues = []
     issues += check_metadata(streams, fmt)
@@ -239,6 +460,36 @@ def scan_file(path, do_decode=False):
     return result
 
 
+def print_summary_block(s, extra_rows=None):
+    """Print compact stream info + aligned playback impact table."""
+    print(f"  Video : {s['video']}")
+    if s["audio"]:
+        print(f"  Audio : {s['audio'][0]}")
+        for track in s["audio"][1:]:
+            print(f"          {track}")
+    else:
+        print("  Audio : none")
+    print(f"  Subs  : {s['subs']}")
+
+    rows = list(s.get("playback_rows", []))
+    if extra_rows:
+        rows.extend(extra_rows)
+    if not rows:
+        return
+
+    # column widths
+    w_prop = max(len(r[0]) for r in rows)
+    w_val  = max(len(r[1]) for r in rows)
+    sep    = "  " + "─" * (w_prop + w_val + 6 + 60)
+
+    print()
+    print(f"  {'Property':{w_prop}}  {'Value':{w_val}}  Impact")
+    print(sep)
+    for prop, val, note in rows:
+        print(f"  {prop:{w_prop}}  {val:{w_val}}  {note}")
+    print(sep)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -249,8 +500,8 @@ def main():
     ap.add_argument("--output", default="temp/media-report.json", help="JSON output path")
     args = ap.parse_args()
 
-    exts = {"." + e.lstrip(".").lower() for e in args.ext.split(",")}
-    root = Path(args.directory)
+    exts  = {"." + e.lstrip(".").lower() for e in args.ext.split(",")}
+    root  = Path(args.directory)
     files = sorted(p for p in root.rglob("*") if p.suffix.lower() in exts)
 
     if not files:
@@ -266,33 +517,52 @@ def main():
 
     for i, f in enumerate(files, 1):
         size_mb = f.stat().st_size / 1e6
-        print(f"[{i:>3}/{len(files)}] {f.name[:72]}  ({size_mb:.0f}MB)")
+        print(f"[{i:>3}/{len(files)}] {f.name[:72]}  ({size_mb:.0f} MB)")
         t0 = time.time()
-        r = scan_file(f, do_decode=args.decode)
+        r  = scan_file(f, do_decode=args.decode)
         elapsed = time.time() - t0
 
-        for sev, msg in r["issues"]:
+        if r.get("summary"):
+            # pull GOP info into the playback table as an extra row
+            extra = []
+            for sev, msg in r["issues"]:
+                if "large GOP" in msg or "keyframe" in msg.lower():
+                    import re
+                    m = re.search(r"max keyframe gap ([\d.]+)s \(avg ([\d.]+)s\)", msg)
+                    if m:
+                        val  = f"{float(m.group(1)):.1f}s max / {float(m.group(2)):.1f}s avg"
+                        note = (f"⚠ Seek snaps to nearest keyframe — up to {float(m.group(1)):.0f}s "
+                                f"off-target; brief stall while decoder catches up")
+                        extra.append(("GOP / keyframes", val, note))
+            print_summary_block(r["summary"], extra_rows=extra)
+            print()
+
+        non_gop_issues = [(sev, msg) for sev, msg in r["issues"]
+                          if "large GOP" not in msg and "keyframe" not in msg.lower()]
+        for sev, msg in non_gop_issues:
             if sev == "FLAG":
                 print(f"  !! [FLAG] {msg}")
             elif sev == "WARN":
                 print(f"   > [WARN] {msg}")
-            # INFO lines suppressed in per-file output to reduce noise
 
-        if r["severity"] == "FLAG":
+        sev_label = r["severity"]
+        print(f"  → {sev_label}  ({elapsed:.1f}s)")
+        print()
+
+        if sev_label == "FLAG":
             flagged += 1
-        elif r["severity"] == "WARN":
+        elif sev_label == "WARN":
             warned += 1
 
-        print(f"       {elapsed:.1f}s  →  {r['severity']}")
         results.append(r)
 
-    # Summary
-    print()
+    # ── summary ──────────────────────────────────────────────────────────────
+    ok = len(files) - flagged - warned
     print("=" * 62)
     print(f"  Total : {len(files)}")
     print(f"  FLAG  : {flagged}  (likely problematic — replace or recheck)")
     print(f"  WARN  : {warned}  (possible issue — human review)")
-    print(f"  OK    : {len(files) - flagged - warned}")
+    print(f"  OK    : {ok}")
     print()
 
     review = [r for r in results if r["severity"] in ("FLAG", "WARN")]

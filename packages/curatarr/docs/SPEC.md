@@ -81,6 +81,7 @@ Managing Radarr + Recyclarr as separate systems with interconnected CF profile c
 | CF scoring rules (ordered YAML, UI drag-reorder) | P0 | 🔲 Pending | 2 |
 | LLM content verification | P0 | 🔲 Pending | 2 |
 | Quality profile matching + size validation | P0 | 🔲 Pending | 2 |
+| Jellyfin metadata write-back (corrections, field lock, refresh) | P0 | 🔲 Pending | 2 |
 | Download client integration (SABnzbd / NZBGet / qBT) | P0 | 🔲 Pending | 3 |
 | Post-download import + Jellyfin rescan | P1 | 🔲 Pending | 3 |
 | Upgrade scout daemon | P1 | 🔲 Pending | 4 |
@@ -133,10 +134,16 @@ Managing Radarr + Recyclarr as separate systems with interconnected CF profile c
 └──────────────────────────────────────────────────────────────────────────┘
          │                    │                    │
          ▼                    ▼                    ▼
-   ┌──────────┐     ┌──────────────────┐    ┌──────────────────────┐
-   │ Jellyfin │     │ SABnzbd          │    │ Prowlarr             │
-   │ (library)│     │ qBittorrent      │    │ (Torznab aggregator) │
-   └──────────┘     └──────────────────┘    └──────────────────────┘
+   ┌──────────────┐  ┌──────────────────┐  ┌──────────────────────┐
+   │   Jellyfin   │  │ SABnzbd          │  │ Prowlarr             │
+   │ (primary DB) │  │ qBittorrent      │  │ (Torznab aggregator) │
+   │              │  └──────────────────┘  └──────────────────────┘
+   │ read items ◄─│
+   │ write corrections
+   │ lock fields  │
+   │ trigger refresh
+   └──────────────┘
+   (bidirectional — Jellyfin is both source and write target)
 ```
 
 ### 4.2 Module Structure
@@ -394,31 +401,43 @@ Prevent wrong-content replacements by verifying release identity against TMDB me
 #### 5.5.3 Verification Flow
 
 ```
-1. Fetch movie metadata from TMDB
-   - Title, year, plot, genres, runtime, cast
+1. Read library item from Jellyfin (primary source)
+   - Title, year, ProviderIds (TMDB ID, IMDB ID), LockedFields
 
-2. Parse release title
+2. Enrich from TMDB using the item's TMDB ID (secondary enrichment)
+   - Plot, genres, runtime, cast, tagline
+   - If no TMDB ID: search by title + year, pick best match
+
+3. Parse release title
    - Extracted title, year, resolution, source, group
 
-3. LLM evaluation
-   - Is this the same movie?
-   - Could it be a sequel/remake/sports event?
+4. LLM evaluation
+   - Does this release match the Jellyfin item's identity?
+   - Could it be a sequel/remake/sports event with the same name?
    - Confidence score 0-100
 
-4. Decision
+5. Decision
    - accept: High confidence match
-   - reject: Definite mismatch
-   - review: Ambiguous, needs human review
+   - reject: Definite mismatch — do not grab
+   - review: Ambiguous, add to intervention queue
+
+6. On disambiguation (accept with corrected ID):
+   - Write corrected ProviderIds back to Jellyfin
+   - Lock ProviderIds field
+   - Trigger metadata refresh (see §5.15)
 ```
 
 #### 5.5.4 Prompt Template
 
 ```
-You are evaluating a Usenet release for a media library.
+You are evaluating a release for a media library.
 
-MOVIE (from TMDB):
+LIBRARY ITEM (from Jellyfin):
 - Title: {title}
 - Year: {year}
+- TMDB ID: {tmdbId}
+
+METADATA (from TMDB):
 - Plot: {plot}
 - Genres: {genres}
 - Runtime: {runtime} min
@@ -772,17 +791,37 @@ Using Prowlarr as the indexer adapter means Curatarr inherits CF scoring from th
 ```typescript
 interface MediaServerAdapter {
   name: string;
+
+  // --- Read ---
   getLibraryItems(type: 'movie' | 'episode'): Promise<LibraryItem[]>;
-  triggerScan(path: string): Promise<void>;
-  updateMetadata(id: string, meta: Partial<MediaMeta>): Promise<void>;
+  getItem(id: string): Promise<LibraryItem>;
+
+  // --- Write-back (Jellyfin is the primary DB) ---
+  /** Update metadata fields (title, year, provider IDs, etc.) */
+  updateItem(id: string, fields: Partial<MediaMeta>): Promise<void>;
+
+  /** Lock named fields so the server won't auto-overwrite them on refresh */
+  lockFields(id: string, fields: MetadataField[]): Promise<void>;
+
+  /** Set provider IDs (TMDB, IMDB) — used for disambiguation */
+  setProviderIds(id: string, providers: Record<string, string>): Promise<void>;
+
+  // --- Scan / refresh ---
+  /** Notify the server that files at a path were added/changed */
+  notifyFilesChanged(paths: string[]): Promise<void>;
+
+  /** Trigger a metadata refresh for a single item */
+  triggerMetadataRefresh(id: string, opts?: { replaceAllMetadata?: boolean }): Promise<void>;
 }
+
+type MetadataField = 'Name' | 'ProductionYear' | 'ProviderIds' | 'Overview' | 'Genres';
 ```
 
 | Adapter | Notes |
 |---------|-------|
-| `jellyfin` | Default; full API, no API key tier restrictions |
-| `plex` | Requires Plex Pass for full API access |
-| `emby` | Similar API surface to Jellyfin |
+| `jellyfin` | Default; full write-back API, field locking via `LockedFields` |
+| `plex` | Requires Plex Pass; metadata write-back via `/library/sections/{id}/fix` |
+| `emby` | Similar API surface to Jellyfin; write-back supported |
 
 ---
 
@@ -1384,6 +1423,140 @@ curatarr tag remove "Shrek (2001)" kids
 curatarr tag list                       # All defined tags with movie counts
 curatarr tag list --movie "Shrek (2001)"
 ```
+
+---
+
+### 5.15 Jellyfin as Primary Database and Metadata Source
+
+#### 5.15.1 Architectural Principle
+
+Jellyfin is **Curatarr's primary database and source of truth** for the library. Curatarr does not maintain its own movie catalog — it reads all items, provider IDs, and media stream details from Jellyfin. When Curatarr discovers a metadata error or disambiguation need, it writes corrections back to Jellyfin via the Items API and triggers a targeted metadata refresh.
+
+| Data flow | Direction | Mechanism |
+|-----------|-----------|-----------|
+| Library items, provider IDs, media streams | Jellyfin → Curatarr | `GET /Users/{userId}/Items` |
+| Metadata corrections (title, year, provider IDs) | Curatarr → Jellyfin | `POST /Items/{itemId}` |
+| Locked fields (prevent auto-overwrite) | Curatarr → Jellyfin | `LockedFields` in item update |
+| Post-import library scan | Curatarr → Jellyfin | `POST /Library/Media/Updated` |
+| Targeted metadata refresh | Curatarr → Jellyfin | `POST /Items/{itemId}/Refresh` |
+
+TMDB is used as a **secondary enrichment source** for LLM content verification — Curatarr fetches plot, cast, and runtime from TMDB to cross-check release title identity. It is not the primary library DB.
+
+#### 5.15.2 Read Operations
+
+On each scout run and library scan, Curatarr reads from Jellyfin:
+
+```typescript
+interface JellyfinItem {
+  Id: string;                         // Jellyfin item ID
+  Name: string;                       // Display title
+  ProductionYear?: number;
+  ProviderIds: {
+    Imdb?: string;
+    Tmdb?: string;
+  };
+  Path?: string;                      // File path on disk
+  MediaSources?: JellyfinMediaSource[];
+  LockedFields?: string[];            // Fields Jellyfin won't auto-overwrite
+  Overview?: string;
+  Genres?: string[];
+  RunTimeTicks?: number;              // Runtime in 100ns ticks
+  CommunityRating?: number;           // IMDB-style rating
+}
+```
+
+#### 5.15.3 Metadata Write-Back
+
+When Curatarr identifies a metadata issue (wrong TMDB ID, title mismatch, year error), it submits a correction and pins the correct provider ID to prevent future drift:
+
+```typescript
+// 1. Fetch current item (required — POST must include all existing fields)
+const item = await jellyfin.getItem(itemId);
+
+// 2. Apply correction
+item.ProviderIds.Tmdb = correctTmdbId;
+item.ProviderIds.Imdb = correctImdbId;
+// Lock the provider ID field so Jellyfin won't overwrite it on next scan
+item.LockedFields = [...(item.LockedFields ?? []), 'ProviderIds'];
+
+// 3. Submit
+await jellyfin.updateItem(itemId, item);
+
+// 4. Trigger metadata refresh to pull poster, overview, ratings
+await jellyfin.triggerMetadataRefresh(itemId, { replaceAllMetadata: false });
+```
+
+**Field locking rules:**
+
+| Action | Fields to lock |
+|--------|----------------|
+| Provider ID correction | `ProviderIds` |
+| Title disambiguation (e.g. TV show vs movie) | `Name`, `ProviderIds` |
+| Year correction | `ProductionYear`, `ProviderIds` |
+| User explicitly edited title in Curatarr UI | `Name` |
+
+#### 5.15.4 Disambiguation Workflow
+
+When the LLM detects a possible mismatch (e.g., "F1" movie vs F1 race broadcast), Curatarr runs a disambiguation flow:
+
+```
+1. Read item from Jellyfin (current ProviderIds, title, year)
+
+2. Search TMDB for title + year to get candidate matches
+
+3. LLM evaluates: which TMDB result matches the intended movie?
+   - Input: Jellyfin item, parsed release title, TMDB candidates
+   - Output: { tmdbId, confidence, reasoning }
+
+4. If confidence >= threshold (default 0.9):
+   - Apply write-back (step 5) automatically
+   - Log to activity_log with source 'auto_disambiguate'
+
+5. If confidence < threshold:
+   - Add to intervention queue with type 'metadata_disambiguation'
+   - User reviews in UI → approves one of the TMDB candidates
+   - On approval: write-back + lock + refresh
+
+6. Write-back to Jellyfin:
+   - Set ProviderIds.Tmdb, ProviderIds.Imdb
+   - Lock ProviderIds field
+   - Trigger targeted metadata refresh
+```
+
+**Intervention reason codes for metadata:**
+
+| Code | Message |
+|------|---------|
+| `metadata_disambiguation` | Multiple TMDB matches — confirm which title this is |
+| `provider_id_missing` | No TMDB or IMDB ID on file — library item needs metadata link |
+| `title_year_mismatch` | Jellyfin title/year don't match any TMDB result |
+| `duplicate_tmdb_id` | Two library items share the same TMDB ID |
+
+#### 5.15.5 Post-Import Rescan
+
+After a file is imported, Curatarr triggers a two-step Jellyfin update:
+
+```
+1. POST /Library/Media/Updated
+   body: { Updates: [{ Path: "/media/movies/Movie (2024)", UpdateType: "Created" }] }
+   → Jellyfin discovers the new file and creates an item
+
+2. POST /Items/{newItemId}/Refresh?replaceAllMetadata=false
+   → Pulls poster, overview, cast from TMDB without overwriting locked fields
+```
+
+If the item already exists (upgrade replacing an existing file), step 1 is skipped and only the refresh is triggered.
+
+#### 5.15.6 Jellyfin API Endpoints Used
+
+| Operation | Method | Endpoint |
+|-----------|--------|---------|
+| List all movies | GET | `/Users/{userId}/Items?IncludeItemTypes=Movie&Recursive=true&Fields=ProviderIds,MediaSources,Path,Overview,Genres,RunTimeTicks,LockedFields` |
+| Get single item | GET | `/Items/{itemId}` |
+| Update metadata | POST | `/Items/{itemId}` |
+| Trigger item refresh | POST | `/Items/{itemId}/Refresh` |
+| Notify of new/changed files | POST | `/Library/Media/Updated` |
+| System health check | GET | `/System/Info` |
 
 ---
 

@@ -29,7 +29,7 @@
 | Prowlarr | Indexer aggregator (Newznab/Torznab) | **Retained** — Curatarr queries it |
 | SABnzbd | Usenet download client | **Retained** — Curatarr sends NZBs |
 | qBittorrent | Torrent download client | **Retained** — Curatarr sends torrents |
-| Jellyfin | Media server + library source | **Retained** — library reads + rescan |
+| Jellyfin | Primary database + metadata source | **Retained** — primary DB; read items, write corrections, lock fields, trigger refresh |
 
 ## Architecture
 
@@ -45,7 +45,7 @@ src/
 ├── evaluator/     # LLM content/quality verification (PENDING)
 ├── quality/       # TRaSH profiles + CF scoring + group reputation (PENDING)
 ├── download/      # SABnzbd + qBittorrent clients (PENDING)
-├── import/        # Post-download + Jellyfin rescan (PENDING)
+├── import/        # Post-download + Jellyfin notify + metadata write-back (PENDING)
 └── shared/        # Config, types, utilities (DONE)
 ```
 
@@ -66,7 +66,7 @@ Two-part dashboard:
 - `error`: Unreachable (timeout, connection refused)
 
 ### Services Monitored
-- Jellyfin (library source + rescan target)
+- Jellyfin (primary DB — read library, write metadata corrections, lock fields, trigger refresh)
 - Prowlarr (indexer manager — Newznab/Torznab)
 - SABnzbd (usenet download client)
 - qBittorrent (torrent download client)

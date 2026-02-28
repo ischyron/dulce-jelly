@@ -238,6 +238,33 @@ Use `⚠ Remux excluded` (not just a generic dropped line) whenever the title's 
 | Scene CF (verified group) | +5 |
 | usenet protocol | +10 |
 
+**Playback-Risk Heuristic (name-based; soft penalty, never auto-drop):**
+
+- Base gate (must match):
+  - `2160p` AND (`DV`/`DoVi` OR `HDR`/`HDR10`/`HDR10+`)
+- Risk points (additive):
+  - `+10` if `x265` or `H.265` appears in release name
+  - `+10` if `7.1` appears in release name
+  - `+20` if `TrueHD` or `DTS-HD MA` or `DTS:X` appears in release name
+- `playback_risk_score` bands:
+  - `0-9`: none
+  - `10-19`: low
+  - `20-29`: medium
+  - `>=30`: high
+- Ranking penalties:
+  - low: `-50`
+  - medium: `-100`
+  - high: `-150`
+- Output flags:
+  - low: `playback-risk-low (score=<n>)`
+  - medium/high: `playback-risk (score=<n>)`
+- Important:
+  - Applies regardless of group repute.
+  - Do not auto-drop on this heuristic alone.
+  - If no comparable safer candidate exists at same quality tier/profile target,
+    keep as fallback and annotate:
+    `⚠ playback-risk score=<n>; validate before grab`.
+
 **Repute — evaluate in this order: CF tier → source provenance → group name knowledge**
 
 Assign one of four labels: **High / Medium / Low / Unknown**
@@ -342,13 +369,15 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 
    **MC ≥ 85 exception:** For landmark titles (MC ≥ 85), reduce the DTS-HD MA penalty — the transcode cost is worth tolerating for a critical reference title, especially when the DTS-HD MA release is otherwise superior (better group, larger file, higher tier). Do not penalise DTS-HD MA in the ~200-point tiebreaker band; still flag it in FLAGS but do not let it drive the decision.
 
-8. **Original-language-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over one carrying a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC). Extra language tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
+8. **Playback-risk score is a de-prioritizer in close contests.** If two candidates are otherwise comparable (same tier/protocol/repute band), prefer the lower `playback_risk_score`. This is a soft preference only; do not discard a release solely due to this score when no safer equivalent exists.
+
+9. **Original-language-only preferred over MULTI when scores are close (English-original films).** When two releases are within ~200 score points and otherwise equivalent, prefer the English-only release over one carrying a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC). Extra language tracks add size and complexity without benefit for English-original content. If the MULTI release is the only good option, keep it but note it in FLAGS.
 
    **Inverted for non-English-original films:** The original language track is required. Acceptable picks in order of preference: MULTI (original + any other language) → original-only → original + alternate. Any dub-only release (no original language track) is dropped regardless of quality or repute, as per the hard filter. State the film's original language prominently in the scout header (e.g. `Lang: Italian`, `Lang: French`).
 
-9. **Verified group > unknown** (within the same protocol and score band).
+10. **Verified group > unknown** (within the same protocol and score band).
 
-10. **Usenet strongly preferred; torrent is last resort — warn before grabbing.**
+11. **Usenet strongly preferred; torrent is last resort — warn before grabbing.**
     - Never pick a torrent when a comparable usenet release exists. "Comparable" means same resolution tier and repute within one step (e.g. usenet Medium vs torrent High is not comparable enough to justify torrent).
     - Only fall back to torrent when: (a) no usenet release passes all filters, OR (b) the torrent is meaningfully superior and no usenet equivalent will plausibly appear (e.g. a TRaSH Tier 01 torrent where the title has no usenet indexer coverage at all).
     - **Mandatory warning when only torrents are available:** Before grabbing, surface a prominent warning in the output:

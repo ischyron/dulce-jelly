@@ -79,7 +79,8 @@ Managing 4+ systems with interconnected configurations is error-prone and time-c
 | Human intervention queue | P1 | 🔲 Pending | 4 |
 | Rate limiting | P1 | 🔲 Pending | 4 |
 | Recycle bin | P1 | 🔲 Pending | 4 |
-| Web UI | P2 | 🔲 Pending | 5 |
+| FFprobe hard quality checks | P0 | 🔲 Pending | 1 |
+| Web UI (library + file detail) | P1 | 🔲 Pending | 4 |
 | TV show support | P2 | 🔲 Pending | 6 |
 | Jellyfin plugin | P3 | 🔲 Pending | 7 |
 
@@ -821,6 +822,185 @@ Suitable for Docker HEALTHCHECK and uptime monitors.
 
 ---
 
+### 5.10 FFprobe Quality Scanner
+
+#### 5.10.1 Status: 🔲 PENDING (Phase 1 — foundational)
+
+#### 5.10.2 Purpose
+
+The FFprobe scanner is the ground-truth layer that makes Curatarr's quality verification credible. Where every other *arr tool infers quality from the filename, Curatarr reads the actual bitstream.
+
+A file named `Movie.2024.2160p.UHD.BluRay.TrueHD.Atmos.7.1.DV.x265` makes four verifiable claims: 4K resolution, TrueHD Atmos audio, 7.1 channels, and Dolby Vision HDR. The FFprobe scanner checks each claim against the media streams and produces a pass/fail verdict per signal. Mismatches are surfaced in the UI as warnings and feed the LLM quality authenticity prompt.
+
+#### 5.10.3 FFprobe Invocation
+
+```bash
+ffprobe \
+  -v quiet \
+  -print_format json \
+  -show_format \
+  -show_streams \
+  -show_chapters \
+  /path/to/file.mkv
+```
+
+Spawned via `node:child_process` (`execFile`, not `exec` — no shell injection surface). Timeout: 30s. Files that do not respond within the timeout are marked `unverifiable`.
+
+#### 5.10.4 Extracted Signals
+
+**Video stream** (`codec_type == "video"`):
+
+| Signal | FFprobe field | Notes |
+|--------|--------------|-------|
+| Resolution | `width` × `height` | Actual pixel dimensions |
+| Video codec | `codec_name` | `hevc`, `h264`, `av1`, `vc1` |
+| Bit depth | `pix_fmt` | `yuv420p10le` = 10-bit; `yuv420p` = 8-bit |
+| Color transfer | `color_transfer` | `smpte2084` = HDR10/DV; `arib-std-b67` = HLG |
+| Color primaries | `color_primaries` | `bt2020` = wide gamut (HDR) |
+| HDR10 static | `side_data_list[Mastering display metadata]` | MaxCLL, MaxFALL |
+| HDR10+ dynamic | `side_data_list[HDR Dynamic Metadata SMPTE2094-40]` | Presence = HDR10+ |
+| Dolby Vision | `side_data_list[DOVI configuration record]` | `dv_profile`, `dv_level`, `rpu_present`, `el_present` |
+| Frame rate | `r_frame_rate` | e.g., `24000/1001` = 23.976 fps |
+| Video bitrate | `bit_rate` | kbps (may be absent for VBR — derive from format) |
+
+**Audio streams** (`codec_type == "audio"`, all tracks):
+
+| Signal | FFprobe field | Notes |
+|--------|--------------|-------|
+| Codec | `codec_name` | `truehd`, `dts`, `eac3`, `ac3`, `aac`, `flac`, `opus` |
+| Profile | `profile` | `"TrueHD + Atmos"`, `"DTS-HD MA"`, `"DTS-ES"`, `"LC"` |
+| Channels | `channels` | Integer: 2, 6, 8 |
+| Channel layout | `channel_layout` | `"stereo"`, `"5.1"`, `"7.1"` |
+| Language | `tags.language` | `"eng"`, `"fra"`, `"spa"` |
+| Bitrate | `bit_rate` | kbps (0 for lossless) |
+
+**Format** (top-level `format` object):
+
+| Signal | FFprobe field |
+|--------|--------------|
+| Duration | `format.duration` (seconds) |
+| Total size | `format.size` (bytes) |
+| Container | `format.format_name` (`matroska,webm`, `mov,mp4`) |
+| Total bitrate | `format.bit_rate` (derived if streams absent) |
+
+#### 5.10.5 Hard Checks (Pass / Fail per Claim)
+
+For each quality signal claimed in the parsed release title, a corresponding hard check runs against FFprobe output. A single `fail` promotes the file to `mismatch` verdict. `skip` means the title made no claim — not evaluated.
+
+| Claimed feature | Hard check condition | Fail label |
+|-----------------|---------------------|------------|
+| `2160p` / `4K` | `width ≥ 3200` or `height ≥ 2000` | `resolution_mismatch` |
+| `1080p` | `height` 960–1100 or `width` 1820–1960 | `resolution_mismatch` |
+| `Dolby Vision` / `DV` | `DOVI configuration record` in video `side_data_list` | `dv_not_found` |
+| `HDR10` | `color_transfer == smpte2084` AND `Mastering display metadata` present | `hdr10_not_found` |
+| `HDR10+` | `HDR Dynamic Metadata SMPTE2094-40` present | `hdr10plus_not_found` |
+| `HLG` | `color_transfer == arib-std-b67` | `hlg_not_found` |
+| `TrueHD Atmos` | `codec_name == truehd` AND `profile` contains `Atmos` | `atmos_not_found` |
+| `DD+ Atmos` / `EAC3 Atmos` | `codec_name == eac3` AND `profile` contains `Atmos` | `atmos_not_found` |
+| `DTS-HD MA` | `codec_name == dts` AND `profile` contains `DTS-HD MA` | `dtshd_not_found` |
+| `7.1` channels | `channels == 8` in primary audio track | `channel_mismatch` |
+| `5.1` channels | `channels == 6` in primary audio track | `channel_mismatch` |
+| `x265` / `HEVC` | `codec_name == hevc` | `codec_mismatch` |
+| `AV1` | `codec_name == av1` | `codec_mismatch` |
+| `10-bit` | `pix_fmt` contains `p10` | `bitdepth_mismatch` |
+| Size-to-quality | MB/min within profile range (see §5.6.3) | `size_suspicious` |
+
+#### 5.10.6 Dolby Vision Profile Guide
+
+The DV profile number matters for display compatibility. Curatarr reports it explicitly and warns when a profile may cause playback issues.
+
+| DV Profile | Description | Compatibility | Curatarr action |
+|-----------|-------------|--------------|----------------|
+| **5** | Single-layer, no HDR10 fallback | DV-capable devices only — SDR or black on others | ⚠ Warn: "Profile 5 — requires DV display" |
+| **7** | Dual-layer (FEL/MEL), legacy disc format | Limited to early UHD players | ⚠ Warn: "Profile 7 — limited compatibility" |
+| **8** | Cross-compatible: DV + HDR10 base layer | Most streaming rips; works as HDR10 on non-DV displays | ✓ OK |
+| **8.1** | Profile 8 + HDR10+ dynamic metadata | Same as 8 but richer tone mapping | ✓ OK (best streaming profile) |
+
+Profile 5 files should route to intervention rather than auto-grab — the user needs to confirm their playback chain supports DV.
+
+#### 5.10.7 Quality Verdict
+
+After running all hard checks, each scanned file receives a `QualityVerdict`:
+
+```typescript
+interface QualityVerdict {
+  // Overall status
+  status: 'verified'      // all claims passed
+       | 'mismatch'       // ≥1 hard check failed — claims are false
+       | 'suspicious'     // size anomaly or soft signal concerns
+       | 'unverifiable';  // ffprobe failed (encrypted, corrupt, timeout)
+
+  // Per-check results
+  checks: Record<HardCheckKey, 'pass' | 'fail' | 'skip'>;
+
+  // DV-specific detail
+  dvProfile: 5 | 7 | 8 | null;
+  dvLevel: number | null;
+
+  // Human-readable warnings (shown in UI)
+  warnings: string[];
+  // e.g. "DV Profile 5: requires Dolby Vision display for correct colours"
+  //      "Atmos claimed in filename but audio is plain TrueHD 7.1"
+  //      "Resolution 1920×1080 — filename claims 2160p"
+}
+```
+
+`verified` files need no further attention. `mismatch` files are automatically flagged in the library view and their FFprobe data is included in the LLM quality authenticity prompt.
+
+#### 5.10.8 Multi-Track Audio
+
+Many 4K releases have multiple audio tracks (English Atmos primary + lossy fallback tracks). Curatarr scans all audio streams:
+
+```
+Track 1: TrueHD 7.1 Atmos  (English, primary)   ← claim check target
+Track 2: AC3 5.1            (English, compatibility)
+Track 3: EAC3 5.1           (French)
+Track 4: EAC3 5.1           (Spanish)
+```
+
+Hard checks are run against the **primary audio track** (track index 0, or the track flagged `default`). The full track list is shown in the movie detail UI.
+
+#### 5.10.9 CLI
+
+```bash
+# Scan all library paths
+curatarr scan
+
+# Scan a specific path
+curatarr scan /media/movies/Monsters,Inc.(2001)/
+
+# Compare every file against its quality profile
+curatarr scan --verify
+
+# Show only files with mismatches
+curatarr scan --verify --mismatches-only
+
+# Output JSON (for programmatic use)
+curatarr scan --json
+
+# Show summary report by verdict
+curatarr scan --report
+```
+
+**Report output:**
+
+```
+LIBRARY SCAN REPORT — 247 movies
+
+  ✓  Verified      214  (86.6%)
+  ⚠  Suspicious      8  ( 3.2%)   ← size anomaly, not a hard failure
+  ✗  Mismatch        6  ( 2.4%)
+  ?  Unverifiable   19  ( 7.7%)   ← mostly older files without HDR claims
+
+MISMATCHES:
+  The Substance (2024)   resolution_mismatch   claims 2160p, actual 1920×1080
+  Dune Part Two (2024)   dv_not_found          DV claimed but no DOVI record
+  Oppenheimer (2023)     atmos_not_found       TrueHD Atmos claimed, actual TrueHD 7.1
+  ...
+```
+
+---
+
 ## 6. Configuration
 
 ### 6.1 Complete Configuration Reference
@@ -992,86 +1172,300 @@ groupReputation:
 
 ## 7. User Interface
 
-### 7.1 Dashboard Layout
+The web UI is a React SPA served by Curatarr's built-in HTTP server. It communicates with the REST API (§8) and receives real-time updates via Server-Sent Events (SSE) for scanner progress and queue changes. Mobile-responsive; designed to be usable from a phone when approving scout interventions on the couch.
+
+### 7.1 Library View
+
+The primary view: all movies in a sortable, filterable table with inline quality chips derived from FFprobe hard checks. Quality chips are green (verified), amber (suspicious/unverified claim), or red (mismatch).
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│  CURATARR  Movies (247)    [Scanner: idle]  ● 3 queue    [+ Add Movie]  [⚙ Settings]   │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  Filter: [All ▼]  Quality: [All ▼]  HDR: [All ▼]  Sort: [Title A→Z ▼]  [🔍 Search  ] │
+├────────────────────────────┬───────────────────────────────────────┬────────┬──────────┤
+│  TITLE                     │  QUALITY                              │  SIZE  │  STATUS  │
+├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
+│  Alien: Romulus (2024)     │  [WEBDL-2160p] [DV✓] [HDR10✓] [Atmos✓] │ 23.1GB │  ✓ OK   │
+│                            │  FLUX · DSNP · 120 MB/min             │        │          │
+├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
+│  Ghost in the Shell (1995) │  [BDRip-2160p] [DV?] [HDR✓]           │  9.1GB │  ⚠ warn  │
+│                            │  NAHOM · no usenet NZB found           │        │          │
+├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
+│  Monsters, Inc. (2001)     │  [WEBDL-2160p] [DV✓] [HDR10✓] [Atmos✓] │ 12.1GB │  ✓ OK   │
+│                            │  HONE · DSNP · 130 MB/min             │        │          │
+├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
+│  The Substance (2024)      │  [BLU-2160p]   [HDR✓]  [AAC✗]         │  1.8GB │  ✗ fake  │
+│                            │  Unknown · size mismatch: 10 MB/min   │        │          │
+├────────────────────────────┼───────────────────────────────────────┼────────┼──────────┤
+│  Shrek (2001)              │  [WEBDL-2160p] [HDR✓]  [AAC]          │ 11.5GB │  ✓ OK    │
+│                            │  playWEB · SKST · 103 MB/min          │        │          │
+└────────────────────────────┴───────────────────────────────────────┴────────┴──────────┘
+
+  Showing 1-5 of 247  [‹ Prev]  [1] [2] ... [50]  [Next ›]
+```
+
+**Quality chip legend:**
+- `[WEBDL-2160p]` — quality tier (source + resolution)
+- `[DV✓]` — DV claimed and verified by FFprobe (green)
+- `[DV?]` — DV present in filename but file not yet scanned (amber)
+- `[DV✗]` — DV claimed but hard check failed (red)
+- `[Atmos✓]` / `[DTS-HD MA✓]` — audio profile verified
+- `[AAC]` — lossy audio, no lossless claim in filename (neutral, not a failure)
+- `[AAC✗]` — lossless audio claimed in filename but actual is AAC (red)
+
+**Status column:**
+- `✓ OK` — FFprobe verified, size within range, no issues
+- `⚠ warn` — FFprobe scan pending or soft concern (suspicious size, DV Profile 5)
+- `✗ fake` — one or more hard checks failed (mismatch verdict)
+- `↑ queue` — upgrade in SABnzbd/qBittorrent queue
+
+### 7.2 Movie Detail Page
+
+Click any row to open the detail page. Similar structure to Radarr's movie detail: header metadata, tabbed content sections.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────────┐
+│  Monsters, Inc. (2001)        G  │  Animation, Comedy, Family  │  Runtime: 92 min    │
+│  MC: 79  RT: 96%  IMDb: 8.1 (1.1M votes)                                            │
+│  Profile: Efficient-4K  ·  TMDB: 585  ·  IMDb: tt0198781                            │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│  [Overview]  [Files ●]  [History]  [Search]  [Scout]                                │
+├──────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                      │
+│  Monsters.Inc.2001.2160p.DSNP.WEB-DL.DDP5.1.Atmos.DV.HDR10.H.265-HONE.mkv         │
+│  12.1 GB  ·  Added 2026-02-28  ·  /media/movies/Monsters, Inc. (2001)/              │
+│  ─────────────────────────────────────────────────────────────────────────────────  │
+│                                                                                      │
+│  VIDEO                               AUDIO                                           │
+│  ───────                             ───────                                         │
+│  Codec:     HEVC (H.265)      ✓      Track 1  DD+ (EAC3) 5.1  English   primary     │
+│  Resolution: 3840 × 2076     ✓  2160p           Profile: Atmos                 ✓    │
+│  Bit depth:  10-bit           ✓      Track 2  EAC3 5.1         French              │
+│  Avg bitrate: 14.8 Mbps              Track 3  AC3  5.1         Spanish             │
+│  Frame rate: 23.976 fps              Subtitles: English, French, Spanish             │
+│                                                                                      │
+│  HDR                                 QUALITY VERDICT                                 │
+│  ────                                ───────────────                                 │
+│  Type:     Dolby Vision + HDR10  ✓   ✓ All filename claims verified by FFprobe      │
+│  DV Profile: 8  ✓                    ✓ Size 130 MB/min — within range (25–170)      │
+│    (cross-compatible: plays as       Group: HONE (WEB Tier 01 — TRaSH confirmed)    │
+│     HDR10 on non-DV displays)        Source: Disney+ (authenticated stream)         │
+│  MaxCLL:  1000 nits                                                                  │
+│  MaxFALL:  400 nits                                                                  │
+│                                                                                      │
+│  [Scout now]  [Search releases]  [Force grab...]  [Move to Recycle]                 │
+│                                                                                      │
+└──────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Mismatch example** — what a `✗ fake` movie looks like in the Files tab:
+
+```
+│  The.Substance.2024.2160p.UHD.BluRay.TrueHD.Atmos.7.1.x265-Unknown.mkv             │
+│  1.8 GB  ·  Added 2026-02-23  ·  /media/movies/The Substance (2024)/                │
+│  ─────────────────────────────────────────────────────────────────────────────────  │
+│                                                                                      │
+│  VIDEO                               AUDIO                                           │
+│  Codec:     HEVC (H.265)      ✓      Track 1  AAC 2.0  English                      │
+│  Resolution: 1920 × 804    ✗ MISMATCH   filename claims 2160p — actual 1080p!       │
+│  Bit depth:  8-bit         ✗ MISMATCH   filename claims 10-bit                      │
+│  Avg bitrate:  2.1 Mbps                                                              │
+│                                                                                      │
+│  HDR                                 QUALITY VERDICT                                 │
+│  Type:     SDR             ✗ MISMATCH   no HDR10 metadata found                     │
+│                                      ✗ 3 hard checks failed — filename is false     │
+│                                      ✗ Size 10 MB/min — below 2160p minimum (20)   │
+│                                      Group: Unknown (no TRaSH record)               │
+│                                                                                      │
+│  [Scout now — find real version]  [Move to Recycle]                                 │
+│                                                                                      │
+```
+
+### 7.3 Scanner Progress (SSE)
+
+When a scan is running, the library header shows a live progress bar. Scanner events are streamed via SSE from `GET /api/scanner/events`.
+
+```
+│  CURATARR  Movies (247)    [Scanner: ████████░░░░  68/247  14.8 GB scanned]  ...   │
+```
+
+Individual rows update in place as each file completes — no full-page reload required.
+
+### 7.4 Intervention Queue View
+
+The scout queue is a first-class UI section. Each item shows **full LLM reasoning**, **all ranked candidates** (not just the top pick), and clearly marks ties or close scores so the user can make an informed choice. The goal is to give the human enough context to decide confidently — not just a yes/no button.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│  SCOUT QUEUE  ● 3 pending         Last run: today 03:15 (14 evaluated, 11 auto-grabbed) │
+├─────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐   │
+│  │  [1]  Ghost in the Shell (1995)    MC: 76  RT: 96%  IMDb: 8.0 (223K)   HIGH     │   │
+│  │  ─────────────────────────────────────────────────────────────────────────────  │   │
+│  │  Intervention reason: Remux available — confirm before push                      │   │
+│  │                                                                                  │   │
+│  │  Current file:                                                                   │   │
+│  │    NAHOM BDRip-2160p  9.1 GB  [DV?] [HDR✓]   ← DV unverified (not yet scanned) │   │
+│  │                                                                                  │   │
+│  │  Scout reasoning:                                                                │   │
+│  │    Ghost in the Shell (1995) is a landmark of Japanese animation and cyberpunk  │   │
+│  │    cinema. RT: 96% / MC: 76 — strong critical consensus. Qualifies as Tier B    │   │
+│  │    exceptional by critic-score path (MC ≥ 76 AND RT ≥ 85%). A lossless          │   │
+│  │    Remux from FraMeSToR (Remux Tier 01) preserves the original 4K master        │   │
+│  │    and Dolby TrueHD Atmos mix without re-encoding. The current NAHOM file is    │   │
+│  │    a BDRip (lossy re-encode) with unverified DV. The quality gap is significant.│   │
+│  │                                                                                  │   │
+│  │  ALL CANDIDATES  (11 found, 4 after filtering)                                  │   │
+│  │  ─────────────────────────────────────────────────────────────────────────────  │   │
+│  │  RANK  SCORE   QUALITY        SIZE    REPUTE  PROTO   GROUP           FLAGS      │   │
+│  │   ★1    —      Remux-2160p   61.6GB   High    usenet  FraMeSToR       DV✓ TrHD  │   │
+│  │                ← Recommended. Score shown as — (Remux policy; exceptional title) │   │
+│  │    2   +4200   WEBDL-2160p   18.3GB   High    usenet  CMRG (iTunes)   HDR10+    │   │
+│  │                ← Best non-Remux option. iTunes = authenticated source.           │   │
+│  │    3   +4000   WEBDL-2160p   15.1GB   High    usenet  HONE (DSNP)     HDR10     │   │
+│  │                ← Scores within 200 of rank 2; no DV, close call.               │   │
+│  │    4   +3600   WEBDL-2160p    9.8GB   Medium  torrent KyoGo (AMZN)    HDR10     │   │
+│  │                ⚠ TORRENT ONLY — no usenet equivalent found for this group        │   │
+│  │                                                                                  │   │
+│  │  DROPPED:  7× SDR, 720p, or CAM; 0× LQ-flagged                                 │   │
+│  │                                                                                  │   │
+│  │   [★ Grab rank 1 — Remux]  [Grab rank 2]  [Grab rank 3]  [Dismiss 90d]         │   │
+│  └──────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐   │
+│  │  [2]  Alien: Romulus (2024)    MC: 79  RT: 80%  IMDb: 7.3 (418K)   NORMAL      │   │
+│  │  ─────────────────────────────────────────────────────────────────────────────  │   │
+│  │  Intervention reason: New release (4 days old) — indexer coverage incomplete    │   │
+│  │                                                                                  │   │
+│  │  Scout reasoning:                                                                │   │
+│  │    Released 4 days ago. Best usenet release found is YELL WEBDL-2160p 23.1 GB  │   │
+│  │    [DV, HDR10, Atmos, High repute]. However, at day 4 the highest-tier groups  │   │
+│  │    (FLUX, CMRG, HONE) may not yet have posted. Waiting 7 days gives the        │   │
+│  │    indexer time to fill out. Recommend dismiss-until to auto-resurface.         │   │
+│  │                                                                                  │   │
+│  │  ALL CANDIDATES  (23 found, 6 after filtering)                                  │   │
+│  │  ─────────────────────────────────────────────────────────────────────────────  │   │
+│  │  RANK  SCORE   QUALITY        SIZE    REPUTE  PROTO   GROUP           FLAGS      │   │
+│  │    1   +7200   WEBDL-2160p   23.1GB   High    usenet  YELL            DV✓ Atmos │   │
+│  │    2   +7100   WEBDL-2160p   24.8GB   High    usenet  TEPES           DV✓ Atmos │   │
+│  │       ↑ Scores within 100 — TIE. YELL chosen by -AsRequested suffix.           │   │
+│  │    3   +6900   WEBDL-2160p   19.2GB   High    usenet  playWEB         HDR10+    │   │
+│  │    4   +4500   Bluray-2160p  38.1GB   Medium  usenet  MgB             HDR10     │   │
+│  │                ← Bluray, no streaming auth; playWEB preferred at rank 3         │   │
+│  │    5   +3200   WEBDL-1080p    8.4GB   High    usenet  NTb             Atmos     │   │
+│  │                ← 1080p only; profile mismatch (Efficient-4K)                    │   │
+│  │    6   +2100   WEBRip-2160p   6.1GB   Unknown torrent unknown         HDR       │   │
+│  │                ⚠ TORRENT ONLY — group unknown — not recommended                 │   │
+│  │                                                                                  │   │
+│  │  [Grab rank 1 now]  [Grab rank 2]  [Dismiss until 2026-03-07 (7d)]  [Dismiss]  │   │
+│  └──────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                         │
+│  ┌──────────────────────────────────────────────────────────────────────────────────┐   │
+│  │  [3]  The Substance (2024)   MC: 73  RT: 89%  IMDb: 7.3 (85K)    NORMAL        │   │
+│  │  ─────────────────────────────────────────────────────────────────────────────  │   │
+│  │  Intervention reason: Current file is mismatch (FFprobe: resolution_mismatch,   │   │
+│  │  size_suspicious) — existing file is fake 4K. Auto-grab blocked pending         │   │
+│  │  LLM content verification of new candidates.                                    │   │
+│  │                                                                                  │   │
+│  │  Current file (MISMATCH — fake 4K):                                             │   │
+│  │    Unknown BLU-2160p  1.8 GB  [HDR✓] [AAC✗]  actual 1080p — filename lies      │   │
+│  │                                                                                  │   │
+│  │  Scout reasoning:                                                                │   │
+│  │    FFprobe flagged current file: claims 2160p / 10-bit / TrueHD but actual is  │   │
+│  │    1920×804 / 8-bit / AAC stereo. File is mislabeled — likely a low-bitrate     │   │
+│  │    upscale. Strong case for replacement. LLM content verification passed at     │   │
+│  │    94% confidence on the candidate. The title has an unusual mixed reception    │   │
+│  │    (RT: 89% critics, MC: 73) — body horror art film, niche. Not exceptional.   │   │
+│  │                                                                                  │   │
+│  │  ALL CANDIDATES  (8 found, 3 after filtering)                                   │   │
+│  │  ─────────────────────────────────────────────────────────────────────────────  │   │
+│  │  RANK  SCORE   QUALITY        SIZE    REPUTE  PROTO   GROUP           FLAGS      │   │
+│  │    1   +6800   WEBDL-2160p   22.4GB   High    usenet  FLUX (MA)       HDR10+    │   │
+│  │    2   +6600   WEBDL-2160p   19.1GB   High    usenet  CMRG (MUBI)     HDR10     │   │
+│  │       ↑ Scores within 200 — close. FLUX preferred (MA > MUBI source quality).  │   │
+│  │    3   +3100   WEBRip-2160p   8.8GB   Unknown torrent Asiimov         DV HDR10+ │   │
+│  │                ⚠ TORRENT ONLY — Unknown group — DV not verified                 │   │
+│  │                                                                                  │   │
+│  │  [Grab rank 1 — replace fake file]  [Grab rank 2]  [Dismiss]                   │   │
+│  └──────────────────────────────────────────────────────────────────────────────────┘   │
+│                                                                                         │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Design principles for the queue view:**
+
+- **Full reasoning always visible** — not collapsed by default. The user needs context to make a good decision; a one-liner is not enough.
+- **All ranked candidates shown** — the user can pick any rank with a single click. This matters when rank 1 is a Remux and the user prefers rank 2.
+- **Ties are called out explicitly** — when two scores are within ~200 points, the tie-break rule used is shown inline (e.g., `-AsRequested` suffix, source quality comparison).
+- **Torrent-only candidates are shown but clearly marked** — the user can still pick them if they want, with the warning visible.
+- **Dropped releases summarised** — the user can see how many were filtered and why, giving confidence that filtering wasn't too aggressive.
+- **Dismiss with a date** — "Dismiss until YYYY-MM-DD" auto-resurfaces the item after the cooldown, useful for new releases.
+
+### 7.5 Dashboard (Home)
+
+The home screen: health panel, rate-limit gauges, library issues, and recent activity — visible at a glance without drilling into individual movies.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│  CURATARR                                              [Settings] [Logs]    │
+│  CURATARR                              ● 3 queue    [⚙ Settings] [📋 Logs]  │
+├───────────────────────────────┬─────────────────────────────────────────────┤
+│  HEALTH                       │  SCOUT / RATE LIMITS                        │
+│  ─────────                    │  ────────────────────                        │
+│  ✓ Jellyfin      45ms         │  Movies grabbed today: 3 / 10               │
+│  ✓ Indexer       120ms        │  Next scout:  tomorrow 03:00                │
+│  ✓ SABnzbd       32ms         │  Queue:  ● 3 pending  [View queue →]        │
+│  ✓ TMDB          89ms         │                                             │
+│  ✓ LLM (Claude)  250ms        │  Disk:   /media  12.4 TB free               │
+├───────────────────────────────┴─────────────────────────────────────────────┤
+│  LIBRARY ISSUES                                               [Scan Library] │
+│  ─────────────                                                               │
+│  ✗ Mismatch  The Substance (2024) — FFprobe: resolution_mismatch, size_sus  │
+│     → [Scout now — find real version]                                        │
+│  ⚠ Warning   Ghost in Shell (1995) — DV claimed, file not yet scanned       │
+│     → [Scan file now]                                                        │
+│  ℹ Info      19 files not yet scanned by FFprobe                             │
+│     → [Scan all unscanned]                                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  ┌─────────────────────────────┐  ┌─────────────────────────────────────┐  │
-│  │  HEALTH                     │  │  RATE LIMITS                        │  │
-│  │  ───────                    │  │  ───────────                        │  │
-│  │  ✓ Jellyfin      45ms       │  │  Movies:   3/10 today               │  │
-│  │  ✓ Indexer       120ms      │  │  Episodes: 12/50 today              │  │
-│  │  ✓ SABnzbd       32ms       │  │  Next reset: 6h 23m                 │  │
-│  │  ✓ TMDB          89ms       │  │                                     │  │
-│  │  ✓ LLM           250ms      │  │  [View Queue]                       │  │
-│  └─────────────────────────────┘  └─────────────────────────────────────┘  │
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │  LIBRARY ISSUES                                          [Scan Now]   │ │
-│  ├───────────────────────────────────────────────────────────────────────┤ │
-│  │  [Errors: 2]  [Warnings: 5]  [Info: 12]                               │ │
-│  ├───────────────────────────────────────────────────────────────────────┤ │
-│  │  ✗ Missing: Example Movie (2024)                                      │ │
-│  │    /media/movies/Example Movie (2024)/file.mkv                        │ │
-│  │    [Locate] [Remove from Jellyfin] [Dismiss]                          │ │
-│  │  ───────────────────────────────────────────────────────────────────  │ │
-│  │  ✗ Missing: Another Movie (2023)                                      │ │
-│  │    /media/movies/Another Movie (2023)/                                │ │
-│  │    [Locate] [Remove from Jellyfin] [Dismiss]                          │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                                                             │
-│  ┌───────────────────────────────────────────────────────────────────────┐ │
-│  │  RECENT ACTIVITY                                                      │ │
-│  ├───────────────────────────────────────────────────────────────────────┤ │
-│  │  12:45  ✓ Upgraded: Movie A (720p → 1080p)                            │ │
-│  │  12:30  ✓ Imported: Movie B (2024)                                    │ │
-│  │  11:15  ✗ Rejected: Movie C (content mismatch: sports event)          │ │
-│  │  10:00  ⚠ Rate limit reached, pausing upgrades                        │ │
-│  └───────────────────────────────────────────────────────────────────────┘ │
-│                                                                             │
+│  RECENT ACTIVITY                                                             │
+│  ────────────────                                                            │
+│  03:15  ✓ Scout: 14 evaluated / 11 auto-grabbed / 3 queued for review       │
+│  03:14  ✓ Grabbed: Monsters, Inc. (HONE DSNP WEBDL-2160p, 12.1 GB)         │
+│  03:13  ✓ Grabbed: Shrek (playWEB SKST WEBDL-2160p, 11.5 GB)               │
+│  02:00  ✗ Rejected: Free Guy (2021) — content confidence 61%, flag: sequel  │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 Settings Page
+### 7.6 Settings Page
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │  SETTINGS                                                                   │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  General                                                                    │
-│  ────────────────────────────────────────────────────────────────────────  │
+│  General          Rate Limits          Recycle Bin          Danger Zone      │
+│  ─────────────────────────────────────────────────────────────────────────  │
 │  Timezone:                    [America/New_York        ▼]                   │
 │  Log Level:                   [Info                    ▼]                   │
+│  LLM Provider:                [Anthropic (Claude)      ▼]                   │
+│  LLM Model:                   [claude-sonnet-4-6          ]                 │
 │                                                                             │
 │  Rate Limits                                                                │
-│  ────────────────────────────────────────────────────────────────────────  │
+│  ─────────────────────────────────────────────────────────────────────────  │
 │  Max movies per day:          [10        ]                                  │
-│  Max episodes per day:        [50        ]                                  │
-│  Cooldown (minutes):          [30        ]                                  │
+│  Scout session budget:        [30 min    ]  Movies per session: [10  ]      │
+│  Cooldown between grabs:      [30 min    ]                                  │
 │                                                                             │
 │  Recycle Bin                                                                │
-│  ────────────────────────────────────────────────────────────────────────  │
+│  ─────────────────────────────────────────────────────────────────────────  │
 │  Recycle folder:              [/media/.curatarr-recycle                  ]  │
-│  Retention (days):            [30        ]                                  │
-│  Max size (GB):               [500       ]                                  │
+│  Retention (days):            [30        ]  Max size (GB): [500       ]     │
 │                                                                             │
 │  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │  ⚠️ DANGER ZONE                                                      │   │
-│  ├─────────────────────────────────────────────────────────────────────┤   │
-│  │                                                                     │   │
-│  │  Allow permanent delete                              [ ] Enable     │   │
-│  │  ───────────────────────────────────────────────────────────────── │   │
-│  │  When enabled, you can permanently delete files without moving     │   │
-│  │  them to the recycle bin. This action cannot be undone.            │   │
-│  │                                                                     │   │
-│  │  ⚠️ WARNING: Deleted files cannot be recovered.                     │   │
-│  │                                                                     │   │
+│  │  DANGER ZONE                                                         │   │
+│  │  Allow permanent delete                              [ ] Enable      │   │
+│  │  When enabled, files bypass the recycle bin. Cannot be undone.      │   │
 │  └─────────────────────────────────────────────────────────────────────┘   │
-│                                                                             │
 │                                                    [Cancel]  [Save]         │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -1128,23 +1522,65 @@ curatarr scout dismiss <id>             # Dismiss (resurfaces after cooldown)
 curatarr scout history                  # Session audit log
 ```
 
-### 8.2 REST API (Future)
+### 8.2 REST API
+
+All endpoints return JSON. Authentication is configurable (API key header or disabled for LAN-only deployments).
 
 ```
-GET  /api/health                        # Service health
-GET  /api/library/issues                # Library issues
-POST /api/library/scan                  # Trigger scan
+# Health & monitoring
+GET  /api/health                        # Service health + Curatarr version
+GET  /api/library/issues                # Library integrity issues
+POST /api/library/scan                  # Trigger FFprobe scan (async)
+GET  /api/library/scan/status           # Current scan progress
 
-GET  /api/search?q=...                  # Search releases
-POST /api/grab                          # Grab release
+# Movies
+GET  /api/movies                        # All movies (quality, verdict, scout state)
+GET  /api/movies/:id                    # Single movie detail + FFprobe verdict
+GET  /api/movies/:id/releases           # Fetch + rank indexer releases
 
-GET  /api/limits                        # Rate limit status
-POST /api/limits/reset                  # Reset limits
+# Download
+POST /api/grab                          # Push release to download client
+GET  /api/queue                         # Current download queue
 
-GET  /api/recycle                       # List recycled
-POST /api/recycle/:id/restore           # Restore item
-DELETE /api/recycle/:id                 # Permanent delete
+# Scout
+GET  /api/scout/status                  # Last session summary
+POST /api/scout/run                     # Trigger scout session (async)
+GET  /api/scout/queue                   # Intervention queue (pending)
+GET  /api/scout/queue?state=all         # All items incl. dismissed/expired
+GET  /api/scout/queue/:id               # Single intervention item (full candidates)
+POST /api/scout/queue/:id/approve       # Approve (body: { rank?: number })
+POST /api/scout/queue/:id/dismiss       # Dismiss (body: { reason?: string })
+GET  /api/scout/history                 # Scout run audit log
+
+# Rate limits
+GET  /api/limits                        # Current usage
+POST /api/limits/reset                  # Reset daily counters
+
+# Recycle bin
+GET  /api/recycle                       # List recycled items
+POST /api/recycle/:id/restore           # Restore to original path
+DELETE /api/recycle/:id                 # Permanent delete (if enabled)
+GET  /api/recycle/stats                 # Size, count, expiry summary
 ```
+
+### 8.3 Real-time Events (Server-Sent Events)
+
+Clients subscribe to `GET /api/events` for live updates. The UI uses SSE (not WebSocket) because updates are server-initiated and unidirectional.
+
+```typescript
+// Event types streamed to connected clients
+type SSEEvent =
+  | { type: 'scanner_progress';  data: { scanned: number; total: number; current: string } }
+  | { type: 'scanner_complete';  data: { verified: number; mismatch: number; suspicious: number } }
+  | { type: 'scout_progress';    data: { evaluated: number; total: number; current: string } }
+  | { type: 'scout_complete';    data: ScoutSessionSummary }
+  | { type: 'intervention_added'; data: Intervention }
+  | { type: 'queue_updated';     data: { id: number; state: string } }
+  | { type: 'grab_queued';       data: { title: string; protocol: string; size: number } }
+  | { type: 'health_changed';    data: HealthStatus[] };
+```
+
+The library view listens to `scanner_progress` events and updates individual rows in place. The nav badge updates on `intervention_added` without a page reload.
 
 ---
 
@@ -1361,3 +1797,7 @@ To keep Curatarr focused and maintainable, the following are explicitly out of s
 | 2026-02-28 | Adapter pattern for all external services | Open-source portability — operators shouldn't need to fork for different stacks |
 | 2026-02-28 | SQLite for intervention queue and audit log | Zero-dependency embedded DB; snapshots easily via `cp`; sufficient for single-operator scale |
 | 2026-02-28 | RT is primary critic signal; IMDb fallback | RT aligns better with critical consensus for exceptional title classification; IMDb votes used as corroboration only |
+| 2026-02-28 | Intervention queue shows all ranked candidates + full LLM reasoning | User needs enough context to make an informed choice; a one-liner is not sufficient when dealing with Remux vs WEB tradeoffs |
+| 2026-02-28 | Ties explicitly surfaced in queue UI | When two candidates are within ~200 score points, the tie-break rule used is shown inline so the user can override if they prefer |
+| 2026-02-28 | FFprobe hard checks are binary pass/fail per claim | Scoring approaches can be gamed by keyword stuffing; hard checks on actual bitstream data cannot |
+| 2026-02-28 | DV Profile 5 always routes to intervention | Profile 5 requires a DV-capable display; auto-grabbing it risks silent colour corruption on HDR-only TVs |

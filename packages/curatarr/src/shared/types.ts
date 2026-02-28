@@ -126,25 +126,91 @@ export interface LibraryItem {
 
 export interface FileQuality {
   // Video
-  resolution: string;         // "1920x1080"
-  resolutionCategory: '720p' | '1080p' | '2160p' | 'other';
-  videoBitrate: number;       // kbps
-  videoCodec: string;         // x264, x265, av1
-  hdrType: string | null;     // HDR10, DV, HLG, HDR10+
+  resolution: string;         // "3840x2076"
+  resolutionCategory: '480p' | '720p' | '1080p' | '2160p' | 'other';
+  videoBitrate: number;       // kbps (derived from format if stream lacks it)
+  videoCodec: string;         // "hevc", "h264", "av1"
   bitDepth: number;           // 8, 10, 12
+  frameRate: number;          // fps, e.g. 23.976
+  colorTransfer: string;      // "smpte2084" | "arib-std-b67" | "bt709"
+  colorPrimaries: string;     // "bt2020" | "bt709"
 
-  // Audio
-  audioBitrate: number;       // kbps
-  audioCodec: string;         // aac, dts, truehd
-  audioChannels: string;      // 2.0, 5.1, 7.1
+  // HDR — a file can have multiple HDR formats simultaneously (e.g. DV + HDR10+)
+  hdrFormats: HdrFormat[];    // detected HDR formats from side data
+
+  // Dolby Vision detail (if DV present)
+  dvProfile: 5 | 7 | 8 | null;   // DV profile number
+  dvLevel: number | null;
+
+  // Audio — primary track (others in audioTracks[])
+  audioCodec: string;         // "truehd", "dts", "eac3", "ac3", "aac", "flac"
+  audioProfile: string | null;// "TrueHD + Atmos", "DTS-HD MA", etc. (from FFprobe profile field)
+  audioChannels: number;      // integer: 2, 6, 8
+  audioChannelLayout: string; // "stereo", "5.1", "7.1"
+  audioBitrate: number;       // kbps (0 for lossless)
+  audioTracks: AudioTrack[];  // all tracks including non-English
 
   // File
   fileSize: number;           // bytes
   duration: number;           // seconds
-  container: string;          // mkv, mp4
+  container: string;          // "mkv", "mp4"
 
   // Calculated
-  bitratePerMinute: number;   // kbps per minute of content
+  mbPerMinute: number;        // file size in MB / duration in minutes — primary size sanity metric
+
+  // Hard-check verdict (populated after FFprobe scan)
+  verdict: QualityVerdict | null;  // null = file not yet scanned
+}
+
+export type HdrFormat = 'HDR10' | 'HDR10+' | 'DolbyVision' | 'HLG';
+
+export interface AudioTrack {
+  index: number;
+  codec: string;              // "truehd", "eac3", "ac3", "aac", "dts"
+  profile: string | null;     // "TrueHD + Atmos", "DTS-HD MA", etc.
+  channels: number;
+  channelLayout: string;
+  language: string;           // ISO 639-2: "eng", "fra", "spa"
+  isDefault: boolean;
+  isForcedSubstitute: boolean;
+  bitrate: number;            // kbps (0 for lossless)
+}
+
+export type HardCheckKey =
+  | 'resolution'
+  | 'dolbyVision'
+  | 'hdr10'
+  | 'hdr10plus'
+  | 'hlg'
+  | 'truehdAtmos'
+  | 'ddpAtmos'
+  | 'dtshd'
+  | 'channels71'
+  | 'channels51'
+  | 'hevc'
+  | 'av1'
+  | 'bitDepth10'
+  | 'sizeToQuality';
+
+export interface QualityVerdict {
+  // Overall outcome
+  status: 'verified'        // all claimed features confirmed
+        | 'mismatch'        // ≥1 hard check failed — filename is false
+        | 'suspicious'      // size anomaly or soft concern only
+        | 'unverifiable';   // ffprobe failed (corrupt, encrypted, timeout)
+
+  // Per-signal result — 'skip' means title made no claim for this feature
+  checks: Record<HardCheckKey, 'pass' | 'fail' | 'skip'>;
+
+  // Human-readable warnings surfaced in the UI
+  warnings: string[];
+  // Examples:
+  // "DV Profile 5: requires Dolby Vision display — SDR on standard HDR TVs"
+  // "Atmos claimed in filename but audio is plain TrueHD 7.1"
+  // "Resolution 1920×804 — filename claims 2160p (mismatch)"
+  // "Size 10 MB/min — below 2160p minimum of 20 MB/min (fake 4K indicator)"
+
+  scannedAt: string;        // ISO timestamp
 }
 
 // ============================================================================
@@ -458,9 +524,31 @@ export interface RecycleBinStats {
 // Upgrade Polling
 // ============================================================================
 
+export interface ScoutConfig {
+  enabled: boolean;
+  schedule: string;             // Cron expression e.g. "0 3 * * *"
+  sessionMaxMinutes: number;    // Hard time budget per session (default: 30)
+  moviesPerSession: number;     // Max candidates evaluated per session (default: 10)
+  minAgeHours: number;          // Skip files added more recently than this (default: 48)
+  dismissCooldownDays: number;  // Re-surface dismissed items after N days (default: 90)
+  interventionExpiryDays: number; // Auto-expire pending items after N days (default: 14)
+  llm: {
+    provider: 'anthropic' | 'openai' | 'ollama';
+    model: string;              // e.g. "claude-sonnet-4-6"
+    maxTokensPerSession: number; // Cost guard — abort session if exceeded
+    temperature: number;
+  };
+  autoGrab: {
+    enabled: boolean;           // false = dry-run (all decisions → intervention)
+    requireMinRepute: 'high' | 'medium'; // min group repute for auto-grab
+    requireUsenet: boolean;     // true = never auto-grab torrents
+  };
+}
+
+/** @deprecated Use ScoutConfig instead */
 export interface UpgradePollingConfig {
   enabled: boolean;
-  schedule: string;           // Cron expression
+  schedule: string;
   batchSize: number;
   minAgeHours: number;
   requireConfirmation: boolean;

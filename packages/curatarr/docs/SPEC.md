@@ -1,8 +1,8 @@
 # Curatarr Specification
 
-> **Version**: 0.1.0-draft
-> **Status**: Requirements gathering
-> **Last Updated**: 2025-01-28
+> **Version**: 0.2.0-draft
+> **Status**: Active development — open source project
+> **Last Updated**: 2026-02-28
 
 ## Table of Contents
 
@@ -15,7 +15,8 @@
 7. [User Interface](#7-user-interface)
 8. [API Reference](#8-api-reference)
 9. [Implementation Phases](#9-implementation-phases)
-10. [Appendix](#appendix)
+10. [Contributing](#10-contributing)
+11. [Appendix](#appendix)
 
 ---
 
@@ -74,7 +75,8 @@ Managing 4+ systems with interconnected configurations is error-prone and time-c
 | Quality profile matching | P0 | 🔲 Pending | 2 |
 | SABnzbd integration | P0 | 🔲 Pending | 3 |
 | Post-download import | P1 | 🔲 Pending | 3 |
-| Upgrade polling | P1 | 🔲 Pending | 4 |
+| Upgrade scout daemon | P1 | 🔲 Pending | 4 |
+| Human intervention queue | P1 | 🔲 Pending | 4 |
 | Rate limiting | P1 | 🔲 Pending | 4 |
 | Recycle bin | P1 | 🔲 Pending | 4 |
 | Web UI | P2 | 🔲 Pending | 5 |
@@ -442,33 +444,380 @@ Return JSON only.
 
 ---
 
-### 5.7 Upgrade Polling
+### 5.7 Upgrade Scout Daemon
 
 #### 5.7.1 Status: 🔲 PENDING
 
-#### 5.7.2 Workflow
+#### 5.7.2 Overview
+
+The Upgrade Scout is a background daemon that runs on a configurable schedule, evaluates a batch of library items for upgrade opportunities, and takes action — either grabbing automatically or queuing items for human review.
+
+**Design goals:**
+- Time-bounded sessions (default: 30 min max) to avoid runaway API costs
+- Configurable batch size (default: 10 movies per session)
+- All decisions logged to SQLite for auditability
+- Human-in-the-loop for ambiguous cases; fully autonomous for clear wins
+- Pluggable LLM provider — defaults to Claude Sonnet for cost/quality balance
+
+#### 5.7.3 Priority Selection
+
+Each session evaluates up to `scout.moviesPerSession` (default: 10) candidates. Candidates are selected from the library using a composite priority score:
 
 ```
-1. Scan library (or use cached FFprobe data)
-2. For each item below target quality:
-   a. Search indexer for candidates
-   b. LLM verify each candidate
-   c. Compare candidate vs current
-   d. If better and within rate limits → queue
-3. Process queue respecting rate limits
-4. Log all decisions
+priority_score = quality_gap + recency_penalty + critic_weight + scout_age_bonus
 ```
 
-#### 5.7.3 Configuration
+| Component | Formula | Max |
+|-----------|---------|-----|
+| `quality_gap` | distance from current quality to profile target | 40 |
+| `recency_penalty` | penalise recently-scouted items (linear decay over 14d) | −20 |
+| `critic_weight` | `(MC/10) + (RT/10)` from Radarr ratings, capped | +20 |
+| `scout_age_bonus` | +1 per day since last scout, capped at 20 | +20 |
+
+**Quality gap calculation:**
+
+| Current → Target | Gap Score |
+|-----------------|-----------|
+| CAM / TELESYNC → any | 40 |
+| SD / 480p → HD/4K | 35 |
+| 720p → 1080p or 4K | 30 |
+| 1080p → 2160p (profile requires it) | 25 |
+| YTS/LQ 4K → High-repute 4K | 20 |
+| Same tier, suboptimal audio (AAC → Atmos) | 10 |
+| Already at target | 0 (skip) |
+
+**Selection filters (hard exclusions — never enter candidate pool):**
+- File added within `scout.minAgeHours` (default: 48h)
+- Item in Radarr download queue already
+- Profile is `DontUpgrade`
+- Explicitly dismissed via intervention queue within `scout.dismissCooldownDays` (default: 90)
+
+#### 5.7.4 Scout Session Lifecycle
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         SCOUT SESSION                                    │
+│                                                                         │
+│  1. SELECT candidates (priority ranking, hard filters)                  │
+│  2. For each candidate (up to moviesPerSession):                        │
+│     a. GET releases from indexer (search)                               │
+│     b. Apply hard filters (quality tier, language, LQ groups)          │
+│     c. Score and rank remaining releases                                │
+│     d. LLM: content verification + quality authenticity check          │
+│     e. Decision gate (see 5.7.5)                                        │
+│        ├── AUTO-GRAB: push to download client                           │
+│        └── INTERVENTION: write to SQLite queue                          │
+│  3. Enforce time budget — stop if elapsed > scout.sessionMaxMinutes     │
+│  4. Write scout_runs audit record                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+**Session time budget**: The daemon checks elapsed time before starting each new candidate evaluation. If `elapsed ≥ sessionMaxMinutes`, the session exits cleanly, logging how many were evaluated vs skipped.
+
+#### 5.7.5 Auto-Grab vs Intervention Decision Matrix
+
+Every candidate release passes through this gate. All conditions in the **Auto-grab** column must be true for automatic grabbing; any **Intervention trigger** condition routes to the human queue.
+
+| Signal | Auto-grab condition | Intervention trigger |
+|--------|-------------------|---------------------|
+| LLM content confidence | ≥ 90% | < 90% |
+| LLM quality authenticity | Pass (no size/quality anomaly) | Any flag raised |
+| Release group repute | High (TRaSH-tiered or verified paid source) | Medium / Low / Unknown |
+| Size sanity check | Within MB/min range for quality tier | Outside range |
+| Protocol | Usenet preferred | Torrent-only → always intervention |
+| Quality improvement | Unambiguous (clear tier jump or superior source) | Borderline (same tier, marginal gain) |
+| Remux releases | Never auto-grab | Always intervention (size, confirm required) |
+| Audio upgrade only | Auto if repute High and LLM passes | Otherwise intervention |
+| New release (< 7 days) | Never auto-grab — indexer coverage incomplete | Always intervention |
+
+**Decision priority**: a single Intervention trigger condition is sufficient to route to the queue regardless of how many Auto-grab conditions are met.
+
+#### 5.7.6 SQLite Schema
+
+The scout daemon uses two tables in the main Curatarr SQLite database.
+
+```sql
+-- Audit log: one row per scout session
+CREATE TABLE scout_runs (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  started_at  DATETIME NOT NULL,
+  ended_at    DATETIME,
+  status      TEXT NOT NULL DEFAULT 'running', -- running | completed | aborted
+  movies_evaluated  INTEGER DEFAULT 0,
+  auto_grabbed      INTEGER DEFAULT 0,
+  interventions_added INTEGER DEFAULT 0,
+  skipped     INTEGER DEFAULT 0,  -- hit time budget or already optimal
+  error       TEXT                -- populated if status = aborted
+);
+
+-- Human intervention queue
+CREATE TABLE interventions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  movie_id    TEXT NOT NULL,       -- Jellyfin/TMDB ID
+  movie_title TEXT NOT NULL,
+  movie_year  INTEGER,
+  state       TEXT NOT NULL DEFAULT 'pending',
+    -- pending | approved | grabbed | dismissed | expired
+  reason      TEXT NOT NULL,       -- human-readable: why intervention needed
+  priority    TEXT NOT NULL DEFAULT 'normal',
+    -- critical | high | normal | low
+  recommendation TEXT NOT NULL,    -- 'grab' | 'skip' | 'investigate'
+  current_file    JSON,            -- { path, size, quality, group, added_at }
+  candidate       JSON NOT NULL,   -- { guid, title, size, quality, group,
+                                   --   repute, protocol, llm_confidence,
+                                   --   score, download_url }
+  all_candidates  JSON,            -- full ranked list (for UI display)
+  scout_run_id    INTEGER REFERENCES scout_runs(id),
+  created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  expires_at  DATETIME,            -- auto-dismiss after this date
+  resolved_at DATETIME,
+  resolved_by TEXT,                -- 'user' | 'auto' | 'expired'
+  notes       TEXT                 -- user-added notes on resolution
+);
+
+CREATE INDEX idx_interventions_state ON interventions(state);
+CREATE INDEX idx_interventions_movie ON interventions(movie_id);
+
+-- Rate limit counters (persisted across restarts)
+CREATE TABLE rate_limit_counters (
+  date  TEXT NOT NULL,
+  type  TEXT NOT NULL,   -- 'movie' | 'episode'
+  count INTEGER DEFAULT 0,
+  PRIMARY KEY (date, type)
+);
+```
+
+**Intervention `reason` examples:**
+
+| Reason code | Human-readable message |
+|-------------|----------------------|
+| `llm_confidence_low` | LLM content confidence 74% — may not be correct movie |
+| `unknown_group` | Release group DVSUX has no TRaSH history or verified source |
+| `torrent_only` | No usenet NZB available; torrent from KyoGo found |
+| `remux_available` | FraMeSToR Remux-2160p 61.6 GB — confirm before push |
+| `size_anomaly` | 1.8 GB for 2160p (expected 20–170 GB) — likely mislabeled |
+| `new_release` | Released 3 days ago — indexer coverage may be incomplete |
+| `borderline_gain` | Same quality tier, marginal audio upgrade only |
+
+#### 5.7.7 Configuration
 
 ```yaml
-upgradePolling:
+scout:
   enabled: true
-  schedule: "0 3 * * *"         # 3 AM daily
-  batchSize: 50                  # Items to evaluate per run
-  minAgeHours: 48                # Don't upgrade files < 48h old
-  requireConfirmation: false     # Auto-approve or require human
+  schedule: "0 3 * * *"          # Cron: 3 AM daily
+  sessionMaxMinutes: 30           # Hard time budget per session
+  moviesPerSession: 10            # Max candidates per session
+  minAgeHours: 48                 # Min file age before scouting
+  dismissCooldownDays: 90         # Re-surface dismissed after N days
+  interventionExpiryDays: 14      # Auto-expire pending items after N days
+
+  llm:
+    provider: anthropic           # anthropic | openai | ollama
+    model: claude-sonnet-4-6      # Model for scout evaluations
+    maxTokensPerSession: 50000    # Cost guard: abort if exceeded
+    temperature: 0.1
+
+  autoGrab:
+    enabled: true                 # false = dry-run mode (all → intervention)
+    requireMinRepute: high        # high | medium — minimum group repute
+    requireUsenet: false          # true = never auto-grab torrents
 ```
+
+#### 5.7.8 CLI
+
+```bash
+# Run scout now (ignores schedule)
+curatarr scout run
+
+# Run in dry-run mode (no grabs, all decisions logged only)
+curatarr scout run --dry-run
+
+# Show last session summary
+curatarr scout status
+
+# Show pending intervention queue
+curatarr scout queue
+
+# Show all queue items (include dismissed/expired)
+curatarr scout queue --all
+
+# Approve item (grab the recommended release)
+curatarr scout approve <id>
+
+# Approve with alternative (choose different candidate)
+curatarr scout approve <id> --rank 2
+
+# Dismiss item (not interested in upgrading)
+curatarr scout dismiss <id> [--reason "Already acceptable quality"]
+
+# Batch operations
+curatarr scout approve-all --dry-run     # Preview what would be grabbed
+curatarr scout approve-all              # Grab all approved items
+curatarr scout dismiss-expired          # Purge stale queue entries
+
+# Audit log
+curatarr scout history [--days 30]      # Scout run history
+curatarr scout history --verbose        # Full session details
+```
+
+**Queue display format:**
+
+```
+INTERVENTION QUEUE — 3 pending
+
+ ID  PRIORITY  TITLE                       YEAR  REASON                        RECOMMENDATION
+  1  high      Ghost in the Shell          1995  remux_available (61.6 GB)     grab (confirm)
+  2  normal    Alien: Romulus              2024  new_release (4 days old)      skip (wait)
+  3  normal    The Substance               2024  torrent_only (FLUX, usenet!)  grab (torrent)
+
+curatarr scout approve 1   # → show remux details, ask for explicit confirm
+curatarr scout approve 3   # → warn ⚠ TORRENT ONLY, show SABnzbd alternative
+curatarr scout dismiss 2   # → re-surfaces in 90 days
+```
+
+---
+
+### 5.8 Adapter Architecture
+
+#### 5.8.1 Purpose
+
+Curatarr is designed as an open-source tool for the broader self-hosted media community. Hard-coding a single download client, indexer, or media server would limit adoption. The adapter pattern lets operators swap components without forking.
+
+#### 5.8.2 LLM Provider Adapters
+
+All LLM calls go through a common `LLMProvider` interface:
+
+```typescript
+interface LLMProvider {
+  name: string;
+  chat(messages: ChatMessage[], opts?: LLMOptions): Promise<string>;
+  isAvailable(): Promise<boolean>;
+}
+```
+
+| Provider | Model default | Notes |
+|----------|-------------|-------|
+| `anthropic` | `claude-sonnet-4-6` | Default; best cost/accuracy balance |
+| `openai` | `gpt-4o` | Good alternative |
+| `ollama` | `llama3.3` | Local; no API cost, slower |
+| `openrouter` | configurable | Aggregator; many models |
+
+Config:
+```yaml
+llm:
+  provider: anthropic
+  model: claude-sonnet-4-6
+  apiKey: ${ANTHROPIC_API_KEY}
+```
+
+#### 5.8.3 Download Client Adapters
+
+```typescript
+interface DownloadClient {
+  name: string;
+  addNzb(url: string, category: string, name: string): Promise<string>;  // returns job ID
+  addTorrent(url: string, category: string, name: string): Promise<string>;
+  getQueue(): Promise<DownloadJob[]>;
+  removeJob(id: string): Promise<void>;
+}
+```
+
+| Client | Protocol | Notes |
+|--------|---------|-------|
+| `sabnzbd` | Usenet | Default; full API |
+| `nzbget` | Usenet | Alternative usenet client |
+| `qbittorrent` | Torrent | Full WebUI API |
+| `transmission` | Torrent | Lightweight alternative |
+| `deluge` | Torrent | Plugin-based |
+
+#### 5.8.4 Indexer Adapters
+
+```typescript
+interface IndexerAdapter {
+  name: string;
+  search(query: string, categories: number[]): Promise<Release[]>;
+  getById(guid: string): Promise<Release>;
+  isAvailable(): Promise<boolean>;
+}
+```
+
+| Adapter | Notes |
+|---------|-------|
+| `newznab` | Standard Newznab/Torznab API (NZBGeek, NZBFinder, Prowlarr) |
+| `torznab` | Torrent variant of Newznab (via Prowlarr or Jackett) |
+| `prowlarr` | Preferred — aggregates multiple indexers with CF scoring |
+
+Using Prowlarr as the indexer adapter means Curatarr inherits CF scoring from the existing TRaSH sync. This is the recommended path during transition from the full *arr stack.
+
+#### 5.8.5 Media Server Adapters
+
+```typescript
+interface MediaServerAdapter {
+  name: string;
+  getLibraryItems(type: 'movie' | 'episode'): Promise<LibraryItem[]>;
+  triggerScan(path: string): Promise<void>;
+  updateMetadata(id: string, meta: Partial<MediaMeta>): Promise<void>;
+}
+```
+
+| Adapter | Notes |
+|---------|-------|
+| `jellyfin` | Default; full API, no API key tier restrictions |
+| `plex` | Requires Plex Pass for full API access |
+| `emby` | Similar API surface to Jellyfin |
+
+---
+
+### 5.9 Observability
+
+#### 5.9.1 Structured Logging
+
+All log output is structured JSON when `LOG_FORMAT=json` (default in production/Docker) or human-readable when `LOG_FORMAT=pretty` (default in development).
+
+```json
+{
+  "time": "2026-02-28T03:15:42Z",
+  "level": "info",
+  "module": "scout",
+  "event": "candidate_evaluated",
+  "movie": "Ghost in the Shell",
+  "year": 1995,
+  "decision": "intervention",
+  "reason": "remux_available",
+  "candidate_group": "FraMeSToR",
+  "candidate_size_gb": 61.6,
+  "llm_confidence": 98,
+  "elapsed_ms": 3240
+}
+```
+
+#### 5.9.2 SQLite Audit Trail
+
+Beyond the scout tables, all grab and import actions are logged:
+
+```sql
+CREATE TABLE activity_log (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts          DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  type        TEXT NOT NULL,  -- grabbed | imported | recycled | rejected | error
+  movie_id    TEXT,
+  movie_title TEXT,
+  release     TEXT,           -- release filename
+  details     JSON,           -- type-specific payload
+  source      TEXT            -- 'scout' | 'cli' | 'api'
+);
+```
+
+#### 5.9.3 Health Endpoint
+
+When running as a daemon, Curatarr exposes a minimal health endpoint:
+
+```
+GET /health
+→ { status: "healthy", lastScout: "2026-02-28T03:15:55Z", queueDepth: 3 }
+```
+
+Suitable for Docker HEALTHCHECK and uptime monitors.
 
 ---
 
@@ -767,10 +1116,16 @@ curatarr recycle restore <id>           # Restore item
 curatarr recycle purge                  # Purge expired
 curatarr recycle stats                  # Usage stats
 
-# Upgrades
-curatarr upgrade check                  # Check for upgrades
-curatarr upgrade run                    # Run upgrade cycle
-curatarr upgrade run --ignore-limits    # Ignore rate limits
+# Upgrades / Scout
+curatarr upgrade check                  # Check for upgrades (legacy alias)
+curatarr upgrade run                    # Run upgrade cycle (legacy alias)
+curatarr scout run                      # Run scout session now
+curatarr scout run --dry-run            # Preview decisions only
+curatarr scout status                   # Last session summary
+curatarr scout queue                    # Pending intervention queue
+curatarr scout approve <id>             # Approve and grab
+curatarr scout dismiss <id>             # Dismiss (resurfaces after cooldown)
+curatarr scout history                  # Session audit log
 ```
 
 ### 8.2 REST API (Future)
@@ -819,11 +1174,15 @@ DELETE /api/recycle/:id                 # Permanent delete
 - [ ] Import handler
 - [ ] Jellyfin rescan
 
-### Phase 4: Automation
-- [ ] Rate limiter
-- [ ] Recycle bin
-- [ ] Upgrade poller
-- [ ] Notification system
+### Phase 4: Automation & Scout
+- [ ] Rate limiter (SQLite-backed counters)
+- [ ] Recycle bin (soft delete + retention policy)
+- [ ] Upgrade Scout daemon (priority selection, session lifecycle)
+- [ ] Human intervention queue (SQLite schema, CLI approve/dismiss)
+- [ ] Auto-grab decision gate (LLM confidence + repute thresholds)
+- [ ] Scout session audit log (`scout_runs` table)
+- [ ] Adapter interfaces (LLM, download client, indexer, media server)
+- [ ] Notification system (webhook / ntfy / Apprise)
 
 ### Phase 5: Web UI
 - [ ] Dashboard
@@ -840,6 +1199,132 @@ DELETE /api/recycle/:id                 # Permanent delete
 - [ ] Quality badges
 - [ ] Request integration
 - [ ] In-app controls
+
+---
+
+---
+
+## 10. Contributing
+
+### 10.1 Philosophy
+
+Curatarr is designed to be understandable and extendable. The codebase follows a module-per-concern pattern — each integration is isolated behind an adapter interface, so contributors can add support for new download clients, indexers, or media servers without touching core logic.
+
+### 10.2 Architecture for Contributors
+
+```
+src/
+├── adapters/               # Swap-in implementations
+│   ├── llm/                # LLM provider adapters
+│   │   ├── anthropic.ts    # Default
+│   │   ├── openai.ts
+│   │   └── ollama.ts       # Local LLM (no API key)
+│   ├── download/           # Download client adapters
+│   │   ├── sabnzbd.ts      # Default for usenet
+│   │   ├── nzbget.ts
+│   │   └── qbittorrent.ts
+│   ├── indexer/            # Indexer adapters
+│   │   ├── newznab.ts      # Standard Newznab
+│   │   ├── torznab.ts      # Torrent Newznab
+│   │   └── prowlarr.ts     # Prowlarr aggregator (recommended)
+│   └── media-server/       # Media server adapters
+│       ├── jellyfin.ts     # Default
+│       └── plex.ts
+├── scout/                  # Upgrade Scout daemon
+│   ├── daemon.ts           # Scheduler + session lifecycle
+│   ├── prioritizer.ts      # Candidate priority ranking
+│   ├── decisionGate.ts     # Auto-grab vs intervention logic
+│   └── interventionQueue.ts # SQLite queue management
+└── shared/
+    └── adapters.ts         # Adapter interfaces (the contracts)
+```
+
+### 10.3 Adding a New Adapter
+
+1. Implement the relevant interface from `src/shared/adapters.ts`
+2. Add a factory case in `src/shared/adapterFactory.ts`
+3. Add configuration type in `config.schema.ts`
+4. Write a test that mocks the external API (see `test/adapters/`)
+5. Update `config.example.yaml` with the new provider option
+
+**Example — adding an NZBGet download client:**
+
+```typescript
+// src/adapters/download/nzbget.ts
+import type { DownloadClient, DownloadJob } from '../../shared/adapters.js';
+
+export class NzbGetClient implements DownloadClient {
+  name = 'nzbget';
+
+  constructor(private url: string, private username: string, private password: string) {}
+
+  async addNzb(nzbUrl: string, category: string, name: string): Promise<string> {
+    // POST to NZBGet JSONRPC API
+    const res = await fetch(`${this.url}/jsonrpc`, {
+      method: 'POST',
+      headers: { Authorization: `Basic ${btoa(`${this.username}:${this.password}`)}` },
+      body: JSON.stringify({ method: 'append', params: [name, nzbUrl, category, 0, false, false, '', 0, 'SCORE'] }),
+    });
+    const { result } = await res.json();
+    if (result < 0) throw new Error(`NZBGet append failed: ${result}`);
+    return String(result);
+  }
+
+  // ... other interface methods
+}
+```
+
+### 10.4 Code Style
+
+- **ESM only**: `.js` extension in imports, `"type": "module"` in package.json
+- **No default exports**: named exports only for tree-shaking
+- **Structured errors**: return `{ ok: false, error: string }` from library code; throw only from CLI entry points
+- **No `any`**: use `unknown` and narrow with type guards
+- **Tests required**: every adapter must have a test file mocking the external HTTP API
+
+### 10.5 Testing
+
+```bash
+npm test                    # Node built-in test runner
+npm test -- --watch         # Watch mode (Node 22+)
+```
+
+Test structure:
+```
+test/
+├── adapters/
+│   ├── sabnzbd.test.ts     # Mock HTTP, test all methods
+│   └── prowlarr.test.ts
+├── scout/
+│   ├── prioritizer.test.ts # Priority scoring logic
+│   └── decisionGate.test.ts # Auto-grab vs intervention rules
+└── shared/
+    └── titleParser.test.ts  # Pure parsing, no mocks needed
+```
+
+### 10.6 Roadmap for Community Contributions
+
+The following areas are explicitly **open for community contribution** (will not be blocked by core maintainers):
+
+| Area | Complexity | Notes |
+|------|-----------|-------|
+| Additional LLM adapters (Mistral, Gemini, OpenRouter) | Low | Follow `anthropic.ts` as template |
+| NZBGet download client | Low | JSON-RPC API |
+| Transmission / Deluge torrents | Low | Simple APIs |
+| Plex media server adapter | Medium | Requires Plex token handling |
+| Pushover / ntfy notifications | Low | Simple HTTP POST |
+| Web UI (React or Vue) | High | REST API already specced in 8.2 |
+| TV show support (TVDB) | High | New content type |
+| Jellyfin plugin | Very High | Requires C# knowledge |
+
+### 10.7 Non-Goals (Scope Boundaries)
+
+To keep Curatarr focused and maintainable, the following are explicitly out of scope:
+
+- **Content discovery / recommendations**: Curatarr manages what you already have or explicitly request; it does not suggest new content
+- **Streaming or transcoding**: Jellyfin handles this; Curatarr is an acquisition and quality management tool
+- **Rights management or DRM**: Configuration of legal acquisition sources is the operator's responsibility
+- **Multi-user access control**: Single-operator tool; multi-user is a future concern (Web UI phase)
 
 ---
 
@@ -869,3 +1354,10 @@ DELETE /api/recycle/:id                 # Permanent delete
 | 2025-01-28 | Soft delete default | Prevent data loss |
 | 2025-01-28 | Rate limiting | Prevent runaway upgrades |
 | 2025-01-28 | LLM verification required | Core differentiator |
+| 2026-02-28 | Scout daemon uses Claude Sonnet | Best cost/quality balance for batch evaluation; configurable to other providers |
+| 2026-02-28 | Remux = always intervention, never auto-grab | File sizes (40–80 GB) require human confirmation regardless of repute |
+| 2026-02-28 | Torrent-only = always intervention | Usenet is strongly preferred; torrents need explicit user sign-off |
+| 2026-02-28 | 30-minute session budget | Prevents runaway API costs; configurable per operator |
+| 2026-02-28 | Adapter pattern for all external services | Open-source portability — operators shouldn't need to fork for different stacks |
+| 2026-02-28 | SQLite for intervention queue and audit log | Zero-dependency embedded DB; snapshots easily via `cp`; sufficient for single-operator scale |
+| 2026-02-28 | RT is primary critic signal; IMDb fallback | RT aligns better with critical consensus for exceptional title classification; IMDb votes used as corroboration only |

@@ -21,7 +21,7 @@ source .env 2>/dev/null
 # POST /api/v3/release endpoint. Verify via GET /api/v3/queue (covers both protocols).
 
 # Session temp directory — all intermediate files land here
-SCOUT_TS=$(date '+%Y-%m-%d_%H-%M')          # e.g. 2026-02-28_15-30
+SCOUT_TS=$(date '+%d%b-%I%M%p' | tr '[:upper:]' '[:lower:]')  # e.g. 28feb-0230pm
 SCOUT_DIR="temp/release-scout/${SCOUT_TS}"
 mkdir -p "$SCOUT_DIR"
 echo "Session dir: $SCOUT_DIR"
@@ -605,7 +605,7 @@ DROPPED (154 filtered):
 
 ```
 temp/release-scout/
-└── 2026-02-28_15-30/          # one directory per run (YYYY-MM-DD_HH-MM)
+└── 28feb-0230pm/              # one directory per run (DDmon-HHMMam/pm)
     ├── releases-raw.json      # full API response from step 3 (tee'd automatically)
     └── ranked.txt             # optional: redirect final ranked output here
                                #   e.g.  ... | tee "${SCOUT_DIR}/ranked.txt"
@@ -613,7 +613,7 @@ temp/release-scout/
 
 Session dir is set in step 1:
 ```bash
-SCOUT_TS=$(date '+%Y-%m-%d_%H-%M')
+SCOUT_TS=$(date '+%d%b-%I%M%p' | tr '[:upper:]' '[:lower:]')  # e.g. 28feb-0230pm
 SCOUT_DIR="temp/release-scout/${SCOUT_TS}"
 mkdir -p "$SCOUT_DIR"
 ```

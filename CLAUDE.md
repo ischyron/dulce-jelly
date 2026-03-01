@@ -25,12 +25,12 @@
 
 ## Architecture & Services
 - **Network:** Single Docker network `media_net`; services talk via container hostnames (not host ports).
-- **Services:** Caddy (proxy/landing), Jellyfin, Jellyseerr, Prowlarr, qBittorrent, SABnzbd, Radarr, Sonarr, Recyclarr.
-- **Host ports (seq):** 80/443→80/443 (Caddy); 3278/3279→8096/8920 (Jellyfin HTTP/HTTPS); 3277→5055 (Jellyseerr); 3276→9696 (Prowlarr); 3275→8080 (qBittorrent, peers 6881 TCP/UDP); 3274→8080 (SABnzbd); 3273→7878 (Radarr); 3272→8989 (Sonarr); Recyclarr scheduled only.
+- **Services:** Caddy (proxy/landing), Jellyfin, Jellyseerr, Prowlarr, qBittorrent, SABnzbd, Radarr, Sonarr, Recyclarr, Curatarr.
+- **Host ports (seq):** 80/443→80/443 (Caddy); 3278/3279→8096/8920 (Jellyfin HTTP/HTTPS); 3277→5055 (Jellyseerr); 3276→9696 (Prowlarr); 3275→8080 (qBittorrent, peers 6881 TCP/UDP); 3274→8080 (SABnzbd); 3273→7878 (Radarr); 3272→8989 (Sonarr); 3270→7474 (Curatarr); Recyclarr scheduled only.
 
 ### Access Patterns
 **LAN (no auth):**
-- Use direct ports: `http://<server-ip>:3278` (Jellyfin), `:3277` (Jellyseerr), `:3275` (qBittorrent), `:3276` (Prowlarr), `:3273` (Radarr), `:3272` (Sonarr), `:3274` (SABnzbd).
+- Use direct ports: `http://<server-ip>:3278` (Jellyfin), `:3277` (Jellyseerr), `:3276` (Prowlarr), `:3275` (qBittorrent), `:3274` (SABnzbd), `:3273` (Radarr), `:3272` (Sonarr), `:3270` (Curatarr).
 
 **Internet (Cloudflare Tunnel - basic auth required except Jellyfin):**
 - Landing: `http://yourdomain.example`
@@ -42,6 +42,7 @@
   - Sonarr: `http://sonarr.yourdomain.example` (auth required)
   - SABnzbd: `http://sab.yourdomain.example` (auth required)
   - Prowlarr: `http://prowlarr.yourdomain.example` (auth required)
+  - Curatarr: `http://curatarr.yourdomain.example` (auth required)
 
 **Direct port access (setup/troubleshooting):**
 - Use when path-based proxying has issues (e.g., Jellyseerr initial setup)
@@ -53,7 +54,7 @@
 
 ## Networking & Defaults
 - **LAN names (mDNS/hosts):** Direct IP:port is the reliable path; mDNS hostnames may exist but are not required.
-- **Env defaults:** `TZ=<your-timezone>`, `PUID=1000`, `PGID=1000`; `JELLYFIN_HTTP_PORT=3278`, `JELLYFIN_HTTPS_PORT=3279` (only if Jellyfin terminates TLS), `JELLYSEERR_PORT=3277`, `QBITTORRENT_WEB_PORT=3275`, `QBITTORRENT_PEER_PORT=6881`, `UMASK_SET=002`, `PROWLARR_PORT=3276`, `SABNZBD_PORT=3274`, `DOWNLOADS_ROOT=/Volumes/SCRAPFS/downloads`, `INCOMPLETE_ROOT=/Volumes/SCRAPFS/downloads/incomplete`, `RADARR_PORT=3273`, `SONARR_PORT=3272`, `RECYCLARR_CRON="0 4 * * *"`.
+- **Env defaults:** `TZ=<your-timezone>`, `PUID=1000`, `PGID=1000`; `JELLYFIN_HTTP_PORT=3278`, `JELLYFIN_HTTPS_PORT=3279` (only if Jellyfin terminates TLS), `JELLYSEERR_PORT=3277`, `QBITTORRENT_WEB_PORT=3275`, `QBITTORRENT_PEER_PORT=6881`, `UMASK_SET=002`, `PROWLARR_PORT=3276`, `SABNZBD_PORT=3274`, `DOWNLOADS_ROOT=/Volumes/SCRAPFS/downloads`, `INCOMPLETE_ROOT=/Volumes/SCRAPFS/downloads/incomplete`, `RADARR_PORT=3273`, `SONARR_PORT=3272`, `CURATARR_HOST_PORT=3270` (host port; container runs on 7474 internally), `RECYCLARR_CRON="0 4 * * *"`.
 - **App settings (inside containers):** SABnzbd completed folder: `/downloads/usenet`; qBittorrent save path: `/downloads/torrents`; Radarr/Sonarr download client remote paths match these container paths for atomic moves.
 - **Integration tips:** Inside Docker, use hostnames (e.g., `qbittorrent:8080`) for Radarr/Sonarr/Jellyseerr. Credentials come from `.env` (`ADMIN_USERNAME`/`ADMIN_PASSWORD`).
 - **TLS note:** Keep 3279/8920 only if Jellyfin terminates TLS; otherwise proxy handles TLS on HTTP upstream.

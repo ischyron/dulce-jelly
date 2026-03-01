@@ -7,6 +7,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
 import { serveStatic } from '@hono/node-server/serve-static';
 import type { CuratDb } from '../db/client.js';
 import { makeStatsRoutes } from './routes/stats.js';
@@ -21,6 +22,9 @@ import { makeVerifyRoutes } from './routes/verify.js';
 
 export function createApp(db: CuratDb, distUiPath: string): Hono {
   const app = new Hono();
+
+  // HTTP request logging (visible in docker logs curatarr)
+  app.use('*', logger());
 
   // CORS for Vite dev server (port 5173)
   app.use('/api/*', cors({

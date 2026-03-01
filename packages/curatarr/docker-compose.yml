@@ -18,10 +18,11 @@ services:
     volumes:
       # Persistent config + DB (required)
       - /path/to/curatarr/config:/config
-      # Movie library — read-only; match the path set in Settings → Library Path
-      - /path/to/movies:/media:ro
+      # Movie library (optional) — mount your library here, then set Library Path to /media in Settings.
+      # On macOS, ensure the path is in Docker Desktop → Settings → Resources → File Sharing first.
+      # - /path/to/movies:/media:ro
     ports:
-      - 7474:7474
+      - "${CURATARR_HOST_PORT:-3270}:7474"
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:7474/api/stats"]
@@ -30,9 +31,7 @@ services:
       retries: 3
       start_period: 15s
 
-# To join your existing media stack network (so Jellyfin is reachable by hostname):
-#
-#networks:
-#  default:
-#    external: true
-#    name: media_net
+networks:
+  default:
+    external: true
+    name: media_net

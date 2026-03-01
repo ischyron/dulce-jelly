@@ -105,6 +105,10 @@ http://dulce.local {
     uri strip_prefix /huntarr
     redir * http://{host}:3271{uri} 307
   }
+  handle_path /curatarr* {
+    uri strip_prefix /curatarr
+    redir * http://{host}:3270{uri} 307
+  }
 }
 
 # App subdomains (HTTPS only)
@@ -171,4 +175,10 @@ http://huntarr.dulcejelly.me {
   import require_https_public
   import auth_common
   reverse_proxy huntarr:9705
+}
+
+http://curatarr.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy curatarr:7474
 }

@@ -1,35 +1,24 @@
 #!/usr/bin/env node
 /**
- * Curatarr - LLM-backed intelligent media library management
- *
- * Replaces: Radarr, Sonarr, Prowlarr, Recyclarr
- * Keeps: Jellyfin (library/player), SABnzbd (downloads)
+ * Curatarr CLI entry point
  */
 
-import { fileURLToPath } from 'node:url';
-
 import { Command } from 'commander';
+import { makeScanCommand } from './cli/scan.js';
+import { makeJfSyncCommand } from './cli/jf-sync.js';
+import { makeReportCommand } from './cli/report.js';
+import { makeServeCommand } from './cli/serve.js';
 
-import { scanCommand } from './cli/scan.js';
-import { searchCommand } from './cli/search.js';
-import { grabCommand } from './cli/grab.js';
-import { cacheCommand } from './cli/cache.js';
-import { monitorCommand } from './cli/monitor.js';
+const program = new Command('curatarr')
+  .description('Media library quality indexer — ffprobe + Jellyfin + SQLite')
+  .version('0.2.0');
 
-const baseDir = fileURLToPath(new URL('..', import.meta.url));
+program.addCommand(makeScanCommand());
+program.addCommand(makeJfSyncCommand());
+program.addCommand(makeReportCommand());
+program.addCommand(makeServeCommand());
 
-const program = new Command();
-
-program
-  .name('curatarr')
-  .description('LLM-backed intelligent media library management')
-  .version('0.1.0');
-
-// Register subcommands
-program.addCommand(scanCommand(baseDir));
-program.addCommand(searchCommand(baseDir));
-program.addCommand(grabCommand(baseDir));
-program.addCommand(cacheCommand(baseDir));
-program.addCommand(monitorCommand(baseDir));
-
-program.parseAsync(process.argv);
+program.parseAsync(process.argv).catch((err) => {
+  console.error(err.message);
+  process.exit(1);
+});

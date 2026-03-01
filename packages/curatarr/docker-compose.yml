@@ -1,0 +1,38 @@
+services:
+  curatarr:
+    build:
+      context: .          # packages/curatarr/ — self-contained build
+      dockerfile: Dockerfile
+    image: curatarr:latest
+    container_name: curatarr
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=UTC
+      # Jellyfin connection (required for jf-sync and jf-refresh)
+      - JELLYFIN_URL=http://jellyfin:8096
+      - JELLYFIN_API_KEY=your_jellyfin_api_key_here
+      # Curatarr defaults (optional overrides)
+      - CURATARR_PORT=7474
+      # CURATARR_DB defaults to /config/curatarr.db — change only if needed
+    volumes:
+      # Persistent config + DB (required)
+      - /path/to/curatarr/config:/config
+      # Movie library — read-only; match the path set in Settings → Library Path
+      - /path/to/movies:/media:ro
+    ports:
+      - 7474:7474
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:7474/api/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+# To join your existing media stack network (so Jellyfin is reachable by hostname):
+#
+#networks:
+#  default:
+#    external: true
+#    name: media_net

@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import os from 'node:os';
 import path from 'node:path';
+import fs from 'node:fs';
 import type { CuratDb } from '../../db/client.js';
 import { scanEmitter } from '../sse.js';
 import { scanLibrary } from '../../scanner/scan.js';
@@ -25,6 +26,11 @@ export function makeScanRoutes(db: CuratDb): Hono {
     }
 
     const libraryPath = path.resolve(rawPath.replace(/^~/, os.homedir()));
+
+    if (!fs.existsSync(libraryPath)) {
+      return c.json({ error: `Library path does not exist: ${libraryPath}` }, 400);
+    }
+
     const signal = scanEmitter.start();
 
     scanEmitter.emit('start', { libraryPath, jobs, rescan });

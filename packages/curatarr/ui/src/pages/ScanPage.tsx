@@ -66,6 +66,23 @@ export function ScanPage() {
   const [scanPath, setScanPath] = useState('');
   const [jobs, setJobs] = useState(4);
   const [rescan, setRescan] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  const { data: scanStatusData } = useQuery({
+    queryKey: ['scan-status'],
+    queryFn: api.scanStatus,
+    refetchInterval: 3_000,
+  });
+
+  const { data: syncStatusData } = useQuery({
+    queryKey: ['sync-status'],
+    queryFn: api.syncStatus,
+    refetchInterval: 3_000,
+  });
+
+  const scanRunning = scanStatusData?.running ?? modal === 'scan';
+  const syncRunning = syncStatusData?.running ?? modal === 'sync';
 
   const { data: histData, refetch: refetchHistory } = useQuery({
     queryKey: ['scan-history'],
@@ -73,14 +90,24 @@ export function ScanPage() {
   });
 
   async function triggerScan() {
-    await api.triggerScan({ path: scanPath || undefined, jobs, rescan });
-    setModal('scan');
-    refetchHistory();
+    setScanError(null);
+    try {
+      await api.triggerScan({ path: scanPath || undefined, jobs, rescan });
+      setModal('scan');
+      refetchHistory();
+    } catch (err) {
+      setScanError((err as Error).message);
+    }
   }
 
   async function triggerSync() {
-    await api.triggerSync({});
-    setModal('sync');
+    setSyncError(null);
+    try {
+      await api.triggerSync({});
+      setModal('sync');
+    } catch (err) {
+      setSyncError((err as Error).message);
+    }
   }
 
   return (
@@ -133,11 +160,15 @@ export function ScanPage() {
 
         <button
           onClick={triggerScan}
-          className="flex items-center gap-2 px-5 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium"
+          disabled={scanRunning}
+          className="flex items-center gap-2 px-5 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ScanLine size={15} />
-          Start Scan
+          {scanRunning ? 'Scanning…' : 'Start Scan'}
         </button>
+        {scanError && (
+          <p className="text-sm text-red-400 mt-1">{scanError}</p>
+        )}
       </div>
 
       {/* Sync section */}
@@ -153,11 +184,15 @@ export function ScanPage() {
         </p>
         <button
           onClick={triggerSync}
-          className="flex items-center gap-2 px-5 py-2 bg-purple-700 hover:bg-purple-600 text-white rounded-lg text-sm font-medium"
+          disabled={syncRunning}
+          className="flex items-center gap-2 px-5 py-2 bg-purple-700 hover:bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RefreshCw size={15} />
-          Sync from Jellyfin
+          {syncRunning ? 'Syncing…' : 'Sync from Jellyfin'}
         </button>
+        {syncError && (
+          <p className="text-sm text-red-400 mt-1">{syncError}</p>
+        )}
       </div>
 
       {/* Scan history */}

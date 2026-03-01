@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Film, ScanLine, CheckCircle, AlertCircle } from 'lucide-react';
+import { Film, ScanLine, CheckCircle, AlertCircle, Rocket } from 'lucide-react';
 import { api } from '../api/client.js';
 import { ResolutionPieChart, CodecBarChart } from '../components/Charts.js';
 import { ScanProgressModal } from '../components/ScanProgressModal.js';
@@ -65,6 +65,24 @@ export function Dashboard() {
           Scan Library
         </button>
       </div>
+
+      {/* Onboarding banner for fresh installs */}
+      {data.totalMovies === 0 && (
+        <div className="bg-[#1a1030] border border-[#7c3aed]/40 rounded-xl p-5 flex gap-4 items-start">
+          <Rocket size={22} className="text-[#a78bfa] shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-semibold text-[#d4cfff]">Welcome to Curatarr!</p>
+            <p className="text-sm text-[#8b87aa]">
+              Your library is empty. To get started:
+            </p>
+            <ol className="text-sm text-[#8b87aa] list-decimal list-inside space-y-0.5 mt-1">
+              <li>Go to <Link to="/settings" className="text-[#a78bfa] hover:underline">Settings</Link> and set your Library Path (e.g. <code className="font-mono text-xs px-1 rounded bg-[#26263a]">/media</code>).</li>
+              <li>Return here and click <strong className="text-[#c4b5fd]">Scan Library</strong> to analyse your files with ffprobe.</li>
+              <li>Optionally run <Link to="/scan" className="text-[#a78bfa] hover:underline">Jellyfin Sync</Link> to enrich metadata from Jellyfin.</li>
+            </ol>
+          </div>
+        </div>
+      )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

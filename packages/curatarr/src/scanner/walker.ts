@@ -42,7 +42,7 @@ function isMainVideoFile(filename: string): boolean {
 
   const lower = filename.toLowerCase();
   // Skip common extras/samples
-  if (lower.includes('sample') && !lower.startsWith('sample')) return true; // "sample" in middle = skip
+  if (lower.includes('sample') && !lower.startsWith('sample')) return false; // "sample" in middle = skip
   if (lower.startsWith('sample')) return false;
   if (lower.includes('-trailer')) return false;
   if (lower.includes('.trailer.')) return false;

@@ -32,7 +32,7 @@ export function makeSyncRoutes(db: CuratDb): Hono {
       return c.json({ error: 'Jellyfin URL and API key required. Configure in Settings.' }, 400);
     }
 
-    syncEmitter.start();
+    const signal = syncEmitter.start();
     syncEmitter.emit('start', { url, resync });
 
     setImmediate(async () => {
@@ -40,6 +40,7 @@ export function makeSyncRoutes(db: CuratDb): Hono {
         const jfClient = new JellyfinClient(url, apiKey);
         const result = await syncJellyfin(jfClient, db, {
           resync,
+          signal,
           onProgress: (synced, total, matched, unmatched) => {
             syncEmitter.emit('progress', { synced, total, matched, unmatched });
           },
@@ -47,7 +48,11 @@ export function makeSyncRoutes(db: CuratDb): Hono {
             syncEmitter.emit('ambiguous', item);
           },
         });
-        syncEmitter.emit('complete', result);
+        if (signal.aborted) {
+          syncEmitter.emit('complete', { ...result, cancelled: true });
+        } else {
+          syncEmitter.emit('complete', result);
+        }
       } catch (err) {
         syncEmitter.emit('error', { message: (err as Error).message });
       } finally {
@@ -56,6 +61,17 @@ export function makeSyncRoutes(db: CuratDb): Hono {
     });
 
     return c.json({ started: true, url, resync });
+  });
+
+  // POST /api/jf-sync/cancel
+  app.post('/cancel', (c) => {
+    const cancelled = syncEmitter.cancel();
+    return c.json({ cancelled });
+  });
+
+  // GET /api/jf-sync/status
+  app.get('/status', (c) => {
+    return c.json({ running: syncEmitter.running });
   });
 
   // GET /api/jf-sync/events  — SSE stream

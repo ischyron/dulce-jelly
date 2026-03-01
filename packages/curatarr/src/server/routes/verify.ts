@@ -30,8 +30,7 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
     const signal = verifyEmitter.start();
 
     // Count how many we'll queue
-    const unverified = db.getUnverifiedFiles(1);
-    const queued = fileIds ? fileIds.length : unverified.length;
+    const queued = fileIds ? fileIds.length : db.getUnverifiedCount();
 
     verifyEmitter.emit('start', { concurrency, queued });
 

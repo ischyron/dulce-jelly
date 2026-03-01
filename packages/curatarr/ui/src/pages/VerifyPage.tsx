@@ -49,6 +49,15 @@ export function VerifyPage() {
     queryFn: () => api.verifyFailures({ page: failPage, limit: 50 }),
   });
 
+  // Sync running state from server on mount / status refresh (BUG-08)
+  useEffect(() => {
+    if (statusData?.running && !running) {
+      // Server says verify is running but UI thinks it's not — reconnect to SSE
+      connectSse();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusData?.running]);
+
   useEffect(() => {
     return () => { esRef.current?.close(); };
   }, []);

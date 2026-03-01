@@ -33,6 +33,7 @@ export class SseEmitter {
 
   cancel(): boolean {
     if (!this.running || !this._abortController) return false;
+    this.running = false;
     this._abortController.abort();
     this.emit('cancelled', { reason: 'User requested cancellation' });
     return true;

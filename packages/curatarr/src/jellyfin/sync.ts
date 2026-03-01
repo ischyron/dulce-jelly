@@ -18,6 +18,8 @@ export interface SyncOptions {
   onAmbiguous?: (item: AmbiguousMatch) => void;
   /** If true, re-sync movies already enriched. Default: false. */
   resync?: boolean;
+  /** Abort signal to cancel the sync mid-run. */
+  signal?: AbortSignal;
 }
 
 export interface AmbiguousMatch {
@@ -133,6 +135,8 @@ export async function syncJellyfin(
 
   let synced = 0;
   for (const jf of jfMovies) {
+    if (opts.signal?.aborted) break;
+
     // Skip already-synced unless resync requested
     if (!opts.resync) {
       const folderPath = jfFolderPath(jf);

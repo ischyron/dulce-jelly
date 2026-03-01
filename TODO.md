@@ -5,6 +5,24 @@
 - Work through todos independently; pause only if human review is required.
 - Strike out or mark status when done/blocked.
 
+### ~~Curatarr Bug Fixes~~ — ALL FIXED 2026-03-01 (found 2026-03-01 exploratory session)
+
+| ID | Severity | Component | Description |
+|----|----------|-----------|-------------|
+| BUG-01 | HIGH | scan route | Scan accepts a path that doesn't exist on disk — starts, walker throws ENOENT, SSE 'error' fires, but `startScanRun` already created an orphaned DB record. Add path-exists check (400) before starting. |
+| BUG-02 | HIGH | ScanPage UI | `triggerScan()` and `triggerSync()` have no try/catch — 400 (no path), 409 (already running), network errors are silently dropped; user sees nothing. Show inline error. |
+| BUG-03 | HIGH | ScanProgressModal | Stop button has zero feedback while awaiting cancel. If scan finished just before cancel, `{cancelled:false}` is returned silently. Add "Stopping…" spinner and handle the already-done case. |
+| BUG-04 | HIGH | SseEmitter/scan | `cancel()` does NOT set `running=false` — new scan attempts get 409 "already running" until the worker pool drains (could be 30s+ on large libs). Set `running=false` immediately in `cancel()`. |
+| BUG-05 | HIGH | JF sync | No stop button for Jellyfin Sync — `cancelEndpoint` is `null` for sync mode. Add `/api/jf-sync/cancel` route and wire it up in the modal. |
+| BUG-06 | HIGH | ScanPage | "Start Scan" button not disabled while scan is running. User can click it repeatedly; all but first silently fail (BUG-02 compounds this). |
+| BUG-07 | MEDIUM | verify route | `queued` count in `/api/verify/start` response is wrong — `db.getUnverifiedFiles(1)` returns at most 1 row, so response always shows `queued:1`. Need a COUNT query. |
+| BUG-08 | MEDIUM | VerifyPage | `running` local state starts `false` regardless of server state. If user navigates to Verify while verify is in progress, Start button shows and clicking gives 409 with no feedback. Sync from `statusData.running` on mount. |
+| BUG-09 | MEDIUM | scan progress | Progress bar never reaches 100% on incremental scans. `foldersTotal=all 1781 folders` but `foldersDone` only counts folders with new files processed. Mismatch means bar stalls at e.g. 5% even when done. |
+| BUG-10 | MEDIUM | scan.ts | `db.startScanRun()` is called before `walkLibrary()`. If walker throws (ENOENT), `finishScanRun` is never called → orphaned partial scan_run row in DB. |
+| BUG-11 | MEDIUM | SSE error handler | `es.addEventListener('error', ...)` catches BOTH named SSE 'error' events AND native EventSource connection errors. A normal stream close fires a native error → modal shows "Unknown error". Distinguish the two. |
+| BUG-12 | LOW | walker | `isMainVideoFile`: line `return true` where comment says "skip" — files with 'sample' in the middle (e.g. `movie.sample.mkv`) are incorrectly included. Should be `return false`. |
+| BUG-13 | LOW | Dashboard | Empty state: fresh install shows all 0s with no guidance. Add onboarding banner when `totalMovies === 0`. |
+
 ### Curatarr Backlog
 
 - [TODO] Playwright smoke tests across all pages (Dashboard, Library, Scout, Disambiguate, Verify, Settings, MoviePage)

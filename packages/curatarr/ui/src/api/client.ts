@@ -212,6 +212,8 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  scanStatus: () => req<{ running: boolean }>('/scan/status'),
+
   scanHistory: () => req<{ runs: unknown[] }>('/scan/history'),
 
   triggerSync: (body: { url?: string; apiKey?: string; resync?: boolean }) =>
@@ -219,6 +221,10 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  syncStatus: () => req<{ running: boolean }>('/jf-sync/status'),
+
+  syncCancel: () => req<{ cancelled: boolean }>('/jf-sync/cancel', { method: 'POST' }),
 
   rules: (category?: string) => {
     const qs = category ? `?category=${category}` : '';

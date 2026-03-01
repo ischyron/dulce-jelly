@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, AlertCircle, Loader2, Square } from 'lucide-react';
+import { api } from '../api/client.js';
 
 interface FolderStatus {
   name: string;
@@ -35,7 +36,8 @@ export function ScanProgressModal({ mode, onClose }: Props) {
   const esRef = useRef<EventSource | null>(null);
 
   const endpoint = mode === 'scan' ? '/api/scan/events' : '/api/jf-sync/events';
-  const cancelEndpoint = mode === 'scan' ? '/api/scan/cancel' : null;
+  const hasCancelSupport = true; // both scan and jf-sync now have cancel endpoints
+  const [stopping, setStopping] = useState(false);
 
   useEffect(() => {
     const es = new EventSource(endpoint);
@@ -73,8 +75,11 @@ export function ScanProgressModal({ mode, onClose }: Props) {
       es.close();
     });
 
-    es.addEventListener('error', (e: MessageEvent) => {
-      const data = JSON.parse(e.data || '{}') as { message?: string };
+    es.addEventListener('error', (e: Event) => {
+      // Distinguish named SSE 'error' events (have .data) from native connection errors (no .data)
+      const msg = (e as MessageEvent).data;
+      if (!msg) return; // native EventSource connection drop — stream just closed, not a server error
+      const data = JSON.parse(msg || '{}') as { message?: string };
       setError(String(data.message ?? 'Unknown error'));
       setDone(true);
       es.close();
@@ -89,8 +94,19 @@ export function ScanProgressModal({ mode, onClose }: Props) {
   }, [endpoint]);
 
   async function stopScan() {
-    if (!cancelEndpoint) return;
-    await fetch(cancelEndpoint, { method: 'POST' });
+    setStopping(true);
+    try {
+      const cancelFn = mode === 'scan'
+        ? () => fetch('/api/scan/cancel', { method: 'POST' }).then(r => r.json()) as Promise<{ cancelled: boolean }>
+        : () => api.syncCancel();
+      const res = await cancelFn();
+      if (!res.cancelled) {
+        // Operation already finished before cancel arrived — mark as done
+        setDone(true);
+      }
+    } finally {
+      setStopping(false);
+    }
   }
 
   const filesProcessed = Number(progress.filesProcessed ?? 0);
@@ -216,13 +232,16 @@ export function ScanProgressModal({ mode, onClose }: Props) {
 
         {/* Footer */}
         <div className="p-4 border-t border-[#26263a] flex items-center justify-between shrink-0">
-          {!done && cancelEndpoint && (
+          {!done && hasCancelSupport && (
             <button
               onClick={stopScan}
-              className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-800 text-red-300 rounded-lg text-sm font-medium"
+              disabled={stopping}
+              className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-800 text-red-300 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              <Square size={13} />
-              Stop Scan
+              {stopping
+                ? <><Loader2 size={13} className="animate-spin" /> Stopping…</>
+                : <><Square size={13} /> Stop {mode === 'scan' ? 'Scan' : 'Sync'}</>
+              }
             </button>
           )}
           {done && (

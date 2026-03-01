@@ -84,7 +84,6 @@ export async function scanLibrary(
   const rescan = opts.rescan ?? false;
 
   const startTime = Date.now();
-  const runId = db.startScanRun(rootPath);
 
   const result: ScanResult = {
     rootPath,
@@ -113,6 +112,7 @@ export async function scanLibrary(
   const folderFileCounts = new Map<string, number>();
   const folderFileDone = new Map<string, number>();
 
+  // Walk first — if this throws (ENOENT etc.) we haven't created a DB record yet
   for (const folder of walkLibrary(rootPath)) {
     result.totalFolders++;
 
@@ -152,6 +152,9 @@ export async function scanLibrary(
       folderFileCounts.set(folder.folderPath, (folderFileCounts.get(folder.folderPath) ?? 0) + 1);
     }
   }
+
+  // Walk complete — now safe to create the DB scan record
+  const runId = db.startScanRun(rootPath);
 
   if (workItems.length === 0) {
     const durationSec = (Date.now() - startTime) / 1000;
@@ -225,7 +228,7 @@ export async function scanLibrary(
         folder: item.folderName,
         file: item.filename,
         foldersDone: folderFileDone.size,
-        foldersTotal: result.totalFolders,
+        foldersTotal: folderFileCounts.size,  // only folders with pending work, not all library folders
         filesProcessed,
         filesOk: result.scannedOk,
         filesErrored: result.scanErrors,

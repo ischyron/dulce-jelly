@@ -744,6 +744,14 @@ export class CuratDb {
     ).all(limit) as FileRow[];
   }
 
+  getUnverifiedCount(): number {
+    return (this.db.prepare(
+      `SELECT COUNT(*) as n FROM files
+       WHERE scanned_at IS NOT NULL AND scan_error IS NULL
+         AND (verify_status IS NULL OR verify_status = 'pending')`
+    ).get() as { n: number }).n;
+  }
+
   setVerifyResult(fileId: number, result: {
     status: 'pass' | 'fail' | 'error';
     errors: string[];

@@ -12,27 +12,37 @@
     "curatarr": "dist/index.js"
   },
   "scripts": {
-    "build": "tsc -p .",
+    "build:ui": "cd ui && npm run build",
+    "build": "npm run build:ui && tsc -p .",
+    "build:server": "tsc -p .",
     "lint": "eslint 'src/**/*.ts'",
-    "test": "node --test test/",
-    "clean": "rm -rf dist",
-    "dev": "tsc -w"
+    "test": "node --test test/*.test.mjs",
+    "test:e2e": "npx playwright test --config=playwright.config.cjs --reporter=line",
+    "clean": "rm -rf dist dist-ui",
+    "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"tsc -w --preserveWatchOutput\" \"node --watch dist/index.js serve\" \"cd ui && npm run dev\"",
+    "dev:server": "concurrently -n tsc,api -c cyan,magenta \"tsc -w --preserveWatchOutput\" \"node --watch dist/index.js serve\"",
+    "dev:ui": "cd ui && npm run dev",
+    "serve": "node dist/index.js serve"
   },
   "dependencies": {
+    "@hono/node-server": "^1.19.9",
     "better-sqlite3": "^11.0.0",
     "commander": "^12.0.0",
+    "hono": "^4.12.3",
     "openai": "^4.28.0",
     "yaml": "^2.4.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/better-sqlite3": "^7.6.9",
     "@types/node": "^20.11.30",
-    "eslint": "^8.57.0",
     "@typescript-eslint/eslint-plugin": "^7.7.1",
     "@typescript-eslint/parser": "^7.7.1",
+    "concurrently": "^9.2.1",
+    "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-import": "^2.29.1",
     "eslint-import-resolver-typescript": "3.6.1",
+    "eslint-plugin-import": "^2.29.1",
     "typescript": "^5.4.5"
   }
 }

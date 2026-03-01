@@ -2,13 +2,13 @@
 
 ## Project Overview
 
-**Curatarr** is an LLM-backed media library management system that replaces Radarr, Sonarr, Prowlarr, and Recyclarr with a single intelligent system.
+**Curatarr** is an LLM-backed media library management system that replaces Radarr (and potentially Sonarr in a future phase) and Recyclarr with a single intelligent system. **Prowlarr is consulted as the indexer manager** (retained, not replaced). **SABnzbd and qBittorrent** are the first-class download clients.
 
 **Status**: MVP in progress — CLI scaffold done, core modules pending.
 
 ## Key Documents
 
-- [docs/VISION.md](docs/VISION.md) — Full design, architecture, and phased implementation plan
+- [docs/SPEC.md](docs/SPEC.md) — Full specification, architecture, and phased implementation plan
 - [config/config.example.yaml](config/config.example.yaml) — Configuration reference
 - [README.md](README.md) — Quick start and status
 
@@ -17,23 +17,35 @@
 1. **LLM content verification** — Prevent wrong-content replacements (F1 movie → F1 race incident)
 2. **Quality authenticity** — Catch fake "4K Remux" at 2GB via size-to-quality validation
 3. **FFprobe analysis** — Actual bitrate metrics, not filename guessing
-4. **Stack simplification** — Single system replaces 4+ *arr apps
+4. **Stack simplification** — Radarr + Recyclarr replaced; Prowlarr, SABnzbd, qBittorrent, and Jellyfin are retained integrations
+
+## Scope (what Curatarr replaces vs. integrates)
+
+| Service | Role | Disposition |
+|---------|------|-------------|
+| Radarr | Movie acquisition management | **Replaced** by Curatarr |
+| Recyclarr | CF scoring + quality profile sync | **Replaced** — TRaSH sync built in |
+| Sonarr | TV acquisition management | Future — out of scope for MVP |
+| Prowlarr | Indexer aggregator (Newznab/Torznab) | **Retained** — Curatarr queries it |
+| SABnzbd | Usenet download client | **Retained** — Curatarr sends NZBs |
+| qBittorrent | Torrent download client | **Retained** — Curatarr sends torrents |
+| Jellyfin | Primary database + metadata source | **Retained** — primary DB; read items, write corrections, lock fields, trigger refresh |
 
 ## Architecture
 
 ```
 src/
-├── cli/           # CLI commands (scan, search, grab, cache, monitor)
+├── cli/           # CLI commands (scan, search, grab, cache, monitor, trash)
 ├── monitor/       # Library + health monitoring (IMPLEMENTED)
 │   ├── healthChecker.ts    # Service connectivity checks
 │   ├── jellyfinClient.ts   # Jellyfin API with batched fetching
 │   └── libraryMonitor.ts   # Missing file detection
 ├── scanner/       # FFprobe library analysis (PENDING)
-├── search/        # Newznab indexer + SQLite cache (PENDING)
+├── search/        # Prowlarr/Torznab indexer + SQLite cache (PENDING)
 ├── evaluator/     # LLM content/quality verification (PENDING)
-├── quality/       # TRaSH profiles + group reputation (PENDING)
-├── download/      # SABnzbd client (PENDING)
-├── import/        # Post-download + Jellyfin rescan (PENDING)
+├── quality/       # TRaSH profiles + CF scoring + group reputation (PENDING)
+├── download/      # SABnzbd + qBittorrent clients (PENDING)
+├── import/        # Post-download + Jellyfin notify + metadata write-back (PENDING)
 └── shared/        # Config, types, utilities (DONE)
 ```
 
@@ -54,11 +66,12 @@ Two-part dashboard:
 - `error`: Unreachable (timeout, connection refused)
 
 ### Services Monitored
-- Jellyfin (library source)
-- Indexer (Newznab API)
-- SABnzbd (download client)
+- Jellyfin (primary DB — read library, write metadata corrections, lock fields, trigger refresh)
+- Prowlarr (indexer manager — Newznab/Torznab)
+- SABnzbd (usenet download client)
+- qBittorrent (torrent download client)
 - TMDB (metadata)
-- LLM provider (OpenAI/Anthropic)
+- LLM provider (Anthropic/OpenAI/Ollama/OpenRouter)
 
 ### Jellyfin API Integration
 - Batched fetching (configurable batch size)
@@ -69,14 +82,16 @@ Two-part dashboard:
 
 ### Phase 1: Foundation (Current)
 1. `scanner/ffprobe.ts` — Extract quality metrics from files
-2. `search/indexerClient.ts` — Query Newznab API
+2. `search/indexerClient.ts` — Query Prowlarr (Torznab/Newznab)
 3. `search/cache.ts` — SQLite caching
 4. `search/titleParser.ts` — Parse release titles
 
 ### Phase 2: Quality Intelligence
-1. `quality/profiles.ts` — Load TRaSH-based profiles
-2. `quality/sizeValidation.ts` — Size-to-quality checks
-3. `quality/groupReputation.ts` — Release group scoring
+1. `quality/trashSync.ts` — Sync TRaSH group tiers + CF definitions
+2. `quality/profiles.ts` — Load TRaSH-based profiles
+3. `quality/sizeValidation.ts` — Size-to-quality checks
+4. `quality/groupReputation.ts` — Release group scoring
+5. `quality/cfScoring.ts` — CF scoring rules (ordered YAML)
 
 ### Phase 3: LLM Verification
 1. `evaluator/tmdbClient.ts` — Fetch movie metadata
@@ -85,8 +100,9 @@ Two-part dashboard:
 
 ### Phase 4: Grab & Import
 1. `download/sabnzbdClient.ts` — Send NZBs to SABnzbd
-2. `import/folderNaming.ts` — TMDB-based folder naming
-3. `import/jellyfinClient.ts` — Trigger library rescan
+2. `download/qbittorrentClient.ts` — Send torrents to qBittorrent
+3. `import/folderNaming.ts` — TMDB-based folder naming
+4. `import/jellyfinClient.ts` — Trigger library rescan
 
 ## Code Guidelines
 
@@ -147,12 +163,14 @@ interface LLMEvaluation {
 
 ```bash
 curatarr scan [path]              # Scan library with FFprobe
-curatarr search "title year"      # Search + LLM verify
-curatarr grab <guid> --confirm    # Send to SABnzbd
+curatarr search "title year"      # Search Prowlarr + LLM verify
+curatarr grab <guid> --confirm    # Send to SABnzbd or qBittorrent
 curatarr cache sync               # Fetch recent releases
 curatarr cache stats              # Show cache info
+curatarr trash sync               # Pull TRaSH group tiers + CF definitions
+curatarr trash status             # Show last sync time and group counts
 curatarr monitor run              # Full monitor (library + health)
-curatarr monitor health           # Service connectivity check
+curatarr monitor health           # Service connectivity check (incl. Prowlarr, SABnzbd, qBT)
 curatarr monitor library          # Library integrity check
 ```
 
@@ -160,11 +178,12 @@ curatarr monitor library          # Library integrity check
 
 | Service | Purpose | Auth |
 |---------|---------|------|
-| Newznab | Search releases | API key in URL |
-| SABnzbd | Download NZBs | API key param |
+| Prowlarr | Indexer manager (Torznab/Newznab aggregator) | API key header |
+| SABnzbd | Send NZBs (usenet) | API key param |
+| qBittorrent | Send torrents | Session cookie / basic auth |
 | TMDB | Movie metadata | Bearer token |
-| OpenAI | LLM verification | Bearer token |
-| Jellyfin | Library rescan | API key header |
+| Anthropic / OpenAI / Ollama / OpenRouter | LLM verification | Bearer token (or none for Ollama) |
+| Jellyfin | Library source + rescan trigger | API key header |
 
 ## Configuration
 
@@ -193,10 +212,10 @@ If resuming this work, start with:
    - Parse output, extract video/audio metrics
    - Handle errors (file not found, not a video)
 
-2. **Newznab client** — `src/search/indexerClient.ts`
-   - Implement `search(query)` using native `fetch`
-   - Parse XML response (Newznab format)
-   - Map to `Release` type
+2. **Prowlarr/Torznab client** — `src/search/indexerClient.ts`
+   - Query Prowlarr at `GET /api/v1/search?query=...&type=movie` (Torznab aggregator)
+   - Parse XML response (Newznab/Torznab format)
+   - Map to `Release` type; protocol field distinguishes usenet vs torrent
 
 3. **Title parser** — `src/search/titleParser.ts`
    - Regex patterns for resolution, codec, group, source

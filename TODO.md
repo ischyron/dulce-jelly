@@ -5,6 +5,17 @@
 - Work through todos independently; pause only if human review is required.
 - Strike out or mark status when done/blocked.
 
+### Curatarr Backlog
+
+- [TODO] Playwright smoke tests across all pages (Dashboard, Library, Scout, Disambiguate, Verify, Settings, MoviePage)
+- [TODO] JF enrichment coverage: 283/1781 (15.9%) — investigate remaining 1498 unmatched; consider path rematch after jf-sync
+- [TODO] 3 AV1 files detected — verify which movies and check against client profile
+- [TODO] 17 mpeg4 legacy codec files — surface in Scout Queue for replacement
+- [TODO] Movie page: add poster image via TMDb API (tmdb_id is stored, just needs a fetch)
+- [TODO] Library list: add "open full page" row action (⬡ icon or Ctrl+click) as alternative to drawer
+- [TODO] Disambiguation: run full batch via UI for all unsynced movies
+- [TODO] Verify page: run deep-check on all 1787 files (CPU-intensive, run off-peak)
+
 ### Todo Items/Issues
 - [TODO] delete only brokerManagedTags when processing a new movie in Radarr using quality broker
 - [TODO] Remove hardcoded decision profile names (HD/Efficient-4K/HighQuality-4K) from quality-broker code; derive only from config

@@ -13,13 +13,14 @@
 - [TODO] BUG-16 MEDIUM | Deep check error tooltip/popup cropped when shown on a Search result row — CSS overflow clipping issue in table container.
 - [TODO] BUG: Numbers in libary search doesnt work eg: "500" doesnt list 500 days of summer
 - [TODO] Poster images: add `/api/proxy/image/:jellyfinId` endpoint; show poster in MovieDetailDrawer and MoviePage. Proxy via Curatarr server (no duplicate storage, no public Jellyfin URL needed, works in all topologies)
-- [TODO] JF enrichment need only bareminimum feilds like score, genere, title, etc which are needed for curation. poster, plot etc can live in jellyfin. plot and descrption are not needed.
-- [TODO] JF enrichment coverage: 283/1781 (15.9%) — run jf-sync on Docker container; investigate remaining 1498 unmatched (path rematch, fuzzy title strategies)
+- [TODO] Default sort order should be base don title if none specified. Clciking libary menu from left tab should preseve last view (filter and sort combination) -So we provide a "reset view" at top for user to start over.
+- [TODO] JF enrichment need only bare minimum feilds like score, genere, title, etc which are needed for curation. poster, plot etc can live in jellyfin. plot and descrption are not needed.
+- [TODO] JF enrichment scheduling config: make sure this runs automatically evey 30 min and batch size 10. schedule and batch configired in Settings. 
+- [TODO] JF enrichment BUG: This is also buggy now. example:  Les Misérables (1998) (2019) → Les Misérables (2012) (2012)[year_mismatch]. the out put is not clear. "Les Misérables (1998)" fodler name to ne highlishted and whay is conflciing then "Les Misérables (2012)" this is another movie but of different year. The 2012 movie =of same name has fodler name, filename, and real meta data all matching. So issue you found is tru but applies only to folder "Les Misérables (1998)". Say [year_mismatch] path: "Les Misérables (1998)/Les.Misérables.2019.1080p.BluRay.x264.AAC5.1-[YTS.MX].mp4" in issue line item. May be highlight year in the string on filename and foldername and jellyfin:<year>.
 - [TODO] Playwright smoke tests: update/extend to cover all pages (Dashboard, Library, Scout, Disambiguate, Verify, Settings, MoviePage) — 22 pass currently
 - [TODO] 3 AV1 files — identify which movies, surface in Library with client profile compat warning
 - [TODO] 17 mpeg4 legacy codec files — surface in Scout Queue for replacement recommendations
-- [TODO] Library list: "open full page" row action as alternative to drawer (Ctrl+click or icon)
-- [TODO] Disambiguation: may be manmually remove some titles from libary (Curatarr doesnt have hard delete option) and test if Disambiguation works
+- [TODO] Disambiguation: repriduct bugs by may be manmually remove some titles from libary (Curatarr WILL NOT have hard delete option) and test if Disambiguation works
 - [TODO] Verify page: run deep-check on all 2-3 files see how impact is and how user can see results. IS this result frindly. is popup working. if not improvise.
 - [TODO] Chrome MCP exploratory testing from layman user POV — report findings, fix UX issues
 

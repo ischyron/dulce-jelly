@@ -175,6 +175,9 @@ export function Library() {
       <div className="px-4 py-2.5 border-b flex flex-wrap items-center gap-2 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
 
+        <h1 className="text-sm font-semibold shrink-0 mr-1" style={{ color: 'var(--c-text)' }}>Library</h1>
+        <div className="w-px h-4 shrink-0" style={{ background: 'var(--c-border)' }} />
+
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2"
             style={{ color: 'var(--c-muted)' }} />
@@ -279,7 +282,13 @@ export function Library() {
         {isLoading ? (
           <div className="p-8 text-sm" style={{ color: 'var(--c-muted)' }}>Loading…</div>
         ) : !data?.movies.length ? (
-          <div className="p-8 text-sm" style={{ color: 'var(--c-muted)' }}>No movies match the current filters.</div>
+          <div className="p-8 text-sm" style={{ color: 'var(--c-muted)' }}>
+            {hasActiveFilter
+              ? 'No movies match the current filters.'
+              : statsData?.totalMovies === 0
+                ? 'No movies scanned yet — go to Scan & Sync to analyse your library.'
+                : 'No movies found.'}
+          </div>
         ) : (
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 z-10" style={{ background: 'var(--c-bg)' }}>

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Film, ScanLine, CheckCircle, AlertCircle, Rocket } from 'lucide-react';
+import { Film, ScanLine, CheckCircle, AlertCircle, Rocket, Loader2 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { ResolutionPieChart, CodecBarChart } from '../components/Charts.js';
 import { ScanProgressModal } from '../components/ScanProgressModal.js';
@@ -39,6 +39,21 @@ export function Dashboard() {
   });
 
   const [showScanModal, setShowScanModal] = useState(false);
+  const [scanLaunching, setScanLaunching] = useState(false);
+  const [scanError, setScanError] = useState<string | null>(null);
+
+  async function triggerDashboardScan() {
+    setScanError(null);
+    setScanLaunching(true);
+    try {
+      await api.triggerScan({});
+      setShowScanModal(true);
+    } catch (err) {
+      setScanError(err instanceof Error ? err.message : 'Failed to start scan');
+    } finally {
+      setScanLaunching(false);
+    }
+  }
 
   if (isLoading) {
     return <div className="p-8 text-[#6b6888]">Loading stats…</div>;
@@ -57,13 +72,20 @@ export function Dashboard() {
     <div className="p-6 space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-[#f0eeff]">Dashboard</h1>
-        <button
-          onClick={() => setShowScanModal(true)}
-          className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium"
-        >
-          <ScanLine size={16} />
-          Scan Library
-        </button>
+        <div className="flex flex-col items-end gap-1">
+          <button
+            onClick={triggerDashboardScan}
+            disabled={scanLaunching}
+            className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-60 text-white rounded-lg text-sm font-medium"
+          >
+            {scanLaunching
+              ? <><Loader2 size={16} className="animate-spin" /> Starting…</>
+              : <><ScanLine size={16} /> Scan Library</>}
+          </button>
+          {scanError && (
+            <p className="text-xs text-red-400 max-w-xs text-right">{scanError}</p>
+          )}
+        </div>
       </div>
 
       {/* Onboarding banner for fresh installs */}

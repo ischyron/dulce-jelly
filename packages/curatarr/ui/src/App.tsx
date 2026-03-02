@@ -24,6 +24,12 @@ export default function App() {
             <Route path="/verify" element={<VerifyPage />} />
             <Route path="/movies/:id" element={<MoviePage />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="*" element={
+              <div className="p-8 space-y-2">
+                <p className="text-lg font-semibold" style={{ color: 'var(--c-text)' }}>Page not found.</p>
+                <p className="text-sm" style={{ color: 'var(--c-muted)' }}>The route you navigated to does not exist.</p>
+              </div>
+            } />
           </Routes>
         </main>
       </div>

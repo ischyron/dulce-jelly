@@ -10,8 +10,10 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
     ...opts,
   });
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    throw new Error(`${res.status}: ${text}`);
+    const body = await res.json().catch(() => null);
+    const msg = (body as { error?: string } | null)?.error
+      ?? await res.text().catch(() => res.statusText);
+    throw new Error(msg);
   }
   return res.json() as Promise<T>;
 }

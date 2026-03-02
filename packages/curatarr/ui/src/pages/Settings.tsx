@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine } from 'lucide-react';
+import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X } from 'lucide-react';
 import { api } from '../api/client.js';
 
 // ── Client profile definitions ────────────────────────────────────────
@@ -118,6 +118,109 @@ function InfoTooltip({ content }: { content: string }) {
   );
 }
 
+// ── Masked API key field ────────────────────────────────────────────────
+// Shows a masked display (****xxxx) when a key is set; click Edit to replace.
+
+function MaskedKeyField({
+  label, name, maskedValue, value, onChange, hint = '',
+}: {
+  label: string; name: string; maskedValue: string; value: string;
+  onChange: (v: string) => void; hint?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [revealed, setRevealed] = useState(false);
+  const hasKey = Boolean(maskedValue);
+
+  // If user clears the input while editing, stay in edit mode
+  function handleCancel() {
+    onChange('');
+    setEditing(false);
+    setRevealed(false);
+  }
+
+  const inputStyle = {
+    background: 'var(--c-bg)',
+    border: '1px solid var(--c-border)',
+    color: 'var(--c-text)',
+  };
+
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>{label}</label>
+
+      {hasKey && !editing ? (
+        /* ── Masked display mode ── */
+        <div className="flex items-center gap-2">
+          <div
+            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-mono"
+            style={{ ...inputStyle, color: 'var(--c-muted)' }}
+          >
+            <span className="tracking-widest select-none">
+              {revealed ? maskedValue : maskedValue.replace(/\*/g, '●')}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setRevealed(v => !v)}
+            className="p-2 rounded-lg hover:opacity-80"
+            style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
+            title={revealed ? 'Hide' : 'Show masked key'}
+          >
+            {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => { setEditing(true); setRevealed(false); }}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium hover:opacity-80"
+            style={{ border: '1px solid var(--c-border)', color: '#c4b5fd' }}
+          >
+            <Pencil size={12} /> Replace
+          </button>
+        </div>
+      ) : (
+        /* ── Edit / empty mode ── */
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <input
+              type={revealed ? 'text' : 'password'}
+              name={name}
+              value={value}
+              onChange={e => onChange(e.target.value)}
+              placeholder={hasKey ? 'Type new key to replace…' : 'Paste API key…'}
+              autoFocus={editing}
+              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none pr-9"
+              style={inputStyle}
+              onFocus={e => (e.target.style.borderColor = 'var(--c-accent)')}
+              onBlur={e => (e.target.style.borderColor = 'var(--c-border)')}
+            />
+            <button
+              type="button"
+              onClick={() => setRevealed(v => !v)}
+              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
+              style={{ color: 'var(--c-muted)' }}
+            >
+              {revealed ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
+          </div>
+          {hasKey && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="p-2 rounded-lg hover:opacity-80"
+              style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
+              title="Cancel — keep existing key"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+      )}
+
+      {hint && <p className="mt-1 text-xs" style={{ color: 'var(--c-muted)' }}>{hint}</p>}
+    </div>
+  );
+}
+
 // ── Main Settings page ─────────────────────────────────────────────────
 
 export function Settings() {
@@ -205,14 +308,15 @@ export function Settings() {
         style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Jellyfin Connection</h2>
         <Field label="Jellyfin URL" name="jellyfinUrl" value={form.jellyfinUrl ?? ''}
-          onChange={v => set('jellyfinUrl', v)} placeholder="http://localhost:3278"
-          hint="Also read from JELLYFIN_URL env var" />
-        <Field label="API Key" name="jellyfinApiKey" value={form.jellyfinApiKey ?? ''}
-          onChange={v => set('jellyfinApiKey', v)} type="password"
-          placeholder="Leave blank to keep existing key"
-          hint={form.jellyfinApiKeyMasked
-            ? `Currently set: ${form.jellyfinApiKeyMasked} — leave blank to keep, or type a new key`
-            : 'Jellyfin Dashboard → API Keys — paste new key to update'} />
+          onChange={v => set('jellyfinUrl', v)} placeholder="http://localhost:8096"
+          hint="Standard Jellyfin port is 8096. Also read from JELLYFIN_URL env var." />
+        <MaskedKeyField
+          label="API Key"
+          name="jellyfinApiKey"
+          maskedValue={form.jellyfinApiKeyMasked ?? ''}
+          value={form.jellyfinApiKey ?? ''}
+          onChange={v => set('jellyfinApiKey', v)}
+          hint="Jellyfin Dashboard → Administration → API Keys" />
         <div className="flex items-center gap-3">
           <button onClick={() => checkHealth()} disabled={checkingHealth}
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm"
@@ -341,12 +445,12 @@ export function Settings() {
         <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
         <Field label="Provider" name="llmProvider" value={form.llmProvider ?? ''}
           onChange={v => set('llmProvider', v)} placeholder="openai / anthropic / ollama" />
-        <Field label="API Key" name="llmApiKey" value={form.llmApiKey ?? ''}
-          onChange={v => set('llmApiKey', v)} type="password"
-          placeholder="Leave blank to keep existing key"
-          hint={form.llmApiKeyMasked
-            ? `Currently set: ${form.llmApiKeyMasked} — leave blank to keep, or type a new key`
-            : ''} />
+        <MaskedKeyField
+          label="API Key"
+          name="llmApiKey"
+          maskedValue={form.llmApiKeyMasked ?? ''}
+          value={form.llmApiKey ?? ''}
+          onChange={v => set('llmApiKey', v)} />
       </section>
 
       {/* Coming soon — Prowlarr */}

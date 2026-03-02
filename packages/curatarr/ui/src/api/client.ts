@@ -250,7 +250,14 @@ export const api = {
   saveSettings: (settings: Record<string, string>) =>
     req<{ saved: string[] }>('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
 
-  health: () => req<{ jellyfin: { ok: boolean; libraries?: number; error?: string } }>('/settings/health'),
+  health: (params?: { url?: string; apiKey?: string }) => {
+    const qs = params
+      ? '?' + new URLSearchParams(
+          Object.fromEntries(Object.entries(params).filter(([, v]) => v).map(([k, v]) => [k, v!]))
+        )
+      : '';
+    return req<{ jellyfin: { ok: boolean; libraries?: number; error?: string } }>(`/settings/health${qs}`);
+  },
 
   disambiguateBatch: (items: DisambiguateRequest[]) =>
     req<{ jobId: string; queued: number }>('/disambiguate/batch', {

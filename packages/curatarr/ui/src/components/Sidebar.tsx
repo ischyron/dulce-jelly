@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, Library, Search, ScanLine, Settings, ShieldCheck, GitMerge } from 'lucide-react';
 import { api } from '../api/client.js';
@@ -27,14 +27,14 @@ export function Sidebar() {
     <aside className="w-56 shrink-0 border-r flex flex-col"
       style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
       {/* Wordmark */}
-      <div className="flex items-center gap-2.5 px-4 py-5 border-b"
+      <Link to="/" className="flex items-center gap-2.5 px-4 py-5 border-b hover:opacity-80 transition-opacity"
         style={{ borderColor: 'var(--c-border)' }}>
         <img src="/logo.svg" alt="Curatarr logo" width={24} height={24} />
         <span className="text-sm font-bold tracking-widest uppercase"
           style={{ color: 'var(--c-accent)', letterSpacing: '0.15em' }}>
           CURATARR
         </span>
-      </div>
+      </Link>
 
       {/* Nav */}
       <nav className="flex-1 py-3">

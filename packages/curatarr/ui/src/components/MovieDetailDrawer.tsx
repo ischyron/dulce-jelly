@@ -82,7 +82,7 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
       <div className="flex-1 bg-black/50" onClick={onClose} />
-      <aside className="w-[520px] max-w-full bg-[#16161f] border-l border-[#26263a] flex flex-col overflow-hidden">
+      <aside className="relative z-10 w-[520px] max-w-full bg-[#16161f] border-l border-[#26263a] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[#26263a]">
           <div className="flex items-center gap-2 text-sm font-medium">

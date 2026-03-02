@@ -277,11 +277,25 @@ export function Settings() {
     },
   });
 
-  const { data: healthData, refetch: checkHealth, isFetching: checkingHealth } = useQuery({
-    queryKey: ['health'],
-    queryFn: api.health,
-    enabled: false,
-  });
+  const [healthData, setHealthData] = useState<{ jellyfin: { ok: boolean; libraries?: number; error?: string } } | null>(null);
+  const [checkingHealth, setCheckingHealth] = useState(false);
+
+  async function checkHealth() {
+    setCheckingHealth(true);
+    setHealthData(null);
+    try {
+      // Pass current form values so unsaved changes are tested, not just DB values
+      const result = await api.health({
+        url: form.jellyfinUrl || undefined,
+        apiKey: form.jellyfinApiKey || undefined,
+      });
+      setHealthData(result);
+    } catch (err) {
+      setHealthData({ jellyfin: { ok: false, error: (err as Error).message } });
+    } finally {
+      setCheckingHealth(false);
+    }
+  }
 
   function set(key: string, val: string) {
     setForm(prev => ({ ...prev, [key]: val }));
@@ -316,9 +330,9 @@ export function Settings() {
           maskedValue={form.jellyfinApiKeyMasked ?? ''}
           value={form.jellyfinApiKey ?? ''}
           onChange={v => set('jellyfinApiKey', v)}
-          hint="Jellyfin Dashboard → Administration → API Keys" />
+          hint="Jellyfin Dashboard → Administration → API Keys. Also read from JELLYFIN_API_KEY env var (not shown here if only set via env)." />
         <div className="flex items-center gap-3">
-          <button onClick={() => checkHealth()} disabled={checkingHealth}
+          <button onClick={checkHealth} disabled={checkingHealth}
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm"
             style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}>
             {checkingHealth ? <Loader2 size={13} className="animate-spin" /> : null}

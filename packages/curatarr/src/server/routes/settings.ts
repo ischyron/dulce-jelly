@@ -32,9 +32,14 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
   });
 
   // GET /api/settings/health — test Jellyfin connectivity
+  // Accepts optional ?url=&apiKey= query params to test unsaved form values.
+  // Falls back to saved DB / env vars when not provided.
   app.get('/health', async (c) => {
-    const url = db.getSetting('jellyfinUrl') ?? process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL ?? '';
-    const apiKey = db.getSetting('jellyfinApiKey') ?? process.env.JELLYFIN_API_KEY ?? '';
+    const qUrl    = c.req.query('url')    ?? '';
+    const qApiKey = c.req.query('apiKey') ?? '';
+
+    const url    = qUrl    || db.getSetting('jellyfinUrl')    || process.env.JELLYFIN_URL    || process.env.JELLYFIN_BASE_URL || '';
+    const apiKey = qApiKey || db.getSetting('jellyfinApiKey') || process.env.JELLYFIN_API_KEY || '';
 
     if (!url || !apiKey) {
       return c.json({ jellyfin: { ok: false, error: 'Not configured' } });
@@ -43,7 +48,6 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
     try {
       const client = new JellyfinClient(url, apiKey);
       const libs = await client.getLibraries();
-      c.header('Cache-Control', 'max-age=30, stale-while-revalidate=60');
       return c.json({ jellyfin: { ok: true, libraries: libs.length } });
     } catch (err) {
       return c.json({ jellyfin: { ok: false, error: (err as Error).message } });

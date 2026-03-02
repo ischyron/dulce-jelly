@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Git pre-push hook — runs the curatarr pipeline when curatarr files change.
+#
+# Activated by running (once, from repo root):
+#   git config core.hooksPath .githooks
+#
+# To bypass (emergency):
+#   git push --no-verify
+
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+PIPELINE="$REPO_ROOT/packages/curatarr/pipeline.sh"
+
+# Curatarr path triggers (mirror pipeline.yml trigger.paths)
+CURATARR_PATTERNS=(
+  "packages/curatarr/src/"
+  "packages/curatarr/ui/src/"
+  "packages/curatarr/ui/index.html"
+  "packages/curatarr/package.json"
+  "packages/curatarr/tsconfig.json"
+  "packages/curatarr/Dockerfile"
+  "packages/curatarr/docker-compose.yml"
+)
+
+# ── Check if any pushed commits touch curatarr ───────────────────────
+curatarr_changed=0
+
+# Read the refs being pushed: "local_ref local_sha remote_ref remote_sha"
+while read -r local_ref local_sha remote_ref remote_sha; do
+  # If deleting a branch, skip
+  [[ "$local_sha" == "0000000000000000000000000000000000000000" ]] && continue
+
+  # Base: remote SHA (or empty tree if new branch)
+  if [[ "$remote_sha" == "0000000000000000000000000000000000000000" ]]; then
+    base="$(git hash-object -t tree /dev/null)"
+  else
+    base="$remote_sha"
+  fi
+
+  # Get changed files in this push range
+  changed_files=$(git diff --name-only "$base" "$local_sha" 2>/dev/null || true)
+
+  for pattern in "${CURATARR_PATTERNS[@]}"; do
+    if echo "$changed_files" | grep -q "^$pattern"; then
+      curatarr_changed=1
+      break 2
+    fi
+  done
+done
+
+if [[ $curatarr_changed -eq 0 ]]; then
+  echo "[pre-push] No curatarr changes detected — skipping pipeline."
+  exit 0
+fi
+
+echo "[pre-push] Curatarr changes detected — running pipeline..."
+echo ""
+
+if bash "$PIPELINE"; then
+  echo ""
+  echo "[pre-push] Pipeline passed. Continuing push."
+  exit 0
+else
+  echo ""
+  echo "[pre-push] Pipeline FAILED. Push blocked." >&2
+  echo "  Fix the errors above, then push again." >&2
+  echo "  To bypass (emergency only): git push --no-verify" >&2
+  exit 1
+fi

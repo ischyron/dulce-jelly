@@ -1,0 +1,44 @@
+# Curatarr local CI/CD pipeline
+# Runner: ./pipeline.sh  (or triggered automatically by .githooks/pre-push)
+# Setup:  git config core.hooksPath .githooks  (one-time, from repo root)
+
+name: curatarr-local-ci
+
+# Pipeline is triggered when any of these paths change in a push
+trigger:
+  paths:
+    - packages/curatarr/src/**
+    - packages/curatarr/ui/src/**
+    - packages/curatarr/ui/index.html
+    - packages/curatarr/package.json
+    - packages/curatarr/tsconfig.json
+    - packages/curatarr/Dockerfile
+    - packages/curatarr/docker-compose.yml
+
+# Stages run in order; a failure stops the pipeline
+stages:
+
+  - name: build-server
+    desc: Compile TypeScript (tsc)
+    cmd: npm run build:server
+    workdir: packages/curatarr
+
+  - name: test
+    desc: Unit tests (node --test)
+    cmd: npm test
+    workdir: packages/curatarr
+
+  - name: build-ui
+    desc: Build React UI (vite)
+    cmd: npm run build:ui
+    workdir: packages/curatarr
+
+  - name: docker-build
+    desc: Build Docker image
+    cmd: docker compose build curatarr
+    workdir: .
+
+  - name: docker-deploy
+    desc: Restart container with new image
+    cmd: docker compose up -d curatarr
+    workdir: .

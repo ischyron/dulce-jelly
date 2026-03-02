@@ -3,36 +3,25 @@
 ### Ground rules
 - Always read the todo from disk as human would keep this updated and so latest status and feedback on tasks is important
 - Work through todos independently; pause only if human review is required.
-- Strike out or mark status when done/blocked.
-
-### ~~Curatarr Bug Fixes~~ — ALL FIXED 2026-03-01 (found 2026-03-01 exploratory session)
-
-| ID | Severity | Component | Description |
-|----|----------|-----------|-------------|
-| BUG-01 | HIGH | scan route | Scan accepts a path that doesn't exist on disk — starts, walker throws ENOENT, SSE 'error' fires, but `startScanRun` already created an orphaned DB record. Add path-exists check (400) before starting. |
-| BUG-02 | HIGH | ScanPage UI | `triggerScan()` and `triggerSync()` have no try/catch — 400 (no path), 409 (already running), network errors are silently dropped; user sees nothing. Show inline error. |
-| BUG-03 | HIGH | ScanProgressModal | Stop button has zero feedback while awaiting cancel. If scan finished just before cancel, `{cancelled:false}` is returned silently. Add "Stopping…" spinner and handle the already-done case. |
-| BUG-04 | HIGH | SseEmitter/scan | `cancel()` does NOT set `running=false` — new scan attempts get 409 "already running" until the worker pool drains (could be 30s+ on large libs). Set `running=false` immediately in `cancel()`. |
-| BUG-05 | HIGH | JF sync | No stop button for Jellyfin Sync — `cancelEndpoint` is `null` for sync mode. Add `/api/jf-sync/cancel` route and wire it up in the modal. |
-| BUG-06 | HIGH | ScanPage | "Start Scan" button not disabled while scan is running. User can click it repeatedly; all but first silently fail (BUG-02 compounds this). |
-| BUG-07 | MEDIUM | verify route | `queued` count in `/api/verify/start` response is wrong — `db.getUnverifiedFiles(1)` returns at most 1 row, so response always shows `queued:1`. Need a COUNT query. |
-| BUG-08 | MEDIUM | VerifyPage | `running` local state starts `false` regardless of server state. If user navigates to Verify while verify is in progress, Start button shows and clicking gives 409 with no feedback. Sync from `statusData.running` on mount. |
-| BUG-09 | MEDIUM | scan progress | Progress bar never reaches 100% on incremental scans. `foldersTotal=all 1781 folders` but `foldersDone` only counts folders with new files processed. Mismatch means bar stalls at e.g. 5% even when done. |
-| BUG-10 | MEDIUM | scan.ts | `db.startScanRun()` is called before `walkLibrary()`. If walker throws (ENOENT), `finishScanRun` is never called → orphaned partial scan_run row in DB. |
-| BUG-11 | MEDIUM | SSE error handler | `es.addEventListener('error', ...)` catches BOTH named SSE 'error' events AND native EventSource connection errors. A normal stream close fires a native error → modal shows "Unknown error". Distinguish the two. |
-| BUG-12 | LOW | walker | `isMainVideoFile`: line `return true` where comment says "skip" — files with 'sample' in the middle (e.g. `movie.sample.mkv`) are incorrectly included. Should be `return false`. |
-| BUG-13 | LOW | Dashboard | Empty state: fresh install shows all 0s with no guidance. Add onboarding banner when `totalMovies === 0`. |
+- Strike out when done/blocked. D
+- Dont create new sections for todo or bugs. keep status inline.
 
 ### Curatarr Backlog
 
-- [TODO] Playwright smoke tests across all pages (Dashboard, Library, Scout, Disambiguate, Verify, Settings, MoviePage)
-- [TODO] JF enrichment coverage: 283/1781 (15.9%) — investigate remaining 1498 unmatched; consider path rematch after jf-sync
-- [TODO] 3 AV1 files detected — verify which movies and check against client profile
-- [TODO] 17 mpeg4 legacy codec files — surface in Scout Queue for replacement
-- [TODO] Movie page: add poster image via TMDb API (tmdb_id is stored, just needs a fetch)
-- [TODO] Library list: add "open full page" row action (⬡ icon or Ctrl+click) as alternative to drawer
-- [TODO] Disambiguation: run full batch via UI for all unsynced movies
-- [TODO] Verify page: run deep-check on all 1787 files (CPU-intensive, run off-peak)
+- [TODO] BUG-14 HIGH | Release group missing for many titles — visible in filename but not parsed (e.g. "Drug War"). Investigate release group extraction regex in scanner.
+- [TODO] BUG-15 HIGH | MC (Metacritic) and IMDb scores empty in Library/ScoutQueue — JF sync enrichment at 15.9% (283/1781). Also: RT (Rotten Tomatoes) score column missing — need fresh/rotten icons, sourced from Jellyfin CriticRating or JF provider data.
+- [TODO] BUG-16 MEDIUM | Deep check error tooltip/popup cropped when shown on a Search result row — CSS overflow clipping issue in table container.
+- [TODO] BUG: Numbers in libary search doesnt work eg: "500" doesnt list 500 days of summer
+- [TODO] Poster images: add `/api/proxy/image/:jellyfinId` endpoint; show poster in MovieDetailDrawer and MoviePage. Proxy via Curatarr server (no duplicate storage, no public Jellyfin URL needed, works in all topologies)
+- [TODO] JF enrichment need only bareminimum feilds like score, genere, title, etc which are needed for curation. poster, plot etc can live in jellyfin. plot and descrption are not needed.
+- [TODO] JF enrichment coverage: 283/1781 (15.9%) — run jf-sync on Docker container; investigate remaining 1498 unmatched (path rematch, fuzzy title strategies)
+- [TODO] Playwright smoke tests: update/extend to cover all pages (Dashboard, Library, Scout, Disambiguate, Verify, Settings, MoviePage) — 22 pass currently
+- [TODO] 3 AV1 files — identify which movies, surface in Library with client profile compat warning
+- [TODO] 17 mpeg4 legacy codec files — surface in Scout Queue for replacement recommendations
+- [TODO] Library list: "open full page" row action as alternative to drawer (Ctrl+click or icon)
+- [TODO] Disambiguation: may be manmually remove some titles from libary (Curatarr doesnt have hard delete option) and test if Disambiguation works
+- [TODO] Verify page: run deep-check on all 2-3 files see how impact is and how user can see results. IS this result frindly. is popup working. if not improvise.
+- [TODO] Chrome MCP exploratory testing from layman user POV — report findings, fix UX issues
 
 ### Todo Items/Issues
 - [TODO] delete only brokerManagedTags when processing a new movie in Radarr using quality broker

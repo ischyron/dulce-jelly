@@ -25,7 +25,7 @@
 - [TODO] dist-ui need to be git ignored within packages/curatarr/.gitignore
 - [TODO] Jellyfin ID is useless for users of the curatarr, lets not show in UI (keep in backened as it is needed)
 - [TODO] Escape key should close the detail pane open when in library
-
+- [TODO] Resolution Distribution in dashboard the labels are overlapping. May be change layout of this widget and show % next to the label/legend 
 - Scout features: 
 - [TODO] Scout feature: Trash guide synced into Sout configuration in settings. Fina a way for users to keep syncing lik recylarr sync, re-use recylarr if thats th ebest approch. recylarr would  only add sonarr/radarr as config patterns in thier config. So if recylarr is simple to implment - lets plug that into curatarr
 - [TODO] CF scoring and bit rate settings

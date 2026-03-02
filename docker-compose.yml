@@ -230,9 +230,7 @@ services:
       - "${CURATARR_HOST_PORT:-3270}:7474"
     volumes:
       - ./data/curatarr/config:/config
-      # Media mount: add your library path here if Docker Desktop has file sharing access to it.
-      # Example: - "/path/to/movies:/media:ro"
-      # Set Library Path in Settings to /media (or the host path if running outside Docker).
+      - "${JELLYFIN_MOVIES}:/media:ro"   # host movies folder → /media inside container
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:7474/api/stats"]
       interval: 30s

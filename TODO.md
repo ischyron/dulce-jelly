@@ -8,7 +8,7 @@
 
 ### Curatarr Backlog
 
-- [TODO] BUG-14 HIGH | Release group missing for many titles — visible in filename but not parsed (e.g. "Drug War"). Investigate release group extraction regex in scanner.
+- [TODO] BUG-14 HIGH | Release group missing for many titles — visible in filename but not parsed (e.g. "Drug War"). Investigate release group extraction regex in scanner. Approch refinement copy edgecase and how radarr handles release names etc from file patterns like "Release group extraction from filename". copy same apporoch from radarr github and implemement same way for feature parity
 - [TODO] BUG-15 HIGH | MC (Metacritic) and IMDb scores empty in Library/ScoutQueue — JF sync enrichment at 15.9% (283/1781). Also: RT (Rotten Tomatoes) score column missing — need fresh/rotten icons, sourced from Jellyfin CriticRating or JF provider data.
 - [TODO] BUG-16 MEDIUM | Deep check error tooltip/popup cropped when shown on a Search result row — CSS overflow clipping issue in table container.
 - [TODO] BUG: Numbers in libary search doesnt work eg: "500" doesnt list 500 days of summer
@@ -22,14 +22,18 @@
 - [TODO] 17 mpeg4 legacy codec files — surface in Scout Queue for replacement recommendations
 - [TODO] Disambiguation: repriduct bugs by may be manmually remove some titles from libary (Curatarr WILL NOT have hard delete option) and test if Disambiguation works
 - [TODO] Verify page: run deep-check on all 2-3 files see how impact is and how user can see results. IS this result frindly. is popup working. if not improvise.
+- [TODO] dist-ui need to be git ignored within packages/curatarr/.gitignore
+- [TODO] Jellyfin ID is useless for users of the curatarr, lets not show in UI (keep in backened as it is needed)
+- [TODO] Escape key should close the detail pane open when in library
+
+- Scout features: 
+- [TODO] Scout feature: Trash guide synced into Sout configuration in settings. Fina a way for users to keep syncing lik recylarr sync, re-use recylarr if thats th ebest approch. recylarr would  only add sonarr/radarr as config patterns in thier config. So if recylarr is simple to implment - lets plug that into curatarr
+- [TODO] CF scoring and bit rate settings
+- [TODO] Prowlarr integration into Scout
+- [TODO] Scout feature (like radarr but not using radarr): interactive one that gives AI recommended releases - or just tablutate the most efficient way otherwise
+- [TODO] Scout feature (Automatic with batch size configured). DOn not accept batch sizes that can overwhelm the indexers.
 - [TODO] Chrome MCP exploratory testing from layman user POV — report findings, fix UX issues
-
-### Todo Items/Issues
-- [TODO] delete only brokerManagedTags when processing a new movie in Radarr using quality broker
-- [TODO] Remove hardcoded decision profile names (HD/Efficient-4K/HighQuality-4K) from quality-broker code; derive only from config
-- [BLOCKED] Approch refinement needed: When logged in on mymedialibrary.example via Caddy I need same login to work for the sub domains like sab.mymedialibrary.example. Blocked on moving auth to Zero trust Cloudlfare as it supports only 5 domains in FREE and this is a re-usable tech stack and I dont want to rely on cost heavy setup. Current approch is to understad more details around DNS config to be made to allow *.mymedialibrary.example to be under auth mapping to tunnel domains and then add exclusion policy for jellyfin.
-- [BLOCKED] Set up Jellyseerr config in Jellyfin Enhanced plugin so Jellyfin users can add movies (requires Jellyfin UI access).
-
+### Other Todo Items/Issues
 - [BLOCKED] qBittorrent lockout of IP from accessing.
   - Gating: must retain qBittorrent WebUI security protections; no weakening that compromises exposure over internet (keep host/referrer safeguards effective while making config persistent).
   - Access paths: LAN `http://localhost:3275` or `http://<server-ip>:3275` (or `http://media.local:3275`); public `http://qb.mymedialibrary.example` behind Caddy basic auth; `http://media.local/qb` issues 307 → `:3275`; Cloudflare tunnel via `https://qb.mymedialibrary.example`.

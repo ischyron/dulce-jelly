@@ -170,9 +170,9 @@ export function Library() {
   const hasActiveFilter = search || resolution || codec || hdrOnly || noJf;
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Filter bar */}
-      <div className="px-4 py-2.5 border-b flex flex-wrap items-center gap-2 shrink-0"
+    <div className="flex flex-col">
+      {/* Filter bar — sticky so it stays at top when the table scrolls via the outer <main> */}
+      <div className="sticky top-0 z-10 px-4 py-2.5 border-b flex flex-wrap items-center gap-2"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
 
         <h1 className="text-sm font-semibold shrink-0 mr-1" style={{ color: 'var(--c-text)' }}>Library</h1>
@@ -278,7 +278,7 @@ export function Library() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
+      <div className="overflow-x-auto">
         {isLoading ? (
           <div className="p-8 text-sm" style={{ color: 'var(--c-muted)' }}>Loading…</div>
         ) : !data?.movies.length ? (
@@ -291,7 +291,7 @@ export function Library() {
           </div>
         ) : (
           <table className="w-full text-sm border-collapse">
-            <thead className="sticky top-0 z-10" style={{ background: 'var(--c-bg)' }}>
+            <thead className="sticky top-[41px] z-[5]" style={{ background: 'var(--c-bg)' }}>
               <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
                 <SortHeader field="title"  label="Title"  current={sortBy} dir={sortDir} onChange={handleSort} />
                 <SortHeader field="year"   label="Year"   current={sortBy} dir={sortDir} onChange={handleSort} />
@@ -379,7 +379,7 @@ export function Library() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="px-4 py-2.5 border-t flex items-center justify-between text-sm shrink-0"
+        <div className="px-4 py-2.5 border-t flex items-center justify-between text-sm"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <button
             onClick={() => patch({ page: String(Math.max(1, page - 1)) })}

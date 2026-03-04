@@ -60,6 +60,23 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     );
   }
 
+  function validateJellyfinCandidateAgainstFolder(
+    movie: { parsed_title: string | null; folder_name: string; parsed_year: number | null },
+    jf: { Name?: string; ProductionYear?: number },
+  ): { ok: boolean; reason?: string; detail?: string } {
+    const expectedTitle = movie.parsed_title ?? movie.folder_name;
+    const expectedYear = movie.parsed_year;
+    const jfTitle = jf.Name ?? '';
+    const titleMatch = normTitle(expectedTitle) === normTitle(jfTitle);
+    const yearMatch = expectedYear == null || jf.ProductionYear == null || expectedYear === jf.ProductionYear;
+
+    if (!titleMatch || !yearMatch) {
+      const detail = `Folder parse "${expectedTitle}${expectedYear ? ` (${expectedYear})` : ''}" does not match Jellyfin "${jfTitle}${jf.ProductionYear ? ` (${jf.ProductionYear})` : ''}".`;
+      return { ok: false, reason: 'filename_title_year_mismatch', detail };
+    }
+    return { ok: true };
+  }
+
   // GET /api/movies?page=1&limit=50&resolution=1080p&codec=h264&search=title
   app.get('/', (c) => {
     const page = Math.max(1, parseInt(c.req.query('page') ?? '1', 10));
@@ -444,6 +461,17 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
           }, 409);
         }
       }
+
+      const validation = validateJellyfinCandidateAgainstFolder(movie, jf);
+      if (!validation.ok) {
+        const inputTitle = movie.parsed_title ?? movie.folder_name;
+        flagDisambiguationNeeded(id, inputTitle, movie.parsed_year ?? null, validation.reason ?? 'filename_title_year_mismatch');
+        return c.json({
+          error: 'disambiguation_required',
+          detail: validation.detail ?? 'Jellyfin match is inconsistent with folder title/year.',
+        }, 409);
+      }
+
       db.enrichMovieById(id, {
         jellyfinId: jf.Id,
         jellyfinTitle: jf.Name,

@@ -1,7 +1,3 @@
-llm:
-  provider: openai
-  apiKeyEnv: OPENAI_API_KEY
-
 scoutDefaults:
   scoutCfRes2160: 46
   scoutCfRes1080: 24

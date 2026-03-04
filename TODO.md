@@ -6,19 +6,30 @@
 - Work through todos independently; pause only if human review is required.
 - Strike out when done/blocked.
 - Don't create new sections for TODOs or bugs. Keep status inline.
-- After feature/fix complete, deploy it on docker 
+- After feature/fix complete, deploy it on docker. Then mark as complete or done 
 
 ### Curatarr Backlog
 
 
 **CF scoring, Rules, Scout**
 
-- [TODO] The info tooltip on Dashboard Movies (that is: total movies) card cannot be cliksed as it is already linked. We need a way to link the card as full and also that tool tip. If tool tip is relavent to be moved out then lets do so. deliberate a design. 
+- [DONE] ~~Content is poor. need rvision.~~ (revised Status tooltip copy with clearer scan/Jellyfin semantics and actionable guidance)
+BEFORE:
+Status dot guide
+Left dot (scan): green = ok, orange = verify failed, red = scan error, yellow = pending scan, gray = not scanned.
+Right dot (Jellyfin): purple = matched, gray = not matched.
+
+
+- [DONE] ~~http://dulce.local:3270/library?page=1&limit=100&resolution=2160p&hdr=1&dv=1&legacy=1 crashes whole UI and shows an empty black page~~ (root cause: undefined `hasActiveFilter` in Library empty-state path; fixed)
+
+- [DONE] ~~avoid duplicate in scoring.yaml and move it to secrets. s=secretes already has it add just provider: feild. udpate code to read it.~~ (`llm.provider` now read from `config/secrets.yaml` and `scoring.yaml` now keeps Scout defaults only)
+
+- [DONE] ~~The info tooltip on Dashboard Movies (that is: total movies) card cannot be cliksed as it is already linked. We need a way to link the card as full and also that tool tip. If tool tip is relavent to be moved out then lets do so. deliberate a design.~~ (tooltip click now stops card-link navigation; card remains fully clickable)
 ** Disambigation **
 - [TODO] Test http://dulce.local:3270/disambiguate against parity with radarr open source code in github. When ready to work on this ask me to rename a live file on disk and we will run disabiute and test
 
 **Quality tests**
-- [TODO] Scout functional test using a dummy response api mock. get one relaistic for a movie using current prowlar integation I have.
+- [DONE] ~~Scout functional test using a dummy response api mock. get one relaistic for a movie using current prowlar integation I have.~~ (added mock Prowlarr API integration test with realistic movie payload)
 
 ### Other Todo Items/Issues 
 - [BLOCKED] qBittorrent lockout of IP from accessing.

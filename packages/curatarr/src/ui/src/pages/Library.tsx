@@ -231,6 +231,21 @@ export function Library() {
   }
 
   const hasNonDefaultView = searchParams.toString() !== '';
+  const hasActiveFilter = Boolean(
+    search ||
+    resolution ||
+    codec ||
+    audioFormat ||
+    audioLayout ||
+    selectedGenres.length > 0 ||
+    selectedTags.length > 0 ||
+    hdrOnly ||
+    dvOnly ||
+    av1CompatOnly ||
+    legacyOnly ||
+    noJf ||
+    multiOnly
+  );
 
   const { data: statsData } = useQuery<Stats>({
     queryKey: ['stats'],
@@ -800,16 +815,22 @@ export function Library() {
                       content={
                         <div className="space-y-2">
                           <div className="font-semibold">Status dot guide</div>
+                          <p className="text-[11px] opacity-90">
+                            Two dots are shown per movie: left = scan health, right = Jellyfin match state.
+                          </p>
                           <div className="space-y-1">
                             <div>
                               <span className="font-semibold">Left dot (scan): </span>
-                              green = ok, orange = verify failed, red = scan error, yellow = pending scan, gray = not scanned.
+                              <span>green = scanned/verified OK, orange = verify failed, red = scan error, yellow = file pending scan, gray = not scanned.</span>
                             </div>
                             <div>
                               <span className="font-semibold">Right dot (Jellyfin): </span>
-                              purple = matched, gray = not matched.
+                              <span>purple = matched in Jellyfin, gray = not matched.</span>
                             </div>
                           </div>
+                          <p className="text-[11px] opacity-90">
+                            Tip: use <span className="font-semibold">Jellyfin Sync Needed</span> to list unmatched movies.
+                          </p>
                         </div>
                       }
                     />

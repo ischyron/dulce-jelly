@@ -9,10 +9,6 @@ Curatarr Scout CF scoring is defined in `packages/curatarr/config/scoring.yaml`.
 ## File shape
 
 ```yaml
-llm:
-  provider: openai
-  apiKeyEnv: OPENAI_API_KEY
-
 scoutDefaults:
   scoutCfRes2160: 46
   scoutCfRes1080: 24
@@ -41,7 +37,7 @@ scoutDefaults:
 ## What each setting means
 
 - `llm.provider`: fixed to `openai` right now.
-- `llm.apiKeyEnv`: env var used for API key lookup.
+- LLM provider source moved to `config/secrets.yaml` (`llm.provider`), with fallback to `openai`.
 
 - `scoutCfRes2160`, `scoutCfRes1080`, `scoutCfRes720`: resolution weights.
 - `scoutCfSourceRemux`, `scoutCfSourceBluray`, `scoutCfSourceWebdl`: source quality weights.

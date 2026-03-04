@@ -20,6 +20,13 @@ export function InfoHint({ text, content, label }: Props) {
           style={{ color: '#8b87aa' }}
           aria-label={label}
           title={label}
+          onClick={(e) => {
+            // Keep tooltip clickable even when rendered inside parent links/cards.
+            e.stopPropagation();
+          }}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
         >
           <Info size={12} />
         </button>

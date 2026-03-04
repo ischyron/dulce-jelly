@@ -30,11 +30,13 @@ export const SCOUT_SETTING_KEYS = [
 export type ScoutSettingKey = typeof SCOUT_SETTING_KEYS[number];
 
 type ScoutYamlDoc = {
+  scoutDefaults?: Record<string, string | number>;
+};
+
+type SecretsYamlDoc = {
   llm?: {
     provider?: string;
-    apiKeyEnv?: string;
   };
-  scoutDefaults?: Record<string, string | number>;
 };
 
 const FALLBACK_SCOUT_DEFAULTS: Record<ScoutSettingKey, string> = {
@@ -81,7 +83,6 @@ function loadDoc(): ScoutYamlDoc {
     }
   } catch {
     cached = {
-      llm: { provider: 'openai', apiKeyEnv: 'OPENAI_API_KEY' },
       scoutDefaults: { ...FALLBACK_SCOUT_DEFAULTS },
     };
   }
@@ -100,8 +101,7 @@ export function getScoutDefaultSettings(): Record<ScoutSettingKey, string> {
 }
 
 export function getDefaultLlmProvider(): string {
-  const doc = loadDoc();
-  const provider = (doc.llm?.provider ?? '').trim().toLowerCase();
+  const provider = readLlmProviderFromSecrets();
   return provider || 'openai';
 }
 
@@ -119,10 +119,6 @@ export function syncScoringYamlFromSettings(settings: Record<string, string>): v
   }
 
   const out: ScoutYamlDoc = {
-    llm: {
-      provider: 'openai',
-      apiKeyEnv: 'OPENAI_API_KEY',
-    },
     scoutDefaults: nextDefaults,
   };
   const p = scoringYamlPath();
@@ -130,4 +126,21 @@ export function syncScoringYamlFromSettings(settings: Record<string, string>): v
   fs.mkdirSync(path.dirname(p), { recursive: true });
   fs.writeFileSync(p, yamlText, 'utf8');
   cached = out;
+}
+
+function secretsYamlPath(): string {
+  const configured = process.env.CURATARR_SECRETS_FILE?.trim();
+  if (configured) return path.resolve(configured);
+  return path.resolve(process.cwd(), 'config', 'secrets.yaml');
+}
+
+function readLlmProviderFromSecrets(): string {
+  const p = secretsYamlPath();
+  try {
+    const raw = fs.readFileSync(p, 'utf8');
+    const parsed = (YAML.parse(raw) ?? {}) as SecretsYamlDoc;
+    return (parsed.llm?.provider ?? '').trim().toLowerCase();
+  } catch {
+    return '';
+  }
 }

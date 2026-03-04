@@ -17,6 +17,13 @@ test.describe('Dashboard', () => {
     await expect(hdrLink).toBeVisible();
     await expect(dvLink).toBeVisible();
   });
+
+  test('movies card info tooltip is clickable without triggering card navigation', async ({ page }) => {
+    await page.goto('/');
+    await expect(page).toHaveURL(/\/$/);
+    await page.getByRole('button', { name: 'Movies info' }).click({ force: true });
+    await expect(page).toHaveURL(/\/$/);
+  });
 });
 
 test.describe('Library', () => {

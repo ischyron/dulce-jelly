@@ -176,14 +176,27 @@ export function Dashboard() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link to="/library?reset=1" className="block h-full hover:opacity-80 transition-opacity">
-          <StatCard
-            icon={Film}
-            label="Movies"
-            value={data.totalMovies.toLocaleString()}
-            infoText="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."
+        <div className="relative h-full">
+          <Link
+            to="/library?reset=1"
+            className="absolute inset-0 rounded-xl z-0"
+            aria-label="Open library from Movies card"
           />
-        </Link>
+          <div className="relative z-10 bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
+            <div className="flex items-center gap-2 mb-2 text-sm text-[#a78bfa]">
+              <Film size={16} />
+              <span>Movies</span>
+              <span className="ml-auto" onClick={(e) => e.stopPropagation()}>
+                <InfoHint
+                  label="Movies info"
+                  text="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."
+                />
+              </span>
+            </div>
+            <div className="text-2xl font-bold text-[#f0eeff]">{data.totalMovies.toLocaleString()}</div>
+            <div className="text-xs text-[#6b6888] mt-0.5 min-h-[16px]" />
+          </div>
+        </div>
         <StatCard
           icon={CheckCircle}
           label="Scanned Files"

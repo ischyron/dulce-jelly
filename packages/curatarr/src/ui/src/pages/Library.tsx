@@ -758,7 +758,7 @@ export function Library() {
           </div>
         ) : (
           <table className="w-full text-sm border-collapse">
-            <thead className="sticky top-[41px] z-[5]" style={{ background: 'var(--c-bg)' }}>
+            <thead className="sticky top-0 z-[5]" style={{ background: 'var(--c-bg)' }}>
               <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
                 <th className="px-2 py-2 text-center" style={{ width: '32px' }}>
                   <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
@@ -795,7 +795,7 @@ export function Library() {
                   dir={sortDir}
                   onChange={handleSort}
                   align="right"
-                  infoTitle="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                  infoTitle="Jellyfin critic score (0–100). Value stays blank until Jellyfin sync is completed."
                 />
                 <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-right"
                   style={{ color: 'var(--c-muted)' }}

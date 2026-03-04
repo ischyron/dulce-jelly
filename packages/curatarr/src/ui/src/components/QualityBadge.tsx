@@ -173,7 +173,13 @@ export function HdrBadge({ hdrFormats, dvProfile }: {
  * (Metacritic via TMDb plugin, or Rotten Tomatoes via OMDb plugin).
  * Convention follows Rotten Tomatoes: ≥60 = Fresh, <60 = Rotten.
  */
-export function CriticScoreBadge({ score }: { score: number | null | undefined }) {
+export function CriticScoreBadge({
+  score,
+  showTomatoIcon = false,
+}: {
+  score: number | null | undefined;
+  showTomatoIcon?: boolean;
+}) {
   if (score == null) return <span style={{ color: 'var(--c-border)' }}>—</span>;
   const fresh = score >= 60;
   return (
@@ -183,13 +189,14 @@ export function CriticScoreBadge({ score }: { score: number | null | undefined }
         ? `${score} — Fresh (≥60). Source: Jellyfin CriticRating (Metacritic via TMDb plugin, or RT via OMDb plugin)`
         : `${score} — Rotten (<60). Source: Jellyfin CriticRating`}
     >
-      {/* Tomato (fresh) or splat (rotten) circle */}
-      <img
-        src={fresh ? '/icons/rottentomatoes.svg' : '/icons/rottentomatoes.svg'}
-        alt={fresh ? 'Fresh' : 'Rotten'}
-        className="w-3 h-3"
-        style={{ opacity: fresh ? 1 : 0.45, filter: fresh ? undefined : 'grayscale(1)' }}
-      />
+      {showTomatoIcon && (
+        <img
+          src="/icons/rottentomatoes.svg"
+          alt={fresh ? 'Fresh' : 'Rotten'}
+          className="w-3 h-3"
+          style={{ opacity: fresh ? 1 : 0.45, filter: fresh ? undefined : 'grayscale(1)' }}
+        />
+      )}
       <span style={{ color: fresh ? '#4ade80' : '#f87171' }}>{score}</span>
     </span>
   );

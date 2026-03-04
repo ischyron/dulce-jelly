@@ -172,6 +172,32 @@ test.describe('Library', () => {
       await assertLibraryParity(page, request, m.pageParams, m.label);
     }
   });
+
+  test('movie detail drawer has one close control and separated rows', async ({ page }) => {
+    await page.goto('/library');
+    const titleBtn = page.locator('tbody tr').first().locator('td').nth(1).locator('button');
+    await expect(titleBtn).toBeVisible();
+    await titleBtn.focus();
+    await titleBtn.evaluate((el) => el.click());
+
+    await expect(page.getByTestId('movie-drawer-close')).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Close$/ })).toHaveCount(0);
+    await expect(page.getByTestId('movie-links-row')).toBeVisible();
+    await expect(page.getByTestId('movie-actions-row')).toBeVisible();
+    await expect(page.getByTestId('movie-synced-row')).toBeVisible();
+  });
+
+  test('movie detail drawer closes with Escape and restores focus to row trigger', async ({ page }) => {
+    await page.goto('/library');
+    const titleBtn = page.locator('tbody tr').first().locator('td').nth(1).locator('button');
+    await expect(titleBtn).toBeVisible();
+    await titleBtn.focus();
+    await titleBtn.evaluate((el) => el.click());
+    await expect(page.getByTestId('movie-drawer-close')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.getByTestId('movie-drawer-close')).toHaveCount(0);
+    await expect(titleBtn).toBeFocused();
+  });
 });
 
 test.describe('Scout / Disambiguate / Verify / Settings', () => {
@@ -216,6 +242,17 @@ test.describe('MoviePage', () => {
     const bodyText = await page.textContent('body');
     expect(bodyText && bodyText.length > 0).toBeTruthy();
     expect(/Refresh Jellyfin|Movie not found|Library/i.test(bodyText ?? '')).toBeTruthy();
+  });
+
+  test('shows explicit ratings labels on detail page', async ({ page, request }) => {
+    const res = await request.get('/api/movies?limit=1&page=1');
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    const id = Number(json?.movies?.[0]?.id);
+    expect(Number.isFinite(id) && id > 0).toBeTruthy();
+    await page.goto(`/movies/${id}`);
+    await expect(page.getByText('IMDb rating:')).toBeVisible();
+    await expect(page.getByText('Critic score:')).toBeVisible();
   });
 });
 

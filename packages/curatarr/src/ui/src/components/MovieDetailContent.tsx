@@ -10,7 +10,6 @@ import {
   Loader2,
   RefreshCw,
   Search,
-  Star,
   Tag,
   Trash2,
 } from 'lucide-react';
@@ -162,7 +161,7 @@ function ScoutResultsTable({ releases }: { releases: ScoutRelease[] }) {
   );
 }
 
-export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, onClose, onDeleted }: Props) {
+export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, onDeleted }: Props) {
   const queryClient = useQueryClient();
   const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: api.settings, staleTime: 60_000 });
   const { data: tagsData } = useQuery({ queryKey: ['tags'], queryFn: api.tags, staleTime: 60_000 });
@@ -210,6 +209,9 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
   const addableTag = normalizeTag(newTag);
   const disambiguationReason = data.disambiguation_reason ?? null;
   const disambiguationRequired = Boolean(data.disambiguation_required);
+  const pendingJellyfinSync = !data.jf_synced_at;
+  const criticValue = data.critic_rating != null ? String(data.critic_rating) : '—';
+  const imdbValue = data.community_rating != null ? data.community_rating.toFixed(1) : '—';
 
   const jellyfinBase = (settingsData?.settings.jellyfinPublicUrl ?? '').replace(/\/+$/, '');
   const jellyfinDeepLink = data.jellyfin_id && jellyfinBase ? `${jellyfinBase}/web/#/details?id=${data.jellyfin_id}` : undefined;
@@ -245,13 +247,13 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
 
   return (
     <>
-        <div className={mode === 'page' ? 'space-y-5' : 'space-y-4'}>
-        <div className="flex items-start gap-4">
+      <div className={mode === 'page' ? 'space-y-5' : 'space-y-4'}>
+        <div className="flex flex-col md:flex-row items-start gap-4">
           <div
             className="shrink-0 rounded-lg overflow-hidden flex items-center justify-center"
             style={{
-              width: mode === 'page' ? 152 : 126,
-              height: mode === 'page' ? 228 : 188,
+              width: mode === 'page' ? 176 : 148,
+              height: mode === 'page' ? 264 : 222,
               background: 'var(--c-surface)',
               border: '1px solid var(--c-border)',
             }}
@@ -268,94 +270,102 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
             )}
           </div>
 
-          <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h1 className={mode === 'page' ? 'text-2xl font-bold' : 'text-lg font-bold'} style={{ color: 'var(--c-text)' }}>
-                  {displayTitle}
-                </h1>
-                <div className="flex flex-wrap items-center gap-3 mt-1 text-sm" style={{ color: 'var(--c-muted)' }}>
-                  <span>{data.jellyfin_year ?? data.parsed_year ?? '—'}</span>
-                  {data.critic_rating != null && <CriticScoreBadge score={data.critic_rating} />}
-                  {data.community_rating != null && <span className="inline-flex items-center gap-1"><Star size={12} />{data.community_rating.toFixed(1)}</span>}
-                </div>
-                {genres.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {genres.map(g => (
-                      <span key={g} className="px-2 py-0.5 text-xs rounded" style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
-                        {g}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {data.jf_synced_at && (
-                  <div className="mt-1 text-xs" style={{ color: '#8b87aa' }}>
-                    Jellyfin Synced: <span style={{ color: '#d4cfff' }}>{fmtSyncDate(data.jf_synced_at)}</span>
-                  </div>
-                )}
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={() => jfRefreshMutation.mutate()}
-                  disabled={jfRefreshMutation.isPending}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-50"
-                  style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+          <div className="min-w-0 flex-1 space-y-2">
+            <h1 className={mode === 'page' ? 'text-2xl font-bold break-words' : 'text-lg font-bold break-words'} style={{ color: 'var(--c-text)' }}>
+              {displayTitle}
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: 'var(--c-muted)' }}>
+              <span>{data.jellyfin_year ?? data.parsed_year ?? '—'}</span>
+              {genres.map(g => (
+                <span key={g} className="px-2 py-0.5 text-xs rounded" style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
+                  {g}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: 'var(--c-muted)' }}>
+              <span title="IMDb community rating (0-10) from Jellyfin CommunityRating">
+                IMDb rating: <span style={{ color: '#d4cfff' }}>{imdbValue}</span>
+              </span>
+              <span title="Critic score (0-100) from Jellyfin CriticRating. Source depends on your Jellyfin metadata plugin.">
+                Critic score: <span style={{ color: '#d4cfff' }}>
+                  <CriticScoreBadge score={data.critic_rating} />
+                </span>
+              </span>
+            </div>
+
+            <div className="block w-full text-xs" style={{ color: '#8b87aa' }} data-testid="movie-synced-row">
+              Jellyfin Synced:{' '}
+              <span style={{ color: '#d4cfff' }}>
+                {data.jf_synced_at ? fmtSyncDate(data.jf_synced_at) : '—'}
+              </span>
+              {pendingJellyfinSync && (
+                <span className="italic ml-2" style={{ color: 'var(--c-muted)' }}>
+                  pending Jellyfin sync
+                </span>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full" data-testid="movie-links-row">
+              {jellyfinDeepLink && (
+                <a
+                  href={jellyfinDeepLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open in Jellyfin"
+                  title="Open in Jellyfin"
+                  className="inline-flex items-center justify-center rounded border hover:opacity-90"
+                  style={{ width: 32, height: 32, borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
                 >
-                  {jfRefreshMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                  Refresh Jellyfin
-                </button>
-                <button
-                  onClick={() => setShowDelete(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border"
-                  style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#f87171', background: 'rgba(239,68,68,0.1)' }}
+                  <img src="/icons/jellyfin.svg" alt="Jellyfin" className="w-4 h-4" />
+                </a>
+              )}
+              {imdbLink && (
+                <a
+                  href={imdbLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open IMDb"
+                  title="Open IMDb"
+                  className="inline-flex items-center justify-center rounded border hover:opacity-90"
+                  style={{ height: 32, padding: '0 8px', borderColor: 'rgba(255,255,255,0.3)', background: '#fff' }}
                 >
-                  <Trash2 size={12} /> Delete
-                </button>
-                {jellyfinDeepLink && (
-                  <a
-                    href={jellyfinDeepLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Open in Jellyfin"
-                    title="Open in Jellyfin"
-                    className="inline-flex items-center justify-center rounded border hover:opacity-90"
-                    style={{ width: 32, height: 32, borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
-                  >
-                    <img src="/icons/jellyfin.svg" alt="Jellyfin" className="w-4 h-4" />
-                  </a>
-                )}
-                {imdbLink && (
-                  <a
-                    href={imdbLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Open IMDb"
-                    title="Open IMDb"
-                    className="inline-flex items-center justify-center rounded border hover:opacity-90"
-                    style={{ height: 32, padding: '0 8px', borderColor: 'rgba(255,255,255,0.3)', background: '#fff' }}
-                  >
-                    <img src="/icons/imdb.svg" alt="IMDb" className="h-4 w-auto" />
-                  </a>
-                )}
-                {tmdbLink && (
-                  <a
-                    href={tmdbLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    aria-label="Open TMDb"
-                    title="Open TMDb"
-                    className="inline-flex items-center justify-center rounded border hover:opacity-90"
-                    style={{ height: 32, padding: '0 8px', borderColor: 'rgba(255,255,255,0.3)', background: '#fff' }}
-                  >
-                    <img src="/icons/tmdb.svg" alt="TMDb" className="h-4 w-auto" />
-                  </a>
-                )}
-                {mode === 'drawer' && onClose && (
-                  <button onClick={onClose} className="px-2 py-1 text-xs rounded border" style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
-                    Close
-                  </button>
-                )}
-              </div>
+                  <img src="/icons/imdb.svg" alt="IMDb" className="h-4 w-auto" />
+                </a>
+              )}
+              {tmdbLink && (
+                <a
+                  href={tmdbLink}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Open TMDb"
+                  title="Open TMDb"
+                  className="inline-flex items-center justify-center rounded border hover:opacity-90"
+                  style={{ height: 32, padding: '0 8px', borderColor: 'rgba(255,255,255,0.3)', background: '#fff' }}
+                >
+                  <img src="/icons/tmdb.svg" alt="TMDb" className="h-4 w-auto" />
+                </a>
+              )}
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 w-full" data-testid="movie-actions-row">
+              <button
+                onClick={() => jfRefreshMutation.mutate()}
+                disabled={jfRefreshMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-50"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                {jfRefreshMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
+                Refresh Jellyfin
+              </button>
+              <button
+                onClick={() => setShowDelete(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border"
+                style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#f87171', background: 'rgba(239,68,68,0.1)' }}
+              >
+                <Trash2 size={12} /> Delete
+              </button>
             </div>
           </div>
         </div>
@@ -381,54 +391,6 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
             </div>
           </div>
         )}
-
-        <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'rgba(27,27,41,0.45)' }}>
-          <div className="text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5" style={{ color: '#8b87aa' }}>
-            <Tag size={12} /> Tags
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map(t => (
-              <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', color: '#c4b5fd' }}>
-                {t}
-                <button onClick={() => removeTag(t)} className="opacity-70 hover:opacity-100 leading-none">×</button>
-              </span>
-            ))}
-            {tags.length === 0 && <span className="text-xs" style={{ color: '#6b6888' }}>No tags</span>}
-          </div>
-          <div className="flex flex-wrap gap-2 items-center">
-            <select value={selectedTag} onChange={e => setSelectedTag(e.target.value)} className="px-2 py-1 rounded text-xs focus:outline-none min-w-[10rem]" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}>
-              <option value="">Select existing tag</option>
-              {availableTags.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-            <button onClick={addExistingTag} disabled={!selectedTag || patchMutation.isPending} className="px-2 py-1 rounded text-xs border disabled:opacity-50" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>
-              Add tag
-            </button>
-            <input value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addNewTag(); }} placeholder="new tag" className="px-2 py-1 rounded text-xs focus:outline-none" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }} />
-            <button onClick={addNewTag} disabled={!addableTag || patchMutation.isPending} className="px-2 py-1 rounded text-xs border disabled:opacity-50" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>
-              Add new
-            </button>
-          </div>
-
-          <div className="pt-1 border-t" style={{ borderColor: 'var(--c-border)' }}>
-            <div className="text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5 mb-2" style={{ color: '#8b87aa' }}>
-              <FileText size={12} /> Notes
-            </div>
-            <textarea
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={mode === 'drawer' ? 3 : 4}
-              placeholder="Add notes about this movie…"
-              className="w-full px-3 py-2 rounded-lg text-sm resize-y focus:outline-none"
-              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-            />
-            <div className="mt-2 flex items-center gap-3">
-              <button onClick={saveNotes} disabled={patchMutation.isPending} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-60" style={{ background: 'var(--c-accent)' }}>
-                Save Notes
-              </button>
-              {notesSaved && <span className="inline-flex items-center gap-1 text-xs text-green-400"><Check size={12} /> Saved</span>}
-            </div>
-          </div>
-        </div>
 
         <div>
           <div className="mb-2">
@@ -484,8 +446,55 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
             )}
           </div>
         )}
-      </div>
 
+        <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'rgba(27,27,41,0.45)' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5" style={{ color: '#8b87aa' }}>
+            <Tag size={12} /> Tags
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {tags.map(t => (
+              <span key={t} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.35)', color: '#c4b5fd' }}>
+                {t}
+                <button onClick={() => removeTag(t)} className="opacity-70 hover:opacity-100 leading-none">×</button>
+              </span>
+            ))}
+            {tags.length === 0 && <span className="text-xs" style={{ color: '#6b6888' }}>No tags</span>}
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <select value={selectedTag} onChange={e => setSelectedTag(e.target.value)} className="px-2 py-1 rounded text-xs focus:outline-none min-w-[10rem]" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}>
+              <option value="">Select existing tag</option>
+              {availableTags.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+            <button onClick={addExistingTag} disabled={!selectedTag || patchMutation.isPending} className="px-2 py-1 rounded text-xs border disabled:opacity-50" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>
+              Add tag
+            </button>
+            <input value={newTag} onChange={e => setNewTag(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addNewTag(); }} placeholder="new tag" className="px-2 py-1 rounded text-xs focus:outline-none" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }} />
+            <button onClick={addNewTag} disabled={!addableTag || patchMutation.isPending} className="px-2 py-1 rounded text-xs border disabled:opacity-50" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>
+              Add new
+            </button>
+          </div>
+
+          <div className="pt-1 border-t" style={{ borderColor: 'var(--c-border)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5 mb-2" style={{ color: '#8b87aa' }}>
+              <FileText size={12} /> Notes
+            </div>
+            <textarea
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={mode === 'drawer' ? 3 : 4}
+              placeholder="Add notes about this movie…"
+              className="w-full px-3 py-2 rounded-lg text-sm resize-y focus:outline-none"
+              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+            />
+            <div className="mt-2 flex items-center gap-3">
+              <button onClick={saveNotes} disabled={patchMutation.isPending} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-60" style={{ background: 'var(--c-accent)' }}>
+                Save Notes
+              </button>
+              {notesSaved && <span className="inline-flex items-center gap-1 text-xs text-green-400"><Check size={12} /> Saved</span>}
+            </div>
+          </div>
+        </div>
+      </div>
       {showDelete && (
         <DeleteConfirmModal
           movieId={movieId}

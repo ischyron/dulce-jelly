@@ -252,7 +252,7 @@ test.describe('MoviePage', () => {
     expect(Number.isFinite(id) && id > 0).toBeTruthy();
     await page.goto(`/movies/${id}`);
     await expect(page.getByText('IMDb rating:')).toBeVisible();
-    await expect(page.getByText('Critic score:')).toBeVisible();
+    await expect(page.getByText(/Jellyfin critic score/i)).toBeVisible();
   });
 });
 

@@ -19,8 +19,22 @@ function listFolderContents(folderPath: string): { name: string; size: number; i
   }
 }
 
+function normalizeTag(raw: unknown): string | null {
+  if (typeof raw !== 'string') return null;
+  const t = raw.trim().toLowerCase().replace(/\s+/g, '-');
+  return t ? t : null;
+}
+
 export function makeMoviesRoutes(db: CuratDb): Hono {
   const app = new Hono();
+
+  function normTitle(s: string): string {
+    return s
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
   // GET /api/movies?page=1&limit=50&resolution=1080p&codec=h264&search=title
   app.get('/', (c) => {
@@ -31,10 +45,19 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const codec = c.req.query('codec');
     const search = c.req.query('search');
     const hdrOnly = c.req.query('hdr') === 'true';
+    const dvOnly = c.req.query('dv') === 'true';
+    const legacyOnly = c.req.query('legacy') === 'true';
     const noJf = c.req.query('noJf') === 'true';
     const releaseGroup = c.req.query('releaseGroup');
-    const sortBy = c.req.query('sortBy') ?? 'quality';
+    const genre = c.req.query('genre');
+    const tagsQuery = c.req.query('tags');
+    const sortBy = c.req.query('sortBy') ?? 'title';
     const sortDir = c.req.query('sortDir') === 'desc' ? 'DESC' : 'ASC';
+    const searchNorm = (search ?? '').toLowerCase().trim();
+    const tags = (tagsQuery ?? '')
+      .split(',')
+      .map(s => normalizeTag(s))
+      .filter((t): t is string => !!t);
 
     // Build a query that joins movies with their primary file
     let sql = `
@@ -65,12 +88,35 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     if (hdrOnly) {
       sql += " AND f.hdr_formats != '[]'";
     }
+    if (dvOnly) {
+      sql += " AND f.hdr_formats LIKE '%DolbyVision%'";
+    }
+    if (legacyOnly) {
+      sql += " AND COALESCE(f.video_codec,'') IN ('mpeg4','mpeg2video','msmpeg4v3')";
+    }
     if (noJf) {
       sql += ' AND m.jellyfin_id IS NULL';
     }
     if (releaseGroup) {
       sql += ' AND f.release_group LIKE ?';
       bindings.push(`%${releaseGroup}%`);
+    }
+    if (genre) {
+      sql += ` AND EXISTS (
+        SELECT 1
+        FROM json_each(COALESCE(m.genres, '[]')) g
+        WHERE LOWER(CAST(g.value AS TEXT)) = LOWER(?)
+      )`;
+      bindings.push(genre);
+    }
+    if (tags.length > 0) {
+      const placeholders = tags.map(() => '?').join(',');
+      sql += ` AND EXISTS (
+        SELECT 1
+        FROM json_each(COALESCE(m.tags, '[]')) t
+        WHERE LOWER(CAST(t.value AS TEXT)) IN (${placeholders})
+      )`;
+      bindings.push(...tags);
     }
     if (search) {
       sql += ' AND (m.parsed_title LIKE ? OR m.jellyfin_title LIKE ? OR m.folder_name LIKE ?)';
@@ -82,15 +128,40 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const countSql = `SELECT COUNT(*) as n FROM (${sql})`;
     const total = (db.raw().prepare(countSql).get(...bindings) as { n: number }).n;
 
-    // Sort
+    // Sort (search-aware relevance ranking first when query is present)
+    const titleExpr = 'LOWER(COALESCE(m.jellyfin_title, m.parsed_title, m.folder_name, \'\'))';
+    const titleNormExpr = `LOWER(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(COALESCE(m.jellyfin_title, m.parsed_title, m.folder_name, ''), '(', ' '), ')', ' '), '.', ' '), '-', ' '), '_', ' '), ':', ' '), ',', ' '), '!', ' '), '?', ' '))`;
     const orderMap: Record<string, string> = {
       quality: 'f.resolution_cat ASC, f.mb_per_minute ASC',
-      title: `m.parsed_title ${sortDir}`,
+      title: `LOWER(COALESCE(m.parsed_title, m.jellyfin_title, m.folder_name)) ${sortDir}`,
       year: `m.parsed_year ${sortDir}`,
       rating: `m.critic_rating ${sortDir}`,
       size: `f.file_size ${sortDir}`,
     };
-    sql += ` ORDER BY ${orderMap[sortBy] ?? orderMap['quality']} LIMIT ? OFFSET ?`;
+    if (searchNorm) {
+      sql += ` ORDER BY
+        CASE
+          WHEN ${titleExpr} = ? THEN 0
+          WHEN (' ' || ${titleNormExpr} || ' ') LIKE ? THEN 1
+          WHEN ${titleExpr} LIKE ? OR ${titleExpr} = ? THEN 2
+          WHEN ${titleExpr} LIKE ? THEN 3
+          WHEN ${titleExpr} LIKE ? THEN 4
+          ELSE 5
+        END ASC,
+        LENGTH(${titleExpr}) ASC,
+        ${orderMap[sortBy] ?? orderMap['quality']}`;
+      bindings.push(
+        searchNorm,
+        `% ${searchNorm} %`,
+        `${searchNorm} %`,
+        searchNorm,
+        `${searchNorm}%`,
+        `%${searchNorm}%`
+      );
+    } else {
+      sql += ` ORDER BY ${orderMap[sortBy] ?? orderMap['quality']}`;
+    }
+    sql += ' LIMIT ? OFFSET ?';
     bindings.push(limit, offset);
 
     const rows = db.raw().prepare(sql).all(...bindings);
@@ -101,6 +172,68 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       limit,
       movies: rows,
     });
+  });
+
+  // GET /api/movies/genres — distinct sorted genres from Jellyfin sync data
+  app.get('/genres', (c) => {
+    const rows = db.raw().prepare(
+      'SELECT genres FROM movies WHERE genres IS NOT NULL AND genres != \'[]\''
+    ).all() as Array<{ genres: string | null }>;
+
+    const set = new Set<string>();
+    for (const row of rows) {
+      if (!row.genres) continue;
+      try {
+        const arr = JSON.parse(row.genres) as unknown;
+        if (!Array.isArray(arr)) continue;
+        for (const g of arr) {
+          if (typeof g !== 'string') continue;
+          const v = g.trim();
+          if (v) set.add(v);
+        }
+      } catch {
+        // Ignore malformed rows and continue.
+      }
+    }
+
+    const genres = Array.from(set).sort((a, b) => a.localeCompare(b));
+    return c.json({ genres });
+  });
+
+  // GET /api/movies/tags — distinct sorted tags from user metadata
+  app.get('/tags', (c) => {
+    const tags = db.getAllTags();
+    return c.json({ tags });
+  });
+
+  // PATCH /api/movies/tags/batch  { ids:number[], addTags?:string[], removeTags?:string[] }
+  app.patch('/tags/batch', async (c) => {
+    const body = await c.req.json().catch(() => ({})) as {
+      ids?: unknown;
+      addTags?: unknown;
+      removeTags?: unknown;
+    };
+    const ids = Array.isArray(body.ids)
+      ? body.ids.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0)
+      : [];
+    if (ids.length === 0) return c.json({ error: 'ids_required' }, 400);
+
+    const addTags = Array.isArray(body.addTags)
+      ? body.addTags.map(t => normalizeTag(t)).filter((t): t is string => !!t)
+      : [];
+    const removeTags = Array.isArray(body.removeTags)
+      ? body.removeTags.map(t => normalizeTag(t)).filter((t): t is string => !!t)
+      : [];
+
+    if (addTags.length === 0 && removeTags.length === 0) {
+      return c.json({ error: 'no_tag_changes' }, 400);
+    }
+
+    let updated = 0;
+    if (addTags.length > 0) updated += db.batchAddTags(ids, addTags);
+    if (removeTags.length > 0) updated += db.batchRemoveTags(ids, removeTags);
+
+    return c.json({ updated, requested: ids.length });
   });
 
   // GET /api/movies/:id
@@ -123,6 +256,19 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const updated = db.updateMovieMeta(id, { tags, notes });
     if (!updated) return c.json({ error: 'not found' }, 404);
     return c.json({ updated: true });
+  });
+
+  // POST /api/movies/remove-index  { ids: number[] }
+  // Removes selected rows from Curatarr DB only. Files on disk stay untouched.
+  app.post('/remove-index', async (c) => {
+    const body = await c.req.json().catch(() => ({})) as { ids?: unknown };
+    const ids = Array.isArray(body.ids)
+      ? body.ids.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0)
+      : [];
+    if (ids.length === 0) return c.json({ error: 'ids_required' }, 400);
+
+    const deleted = db.deleteMovies(ids);
+    return c.json({ deleted, requested: ids.length });
   });
 
   // GET /api/movies/:id/folder-contents — list files on disk (for delete confirm)
@@ -175,15 +321,29 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const id = parseInt(c.req.param('id'), 10);
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
-    if (!movie.jellyfin_id) return c.json({ error: 'no_jellyfin_id', detail: 'Movie not synced with Jellyfin yet' }, 422);
-
     const url = db.getSetting('jellyfinUrl') ?? process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL ?? '';
     const apiKey = db.getSetting('jellyfinApiKey') ?? process.env.JELLYFIN_API_KEY ?? '';
     if (!url || !apiKey) return c.json({ error: 'jellyfin_not_configured' }, 422);
 
     try {
       const client = new JellyfinClient(url, apiKey);
-      const jf = await client.getMovie(movie.jellyfin_id);
+      let jf;
+      if (movie.jellyfin_id) {
+        jf = await client.getMovie(movie.jellyfin_id);
+      } else {
+        const searchTitle = movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name;
+        const searchYear = movie.jellyfin_year ?? movie.parsed_year ?? undefined;
+        const candidates = await client.searchMovies(searchTitle, searchYear ?? undefined);
+        const expected = normTitle(searchTitle);
+        jf = candidates.find(c => {
+          const t = normTitle(c.Name ?? '');
+          const yearOk = searchYear == null || c.ProductionYear == null || c.ProductionYear === searchYear;
+          return t === expected && yearOk;
+        }) ?? candidates.find(c => normTitle(c.Name ?? '') === expected) ?? candidates[0];
+        if (!jf) {
+          return c.json({ error: 'not_found_in_jellyfin', detail: `No Jellyfin match found for "${searchTitle}"` }, 404);
+        }
+      }
       db.enrichMovieById(id, {
         jellyfinId: jf.Id,
         jellyfinTitle: jf.Name,

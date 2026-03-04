@@ -32,6 +32,7 @@ export function makeSyncRoutes(db: CuratDb): Hono {
       return c.json({ error: 'Jellyfin URL and API key required. Configure in Settings.' }, 400);
     }
 
+    const batchSize = parseInt(db.getSetting('jfSyncBatchSize') ?? '10', 10);
     const signal = syncEmitter.start();
     syncEmitter.emit('start', { url, resync });
 
@@ -40,6 +41,7 @@ export function makeSyncRoutes(db: CuratDb): Hono {
         const jfClient = new JellyfinClient(url, apiKey);
         const result = await syncJellyfin(jfClient, db, {
           resync,
+          batchSize,
           signal,
           onProgress: (synced, total, matched, unmatched) => {
             syncEmitter.emit('progress', { synced, total, matched, unmatched });

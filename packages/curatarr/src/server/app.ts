@@ -19,6 +19,8 @@ import { makeRulesRoutes } from './routes/rules.js';
 import { makeSettingsRoutes } from './routes/settings.js';
 import { makeDisambiguateRoutes } from './routes/disambiguate.js';
 import { makeVerifyRoutes } from './routes/verify.js';
+import { makeProxyRoutes } from './routes/proxy.js';
+import { makeScoutRoutes } from './routes/scout.js';
 
 export function createApp(db: CuratDb, distUiPath: string): Hono {
   const app = new Hono();
@@ -43,6 +45,8 @@ export function createApp(db: CuratDb, distUiPath: string): Hono {
   app.route('/api/settings', makeSettingsRoutes(db));
   app.route('/api/disambiguate', makeDisambiguateRoutes(db));
   app.route('/api/verify', makeVerifyRoutes(db));
+  app.route('/api/proxy', makeProxyRoutes(db));
+  app.route('/api/scout', makeScoutRoutes(db));
 
   // ── Static SPA ────────────────────────────────────────────────────
   // @hono/node-server/serve-static resolves root relative to process.cwd().

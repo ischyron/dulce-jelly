@@ -11,12 +11,14 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const maxResolution = c.req.query('maxResolution') ?? '1080p';
     const limit = parseInt(c.req.query('limit') ?? '100', 10);
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
+    const genre = c.req.query('genre') ?? undefined;
 
     const candidates = db.getUpgradeCandidates({
       maxResolution,
       minCriticRating: minCritic,
       minCommunityRating: minCommunity,
       releaseGroups,
+      genre,
       limit,
     });
 

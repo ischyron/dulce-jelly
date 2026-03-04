@@ -8,6 +8,15 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
   // GET /api/settings
   app.get('/', (c) => {
     const settings = db.getAllSettings();
+
+    // Env var fallbacks for fields that may not be saved in DB yet
+    if (!settings.jellyfinUrl)
+      settings.jellyfinUrl = process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL ?? '';
+    if (!settings.jellyfinPublicUrl)
+      settings.jellyfinPublicUrl = process.env.JELLYFIN_PUBLIC_URL ?? '';
+    if (!settings.jellyfinApiKey)
+      settings.jellyfinApiKey = process.env.JELLYFIN_API_KEY ?? '';
+
     // Mask API keys in response (show last 4 chars only)
     const safe: Record<string, string> = {};
     for (const [k, v] of Object.entries(settings)) {

@@ -146,6 +146,10 @@ export interface DisambiguationLogRow {
   reason: string | null;
   reviewed: number;
   created_at: string;
+  // Joined from movies table
+  db_folder_name?: string | null;
+  db_folder_path?: string | null;
+  db_parsed_year?: number | null;
 }
 
 export interface FolderEntry {
@@ -172,6 +176,41 @@ export interface VerifyFailure {
   resolution_cat: string | null;
 }
 
+export interface ScoutRelease {
+  title: string;
+  indexer: string | null;
+  protocol: 'torrent' | 'usenet' | 'unknown';
+  size: number | null;
+  publishDate: string | null;
+  guid: string | null;
+  downloadUrl: string | null;
+  seeders: number | null;
+  peers: number | null;
+  score: number;
+  reasons: string[];
+}
+
+export interface ScoutSearchOneResponse {
+  movieId: number;
+  query: string;
+  total: number;
+  releases: ScoutRelease[];
+}
+
+export interface ScoutBatchItem {
+  movieId: number;
+  query?: string;
+  total?: number;
+  releases?: ScoutRelease[];
+  error?: string;
+}
+
+export interface ScoutSearchBatchResponse {
+  processed: number;
+  maxAllowed: number;
+  results: ScoutBatchItem[];
+}
+
 // ── API methods ────────────────────────────────────────────────────
 
 export const api = {
@@ -183,11 +222,18 @@ export const api = {
     ) : '';
     return req<{ total: number; page: number; limit: number; movies: Movie[] }>(`/movies${qs}`);
   },
+  genres: () => req<{ genres: string[] }>('/movies/genres'),
+  tags: () => req<{ tags: string[] }>('/movies/tags'),
 
   movie: (id: number) => req<MovieDetail>(`/movies/${id}`),
 
   patchMovie: (id: number, meta: { tags?: string[]; notes?: string }) =>
     req<{ updated: boolean }>(`/movies/${id}`, { method: 'PATCH', body: JSON.stringify(meta) }),
+  patchMovieTagsBatch: (body: { ids: number[]; addTags?: string[]; removeTags?: string[] }) =>
+    req<{ updated: number; requested: number }>('/movies/tags/batch', {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
 
   jfRefreshMovie: (id: number) =>
     req<{ updated: boolean; movie: Movie }>(`/movies/${id}/jf-refresh`, { method: 'POST' }),
@@ -199,6 +245,12 @@ export const api = {
     req<{ deleted: string[]; errors: string[]; mode: string }>(`/movies/${id}`, {
       method: 'DELETE',
       body: JSON.stringify({ mode }),
+    }),
+
+  removeMoviesFromIndex: (ids: number[]) =>
+    req<{ deleted: number; requested: number }>('/movies/remove-index', {
+      method: 'POST',
+      body: JSON.stringify({ ids }),
     }),
 
   candidates: (params?: Record<string, string | number>) => {
@@ -292,4 +344,16 @@ export const api = {
     ) : '';
     return req<{ total: number; page: number; limit: number; failures: VerifyFailure[] }>(`/verify/failures${qs}`);
   },
+
+  scoutSearchOne: (body: { movieId: number; query?: string }) =>
+    req<ScoutSearchOneResponse>('/scout/search-one', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  scoutSearchBatch: (body: { movieIds: number[]; batchSize?: number }) =>
+    req<ScoutSearchBatchResponse>('/scout/search-batch', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };

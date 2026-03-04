@@ -25,6 +25,10 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   /** Scan workers — half of logical CPUs, capped at 8 */
   defaultJobs: String(Math.min(8, Math.max(2, Math.floor(os.cpus().length / 2)))),
 
+  /** JF sync schedule (applied at server startup) */
+  jfSyncIntervalMin: '30',       // 0 = disabled
+  jfSyncBatchSize: '10',         // items per JF API page during sync
+
   /** Scout defaults (used as query params on /api/candidates) */
   scoutMinCritic: '65',          // Metacritic ≥ 65
   scoutMinCommunity: '7.0',      // IMDb ≥ 7.0

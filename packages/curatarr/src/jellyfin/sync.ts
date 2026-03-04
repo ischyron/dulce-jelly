@@ -20,11 +20,15 @@ export interface SyncOptions {
   resync?: boolean;
   /** Abort signal to cancel the sync mid-run. */
   signal?: AbortSignal;
+  /** Batch size for Jellyfin API pagination. Default: 250. */
+  batchSize?: number;
 }
 
 export interface AmbiguousMatch {
   jfTitle: string;
   jfYear: number | undefined;
+  /** Jellyfin file path (e.g. /media/Les Misérables (1998)/Les.Misérables.2019.1080p...mp4) */
+  jfFilePath?: string;
   dbFolderName: string;
   dbParsedYear: number | null;
   reason: 'year_mismatch' | 'title_fuzzy' | 'year_and_title_fuzzy';
@@ -81,6 +85,7 @@ function disResultToMatchResult(
     ambiguous = {
       jfTitle: jf.Name,
       jfYear: jf.ProductionYear,
+      jfFilePath: jf.Path ?? jf.MediaSources?.[0]?.Path,
       dbFolderName: movie.folder_name,
       dbParsedYear: movie.parsed_year,
       reason: result.ambiguousReason,
@@ -120,6 +125,7 @@ export async function syncJellyfin(
   let jfMovies: JfMovie[];
   try {
     const fetchResult = await jfClient.getAllMovies({
+      batchSize: opts.batchSize,
       onProgress: (f, t) => process.stdout.write(`\r  Fetching from Jellyfin: ${f}/${t}   `),
     });
     jfMovies = fetchResult.movies;
@@ -172,9 +178,12 @@ export async function syncJellyfin(
       result.ambiguousMatches.push(matchResult.ambiguous);
       if (opts.onAmbiguous) opts.onAmbiguous(matchResult.ambiguous);
       // Still enrich, but flag the mismatch in errors for visibility
+      const amb = matchResult.ambiguous;
+      const filePart = amb.jfFilePath ? path.basename(amb.jfFilePath) : '';
       result.errors.push(
-        `Ambiguous (${matchResult.ambiguous.reason}): JF "${jf.Name}" (${jf.ProductionYear ?? '?'}) ` +
-        `→ DB "${matchResult.ambiguous.dbFolderName}" (${matchResult.ambiguous.dbParsedYear ?? '?'})`
+        `[${amb.reason}] folder: "${amb.dbFolderName}" (year:${amb.dbParsedYear ?? '?'})` +
+        ` | jellyfin: "${amb.jfTitle}" (year:${amb.jfYear ?? '?'})` +
+        (filePart ? ` | file: "${filePart}"` : '')
       );
     }
 
@@ -188,7 +197,6 @@ export async function syncJellyfin(
       criticRating: jf.CriticRating,
       communityRating: jf.CommunityRating,
       genres: jf.Genres,
-      overview: jf.Overview,
       jellyfinPath: jf.Path ?? jf.MediaSources?.[0]?.Path,
     });
 

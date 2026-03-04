@@ -89,12 +89,31 @@ export function DisambiguatePage() {
                     <td className="px-4 py-2.5 font-medium" style={{ color: 'var(--c-text)' }}>
                       {row.input_title}
                     </td>
-                    <td className="px-4 py-2.5" style={{ color: 'var(--c-muted)' }}>
-                      {row.input_year ?? '—'}
+                    <td className="px-4 py-2.5 font-mono text-xs">
+                      <span className="px-1 rounded"
+                        style={{
+                          background: row.reason === 'year_mismatch' ? 'rgba(251,191,36,0.2)' : 'transparent',
+                          color: row.reason === 'year_mismatch' ? '#fbbf24' : 'var(--c-muted)',
+                        }}>
+                        {row.input_year ?? '—'}
+                      </span>
                     </td>
-                    <td className="px-4 py-2.5 font-mono text-xs max-w-xs truncate"
-                      style={{ color: 'var(--c-muted)' }}>
-                      {row.matched_movie_id ? `#${row.matched_movie_id}` : '—'}
+                    <td className="px-4 py-2.5 text-xs max-w-xs" style={{ color: 'var(--c-muted)' }}>
+                      {row.db_folder_name ? (
+                        <span title={row.db_folder_path ?? ''}>
+                          <span style={{ color: 'var(--c-text)' }}>{row.db_folder_name}</span>
+                          {row.db_parsed_year != null && (
+                            <span className="ml-1.5 font-mono px-1 rounded text-xs"
+                              style={{
+                                background: row.reason === 'year_mismatch' ? 'rgba(251,191,36,0.2)' : 'var(--c-border)',
+                                color: row.reason === 'year_mismatch' ? '#fbbf24' : 'var(--c-muted)',
+                              }}
+                              title={row.reason === 'year_mismatch' ? `DB year ${row.db_parsed_year} ≠ JF year ${row.input_year}` : undefined}>
+                              {row.db_parsed_year}
+                            </span>
+                          )}
+                        </span>
+                      ) : (row.matched_movie_id ? `#${row.matched_movie_id}` : '—')}
                     </td>
                     <td className="px-4 py-2.5">
                       {row.reason ? (

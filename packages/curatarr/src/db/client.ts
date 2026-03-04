@@ -88,6 +88,10 @@ export interface DisambiguationLogRow {
   reason: string | null;
   reviewed: number;
   created_at: string;
+  // Joined from movies table (populated by getAmbiguousDisambiguations)
+  db_folder_name?: string | null;
+  db_folder_path?: string | null;
+  db_parsed_year?: number | null;
 }
 
 export interface MovieUpsert {
@@ -254,6 +258,19 @@ export class CuratDb {
     return r.changes > 0;
   }
 
+  deleteMovies(ids: number[]): number {
+    if (ids.length === 0) return 0;
+    const del = this.db.prepare('DELETE FROM movies WHERE id = ?');
+    const tx = this.db.transaction((movieIds: number[]) => {
+      let removed = 0;
+      for (const id of movieIds) {
+        removed += del.run(id).changes;
+      }
+      return removed;
+    });
+    return tx(ids);
+  }
+
   getMovieByJellyfinId(jellyfinId: string): MovieRow | undefined {
     return this.db.prepare('SELECT * FROM movies WHERE jellyfin_id = ?').get(jellyfinId) as MovieRow | undefined;
   }
@@ -268,6 +285,84 @@ export class CuratDb {
     sets.push("updated_at = datetime('now')");
     const r = this.db.prepare(`UPDATE movies SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
     return r.changes > 0;
+  }
+
+  /** Distinct sorted set of all tags used across movies */
+  getAllTags(): string[] {
+    const rows = this.db.prepare(
+      "SELECT tags FROM movies WHERE tags IS NOT NULL AND tags != '[]'"
+    ).all() as Array<{ tags: string | null }>;
+    const set = new Set<string>();
+    for (const row of rows) {
+      if (!row.tags) continue;
+      try {
+        const arr = JSON.parse(row.tags) as unknown;
+        if (!Array.isArray(arr)) continue;
+        for (const t of arr) {
+          if (typeof t !== 'string') continue;
+          const v = t.trim();
+          if (v) set.add(v);
+        }
+      } catch {
+        // Skip malformed rows.
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }
+
+  /** Batch-merge tags into selected movies. Returns updated row count. */
+  batchAddTags(ids: number[], tags: string[]): number {
+    if (ids.length === 0 || tags.length === 0) return 0;
+    const getOne = this.db.prepare('SELECT tags FROM movies WHERE id = ?') as Database.Statement<[number], { tags: string }>;
+    const setOne = this.db.prepare("UPDATE movies SET tags = ?, updated_at = datetime('now') WHERE id = ?");
+    const tx = this.db.transaction((movieIds: number[], addTags: string[]) => {
+      let updated = 0;
+      for (const id of movieIds) {
+        const row = getOne.get(id);
+        if (!row) continue;
+        let curr: string[] = [];
+        try {
+          const parsed = JSON.parse(row.tags) as unknown;
+          if (Array.isArray(parsed)) curr = parsed.filter(v => typeof v === 'string') as string[];
+        } catch {
+          curr = [];
+        }
+        const merged = Array.from(new Set([...curr, ...addTags]));
+        if (JSON.stringify(merged) !== JSON.stringify(curr)) {
+          updated += setOne.run(JSON.stringify(merged), id).changes;
+        }
+      }
+      return updated;
+    });
+    return tx(ids, tags);
+  }
+
+  /** Batch-remove tags from selected movies. Returns updated row count. */
+  batchRemoveTags(ids: number[], tags: string[]): number {
+    if (ids.length === 0 || tags.length === 0) return 0;
+    const toRemove = new Set(tags);
+    const getOne = this.db.prepare('SELECT tags FROM movies WHERE id = ?') as Database.Statement<[number], { tags: string }>;
+    const setOne = this.db.prepare("UPDATE movies SET tags = ?, updated_at = datetime('now') WHERE id = ?");
+    const tx = this.db.transaction((movieIds: number[]) => {
+      let updated = 0;
+      for (const id of movieIds) {
+        const row = getOne.get(id);
+        if (!row) continue;
+        let curr: string[] = [];
+        try {
+          const parsed = JSON.parse(row.tags) as unknown;
+          if (Array.isArray(parsed)) curr = parsed.filter(v => typeof v === 'string') as string[];
+        } catch {
+          curr = [];
+        }
+        const next = curr.filter(t => !toRemove.has(t));
+        if (JSON.stringify(next) !== JSON.stringify(curr)) {
+          updated += setOne.run(JSON.stringify(next), id).changes;
+        }
+      }
+      return updated;
+    });
+    return tx(ids);
   }
 
   /** Re-apply Jellyfin enrichment for a movie by ID (used by jf-refresh endpoint) */
@@ -472,6 +567,7 @@ export class CuratDb {
   getUpgradeCandidates(opts: {
     maxResolution?: string;     // "1080p" = include 1080p and below
     releaseGroups?: string[];   // e.g. ['YTS.MX', 'YTS', 'YIFY']
+    genre?: string;
     minCriticRating?: number;   // Metacritic, 0-100
     minCommunityRating?: number;// IMDb-style, 0-10
     limit?: number;
@@ -498,6 +594,15 @@ export class CuratDb {
     if (opts.releaseGroups && opts.releaseGroups.length > 0) {
       sql += ` AND (${opts.releaseGroups.map(() => 'f.release_group LIKE ?').join(' OR ')})`;
       bindings.push(...opts.releaseGroups.map(g => `%${g}%`));
+    }
+
+    if (opts.genre) {
+      sql += ` AND EXISTS (
+        SELECT 1
+        FROM json_each(COALESCE(m.genres, '[]')) g
+        WHERE LOWER(CAST(g.value AS TEXT)) = LOWER(?)
+      )`;
+      bindings.push(opts.genre);
     }
 
     if (opts.minCriticRating !== undefined) {
@@ -707,9 +812,17 @@ export class CuratDb {
   }
 
   getAmbiguousDisambiguations(limit = 100): DisambiguationLogRow[] {
-    return this.db.prepare(
-      'SELECT * FROM disambiguation_log WHERE reviewed = 0 AND ambiguous = 1 ORDER BY id DESC LIMIT ?'
-    ).all(limit) as DisambiguationLogRow[];
+    return this.db.prepare(`
+      SELECT dl.*,
+             m.folder_name AS db_folder_name,
+             m.folder_path AS db_folder_path,
+             m.parsed_year AS db_parsed_year
+      FROM   disambiguation_log dl
+      LEFT JOIN movies m ON dl.matched_movie_id = m.id
+      WHERE  dl.reviewed = 0 AND dl.ambiguous = 1
+      ORDER  BY dl.id DESC
+      LIMIT  ?
+    `).all(limit) as DisambiguationLogRow[];
   }
 
   reviewDisambiguation(id: number, decision: 'confirm' | 'reject'): boolean {

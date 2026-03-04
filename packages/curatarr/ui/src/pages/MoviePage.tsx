@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, ExternalLink, RefreshCw, Film, Star, Tv2,
+  ArrowLeft, RefreshCw, Film, Star,
   Tag, FileText, AlertTriangle, Check, Loader2, Trash2,
 } from 'lucide-react';
 import { api, type FileRow } from '../api/client.js';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal.js';
-import { ResolutionBadge, CodecBadge, HdrBadge } from '../components/QualityBadge.js';
+import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from '../components/QualityBadge.js';
 
 // ── Helpers ────────────────────────────────────────────────────────
 
@@ -24,6 +24,17 @@ function fmtDuration(secs: number | null): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+function fmtSyncDate(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mmm = d.toLocaleString('en-US', { month: 'short' });
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
+}
+
 // ── File card ──────────────────────────────────────────────────────
 
 function FileCard({ file }: { file: FileRow }) {
@@ -34,7 +45,7 @@ function FileCard({ file }: { file: FileRow }) {
   return (
     <div className="border rounded-xl p-4 space-y-3 text-sm"
       style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-      <div className="font-mono text-xs truncate" style={{ color: 'var(--c-muted)' }} title={file.file_path}>
+      <div className="font-mono text-xs whitespace-normal break-all leading-5" style={{ color: 'var(--c-muted)' }} title={file.file_path}>
         {file.filename}
       </div>
       <div className="flex flex-wrap gap-1.5 items-center">
@@ -91,21 +102,34 @@ function FileCard({ file }: { file: FileRow }) {
 // ── Tag editor ─────────────────────────────────────────────────────
 
 function TagEditor({
-  tags, onSave,
-}: { tags: string[]; onSave: (t: string[]) => void }) {
-  const [editing, setEditing] = useState(false);
+  tags, allTags, onSave,
+}: { tags: string[]; allTags: string[]; onSave: (t: string[]) => void }) {
+  const [selected, setSelected] = useState('');
   const [input, setInput] = useState('');
   const [local, setLocal] = useState(tags);
 
   useEffect(() => { setLocal(tags); }, [tags]);
 
-  function addTag() {
-    const t = input.trim().toLowerCase().replace(/\s+/g, '-');
-    if (!t || local.includes(t)) { setInput(''); return; }
+  function normalizeTag(raw: string): string {
+    return raw.trim().toLowerCase().replace(/\s+/g, '-');
+  }
+
+  function addTag(raw: string) {
+    const t = normalizeTag(raw);
+    if (!t || local.includes(t)) return;
     const next = [...local, t];
     setLocal(next);
-    setInput('');
     onSave(next);
+  }
+
+  function addNewTag() {
+    const t = input.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!t || local.includes(t)) {
+      setInput('');
+      return;
+    }
+    addTag(t);
+    setInput('');
   }
 
   function removeTag(t: string) {
@@ -123,45 +147,38 @@ function TagEditor({
           <button onClick={() => removeTag(t)} className="opacity-60 hover:opacity-100 leading-none">×</button>
         </span>
       ))}
-      {editing ? (
-        <input
-          autoFocus
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') { addTag(); } if (e.key === 'Escape') { setEditing(false); setInput(''); } }}
-          onBlur={() => { addTag(); setEditing(false); }}
-          placeholder="tag name…"
-          className="px-2 py-0.5 rounded text-xs focus:outline-none w-24"
-          style={{ background: 'var(--c-bg)', border: '1px solid var(--c-accent)', color: 'var(--c-text)' }}
-        />
-      ) : (
-        <button onClick={() => setEditing(true)}
-          className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs border opacity-50 hover:opacity-100"
-          style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
-          + add
-        </button>
-      )}
+      <select
+        value={selected}
+        onChange={e => setSelected(e.target.value)}
+        className="px-2 py-0.5 rounded text-xs focus:outline-none"
+        style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+      >
+        <option value="">Select existing tag</option>
+        {allTags.filter(t => !local.includes(t)).map(t => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+      <button onClick={() => { addTag(selected); setSelected(''); }}
+        disabled={!selected}
+        className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs border disabled:opacity-40"
+        style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
+        add tag
+      </button>
+      <input
+        value={input}
+        onChange={e => setInput(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') addNewTag(); }}
+        placeholder="new tag…"
+        className="px-2 py-0.5 rounded text-xs focus:outline-none w-28"
+        style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+      />
+      <button onClick={addNewTag}
+        disabled={!input.trim()}
+        className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-full text-xs border disabled:opacity-40"
+        style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}>
+        add new
+      </button>
     </div>
-  );
-}
-
-// ── ID link ────────────────────────────────────────────────────────
-
-function IdLink({ label, value, href }: { label: string; value: string | null; href?: string }) {
-  if (!value) return null;
-  return (
-    <span className="inline-flex items-center gap-1 text-xs">
-      <span style={{ color: 'var(--c-muted)' }}>{label}:</span>
-      {href ? (
-        <a href={href} target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-0.5 font-mono hover:underline"
-          style={{ color: '#a78bfa' }}>
-          {value} <ExternalLink size={10} />
-        </a>
-      ) : (
-        <span className="font-mono" style={{ color: '#a78bfa' }}>{value}</span>
-      )}
-    </span>
   );
 }
 
@@ -173,6 +190,16 @@ export function MoviePage() {
   const queryClient = useQueryClient();
 
   const movieId = parseInt(id ?? '0', 10);
+  const { data: settingsData } = useQuery({
+    queryKey: ['settings'],
+    queryFn: api.settings,
+    staleTime: 60_000,
+  });
+  const { data: tagsData } = useQuery({
+    queryKey: ['tags'],
+    queryFn: api.tags,
+    staleTime: 60_000,
+  });
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['movie', movieId],
@@ -190,7 +217,11 @@ export function MoviePage() {
 
   const patchMutation = useMutation({
     mutationFn: (meta: { tags?: string[]; notes?: string }) => api.patchMovie(movieId, meta),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['movie', movieId] }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['movie', movieId] });
+      await queryClient.invalidateQueries({ queryKey: ['movies'] });
+      await queryClient.invalidateQueries({ queryKey: ['tags'] });
+    },
   });
 
   const jfRefreshMutation = useMutation({
@@ -225,13 +256,17 @@ export function MoviePage() {
 
   const genres: string[] = data.genres ? JSON.parse(data.genres) : [];
   const tags: string[] = data.tags ? JSON.parse(data.tags) : [];
+  const allTags: string[] = tagsData?.tags ?? [];
   const displayTitle = data.jellyfin_title ?? data.parsed_title ?? data.folder_name;
 
-  // Build Jellyfin web deep-link (settings/env provides the base URL)
-  const jellyfinBase = (window as typeof window & { __JELLYFIN_URL__?: string }).__JELLYFIN_URL__ ?? '';
+  // Build external links using configured public URLs/IDs.
+  const jellyfinBase = (settingsData?.settings.jellyfinPublicUrl ?? '').replace(/\/+$/, '');
   const jellyfinDeepLink = data.jellyfin_id && jellyfinBase
     ? `${jellyfinBase}/web/#/details?id=${data.jellyfin_id}`
     : undefined;
+  const imdbLink = data.imdb_id ? `https://www.imdb.com/title/${data.imdb_id}/` : undefined;
+  const tmdbId = data.tmdb_id?.match(/\d+/)?.[0] ?? '';
+  const tmdbLink = tmdbId ? `https://www.themoviedb.org/movie/${tmdbId}` : undefined;
 
   return (
     <>
@@ -246,10 +281,10 @@ export function MoviePage() {
         <div className="flex items-center gap-2">
           <button
             onClick={() => jfRefreshMutation.mutate()}
-            disabled={!data.jellyfin_id || jfRefreshMutation.isPending}
+            disabled={jfRefreshMutation.isPending}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs disabled:opacity-40"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}
-            title={data.jellyfin_id ? 'Refresh metadata from Jellyfin' : 'No Jellyfin ID — run jf-sync first'}>
+            title="Refresh metadata from Jellyfin (uses existing Jellyfin ID or title/year lookup)">
             {jfRefreshMutation.isPending
               ? <Loader2 size={13} className="animate-spin" />
               : <RefreshCw size={13} />}
@@ -268,10 +303,23 @@ export function MoviePage() {
       <div className="rounded-xl border p-6" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
         <div className="flex flex-col sm:flex-row gap-6">
 
-          {/* Poster placeholder */}
-          <div className="shrink-0 w-32 h-48 rounded-lg flex items-center justify-center"
+          {/* Poster */}
+          <div className="shrink-0 w-32 h-48 rounded-lg overflow-hidden flex items-center justify-center"
             style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)' }}>
-            <Film size={32} style={{ color: 'var(--c-border)' }} />
+            {data.jellyfin_id ? (
+              <img
+                src={`/api/proxy/image/${data.jellyfin_id}`}
+                alt="Poster"
+                className="w-full h-full object-cover"
+                onError={e => {
+                  const el = e.target as HTMLImageElement;
+                  el.style.display = 'none';
+                  el.parentElement!.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#26263a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2" ry="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M17 7h5M2 17h5M17 17h5"/></svg>';
+                }}
+              />
+            ) : (
+              <Film size={32} style={{ color: 'var(--c-border)' }} />
+            )}
           </div>
 
           {/* Info */}
@@ -283,9 +331,7 @@ export function MoviePage() {
               <div className="flex flex-wrap items-center gap-3 mt-1 text-sm" style={{ color: 'var(--c-muted)' }}>
                 <span>{data.jellyfin_year ?? data.parsed_year ?? '—'}</span>
                 {data.critic_rating != null && (
-                  <span className="inline-flex items-center gap-1">
-                    <Tv2 size={12} /> MC {data.critic_rating}
-                  </span>
+                  <CriticScoreBadge score={data.critic_rating} />
                 )}
                 {data.community_rating != null && (
                   <span className="inline-flex items-center gap-1">
@@ -306,36 +352,40 @@ export function MoviePage() {
               </div>
             )}
 
-            {data.overview && (
-              <p className="text-sm leading-relaxed" style={{ color: 'var(--c-muted)' }}>
-                {data.overview}
-              </p>
-            )}
-
-            {/* ID links — canonical linking mechanism */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
-              <IdLink
-                label="IMDb"
-                value={data.imdb_id}
-                href={data.imdb_id ? `https://www.imdb.com/title/${data.imdb_id}/` : undefined}
-              />
-              <IdLink
-                label="TMDb"
-                value={data.tmdb_id}
-                href={data.tmdb_id ? `https://www.themoviedb.org/movie/${data.tmdb_id}` : undefined}
-              />
-              <IdLink
-                label="Jellyfin ID"
-                value={data.jellyfin_id}
-                href={jellyfinDeepLink}
-              />
-            </div>
-
             {data.jf_synced_at && (
-              <div className="text-xs" style={{ color: '#3f3f5a' }}>
-                JF synced: {new Date(data.jf_synced_at).toLocaleString()}
+              <div className="text-xs">
+                <span style={{ color: '#6b6888' }}>Jellyfin Synced:</span>{' '}
+                <span className="font-semibold" style={{ color: '#d4cfff' }}>{fmtSyncDate(data.jf_synced_at)}</span>
               </div>
             )}
+
+            {/* External links */}
+            <div className="flex flex-wrap gap-2 pt-1">
+              {jellyfinDeepLink && (
+                <a href={jellyfinDeepLink} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border hover:opacity-90"
+                  style={{ color: '#c4b5fd', borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+                  <img src="/icons/jellyfin.svg" alt="Jellyfin" className="w-5 h-5" />
+                  Jellyfin
+                </a>
+              )}
+              {imdbLink && (
+                <a href={imdbLink} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border hover:opacity-90"
+                  style={{ color: '#f5c518', borderColor: 'rgba(245,197,24,0.35)', background: 'rgba(245,197,24,0.08)' }}>
+                  <img src="/icons/imdb.svg" alt="IMDb" className="w-5 h-5" />
+                  IMDb
+                </a>
+              )}
+              {tmdbLink && (
+                <a href={tmdbLink} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border hover:opacity-90"
+                  style={{ color: '#5eead4', borderColor: 'rgba(94,234,212,0.35)', background: 'rgba(45,212,191,0.08)' }}>
+                  <img src="/icons/tmdb.svg" alt="TMDb" className="w-5 h-5" />
+                  TMDb
+                </a>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -348,6 +398,7 @@ export function MoviePage() {
         </h2>
         <TagEditor
           tags={tags}
+          allTags={allTags}
           onSave={t => patchMutation.mutate({ tags: t })}
         />
 

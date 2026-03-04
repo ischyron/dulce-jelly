@@ -323,15 +323,20 @@ export async function probeFile(filePath: string): Promise<ProbeResult | { error
 // Handles: Name.Year.Quality.Codec-GROUP, Name (Year) [GROUP]
 // ──────────────────────────────────────────────────────────────────
 
-// Technical tokens that appear after dashes but are NOT release groups
+// Technical tokens that appear after dashes/underscores but are NOT release groups
 const NON_GROUP_TOKENS = new Set([
   'DL', 'HD', 'UHD', 'SD', 'SDR', 'WEB', 'BD', 'BR',
   'RIP', 'WEBRIP', 'BDRIP', 'DVDRIP', 'HDTV', 'PDTV',
+  'BLURAY', 'WEBDL', 'BDRIP', 'HDRIP', 'HDCAM', 'HDTS',
   'X264', 'X265', 'H264', 'H265', 'HEVC', 'AVC', 'AV1',
   'AAC', 'AC3', 'DTS', 'EAC3', 'FLAC', 'MP3', 'OPUS',
   'PROPER', 'REPACK', 'REMUX', 'EXTENDED', 'INTERNAL',
   'HDR', 'HDR10', 'HLG', 'SDR', '10BIT', '8BIT',
+  '1080P', '720P', '2160P', '480P', '4K', '2K',
 ]);
+
+// Matches resolution tokens like "1080p", "720P", "4k" (digits + optional p/i/k)
+const RESOLUTION_RE = /^\d+[pPiIkK]?$/;
 
 export function extractReleaseGroup(filename: string): string | undefined {
   // Remove extension
@@ -341,12 +346,29 @@ export function extractReleaseGroup(filename: string): string | undefined {
   const bracketMatch = base.match(/\[([A-Za-z0-9._-]{2,20})\]\s*$/);
   if (bracketMatch) return bracketMatch[1];
 
-  // 2. Dash match: -GROUP at end — no dots (avoids matching WEB-DL.something)
+  // 2. Dash match: -GROUP at end
   //    Require min 3 chars to skip 2-char tech abbreviations like -DL, -HD
   const dashMatch = base.match(/-([A-Za-z0-9]{3,20})$/);
   if (dashMatch) {
     const candidate = dashMatch[1];
-    if (!NON_GROUP_TOKENS.has(candidate.toUpperCase())) return candidate;
+    const upper = candidate.toUpperCase();
+    if (!NON_GROUP_TOKENS.has(upper) && !RESOLUTION_RE.test(candidate)) return candidate;
+  }
+
+  // 3. Underscore-delimited: last _TOKEN at end
+  //    Handles filenames like: Movie_Title_2012_WEBDL-1080p_GROUPNAME.mkv
+  const underscoreMatch = base.match(/_([A-Za-z0-9]{2,20})$/);
+  if (underscoreMatch) {
+    const candidate = underscoreMatch[1];
+    const upper = candidate.toUpperCase();
+    // Skip pure numbers (years), resolution tokens, and known tech tokens
+    if (
+      !NON_GROUP_TOKENS.has(upper) &&
+      !RESOLUTION_RE.test(candidate) &&
+      !/^\d+$/.test(candidate)
+    ) {
+      return candidate;
+    }
   }
 
   return undefined;

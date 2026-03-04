@@ -20,13 +20,15 @@ function StatCard({
   color?: string;
 }) {
   return (
-    <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
+    <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full flex flex-col">
       <div className={`flex items-center gap-2 mb-2 text-sm ${color}`}>
         <Icon size={16} />
         <span>{label}</span>
       </div>
       <div className="text-2xl font-bold text-[#f0eeff]">{value}</div>
-      {sub && <div className="text-xs text-[#6b6888] mt-0.5">{sub}</div>}
+      <div className="text-xs text-[#6b6888] mt-0.5 min-h-[16px] truncate" title={sub ?? ''}>
+        {sub ?? ''}
+      </div>
     </div>
   );
 }
@@ -108,7 +110,7 @@ export function Dashboard() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link to="/library" className="block hover:opacity-80 transition-opacity">
+        <Link to="/library" className="block h-full hover:opacity-80 transition-opacity">
           <StatCard icon={Film} label="Total Movies" value={data.totalMovies.toLocaleString()} />
         </Link>
         <StatCard
@@ -136,34 +138,38 @@ export function Dashboard() {
       {/* HDR + codec summary row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm flex flex-wrap gap-x-4 gap-y-1 items-center">
-          <span>
+          <Link to="/library?hdr=1" className="hover:underline" title="Show HDR files in Library">
             <span className="text-amber-400 font-medium">{data.hdrCount}</span>
             <span className="text-[#8b87aa]"> HDR</span>
-          </span>
+          </Link>
           <span className="text-[#26263a]">·</span>
-          <span>
+          <Link to="/library?dv=1" className="hover:underline" title="Show Dolby Vision files in Library">
             <span className="text-amber-400 font-medium">{data.dolbyVisionCount}</span>
             <span className="text-[#8b87aa]"> Dolby Vision</span>
-          </span>
+          </Link>
           {(data.codecDist['av1'] ?? 0) > 0 && (
             <>
               <span className="text-[#26263a]">·</span>
-              <span title="AV1 files may not hardware-decode on Android TV / older sticks">
+              <Link to="/library?codec=av1"
+                className="hover:underline"
+                title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library">
                 <span className="text-emerald-400 font-medium">{data.codecDist['av1']}</span>
                 <span className="text-[#8b87aa]"> AV1 </span>
-                <span className="text-amber-400 text-xs">⚠ check client compat</span>
-              </span>
+                <span className="text-amber-400 text-xs">⚠ compat</span>
+              </Link>
             </>
           )}
           {((data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)) > 0 && (
             <>
               <span className="text-[#26263a]">·</span>
-              <span title="Legacy codec — consider replacement">
+              <Link to="/library?legacy=1"
+                className="hover:underline"
+                title="Legacy codec — click to filter in Library">
                 <span className="text-orange-400 font-medium">
                   {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)}
                 </span>
                 <span className="text-[#8b87aa]"> legacy codec</span>
-              </span>
+              </Link>
             </>
           )}
         </div>

@@ -1,6 +1,6 @@
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, Legend,
+  ResponsiveContainer,
 } from 'recharts';
 
 const RES_COLORS: Record<string, string> = {
@@ -25,32 +25,80 @@ interface DistChartProps {
 }
 
 export function ResolutionPieChart({ data }: DistChartProps) {
-  const entries = Object.entries(data).map(([name, value]) => ({ name, value }));
+  const entries = Object.entries(data)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value);
+  const total = entries.reduce((s, e) => s + e.value, 0);
+
+  if (entries.length === 0 || total === 0) {
+    return <div className="text-sm text-[#6b6888] py-6">No resolution data yet.</div>;
+  }
+
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <PieChart>
-        <Pie
-          data={entries}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          outerRadius={80}
-          label={({ name, percent }) => `${name} ${Math.round(percent * 100)}%`}
-          labelLine={false}
-        >
-          {entries.map(e => (
-            <Cell key={e.name} fill={RES_COLORS[e.name] ?? '#6b7280'} />
-          ))}
-        </Pie>
-        <Tooltip
-          contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6 }}
-          labelStyle={{ color: '#e5e7eb' }}
-          itemStyle={{ color: '#d1d5db' }}
-        />
-        <Legend wrapperStyle={{ fontSize: 12 }} />
-      </PieChart>
-    </ResponsiveContainer>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+      <div className="w-full sm:w-[220px] h-[220px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={entries}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              innerRadius={56}
+              outerRadius={92}
+              paddingAngle={2}
+              stroke="#16161f"
+              strokeWidth={2}
+            >
+              {entries.map(e => (
+                <Cell key={e.name} fill={RES_COLORS[e.name] ?? '#6b7280'} />
+              ))}
+            </Pie>
+            <text x="50%" y="46%" textAnchor="middle" fill="#f0eeff" style={{ fontSize: 22, fontWeight: 700 }}>
+              {total}
+            </text>
+            <text x="50%" y="58%" textAnchor="middle" fill="#8b87aa" style={{ fontSize: 11 }}>
+              files
+            </text>
+            <Tooltip
+              contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8 }}
+              labelStyle={{ color: '#e5e7eb' }}
+              itemStyle={{ color: '#d1d5db' }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div className="flex-1 flex flex-col gap-2">
+        {entries.map(e => {
+          const pct = Math.round((e.value / total) * 100);
+          return (
+            <div key={e.name} className="text-xs">
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    style={{ background: RES_COLORS[e.name] ?? '#6b7280' }}
+                    className="w-2.5 h-2.5 rounded-[2px] inline-block shrink-0"
+                  />
+                  <span className="text-[#9f9abf]">{e.name}</span>
+                </div>
+                <span className="text-[#f0eeff] tabular-nums">{e.value} <span className="text-[#6b6888]">({pct}%)</span></span>
+              </div>
+              <div className="h-1.5 rounded-full bg-[#1f2030] overflow-hidden">
+                <div
+                  className="h-full rounded-full"
+                  style={{
+                    width: `${pct}%`,
+                    background: RES_COLORS[e.name] ?? '#6b7280',
+                  }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

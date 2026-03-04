@@ -103,7 +103,7 @@ export class JellyfinClient {
       while (true) {
         const fields = [
           'Path', 'ProviderIds', 'CriticRating', 'CommunityRating',
-          'Genres', 'Overview', 'OfficialRating', 'MediaSources',
+          'Genres', 'MediaSources',
           ...(opts.includeUserData ? ['UserData'] : []),
         ].join(',');
 

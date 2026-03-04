@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { AlertTriangle, ShieldAlert, TriangleAlert, Info } from 'lucide-react';
 
 // ── QualityFlag types (mirrors src/scanner/deepcheck.ts) ──────────────────
@@ -59,7 +59,7 @@ const AV1_UNSUPPORTED_PROFILES = new Set(['android_tv', 'fire_tv']);
 const resColors: Record<string, string> = {
   '2160p': 'bg-purple-600/30 text-purple-300 border-purple-700',
   '1080p': 'bg-blue-600/30 text-blue-300 border-blue-700',
-  '720p':  'bg-green-600/30 text-green-300 border-green-700',
+  '720p':  'bg-cyan-600/30 text-cyan-300 border-cyan-700',
   '480p':  'bg-yellow-600/30 text-yellow-300 border-yellow-700',
   'other': 'bg-[#26263a]/60 text-[#8b87aa] border-[#26263a]',
 };
@@ -167,6 +167,34 @@ export function HdrBadge({ hdrFormats, dvProfile }: {
   );
 }
 
+/**
+ * Displays a Jellyfin CriticRating score (0–100) with a fresh/rotten indicator.
+ * Jellyfin's CriticRating is sourced from whichever metadata plugin is active
+ * (Metacritic via TMDb plugin, or Rotten Tomatoes via OMDb plugin).
+ * Convention follows Rotten Tomatoes: ≥60 = Fresh, <60 = Rotten.
+ */
+export function CriticScoreBadge({ score }: { score: number | null | undefined }) {
+  if (score == null) return <span style={{ color: 'var(--c-border)' }}>—</span>;
+  const fresh = score >= 60;
+  return (
+    <span
+      className="inline-flex items-center gap-1 font-mono"
+      title={fresh
+        ? `${score} — Fresh (≥60). Source: Jellyfin CriticRating (Metacritic via TMDb plugin, or RT via OMDb plugin)`
+        : `${score} — Rotten (<60). Source: Jellyfin CriticRating`}
+    >
+      {/* Tomato (fresh) or splat (rotten) circle */}
+      <img
+        src={fresh ? '/icons/rottentomatoes.svg' : '/icons/rottentomatoes.svg'}
+        alt={fresh ? 'Fresh' : 'Rotten'}
+        className="w-3 h-3"
+        style={{ opacity: fresh ? 1 : 0.45, filter: fresh ? undefined : 'grayscale(1)' }}
+      />
+      <span style={{ color: fresh ? '#4ade80' : '#f87171' }}>{score}</span>
+    </span>
+  );
+}
+
 export function QualityBadge({ resolution, codec }: QualityBadgeProps) {
   return (
     <span className="inline-flex gap-1">
@@ -194,6 +222,31 @@ export function QualityFlagsBadge({
 }) {
   const [open, setOpen] = useState(false);
   const [showDocs, setShowDocs] = useState(false);
+  const [popupStyle, setPopupStyle] = useState<React.CSSProperties>({});
+  const btnRef = useRef<HTMLButtonElement>(null);
+
+  // Close popup on scroll so it doesn't drift from the button
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener('scroll', close, { capture: true, passive: true });
+    return () => window.removeEventListener('scroll', close, { capture: true });
+  }, [open]);
+
+  function handleToggle(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (open) { setOpen(false); return; }
+    const rect = btnRef.current?.getBoundingClientRect();
+    if (rect) {
+      const POPUP_W = 340;
+      const top = rect.bottom + 4;
+      let left = rect.right - POPUP_W;
+      if (left < 8) left = 8;
+      if (left + POPUP_W > window.innerWidth - 8) left = window.innerWidth - POPUP_W - 8;
+      setPopupStyle({ position: 'fixed', top, left, width: `${POPUP_W}px`, zIndex: 9999 });
+    }
+    setOpen(true);
+  }
 
   let flags: QualityFlag[] = [];
   try { flags = qualityFlagsJson ? (JSON.parse(qualityFlagsJson) as QualityFlag[]) : []; } catch { /* */ }
@@ -226,10 +279,11 @@ export function QualityFlagsBadge({
   const label = hasFlag ? 'FLAG' : 'WARN';
 
   return (
-    <span className="relative inline-block">
+    <span className="inline-block">
       <button
+        ref={btnRef}
         type="button"
-        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        onClick={handleToggle}
         className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded font-semibold"
         style={{ background: overallColor.bg, color: overallColor.text }}
         title={`${flags.length} issue(s) detected — click to expand`}
@@ -240,12 +294,11 @@ export function QualityFlagsBadge({
 
       {open && (
         <div
-          className="absolute right-0 z-50 rounded-xl shadow-2xl text-xs"
+          className="rounded-xl shadow-2xl text-xs"
           style={{
+            ...popupStyle,
             background: '#1e1e2e',
             border: '1px solid var(--c-border)',
-            width: '340px',
-            top: '110%',
           }}
           onClick={e => e.stopPropagation()}
         >

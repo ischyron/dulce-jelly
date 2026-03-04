@@ -10,51 +10,52 @@ const CLIENT_PROFILES = [
   {
     id: 'android_tv',
     label: 'Android TV / Google TV (default)',
-    av1: 'none',
-    dv: 'app-level (P5/P8 via Jellyfin)',
-    hint: 'Chromecast HD, older Android TV sticks. No AV1 hardware decode. Use H264/HEVC.',
+    videoCodec: { av1: 'No hardware decode', hevc: 'Full', h264: 'Full' },
+    dv: 'App-level via Jellyfin (Profile 5, Profile 8)',
+    hint: 'Chromecast HD, older Android TV sticks. AV1 will be software-transcoded — use H264/HEVC files for best performance.',
   },
   {
     id: 'chromecast_4k',
     label: 'Chromecast with Google TV 4K (2022+)',
-    av1: 'full',
-    dv: 'P5, P8',
-    hint: 'Full AV1 hardware decode. DV Profile 5 and 8 supported.',
+    videoCodec: { av1: 'Full hardware', hevc: 'Full', h264: 'Full' },
+    dv: 'Dolby Vision (DV) Profile 5, Profile 8',
+    hint: 'Full AV1 hardware decode. Dolby Vision Profile 5 and Profile 8 supported.',
   },
   {
     id: 'apple_tv',
     label: 'Apple TV 4K (3rd gen)',
-    av1: 'full',
-    dv: 'P5, P8',
-    hint: 'Full AV1 hardware decode. DV P5/P8 only. No HDR10+.',
+    videoCodec: { av1: 'Full hardware', hevc: 'Full', h264: 'Full' },
+    dv: 'Dolby Vision (DV) Profile 5, Profile 8 · No HDR10+',
+    hint: 'Full AV1 hardware decode. Dolby Vision Profile 5/8 only — HDR10+ not supported.',
   },
   {
     id: 'shield',
     label: 'NVIDIA SHIELD',
-    av1: 'full',
-    dv: 'P5, P7, P8',
-    hint: 'Most capable TV client. Full AV1. DV including P7 FEL.',
+    videoCodec: { av1: 'Full hardware', hevc: 'Full', h264: 'Full' },
+    dv: 'Dolby Vision (DV) Profile 5, Profile 7, Profile 8',
+    hint: 'Most capable TV client. Full AV1 hardware decode. Dolby Vision including Profile 7 (FEL) supported.',
   },
   {
     id: 'fire_tv',
     label: 'Fire TV Stick 4K Max',
-    av1: 'limited',
-    dv: 'P8 (Dolby MAL)',
-    hint: 'Limited AV1 — software decode only on most models. HEVC is preferred.',
+    videoCodec: { av1: 'Software only', hevc: 'Full', h264: 'Full' },
+    dv: 'Dolby Vision (DV) Profile 8 via Dolby MAL',
+    hint: 'AV1 is software-decoded on most models — HEVC is preferred. Dolby Vision Profile 8 via MAL.',
   },
 ];
 
 // ── Scoring tooltip content ────────────────────────────────────────────
 
-const CODEC_SCORING_TOOLTIP = `Codec quality scores:
-  AV1   = 100 — best compression but TV client compat varies
-  HEVC  = 90  — preferred for 4K/HDR
-  H264  = 70  — universal compatibility
-  MPEG4 = 40  — legacy, replace recommended
-  MPEG2 = 20  — very old, avoid
+const CODEC_SCORING_TOOLTIP = `Video codec quality scores (compression efficiency):
+  AV1   = 100 — best compression; hardware support varies by client
+  HEVC (H.265) = 90  — preferred for 4K/HDR; near-universal TV support
+  H264  = 70  — universally compatible
+  MPEG4 = 40  — legacy; replacement recommended
+  MPEG2 = 20  — very old; avoid
 
-⚠ AV1 warning is shown on Scout Queue and Library
-  when your client profile lacks hardware AV1 decode.`;
+⚠ Scout Queue and Library show a compatibility warning
+  when an AV1 file is paired with a client that lacks
+  hardware AV1 decode (software transcode = CPU load).`;
 
 // ── Field component ────────────────────────────────────────────────────
 
@@ -240,6 +241,7 @@ export function Settings() {
     if (data?.settings) {
       setForm({
         jellyfinUrl: data.settings.jellyfinUrl ?? '',
+        jellyfinPublicUrl: data.settings.jellyfinPublicUrl ?? '',
         jellyfinApiKey: '',           // always blank — user types a new key to replace
         jellyfinApiKeyMasked: data.settings.jellyfinApiKey ?? '',  // shows ****xxxx from server
         libraryPath: data.settings.libraryPath ?? '',
@@ -249,6 +251,8 @@ export function Settings() {
         scoutMinCritic:    data.settings.scoutMinCritic    ?? '65',
         scoutMinCommunity: data.settings.scoutMinCommunity ?? '7.0',
         scoutMaxResolution: data.settings.scoutMaxResolution ?? '1080p',
+        jfSyncIntervalMin: data.settings.jfSyncIntervalMin ?? '30',
+        jfSyncBatchSize:   data.settings.jfSyncBatchSize   ?? '10',
       });
       const savedProfile = data.settings.clientProfile ?? 'android_tv';
       setClientProfile(savedProfile);
@@ -323,14 +327,35 @@ export function Settings() {
         <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Jellyfin Connection</h2>
         <Field label="Jellyfin URL" name="jellyfinUrl" value={form.jellyfinUrl ?? ''}
           onChange={v => set('jellyfinUrl', v)} placeholder="http://localhost:8096"
-          hint="Standard Jellyfin port is 8096. Also read from JELLYFIN_URL env var." />
+          hint={[
+            'Server-side URL — used by Curatarr\'s backend, not your browser.',
+            'Bare-metal / local dev: http://localhost:8096',
+            'Docker (same compose stack): http://jellyfin:8096',
+            'Docker Desktop on Mac: http://host.docker.internal:8096',
+            'Also read from env var: JELLYFIN_URL',
+          ].join(' · ')} />
+        <Field label="Jellyfin Public Web URL" name="jellyfinPublicUrl" value={form.jellyfinPublicUrl ?? ''}
+          onChange={v => set('jellyfinPublicUrl', v)} placeholder="https://jellyfin.example.com"
+          hint="Browser-facing Jellyfin URL used for Movie detail page links (Open in Jellyfin)." />
         <MaskedKeyField
           label="API Key"
           name="jellyfinApiKey"
           maskedValue={form.jellyfinApiKeyMasked ?? ''}
           value={form.jellyfinApiKey ?? ''}
           onChange={v => set('jellyfinApiKey', v)}
-          hint="Jellyfin Dashboard → Administration → API Keys. Also read from JELLYFIN_API_KEY env var (not shown here if only set via env)." />
+          hint="Jellyfin Dashboard → Administration → API Keys → Add Key. Also read from env var: JELLYFIN_API_KEY" />
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Auto-sync interval (min)" name="jfSyncIntervalMin"
+            value={form.jfSyncIntervalMin ?? '30'}
+            onChange={v => set('jfSyncIntervalMin', v)}
+            placeholder="30"
+            hint="Minutes between automatic JF syncs. 0 = disabled. Takes effect after server restart." />
+          <Field label="Sync batch size" name="jfSyncBatchSize"
+            value={form.jfSyncBatchSize ?? '10'}
+            onChange={v => set('jfSyncBatchSize', v)}
+            placeholder="10"
+            hint="Items per Jellyfin API page during sync." />
+        </div>
         <div className="flex items-center gap-3">
           <button onClick={checkHealth} disabled={checkingHealth}
             className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm"
@@ -358,7 +383,7 @@ export function Settings() {
         <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Library</h2>
         <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''}
           onChange={v => set('libraryPath', v)} placeholder="/media/Movies"
-          hint="Default path used by the Scan command. Seeded from defaults on first start." />
+          hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also read from env var: LIBRARY_PATH" />
       </section>
 
       {/* Client Profile */}
@@ -389,14 +414,23 @@ export function Settings() {
                 onChange={() => setClientProfile(p.id)}
                 className="mt-0.5 accent-violet-600"
               />
-              <div>
+              <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>{p.label}</div>
                 <div className="text-xs mt-0.5" style={{ color: 'var(--c-muted)' }}>{p.hint}</div>
-                <div className="text-xs mt-1 flex gap-3">
-                  <span style={{ color: p.av1 === 'full' ? '#4ade80' : p.av1 === 'limited' ? '#fbbf24' : '#f87171' }}>
-                    AV1: {p.av1}
-                  </span>
-                  <span style={{ color: 'var(--c-muted)' }}>DV: {p.dv}</span>
+                {/* Codec capability table */}
+                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <span style={{ color: 'var(--c-muted)', minWidth: '72px' }}>Video codec AV1</span>
+                    <span style={{ color: 'var(--c-text)' }}>{p.videoCodec.av1}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span style={{ color: 'var(--c-muted)', minWidth: '48px' }}>HEVC (H.265)</span>
+                    <span style={{ color: 'var(--c-text)' }}>{p.videoCodec.hevc}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 col-span-2">
+                    <span style={{ color: 'var(--c-muted)', minWidth: '72px' }}>Dolby Vision</span>
+                    <span style={{ color: 'var(--c-text)' }}>{p.dv}</span>
+                  </div>
                 </div>
               </div>
             </label>
@@ -438,17 +472,16 @@ export function Settings() {
           </div>
         </div>
 
-        {/* AV1 scoring tooltip callout */}
+        {/* AV1 scoring note */}
         <div className="flex items-start gap-2 p-3 rounded-lg text-xs"
-          style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.2)', color: '#fbbf24' }}>
+          style={{ background: 'rgba(139,135,170,0.08)', border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}>
           <Info size={13} className="shrink-0 mt-0.5" />
           <span>
-            <strong>AV1 scoring note:</strong> AV1 files score highest (100) for compression efficiency,
-            but your active client profile (<em>{activeProfile.label}</em>) has AV1 support:{' '}
-            <strong>{activeProfile.av1}</strong>.{' '}
-            {activeProfile.av1 === 'none'
-              ? 'AV1 files will be flagged with a warning ⚠ in Scout Queue and Library.'
-              : 'AV1 files will play without issues on this client.'}
+            AV1 files score highest (100) for compression efficiency.
+            Scout Queue and Library will show a compatibility warning for AV1 files
+            when your selected client lacks hardware AV1 decode.
+            Active profile: <em style={{ color: 'var(--c-text)' }}>{activeProfile.label}</em> —
+            Video codec AV1: <span style={{ color: 'var(--c-text)' }}>{activeProfile.videoCodec.av1}</span>.
           </span>
         </div>
       </section>
@@ -458,13 +491,15 @@ export function Settings() {
         style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
         <Field label="Provider" name="llmProvider" value={form.llmProvider ?? ''}
-          onChange={v => set('llmProvider', v)} placeholder="openai / anthropic / ollama" />
+          onChange={v => set('llmProvider', v)} placeholder="openai / anthropic / ollama"
+          hint="One of: openai, anthropic, ollama, openrouter. Also read from env var: LLM_PROVIDER" />
         <MaskedKeyField
           label="API Key"
           name="llmApiKey"
           maskedValue={form.llmApiKeyMasked ?? ''}
           value={form.llmApiKey ?? ''}
-          onChange={v => set('llmApiKey', v)} />
+          onChange={v => set('llmApiKey', v)}
+          hint="API key for the chosen LLM provider. Not needed for Ollama (local). Also read from env var: LLM_API_KEY" />
       </section>
 
       {/* Coming soon — Prowlarr */}

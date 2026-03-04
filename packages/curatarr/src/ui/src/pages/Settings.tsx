@@ -66,6 +66,8 @@ Source weights:
   Remux, BluRay, WEB-DL
 Codec weights:
   HEVC, AV1, H264
+Audio weights:
+  Atmos, TrueHD, DTS, DD+/EAC3, AC3, AAC
 Protocol weights:
   Usenet bonus, Torrent bonus
 Penalties:
@@ -75,6 +77,11 @@ Availability:
   Seeder bonus = floor(seeders / divisor), capped by max bonus
 
 These settings affect Scout release ranking (search results), not the Library candidate priority score.`;
+
+const LEGACY_PENALTY_TOOLTIP = `Subtracts points from releases that use legacy codecs (xvid/mpeg4/mpeg2).
+
+Higher value = stronger penalty (legacy files drop lower in Scout ranking).
+Lower value = legacy files are penalized less.`;
 
 const SCOUT_OBJECTIVE_SAMPLES = [
   'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
@@ -195,14 +202,17 @@ function patchRuleDescription(configText: string, description: string): string {
 // ── Field component ────────────────────────────────────────────────────
 
 function Field({
-  label, name, value, onChange, type = 'text', placeholder = '', disabled = false, hint = '',
+  label, name, value, onChange, type = 'text', placeholder = '', disabled = false, hint = '', tooltip = '',
 }: {
   label: string; name: string; value: string; onChange: (v: string) => void;
-  type?: string; placeholder?: string; disabled?: boolean; hint?: string;
+  type?: string; placeholder?: string; disabled?: boolean; hint?: string; tooltip?: string;
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>{label}</label>
+      <label className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
+        <span>{label}</span>
+        {tooltip && <InfoTooltip content={tooltip} />}
+      </label>
       <input
         type={type} name={name} value={value}
         onChange={e => onChange(e.target.value)}
@@ -681,58 +691,113 @@ export function Settings() {
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Tune Scout release ranking without code changes. Higher score means a release is recommended first.
         </p>
-        <div className="grid grid-cols-4 gap-3">
-          <Field label="2160p" name="scoutCfRes2160"
-            value={form.scoutCfRes2160 ?? '40'}
-            onChange={v => set('scoutCfRes2160', v)} />
-          <Field label="1080p" name="scoutCfRes1080"
-            value={form.scoutCfRes1080 ?? '25'}
-            onChange={v => set('scoutCfRes1080', v)} />
-          <Field label="720p" name="scoutCfRes720"
-            value={form.scoutCfRes720 ?? '10'}
-            onChange={v => set('scoutCfRes720', v)} />
-          <Field label="Legacy Penalty" name="scoutCfLegacyPenalty"
-            value={form.scoutCfLegacyPenalty ?? '30'}
-            onChange={v => set('scoutCfLegacyPenalty', v)} />
+        <div className="space-y-3">
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Resolution
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="2160p" name="scoutCfRes2160"
+                value={form.scoutCfRes2160 ?? '40'}
+                onChange={v => set('scoutCfRes2160', v)} />
+              <Field label="1080p" name="scoutCfRes1080"
+                value={form.scoutCfRes1080 ?? '25'}
+                onChange={v => set('scoutCfRes1080', v)} />
+              <Field label="720p" name="scoutCfRes720"
+                value={form.scoutCfRes720 ?? '10'}
+                onChange={v => set('scoutCfRes720', v)} />
+            </div>
+          </div>
 
-          <Field label="Remux" name="scoutCfSourceRemux"
-            value={form.scoutCfSourceRemux ?? '28'}
-            onChange={v => set('scoutCfSourceRemux', v)} />
-          <Field label="BluRay" name="scoutCfSourceBluray"
-            value={form.scoutCfSourceBluray ?? '16'}
-            onChange={v => set('scoutCfSourceBluray', v)} />
-          <Field label="WEB-DL" name="scoutCfSourceWebdl"
-            value={form.scoutCfSourceWebdl ?? '12'}
-            onChange={v => set('scoutCfSourceWebdl', v)} />
-          <Field label="Small 4K Penalty" name="scoutCfSmall4kPenalty"
-            value={form.scoutCfSmall4kPenalty ?? '15'}
-            onChange={v => set('scoutCfSmall4kPenalty', v)} />
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Source
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Remux" name="scoutCfSourceRemux"
+                value={form.scoutCfSourceRemux ?? '28'}
+                onChange={v => set('scoutCfSourceRemux', v)} />
+              <Field label="BluRay" name="scoutCfSourceBluray"
+                value={form.scoutCfSourceBluray ?? '16'}
+                onChange={v => set('scoutCfSourceBluray', v)} />
+              <Field label="WEB-DL" name="scoutCfSourceWebdl"
+                value={form.scoutCfSourceWebdl ?? '12'}
+                onChange={v => set('scoutCfSourceWebdl', v)} />
+            </div>
+          </div>
 
-          <Field label="HEVC" name="scoutCfCodecHevc"
-            value={form.scoutCfCodecHevc ?? '20'}
-            onChange={v => set('scoutCfCodecHevc', v)} />
-          <Field label="AV1" name="scoutCfCodecAv1"
-            value={form.scoutCfCodecAv1 ?? '16'}
-            onChange={v => set('scoutCfCodecAv1', v)} />
-          <Field label="H264" name="scoutCfCodecH264"
-            value={form.scoutCfCodecH264 ?? '8'}
-            onChange={v => set('scoutCfCodecH264', v)} />
-          <Field label="Small 4K Min GiB" name="scoutCfSmall4kMinGiB"
-            value={form.scoutCfSmall4kMinGiB ?? '8'}
-            onChange={v => set('scoutCfSmall4kMinGiB', v)} />
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Video
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="HEVC" name="scoutCfCodecHevc"
+                value={form.scoutCfCodecHevc ?? '20'}
+                onChange={v => set('scoutCfCodecHevc', v)} />
+              <Field label="AV1" name="scoutCfCodecAv1"
+                value={form.scoutCfCodecAv1 ?? '16'}
+                onChange={v => set('scoutCfCodecAv1', v)} />
+              <Field label="H264" name="scoutCfCodecH264"
+                value={form.scoutCfCodecH264 ?? '8'}
+                onChange={v => set('scoutCfCodecH264', v)} />
+              <Field label="Legacy Penalty" name="scoutCfLegacyPenalty"
+                value={form.scoutCfLegacyPenalty ?? '30'}
+                onChange={v => set('scoutCfLegacyPenalty', v)}
+                tooltip={LEGACY_PENALTY_TOOLTIP} />
+              <Field label="Small 4K Penalty" name="scoutCfSmall4kPenalty"
+                value={form.scoutCfSmall4kPenalty ?? '15'}
+                onChange={v => set('scoutCfSmall4kPenalty', v)} />
+              <Field label="Small 4K Min GiB" name="scoutCfSmall4kMinGiB"
+                value={form.scoutCfSmall4kMinGiB ?? '8'}
+                onChange={v => set('scoutCfSmall4kMinGiB', v)} />
+            </div>
+          </div>
 
-          <Field label="Usenet Bonus" name="scoutCfUsenetBonus"
-            value={form.scoutCfUsenetBonus ?? '10'}
-            onChange={v => set('scoutCfUsenetBonus', v)} />
-          <Field label="Torrent Bonus" name="scoutCfTorrentBonus"
-            value={form.scoutCfTorrentBonus ?? '0'}
-            onChange={v => set('scoutCfTorrentBonus', v)} />
-          <Field label="Seeder Divisor" name="scoutCfSeedersDivisor"
-            value={form.scoutCfSeedersDivisor ?? '20'}
-            onChange={v => set('scoutCfSeedersDivisor', v)} />
-          <Field label="Seeder Max Bonus" name="scoutCfSeedersBonusCap"
-            value={form.scoutCfSeedersBonusCap ?? '12'}
-            onChange={v => set('scoutCfSeedersBonusCap', v)} />
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Audio
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Field label="Atmos" name="scoutCfAudioAtmos"
+                value={form.scoutCfAudioAtmos ?? '10'}
+                onChange={v => set('scoutCfAudioAtmos', v)} />
+              <Field label="TrueHD" name="scoutCfAudioTruehd"
+                value={form.scoutCfAudioTruehd ?? '8'}
+                onChange={v => set('scoutCfAudioTruehd', v)} />
+              <Field label="DTS" name="scoutCfAudioDts"
+                value={form.scoutCfAudioDts ?? '6'}
+                onChange={v => set('scoutCfAudioDts', v)} />
+              <Field label="DD+ / EAC3" name="scoutCfAudioDdp"
+                value={form.scoutCfAudioDdp ?? '5'}
+                onChange={v => set('scoutCfAudioDdp', v)} />
+              <Field label="AC3" name="scoutCfAudioAc3"
+                value={form.scoutCfAudioAc3 ?? '2'}
+                onChange={v => set('scoutCfAudioAc3', v)} />
+              <Field label="AAC" name="scoutCfAudioAac"
+                value={form.scoutCfAudioAac ?? '1'}
+                onChange={v => set('scoutCfAudioAac', v)} />
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Protocol & Availability
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <Field label="Usenet Bonus" name="scoutCfUsenetBonus"
+                value={form.scoutCfUsenetBonus ?? '10'}
+                onChange={v => set('scoutCfUsenetBonus', v)} />
+              <Field label="Torrent Bonus" name="scoutCfTorrentBonus"
+                value={form.scoutCfTorrentBonus ?? '0'}
+                onChange={v => set('scoutCfTorrentBonus', v)} />
+              <Field label="Seeder Divisor" name="scoutCfSeedersDivisor"
+                value={form.scoutCfSeedersDivisor ?? '20'}
+                onChange={v => set('scoutCfSeedersDivisor', v)} />
+              <Field label="Seeder Max Bonus" name="scoutCfSeedersBonusCap"
+                value={form.scoutCfSeedersBonusCap ?? '12'}
+                onChange={v => set('scoutCfSeedersBonusCap', v)} />
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
@@ -746,6 +811,16 @@ export function Settings() {
           >
             {scoutSyncTrashMutation.isPending ? 'Syncing…' : 'Sync TRaSH Scores'}
           </button>
+          <a
+            href="https://trash-guides.info/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-xs underline"
+            style={{ color: '#c4b5fd' }}
+            title="Official TRaSH-Guides"
+          >
+            Official TRaSH-Guides
+          </a>
           {scoutSyncTrashMutation.data?.meta && (
             <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
               Source: {scoutSyncTrashMutation.data.meta.source}
@@ -758,6 +833,21 @@ export function Settings() {
             </span>
           )}
         </div>
+        {scoutSyncTrashMutation.data?.meta && (
+          <div className="text-xs space-y-1" style={{ color: 'var(--c-muted)' }}>
+            <div>
+              Synced at: {new Date(scoutSyncTrashMutation.data.meta.fetchedAt).toLocaleString()}
+            </div>
+            <div>
+              Stored to DB: yes (Scout CF baseline settings + {scoutSyncTrashMutation.data.syncedRules} Scout rules)
+            </div>
+            {scoutSyncTrashMutation.data.meta.warning && (
+              <div style={{ color: '#f59e0b' }}>
+                Note: {scoutSyncTrashMutation.data.meta.warning}
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
@@ -843,8 +933,11 @@ export function Settings() {
 
         <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            LLM Rule Refinement
+            Rule Refinement Assistant
           </div>
+          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+            This action is currently local heuristic logic and prompt generation. No direct LLM API call is executed here.
+          </p>
           <div className="space-y-1">
             <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>Opinionated Samples</div>
             <div className="flex flex-wrap gap-2">
@@ -894,7 +987,7 @@ export function Settings() {
               className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
-              {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate LLM Draft'}
+              {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate Draft (Heuristic)'}
             </button>
             {scoutRefineDraftMutation.data && (
               <button
@@ -905,6 +998,11 @@ export function Settings() {
               >
                 Apply Suggestions
               </button>
+            )}
+            {scoutRefineDraftMutation.data?.mode && (
+              <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                Mode: {scoutRefineDraftMutation.data.mode}
+              </span>
             )}
           </div>
           {scoutRefineDraftMutation.data && (
@@ -946,6 +1044,7 @@ export function Settings() {
               className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
             >
+              <option value="2160p">2160p</option>
               <option value="480p">480p</option>
               <option value="720p">720p</option>
               <option value="1080p">1080p</option>

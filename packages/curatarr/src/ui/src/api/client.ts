@@ -27,6 +27,7 @@ export interface Stats {
   totalLibrarySize: number;   // bytes, sum of all scanned file_size
   resolutionDist: Record<string, number>;
   codecDist: Record<string, number>;
+  audioCodecDist: Record<string, number>;
   hdrCount: number;
   dolbyVisionCount: number;
   lastScan?: Record<string, unknown>;
@@ -258,6 +259,7 @@ export interface ScoutTrashSyncResponse {
 }
 
 export interface ScoutRulesRefineDraftResponse {
+  mode: 'heuristic';
   objective: string;
   prompt: string;
   proposedSettings: Record<string, string>;

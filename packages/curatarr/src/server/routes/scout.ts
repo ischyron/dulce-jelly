@@ -16,6 +16,12 @@ interface ScoutScoreConfig {
   codecHevc: number;
   codecAv1: number;
   codecH264: number;
+  audioAtmos: number;
+  audioTruehd: number;
+  audioDts: number;
+  audioDdp: number;
+  audioAc3: number;
+  audioAac: number;
   legacyPenalty: number;
   small4kPenalty: number;
   small4kMinGiB: number;
@@ -85,6 +91,12 @@ const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
   codecHevc: 20,
   codecAv1: 16,
   codecH264: 8,
+  audioAtmos: 10,
+  audioTruehd: 8,
+  audioDts: 6,
+  audioDdp: 5,
+  audioAc3: 2,
+  audioAac: 1,
   legacyPenalty: 30,
   small4kPenalty: 15,
   small4kMinGiB: 8,
@@ -104,6 +116,12 @@ const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
   scoutCfCodecHevc: '22',
   scoutCfCodecAv1: '12',
   scoutCfCodecH264: '6',
+  scoutCfAudioAtmos: '10',
+  scoutCfAudioTruehd: '8',
+  scoutCfAudioDts: '6',
+  scoutCfAudioDdp: '5',
+  scoutCfAudioAc3: '2',
+  scoutCfAudioAac: '1',
   scoutCfLegacyPenalty: '40',
   scoutCfSmall4kPenalty: '20',
   scoutCfSmall4kMinGiB: '10',
@@ -292,6 +310,7 @@ function buildScoutRefinementDraft(
   db: CuratDb,
   objective: string,
 ): {
+  mode: 'heuristic';
   objective: string;
   prompt: string;
   proposedSettings: Record<string, string>;
@@ -352,6 +371,7 @@ function buildScoutRefinementDraft(
   ].join('\n');
 
   return {
+    mode: 'heuristic',
     objective,
     prompt,
     proposedSettings,
@@ -382,6 +402,12 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
     codecHevc: intSetting(db, 'scoutCfCodecHevc', DEFAULT_SCOUT_SCORE_CONFIG.codecHevc, -200, 200),
     codecAv1: intSetting(db, 'scoutCfCodecAv1', DEFAULT_SCOUT_SCORE_CONFIG.codecAv1, -200, 200),
     codecH264: intSetting(db, 'scoutCfCodecH264', DEFAULT_SCOUT_SCORE_CONFIG.codecH264, -200, 200),
+    audioAtmos: intSetting(db, 'scoutCfAudioAtmos', DEFAULT_SCOUT_SCORE_CONFIG.audioAtmos, -200, 200),
+    audioTruehd: intSetting(db, 'scoutCfAudioTruehd', DEFAULT_SCOUT_SCORE_CONFIG.audioTruehd, -200, 200),
+    audioDts: intSetting(db, 'scoutCfAudioDts', DEFAULT_SCOUT_SCORE_CONFIG.audioDts, -200, 200),
+    audioDdp: intSetting(db, 'scoutCfAudioDdp', DEFAULT_SCOUT_SCORE_CONFIG.audioDdp, -200, 200),
+    audioAc3: intSetting(db, 'scoutCfAudioAc3', DEFAULT_SCOUT_SCORE_CONFIG.audioAc3, -200, 200),
+    audioAac: intSetting(db, 'scoutCfAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
     legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
     small4kPenalty: intSetting(db, 'scoutCfSmall4kPenalty', DEFAULT_SCOUT_SCORE_CONFIG.small4kPenalty, 0, 400),
     small4kMinGiB: floatSetting(db, 'scoutCfSmall4kMinGiB', DEFAULT_SCOUT_SCORE_CONFIG.small4kMinGiB, 0.5, 60),
@@ -408,6 +434,27 @@ function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig): ScoredRel
   if (/\bhevc\b|\bx265\b/.test(t)) { score += cfg.codecHevc; reasons.push('hevc'); }
   else if (/\bav1\b/.test(t)) { score += cfg.codecAv1; reasons.push('av1'); }
   else if (/\bh264\b|\bx264\b/.test(t)) { score += cfg.codecH264; reasons.push('h264'); }
+
+  if (/\batmos\b/.test(t)) {
+    score += cfg.audioAtmos;
+    reasons.push('atmos');
+  }
+  if (/\btruehd\b/.test(t)) {
+    score += cfg.audioTruehd;
+    reasons.push('truehd');
+  } else if (/\bdts(?:-?hd|-?x)?\b/.test(t)) {
+    score += cfg.audioDts;
+    reasons.push('dts');
+  } else if (/\be-?ac-?3\b|\bddp\b|\bdd\+\b/.test(t)) {
+    score += cfg.audioDdp;
+    reasons.push('ddp/eac3');
+  } else if (/\bac-?3\b/.test(t)) {
+    score += cfg.audioAc3;
+    reasons.push('ac3');
+  } else if (/\baac\b/.test(t)) {
+    score += cfg.audioAac;
+    reasons.push('aac');
+  }
 
   if (/\bxvid\b|\bmpeg4\b/.test(t)) { score -= cfg.legacyPenalty; reasons.push('legacy codec penalty'); }
 

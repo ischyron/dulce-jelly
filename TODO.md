@@ -15,12 +15,15 @@
 - [TODO] Show ALL feature where pagination is removed and all items are shown. Let user take the risk
 
 **CF scoring, Rules, Scout**
-- [DONE] Understand visoon of curatarr and CF scoring and scoutiung in curatarr refer scout relase skill in this repo .claude/skills/release-scout. This will becomes the reference baseline to make an opionated ruleset for curatarr scout feature.  Find a way for users to keep syncing like Recyclarr sync; reuse Recyclarr if that's the best approach. Recyclarr would only add Sonarr/Radarr as config patterns in their config. If Recyclarr is simple to implement, let's plug that into Curatarr.
- FINALLY: [DONE] Document apporoch on Scout in packages/curatarr/docs and link to README. 
 
-- [DONE] Scout feature:  CF scoring and bit rate settings. Create settings similar to Radarr
-- [DONE] Scout feature: Create rule set, create LLM assisten refinement rulese. IMprovside from current hand-made repo .claude/skills/release-scout
-- [DONE] Scout feature: sync Trash guide as Trash scores into Scout configuration in Settings.
+- [TODO] Scout feature:  CF scoring . Currently user cant score high a partuclar relese group or a format external to the inbut scoring added.
+- TODO and bit rate settings, decide an optioimal one - look at my settings and relax it even further. and set this as a default. Configure into an external file. 
+eg: Yaml scoring.yaml maintain the config here (if need t be synced to db - do that but main source of truth will be this packages/curatarr/config. Now config is empty see why ?????? )
+llm:
+  apiKey: ${OPENAI_API_KEY} llm provider needed here
+  For now ork with just open ai (hard code in UI and disable that input and wirte same to config)
+  
+- [TODO] Update Document apporoch on Scout in packages/curatarr/docs and link to README. 
 
 ** Disambigation **
 - [TODO] Currently disambigation is not so good apart from Jellyfin title mismatch. Need to study and document radarr disambigation done against title of the name and parsed title from filename. Lets make this more robust. I am sure in  libary I have many items for disambigation eg: Les MIsrables etc. Find it and surface a list of actions under this route http://dulce.local:3270/disambiguate

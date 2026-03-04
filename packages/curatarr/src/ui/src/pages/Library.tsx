@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, BookOpen, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Search, Library as LibraryIcon, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { api, type Movie, type Stats } from '../api/client.js';
 import { ResolutionBadge, CodecBadge, HdrBadge, QualityFlagsBadge, CriticScoreBadge } from '../components/QualityBadge.js';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer.js';
@@ -392,7 +392,7 @@ export function Library() {
         )}
 
         <h1 className="text-base font-semibold shrink-0 flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
-          <BookOpen size={17} style={{ color: 'var(--c-accent)' }} />
+          <LibraryIcon size={17} style={{ color: 'var(--c-accent)' }} />
           Library
         </h1>
 

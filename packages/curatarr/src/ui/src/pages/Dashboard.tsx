@@ -179,9 +179,9 @@ export function Dashboard() {
         <Link to="/library?reset=1" className="block h-full hover:opacity-80 transition-opacity">
           <StatCard
             icon={Film}
-            label="Movie Folders"
+            label="Movies"
             value={data.totalMovies.toLocaleString()}
-            infoText="Unique movie folders discovered under the configured library path."
+            infoText="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."
           />
         </Link>
         <StatCard
@@ -200,16 +200,16 @@ export function Dashboard() {
           sub={
             <span className="inline-flex items-center gap-1 text-sm">
               <span className="text-[#d4cfff] font-semibold">{data.jfEnriched}</span>
-              <span className="text-[#6b6888]">matched folders</span>
+              <span className="text-[#6b6888]">matched</span>
               <span className="text-[#6b6888]">·</span>
               <span className="text-amber-400 font-semibold">{data.totalMovies - data.jfEnriched}</span>
-              <span className="text-[#6b6888]">unmatched folders</span>
+              <span className="text-[#6b6888]">unmatched</span>
               <span className="text-[#6b6888]">·</span>
-              <span className="text-[#6b6888]">{data.totalMovies} folders</span>
+              <span className="text-[#6b6888]">{data.totalMovies} total</span>
             </span>
           }
           color="text-cyan-400"
-          infoText="Movie-level count from Curatarr movies table. matched + unmatched always equals total movies, not total files."
+          infoText="Movie-level status. Curatarr maps one folder to one movie; multi-version files stay inside that movie record and are shown in Movie details as Files (2), Files (3), etc."
         />
         <StatCard
           icon={AlertCircle}
@@ -229,12 +229,20 @@ export function Dashboard() {
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Video</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-1 items-center text-sm">
-          <Link to="/library?hdr=1" className="hover:underline" title="Show HDR files in Library">
+          <Link
+            to="/library?hdr=1"
+            className="hover:underline inline-flex items-center gap-1"
+            title="Show HDR files in Library"
+          >
             <span className="text-amber-400 font-semibold">{data.hdrCount}</span>
             <span className="text-[#8b87aa]">HDR</span>
           </Link>
           <span className="text-[#26263a]">·</span>
-          <Link to="/library?dv=1" className="hover:underline" title="Show Dolby Vision files in Library">
+          <Link
+            to="/library?dv=1"
+            className="hover:underline inline-flex items-center gap-1"
+            title="Show Dolby Vision files in Library"
+          >
             <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
             <span className="text-[#8b87aa]">Dolby Vision</span>
           </Link>
@@ -242,7 +250,7 @@ export function Dashboard() {
             <>
               <span className="text-[#26263a]">·</span>
               <Link to="/library?av1Compat=1"
-                className="hover:underline"
+                className="hover:underline inline-flex items-center gap-1"
                 title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library">
                 <span className="text-emerald-400 font-semibold">{data.codecDist['av1']}</span>
                 <span className="text-[#8b87aa]">AV1</span>
@@ -254,7 +262,7 @@ export function Dashboard() {
             <>
               <span className="text-[#26263a]">·</span>
               <Link to="/library?legacy=1"
-                className="hover:underline"
+                className="hover:underline inline-flex items-center gap-1"
                 title="Legacy codec — click to filter in Library">
                 <span className="text-orange-400 font-semibold">
                   {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)}

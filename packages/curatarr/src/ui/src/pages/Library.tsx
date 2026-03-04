@@ -14,7 +14,7 @@ const AUDIO_LAYOUT_OPTIONS = ['stereo', '5.1', '7.1'];
 const AV1_WARN_PROFILES = new Set(['android_tv', 'fire_tv']);
 const PERSIST_FILTER_KEYS = [
   'q', 'resolution', 'codec', 'audioFormat', 'audioLayout', 'genre', 'tags',
-  'hdr', 'dv', 'av1Compat', 'legacy', 'noJf',
+  'hdr', 'dv', 'av1Compat', 'legacy', 'noJf', 'multi',
 ] as const;
 
 // Status dots: scan health + JF match
@@ -137,6 +137,7 @@ export function Library() {
   const av1CompatOnly = searchParams.get('av1Compat') === '1';
   const legacyOnly = searchParams.get('legacy') === '1';
   const noJf       = searchParams.get('noJf') === '1';
+  const multiOnly  = searchParams.get('multi') === '1';
   const tagFilter = sp(searchParams, 'tags', '');
   const selectedTags = tagFilter ? tagFilter.split(',').map(t => normalizeTag(t)).filter(Boolean) : [];
   const search     = sp(searchParams, 'q', '');
@@ -248,7 +249,7 @@ export function Library() {
   });
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['movies', page, limit, showAll, search, resolution, codec, audioFormat, audioLayout, genreFilter, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, sortBy, sortDir],
+    queryKey: ['movies', page, limit, showAll, search, resolution, codec, audioFormat, audioLayout, genreFilter, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, multiOnly, sortBy, sortDir],
     queryFn: () => api.movies({
       page: showAll ? 1 : page,
       limit: showAll ? 100000 : limit,
@@ -264,6 +265,7 @@ export function Library() {
       ...(dvOnly ? { dv: 'true' } : {}),
       ...(legacyOnly ? { legacy: 'true' } : {}),
       ...(noJf ? { noJf: 'true' } : {}),
+      ...(multiOnly ? { multi: 'true' } : {}),
       ...(showAll ? { showAll: 'true' } : {}),
     }),
     placeholderData: (prev) => prev,
@@ -622,6 +624,14 @@ export function Library() {
 
         <div className="flex items-center gap-2 px-1 py-1"
           style={{ background: 'transparent' }}>
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+            style={{ color: multiOnly ? '#c4b5fd' : 'var(--c-muted)' }}
+            title="Show movies that have multiple video files in the same movie folder">
+            <input type="checkbox" checked={multiOnly}
+              onChange={e => patch({ multi: e.target.checked ? '1' : null, page: '1' })}
+              className="accent-violet-600" />
+            Has multi-part/versions
+          </label>
           <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
             style={{ color: noJf ? '#c4b5fd' : 'var(--c-muted)' }}
             title="Show movies not yet matched in Jellyfin">

@@ -75,6 +75,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const dvOnly = c.req.query('dv') === 'true';
     const legacyOnly = c.req.query('legacy') === 'true';
     const noJf = c.req.query('noJf') === 'true';
+    const multiOnly = c.req.query('multi') === 'true';
     const audioFormat = (c.req.query('audioFormat') ?? '').toLowerCase().trim();
     const audioLayout = (c.req.query('audioLayout') ?? '').toLowerCase().trim();
     const releaseGroup = c.req.query('releaseGroup');
@@ -154,6 +155,9 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     }
     if (noJf) {
       sql += ' AND m.jellyfin_id IS NULL';
+    }
+    if (multiOnly) {
+      sql += ' AND (SELECT COUNT(*) FROM files mf WHERE mf.movie_id = m.id) > 1';
     }
     if (releaseGroup) {
       sql += ' AND f.release_group LIKE ?';

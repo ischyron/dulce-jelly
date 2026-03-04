@@ -154,6 +154,7 @@ export function Library() {
   const [genreFilterOpen, setGenreFilterOpen] = useState(false);
   const [showAddTagsModal, setShowAddTagsModal] = useState(false);
   const [showRemoveTagsModal, setShowRemoveTagsModal] = useState(false);
+  const [showRemoveIndexModal, setShowRemoveIndexModal] = useState(false);
   const [batchTagPick, setBatchTagPick] = useState('');
   const [batchTagInput, setBatchTagInput] = useState('');
   const [batchTags, setBatchTags] = useState<string[]>([]);
@@ -334,10 +335,14 @@ export function Library() {
 
   async function removeSelectedFromIndex() {
     if (selectedIds.length === 0) return;
-    const ok = window.confirm(`Remove ${selectedIds.length} selected item(s) from Curatarr index only? Files on disk will remain untouched.`);
-    if (!ok) return;
+    setShowRemoveIndexModal(true);
+  }
+
+  async function confirmRemoveSelectedFromIndex() {
+    if (selectedIds.length === 0) return;
     try {
       await removeSelectedMutation.mutateAsync(selectedIds);
+      setShowRemoveIndexModal(false);
     } catch {
       // no-op, existing error surfaces via disabled state + retry
     }
@@ -795,7 +800,7 @@ export function Library() {
                   dir={sortDir}
                   onChange={handleSort}
                   align="right"
-                  infoTitle="Jellyfin critic score (0–100). Value stays blank until Jellyfin sync is completed."
+                  infoTitle="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin."
                 />
                 <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-right"
                   style={{ color: 'var(--c-muted)' }}
@@ -818,41 +823,29 @@ export function Library() {
                           <p className="text-[11px] opacity-90">
                             Two dots are shown per movie: left = scan health, right = Jellyfin match state.
                           </p>
-                          <div className="space-y-1">
-                            <div>
-                              <span className="font-semibold">Left dot (scan): </span>
-                              <span className="inline-flex items-center gap-1.5 ml-1">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#4ade80' }} />
-                                <span>scanned/verified OK</span>
-                              </span>
-                              <span className="inline-flex items-center gap-1.5 ml-2">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#fb923c' }} />
-                                <span>verify failed</span>
-                              </span>
-                              <span className="inline-flex items-center gap-1.5 ml-2">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#f87171' }} />
-                                <span>scan error</span>
-                              </span>
-                              <span className="inline-flex items-center gap-1.5 ml-2">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#fbbf24' }} />
-                                <span>pending scan</span>
-                              </span>
-                              <span className="inline-flex items-center gap-1.5 ml-2">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#3f3f5a' }} />
-                                <span>not scanned</span>
-                              </span>
-                            </div>
-                            <div>
-                              <span className="font-semibold">Right dot (Jellyfin): </span>
-                              <span className="inline-flex items-center gap-1.5 ml-1">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#7c3aed' }} />
-                                <span>matched in Jellyfin</span>
-                              </span>
-                              <span className="inline-flex items-center gap-1.5 ml-2">
-                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#3f3f5a' }} />
-                                <span>not matched</span>
-                              </span>
-                            </div>
+                          <div className="text-[11px] rounded border p-2"
+                            style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+                            <div className="font-semibold mb-1">Left dot (Scan)</div>
+                            <table className="w-full border-collapse">
+                              <tbody>
+                                <tr><td className="py-0.5 pr-2 w-5"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#4ade80' }} /></td><td className="py-0.5">Scanned/verified OK</td></tr>
+                                <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#fb923c' }} /></td><td className="py-0.5">Verify failed</td></tr>
+                                <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#f87171' }} /></td><td className="py-0.5">Scan error</td></tr>
+                                <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#fbbf24' }} /></td><td className="py-0.5">Pending scan</td></tr>
+                                <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#3f3f5a' }} /></td><td className="py-0.5">Not scanned</td></tr>
+                              </tbody>
+                            </table>
+                          </div>
+                          <div className="my-2" />
+                          <div className="text-[11px] rounded border p-2"
+                            style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+                            <div className="font-semibold mb-1">Right dot (Jellyfin)</div>
+                            <table className="w-full border-collapse">
+                              <tbody>
+                                <tr><td className="py-0.5 pr-2 w-5"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#7c3aed' }} /></td><td className="py-0.5">Matched in Jellyfin</td></tr>
+                                <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#3f3f5a' }} /></td><td className="py-0.5">Not matched</td></tr>
+                              </tbody>
+                            </table>
                           </div>
                           <p className="text-[11px] opacity-90">
                             Tip: use <span className="font-semibold">Jellyfin Sync Needed</span> to list unmatched movies.
@@ -1106,6 +1099,46 @@ export function Library() {
                 style={{ borderColor: 'rgba(239,68,68,0.45)', color: '#fca5a5', background: 'rgba(239,68,68,0.12)' }}
               >
                 {batchTagsMutation.isPending ? 'Applying…' : 'Remove Tags'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRemoveIndexModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" onClick={() => setShowRemoveIndexModal(false)} />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="remove-index-title"
+            className="relative w-[560px] max-w-[92vw] rounded-xl border p-4 space-y-3"
+            style={{ background: 'var(--c-bg)', borderColor: 'var(--c-border)' }}
+          >
+            <div id="remove-index-title" className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>
+              Remove from Curatarr Index
+            </div>
+            <div className="text-sm leading-relaxed" style={{ color: 'var(--c-muted)' }}>
+              Remove {selectedIds.length} selected item(s) from the Curatarr index only? Files on disk will remain untouched.
+            </div>
+            <div className="text-xs italic" style={{ color: '#d4cfff' }}>
+              To delete this movie permanently, open Movie Details and click Delete.
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                onClick={() => setShowRemoveIndexModal(false)}
+                className="px-3 py-1.5 rounded text-xs border"
+                style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRemoveSelectedFromIndex}
+                disabled={removeSelectedMutation.isPending}
+                className="px-3 py-1.5 rounded text-xs border disabled:opacity-40"
+                style={{ borderColor: 'rgba(239,68,68,0.45)', color: '#fca5a5', background: 'rgba(239,68,68,0.12)' }}
+              >
+                {removeSelectedMutation.isPending ? 'Removing…' : 'Remove from Index'}
               </button>
             </div>
           </div>

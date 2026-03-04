@@ -1,7 +1,7 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown } from 'lucide-react';
+import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown, Link2, Bot, Library as LibraryIcon } from 'lucide-react';
 import { api } from '../api/client.js';
 import { InfoHint } from '../components/InfoHint.js';
 
@@ -226,21 +226,35 @@ function rankByScore(order: string[], fields: OrderedScoreField[], form: Record<
 function AccordionSection({
   title,
   defaultOpen = false,
+  icon,
+  variant = 'default',
   children,
 }: {
   title: string;
   defaultOpen?: boolean;
+  icon?: ReactNode;
+  variant?: 'default' | 'general' | 'scout';
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const headerTone = variant === 'general'
+    ? { border: 'rgba(56,189,248,0.35)', bg: 'rgba(56,189,248,0.08)', text: '#bae6fd', icon: '#38bdf8' }
+    : variant === 'scout'
+      ? { border: 'rgba(124,58,237,0.45)', bg: 'rgba(124,58,237,0.12)', text: '#ddd6fe', icon: '#a78bfa' }
+      : { border: 'var(--c-border)', bg: 'transparent', text: '#d4cfff', icon: 'var(--c-muted)' };
+
   return (
-    <section className="rounded-xl border overflow-hidden" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+    <section className="rounded-xl border overflow-hidden" style={{ background: 'var(--c-surface)', borderColor: headerTone.border }}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
         className="w-full px-5 py-4 text-left flex items-center justify-between transition-colors hover:bg-white/5"
+        style={{ background: headerTone.bg }}
       >
-        <span className="font-semibold" style={{ color: '#d4cfff' }}>{title}</span>
+        <span className="font-semibold inline-flex items-center gap-2" style={{ color: headerTone.text }}>
+          {icon ? <span style={{ color: headerTone.icon }}>{icon}</span> : null}
+          {title}
+        </span>
         <ChevronDown
           size={16}
           className={`transition-transform ${open ? 'rotate-180' : 'rotate-0'}`}
@@ -258,6 +272,18 @@ function toPrettyJson(value: unknown): string {
   } catch {
     return '{}';
   }
+}
+
+function fmtBytes(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let n = bytes;
+  let idx = 0;
+  while (n >= 1024 && idx < units.length - 1) {
+    n /= 1024;
+    idx++;
+  }
+  return `${n.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
 }
 
 function extractRuleDescription(configText: string): string {
@@ -601,6 +627,11 @@ export function Settings() {
     queryFn: () => api.rules('scout'),
     staleTime: 60_000,
   });
+  const { data: trashSyncDetailsData, refetch: refetchTrashSyncDetails } = useQuery({
+    queryKey: ['scout-trash-sync-details'],
+    queryFn: api.scoutTrashSyncDetails,
+    staleTime: 60_000,
+  });
   const scoutAutoRunMutation = useMutation({
     mutationFn: () => api.scoutAutoRun(),
     onSuccess: () => {
@@ -613,6 +644,7 @@ export function Settings() {
       setForm(prev => ({ ...prev, ...res.applied }));
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       refetchScoutRules();
+      refetchTrashSyncDetails();
     },
   });
   const scoutRefineDraftMutation = useMutation({
@@ -641,13 +673,25 @@ export function Settings() {
       setScoutRulesError((err as Error).message);
     },
   });
-  const syncedTrashSource = scoutSyncTrashMutation.data?.meta?.source ?? data?.settings?.scoutTrashSyncSource ?? '';
-  const syncedTrashRevision = scoutSyncTrashMutation.data?.meta?.revision ?? data?.settings?.scoutTrashSyncRevision ?? '';
-  const syncedTrashAt = scoutSyncTrashMutation.data?.meta?.fetchedAt ?? data?.settings?.scoutTrashSyncedAt ?? '';
-  const syncedTrashRules = scoutSyncTrashMutation.data
-    ? String(scoutSyncTrashMutation.data.syncedRules)
+  const syncDetails = scoutSyncTrashMutation.data?.details ?? trashSyncDetailsData;
+  const syncedTrashSource = syncDetails?.meta.source ?? data?.settings?.scoutTrashSyncSource ?? '';
+  const syncedTrashRevision = syncDetails?.meta.revision ?? data?.settings?.scoutTrashSyncRevision ?? '';
+  const syncedTrashAt = syncDetails?.meta.syncedAt ?? data?.settings?.scoutTrashSyncedAt ?? '';
+  const syncedTrashRules = syncDetails?.meta.rulesSynced != null
+    ? String(syncDetails.meta.rulesSynced)
     : (data?.settings?.scoutTrashSyncedRules ?? '');
-  const hasTrashSyncDetails = Boolean(syncedTrashSource || syncedTrashRevision || syncedTrashAt || syncedTrashRules);
+  const syncedTrashWarning = syncDetails?.meta.warning ?? scoutSyncTrashMutation.data?.meta.warning ?? '';
+  const hasTrashSyncDetails = Boolean(
+    syncedTrashSource
+    || syncedTrashRevision
+    || syncedTrashAt
+    || syncedTrashRules
+    || (syncDetails?.applied.rules.length ?? 0) > 0
+    || Object.keys(syncDetails?.applied.settings ?? {}).length > 0
+  );
+  const appliedSettingsEntries = Object.entries(syncDetails?.applied.settings ?? {}).sort(([a], [b]) => a.localeCompare(b));
+  const appliedRules = syncDetails?.applied.rules ?? [];
+  const upstreamSnapshot = syncDetails?.upstream ?? null;
 
   useEffect(() => {
     const rules = scoutRulesData?.rules?.scout ?? [];
@@ -742,7 +786,7 @@ export function Settings() {
         Settings
       </h1>
 
-      <AccordionSection title="General" defaultOpen>
+      <AccordionSection title="General" defaultOpen variant="general" icon={<Link2 size={15} />}>
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
             <img src="/icons/jellyfin.svg" alt="Jellyfin" className="w-4 h-4 brightness-0 invert" />
@@ -755,7 +799,7 @@ export function Settings() {
               'Bare-metal / local dev: http://localhost:8096',
               'Docker (same compose stack): http://jellyfin:8096',
               'Docker Desktop on Mac: http://host.docker.internal:8096',
-              'Also read from env var: JELLYFIN_URL',
+              'Also configurable via config/config.yaml (settings.jellyfinUrl).',
             ].join(' · ')} />
           <Field label="Jellyfin Public Web URL" name="jellyfinPublicUrl" value={form.jellyfinPublicUrl ?? ''}
             onChange={v => set('jellyfinPublicUrl', v)} placeholder="https://jellyfin.example.com"
@@ -766,7 +810,7 @@ export function Settings() {
             maskedValue={form.jellyfinApiKeyMasked ?? ''}
             value={form.jellyfinApiKey ?? ''}
             onChange={v => set('jellyfinApiKey', v)}
-            hint="Jellyfin Dashboard → Administration → API Keys → Add Key. Also read from env var: JELLYFIN_API_KEY" />
+            hint="Jellyfin Dashboard → Administration → API Keys → Add Key. Also configurable via config/config.yaml (settings.jellyfinApiKey)." />
           <div className="grid grid-cols-2 gap-3">
             <Field label="Auto-sync interval (min)" name="jfSyncIntervalMin" value={form.jfSyncIntervalMin ?? '30'} onChange={v => set('jfSyncIntervalMin', v)} placeholder="30" hint="Minutes between automatic JF syncs. 0 = disabled. Takes effect after server restart." />
             <Field label="Sync batch size" name="jfSyncBatchSize" value={form.jfSyncBatchSize ?? '10'} onChange={v => set('jfSyncBatchSize', v)} placeholder="10" hint="Items per Jellyfin API page during sync." />
@@ -785,8 +829,11 @@ export function Settings() {
         </section>
 
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
-          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Library</h2>
-          <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''} onChange={v => set('libraryPath', v)} placeholder="/media/Movies" hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also read from env var: LIBRARY_PATH" />
+          <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
+            <LibraryIcon size={16} style={{ color: 'var(--c-accent)' }} />
+            Library
+          </h2>
+          <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''} onChange={v => set('libraryPath', v)} placeholder="/media/Movies" hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also configurable via config/config.yaml (settings.libraryPath)." />
         </section>
 
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
@@ -825,17 +872,17 @@ export function Settings() {
         </section>
       </AccordionSection>
 
-      <AccordionSection title="Scout" defaultOpen>
+      <AccordionSection title="Scout" defaultOpen variant="scout" icon={<Bot size={15} />}>
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Prowlarr</h2>
-          <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''} onChange={v => set('prowlarrUrl', v)} placeholder="http://localhost:9696" hint="Used by Scout release search and auto-scout. Also read from env var: PROWLARR_URL" />
+          <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''} onChange={v => set('prowlarrUrl', v)} placeholder="http://localhost:9696" hint="Used by Scout release search and auto-scout. Also configurable via config/config.yaml (settings.prowlarrUrl)." />
           <MaskedKeyField
             label="API Key"
             name="prowlarrApiKey"
             maskedValue={form.prowlarrApiKeyMasked ?? ''}
             value={form.prowlarrApiKey ?? ''}
             onChange={v => set('prowlarrApiKey', v)}
-            hint="Prowlarr Settings → General → Security → API Key. Also read from env var: PROWLARR_API_KEY" />
+            hint="Prowlarr Settings → General → Security → API Key. Also configurable via config/config.yaml (settings.prowlarrApiKey)." />
           <div className="flex items-center gap-3">
             <button onClick={checkProwlarrHealth} disabled={checkingProwlarrHealth} className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}>
               {checkingProwlarrHealth ? <Loader2 size={13} className="animate-spin" /> : null}
@@ -869,7 +916,7 @@ export function Settings() {
             maskedValue={form.llmApiKeyMasked ?? ''}
             value={form.llmApiKey ?? ''}
             onChange={v => set('llmApiKey', v)}
-            hint="OpenAI API key. You can also set it via env var: OPENAI_API_KEY (or legacy LLM_API_KEY)." />
+            hint="OpenAI API key. Configure in config/secrets.yaml (llm.apiKey) or save in Settings." />
         </section>
 
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
@@ -1012,7 +1059,7 @@ export function Settings() {
             </span>
           )}
         </div>
-        <div className="rounded-lg border p-3 space-y-2 text-xs" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+        <div className="rounded-lg border p-3 space-y-3 text-xs" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
             TRaSH Sync Details (Read-only)
           </div>
@@ -1021,26 +1068,156 @@ export function Settings() {
           )}
           {hasTrashSyncDetails && (
             <>
-              <div style={{ color: 'var(--c-muted)' }}>
-                Source: <span style={{ color: 'var(--c-text)' }}>{syncedTrashSource || 'n/a'}</span>
+              <div className="rounded border p-2 space-y-1" style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}>
+                <div className="font-semibold" style={{ color: '#d4cfff' }}>Sync Meta</div>
+                <div style={{ color: 'var(--c-muted)' }}>
+                  Source: <span style={{ color: 'var(--c-text)' }}>{syncedTrashSource || 'n/a'}</span>
+                </div>
+                <div style={{ color: 'var(--c-muted)' }}>
+                  Revision: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRevision || 'n/a'}</span>
+                </div>
+                <div style={{ color: 'var(--c-muted)' }}>
+                  Last synced: <span style={{ color: 'var(--c-text)' }}>
+                    {syncedTrashAt ? new Date(syncedTrashAt).toLocaleString() : 'n/a'}
+                  </span>
+                </div>
+                <div style={{ color: 'var(--c-muted)' }}>
+                  Rules synced: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRules || 'n/a'}</span>
+                </div>
+                {syncedTrashWarning && (
+                  <div style={{ color: '#f59e0b' }}>Note: {syncedTrashWarning}</div>
+                )}
               </div>
-              <div style={{ color: 'var(--c-muted)' }}>
-                Revision: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRevision || 'n/a'}</span>
+
+              <div className="rounded border p-2 space-y-2" style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}>
+                <div className="font-semibold" style={{ color: '#d4cfff' }}>Imported Into Curatarr</div>
+                <div className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
+                  Exact settings and scout rules applied by the most recent TRaSH sync.
+                </div>
+                {appliedSettingsEntries.length === 0 && appliedRules.length === 0 && (
+                  <div style={{ color: 'var(--c-muted)' }}>No applied snapshot available yet.</div>
+                )}
+                {appliedSettingsEntries.length > 0 && (
+                  <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
+                    <table className="w-full text-[11px]">
+                      <thead style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
+                        <tr>
+                          <th className="px-2 py-1 text-left">Setting</th>
+                          <th className="px-2 py-1 text-left">Value</th>
+                          <th className="px-2 py-1 text-left">JSON</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {appliedSettingsEntries.map(([key, value]) => (
+                          <tr key={key} style={{ borderTop: '1px solid var(--c-border)' }}>
+                            <td className="px-2 py-1 font-mono" style={{ color: '#c4b5fd' }}>{key}</td>
+                            <td className="px-2 py-1" style={{ color: 'var(--c-text)' }}>{value}</td>
+                            <td className="px-2 py-1">
+                              <details>
+                                <summary className="cursor-pointer" style={{ color: '#c4b5fd' }}>View JSON</summary>
+                                <pre className="mt-1 p-2 rounded overflow-auto" style={{ background: 'var(--c-bg)', color: '#d4cfff' }}>
+{toPrettyJson({ [key]: value })}
+                                </pre>
+                              </details>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+                {appliedRules.length > 0 && (
+                  <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
+                    <table className="w-full text-[11px]">
+                      <thead style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
+                        <tr>
+                          <th className="px-2 py-1 text-left">Rule</th>
+                          <th className="px-2 py-1 text-right">Priority</th>
+                          <th className="px-2 py-1 text-center">Enabled</th>
+                          <th className="px-2 py-1 text-left">JSON</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {appliedRules.map((rule) => (
+                          <tr key={rule.id} style={{ borderTop: '1px solid var(--c-border)' }}>
+                            <td className="px-2 py-1" style={{ color: 'var(--c-text)' }}>{rule.name}</td>
+                            <td className="px-2 py-1 text-right" style={{ color: '#c4b5fd' }}>{rule.priority}</td>
+                            <td className="px-2 py-1 text-center" style={{ color: rule.enabled ? '#4ade80' : '#f87171' }}>
+                              {rule.enabled ? 'Yes' : 'No'}
+                            </td>
+                            <td className="px-2 py-1">
+                              <details>
+                                <summary className="cursor-pointer" style={{ color: '#c4b5fd' }}>View JSON</summary>
+                                <pre className="mt-1 p-2 rounded overflow-auto" style={{ background: 'var(--c-bg)', color: '#d4cfff' }}>
+{toPrettyJson(rule.config)}
+                                </pre>
+                              </details>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
-              <div style={{ color: 'var(--c-muted)' }}>
-                Last synced: <span style={{ color: 'var(--c-text)' }}>
-                  {syncedTrashAt ? new Date(syncedTrashAt).toLocaleString() : 'n/a'}
-                </span>
-              </div>
-              <div style={{ color: 'var(--c-muted)' }}>
-                Rules synced: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRules || 'n/a'}</span>
+
+              <div className="rounded border p-2 space-y-2" style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}>
+                <div className="font-semibold" style={{ color: '#d4cfff' }}>Upstream TRaSH Snapshot</div>
+                {!upstreamSnapshot && (
+                  <div style={{ color: 'var(--c-muted)' }}>
+                    Upstream snapshot unavailable. Curatarr-applied snapshot is still recorded.
+                  </div>
+                )}
+                {upstreamSnapshot && (
+                  <>
+                    <div style={{ color: 'var(--c-muted)' }}>
+                      Path: <span className="font-mono" style={{ color: 'var(--c-text)' }}>{upstreamSnapshot.path}</span>
+                      {' '}· Files: <span style={{ color: 'var(--c-text)' }}>{upstreamSnapshot.fileCount}</span>
+                      {upstreamSnapshot.truncated && <span style={{ color: '#f59e0b' }}> · showing first {upstreamSnapshot.files.length}</span>}
+                    </div>
+                    <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
+                      <table className="w-full text-[11px]">
+                        <thead style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
+                          <tr>
+                            <th className="px-2 py-1 text-left">File</th>
+                            <th className="px-2 py-1 text-right">Size</th>
+                            <th className="px-2 py-1 text-left">Status</th>
+                            <th className="px-2 py-1 text-left">JSON</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {upstreamSnapshot.files.map((f) => (
+                            <tr key={f.name} style={{ borderTop: '1px solid var(--c-border)' }}>
+                              <td className="px-2 py-1">
+                                <a href={f.downloadUrl} target="_blank" rel="noreferrer" className="underline" style={{ color: '#c4b5fd' }}>
+                                  {f.name}
+                                </a>
+                              </td>
+                              <td className="px-2 py-1 text-right" style={{ color: 'var(--c-text)' }}>{fmtBytes(f.size)}</td>
+                              <td className="px-2 py-1" style={{ color: f.warning ? '#f59e0b' : '#4ade80' }}>
+                                {f.warning ? `warning: ${f.warning}` : 'parsed'}
+                              </td>
+                              <td className="px-2 py-1">
+                                {f.parsedJson ? (
+                                  <details>
+                                    <summary className="cursor-pointer" style={{ color: '#c4b5fd' }}>View JSON</summary>
+                                    <pre className="mt-1 p-2 rounded overflow-auto" style={{ background: 'var(--c-bg)', color: '#d4cfff' }}>
+{toPrettyJson(f.parsedJson)}
+                                    </pre>
+                                  </details>
+                                ) : (
+                                  <span style={{ color: 'var(--c-muted)' }}>n/a</span>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
               </div>
             </>
-          )}
-          {scoutSyncTrashMutation.data?.meta.warning && (
-            <div style={{ color: '#f59e0b' }}>
-              Note: {scoutSyncTrashMutation.data.meta.warning}
-            </div>
           )}
         </div>
 

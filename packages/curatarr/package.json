@@ -12,16 +12,16 @@
     "curatarr": "dist/index.js"
   },
   "scripts": {
-    "build:ui": "cd ui && npm run build",
+    "build:ui": "cd src/ui && npm run build",
     "build": "npm run build:ui && tsc -p .",
     "build:server": "tsc -p .",
     "lint": "eslint 'src/**/*.ts'",
     "test": "node --test test/*.test.mjs",
     "test:e2e": "npx playwright test --config=playwright.config.cjs --reporter=line",
     "clean": "rm -rf dist dist-ui",
-    "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"tsc -w --preserveWatchOutput\" \"node --watch dist/index.js serve\" \"cd ui && npm run dev\"",
+    "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"tsc -w --preserveWatchOutput\" \"node --watch dist/index.js serve\" \"cd src/ui && npm run dev\"",
     "dev:server": "concurrently -n tsc,api -c cyan,magenta \"tsc -w --preserveWatchOutput\" \"node --watch dist/index.js serve\"",
-    "dev:ui": "cd ui && npm run dev",
+    "dev:ui": "cd src/ui && npm run dev",
     "serve": "node dist/index.js serve"
   },
   "dependencies": {

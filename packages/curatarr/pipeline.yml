@@ -8,8 +8,8 @@ name: curatarr-local-ci
 trigger:
   paths:
     - packages/curatarr/src/**
-    - packages/curatarr/ui/src/**
-    - packages/curatarr/ui/index.html
+    - packages/curatarr/src/ui/src/**
+    - packages/curatarr/src/ui/index.html
     - packages/curatarr/package.json
     - packages/curatarr/tsconfig.json
     - packages/curatarr/Dockerfile

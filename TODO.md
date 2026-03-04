@@ -14,6 +14,7 @@
 - [DONE] Library now shows a visible line-style top loading indicator during refetch/filter updates (including HDR/DV filter combinations).
 - [DONE] Tapping legacy codec on Dashboard now opens a Library legacy filter view (`/library?legacy=1`) instead of going to Scout.
 - [TODO]  AV1 files — identify which movies, and surface them in Library with a client-profile compatibility warning
+- [TODO] Dashboard: Video codec summary card minor UI label/title polish + add Library audio codec/channel filters (Stereo, 5.1, DDP, TrueHD, etc.)
 - [TODO]  MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations
 - [TODO] USe Chrome MCP Verify page: run deep-check on 2-3 files, evaluate impact and how users can view results. Is this result user-friendly? Is the popup working? If not, improvise.
 - Scout features: 

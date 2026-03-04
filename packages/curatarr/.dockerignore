@@ -1,5 +1,5 @@
 node_modules
-ui/node_modules
+src/ui/node_modules
 dist
 dist-ui
 .env

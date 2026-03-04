@@ -12,13 +12,13 @@ COPY package.json ./
 RUN npm install
 
 # Install UI deps
-COPY ui/package.json ui/
-RUN cd ui && npm install
+COPY src/ui/package.json src/ui/
+RUN cd src/ui && npm install
 
 # Copy source and build both server (tsc) and UI (vite)
 COPY src/        src/
 COPY tsconfig.json ./
-COPY ui/         ui/
+COPY src/ui/     src/ui/
 RUN npm run build
 
 # Prune to production deps only

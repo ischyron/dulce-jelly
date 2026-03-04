@@ -7,6 +7,11 @@ interface ScoredRelease extends ProwlarrSearchResult {
   score: number;
   reasons: string[];
 }
+
+interface BitrateGateResult {
+  excluded: boolean;
+  reason?: string;
+}
 interface ScoutScoreConfig {
   res2160: number;
   res1080: number;
@@ -471,12 +476,6 @@ function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig): ScoredRel
 
   if (/\bxvid\b|\bmpeg4\b/.test(t)) { score -= cfg.legacyPenalty; reasons.push('legacy codec penalty'); }
 
-  const min4kSizeBytes = Math.round(cfg.small4kMinGiB * 1024 * 1024 * 1024);
-  if (r.size && /\b2160p\b|\b4k\b/.test(t) && r.size < min4kSizeBytes) {
-    score -= cfg.small4kPenalty;
-    reasons.push('small-for-4k penalty');
-  }
-
   if (r.seeders != null) {
     score += Math.min(cfg.seedersBonusCap, Math.max(0, Math.floor(r.seeders / cfg.seedersDivisor)));
   }
@@ -490,6 +489,53 @@ function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig): ScoredRel
   }
 
   return { ...r, score, reasons };
+}
+
+function resolutionFromTitle(title: string): '2160p' | '1080p' | '720p' | 'other' | null {
+  const t = title.toLowerCase();
+  if (/\b2160p\b|\b4k\b/.test(t)) return '2160p';
+  if (/\b1080p\b/.test(t)) return '1080p';
+  if (/\b720p\b/.test(t)) return '720p';
+  if (/\b480p\b/.test(t)) return 'other';
+  return null;
+}
+
+function codecFromTitle(title: string): 'av1' | 'hevc' | 'h264' | 'unknown' {
+  const t = title.toLowerCase();
+  if (/\bav1\b/.test(t)) return 'av1';
+  if (/\bhevc\b|\bx265\b/.test(t)) return 'hevc';
+  if (/\bh264\b|\bx264\b/.test(t)) return 'h264';
+  return 'unknown';
+}
+
+function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null): BitrateGateResult {
+  if (runtimeSec == null || runtimeSec <= 0 || r.size == null || r.size <= 0) return { excluded: false };
+  const res = resolutionFromTitle(r.title);
+  if (!res) return { excluded: false };
+
+  const floorByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
+    '2160p': 8,
+    '1080p': 4,
+    '720p': 2,
+    'other': 0.8,
+  };
+  const codecMultiplier: Record<'av1' | 'hevc' | 'h264' | 'unknown', number> = {
+    av1: 0.8,
+    hevc: 1.0,
+    h264: 1.35,
+    unknown: 1.0,
+  };
+
+  const codec = codecFromTitle(r.title);
+  const floor = floorByResMbps[res] * codecMultiplier[codec];
+  const estimatedMbps = (r.size * 8) / runtimeSec / 1_000_000;
+  if (estimatedMbps < floor) {
+    return {
+      excluded: true,
+      reason: `excluded low bitrate for ${res}: ${estimatedMbps.toFixed(2)} Mbps < ${floor.toFixed(2)} Mbps`,
+    };
+  }
+  return { excluded: false };
 }
 
 function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | null {
@@ -518,10 +564,25 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
   const year = movie.jellyfin_year ?? movie.parsed_year;
   const query = toText(queryOverride).trim() || [title, year].filter(Boolean).join(' ');
   const scoreCfg = resolveScoutScoreConfig(db);
+  const runtimeSec = db.getFilesForMovie(movieId).find(f => (f.duration ?? 0) > 0)?.duration ?? null;
 
   const releases = await client.searchMovie(query);
-  const scored = releases.map(r => scoreRelease(r, scoreCfg)).sort((a, b) => b.score - a.score);
+  const excludedReasons: string[] = [];
+  const scored = releases
+    .map(r => scoreRelease(r, scoreCfg))
+    .filter((r) => {
+      const gate = bitrateGate(r, runtimeSec);
+      if (gate.excluded) {
+        if (gate.reason) excludedReasons.push(gate.reason);
+        return false;
+      }
+      return true;
+    })
+    .sort((a, b) => b.score - a.score);
   const best = scored[0] ?? null;
+  const summary = excludedReasons.length > 0
+    ? `${recommendationSummary(best)} ${excludedReasons.length} release(s) excluded by bitrate gate.`
+    : recommendationSummary(best);
   return {
     movieId,
     query,
@@ -529,7 +590,7 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
     releases: scored,
     recommendation: {
       mode: 'tabulated',
-      summary: recommendationSummary(best),
+      summary,
       best,
     },
   };
@@ -645,6 +706,7 @@ export function makeScoutRoutes(db: CuratDb): Hono {
       scoutTrashSyncSource: meta.source,
       scoutTrashSyncRevision: meta.revision ?? '',
       scoutTrashSyncedAt: meta.fetchedAt,
+      scoutTrashSyncedRules: String(savedRuleIds.length),
     });
     return c.json({
       applied: TRASH_SCOUT_BASELINE_SETTINGS,

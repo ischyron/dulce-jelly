@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Film, ScanLine, CheckCircle, AlertCircle, Rocket, Loader2 } from 'lucide-react';
+import { Film, LayoutDashboard, ScanLine, CheckCircle, AlertCircle, Rocket, Loader2 } from 'lucide-react';
 import { api } from '../api/client.js';
 import { ResolutionPieChart, CodecBarChart } from '../components/Charts.js';
 import { ScanProgressModal } from '../components/ScanProgressModal.js';
@@ -84,7 +84,10 @@ export function Dashboard() {
   return (
     <div className="p-6 space-y-6 max-w-6xl">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[#f0eeff]">Dashboard</h1>
+        <h1 className="text-xl font-bold text-[#f0eeff] flex items-center gap-2">
+          <LayoutDashboard size={20} style={{ color: 'var(--c-accent)' }} />
+          Dashboard
+        </h1>
         <div className="flex flex-col items-end gap-1">
           <button
             onClick={triggerDashboardScan}

@@ -5,6 +5,7 @@ import { TrendingUp, Star, AlertTriangle, X } from 'lucide-react';
 import { api, type Candidate } from '../api/client.js';
 import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from '../components/QualityBadge.js';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer.js';
+import { InfoHint } from '../components/InfoHint.js';
 
 function fmtSize(bytes: number | null): string {
   if (!bytes) return '—';
@@ -170,44 +171,13 @@ export function ScoutQueue() {
           Scout Queue
         </h1>
 
-        <div className="flex items-center gap-2 ml-4 text-sm">
-          <label style={{ color: 'var(--c-muted)' }}>Min MC</label>
-          <input
-            type="number" min={0} max={100}
-            value={effMinCritic}
-            onChange={e => patch({ minCritic: e.target.value })}
-            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 text-sm">
-          <label style={{ color: 'var(--c-muted)' }}>Min IMDb</label>
-          <input
-            type="number" min={0} max={10} step={0.1}
-            value={effMinComm}
-            onChange={e => patch({ minCommunity: e.target.value })}
-            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 text-sm">
-          <label style={{ color: 'var(--c-muted)' }}>Max res</label>
-          <select
-            value={effMaxRes}
-            onChange={e => patch({ maxRes: e.target.value })}
-            className="px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
+        <div className="flex items-center gap-2 text-sm ml-4">
+          <label
+            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
           >
-            <option value="480p">480p</option>
-            <option value="720p">720p</option>
-            <option value="1080p">1080p</option>
-          </select>
-        </div>
-
-        <div className="flex items-center gap-2 text-sm">
-          <label style={{ color: 'var(--c-muted)' }}>Genre</label>
+            Genre
+          </label>
           <select
             value={effGenre}
             onChange={e => patch({ genre: e.target.value || null })}
@@ -219,12 +189,64 @@ export function ScoutQueue() {
           </select>
         </div>
 
+        <div className="flex items-center gap-2 ml-4 text-sm">
+          <label
+            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Min MC
+          </label>
+          <input
+            type="number" min={0} max={100}
+            value={effMinCritic}
+            onChange={e => patch({ minCritic: e.target.value })}
+            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          />
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <label
+            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Min IMDb
+          </label>
+          <input
+            type="number" min={0} max={10} step={0.1}
+            value={effMinComm}
+            onChange={e => patch({ minCommunity: e.target.value })}
+            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          />
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <label
+            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Max Res
+          </label>
+          <select
+            value={effMaxRes}
+            onChange={e => patch({ maxRes: e.target.value })}
+            className="px-2 py-1 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
+          >
+            <option value="2160p">2160p</option>
+            <option value="480p">480p</option>
+            <option value="720p">720p</option>
+            <option value="1080p">1080p</option>
+          </select>
+        </div>
+
         {/* Reset to seeded defaults */}
         {(qMinCritic !== null || qMinCommunity !== null || qMaxRes !== null || qGenre !== null) && (
           <button
             onClick={() => patch({ minCritic: null, minCommunity: null, maxRes: null, genre: null })}
-            className="text-xs px-2 py-1 rounded"
-            style={{ color: 'var(--c-muted)', background: 'var(--c-border)' }}
+            className="text-xs px-2 py-1 rounded border font-semibold"
+            style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
           >
             Reset defaults
           </button>
@@ -272,7 +294,13 @@ export function ScoutQueue() {
                 <th className="px-3 py-2" aria-label="Select rows" />
                 <th className="px-3 py-2"
                   title="Priority score = round((CriticRating * 0.4) + (IMDbRating * 6)). Higher means better upgrade candidate.">
-                  Score
+                  <span className="inline-flex items-center gap-1">
+                    Score
+                    <InfoHint
+                      label="Scout score info"
+                      text="Scout queue candidate score uses library priority logic: round((CriticRating * 0.4) + (IMDbRating * 6)). Release CF scoring rules are configurable in Settings → CF Scoring, Rules, Scout."
+                    />
+                  </span>
                 </th>
                 <th className="px-3 py-2">Title</th>
                 <th className="px-3 py-2">Year</th>
@@ -281,14 +309,10 @@ export function ScoutQueue() {
                 <th className="px-3 py-2">
                   <span className="inline-flex items-center gap-1">
                     Group
-                    <span
-                      className="text-[10px] font-semibold normal-case tracking-normal"
-                      style={{ color: 'var(--c-border)' }}
-                      title="Torrent/Usenet release group inferred from the filename only."
-                      aria-label="Group info"
-                    >
-                      [i]
-                    </span>
+                    <InfoHint
+                      label="Group info"
+                      text="Torrent/Usenet release group inferred from the filename only."
+                    />
                   </span>
                 </th>
                 <th className="px-3 py-2">Flags</th>
@@ -296,14 +320,10 @@ export function ScoutQueue() {
                   title="Critic score (0–100) from Jellyfin CriticRating. Red = Fresh (≥60), grey = Rotten (<60). Source depends on Jellyfin metadata plugin.">
                   <span className="inline-flex items-center gap-1">
                     Critic
-                    <span
-                      className="text-[10px] font-semibold normal-case tracking-normal"
-                      style={{ color: 'var(--c-border)' }}
-                      title="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
-                      aria-label="Critic info"
-                    >
-                      [i]
-                    </span>
+                    <InfoHint
+                      label="Critic info"
+                      text="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                    />
                   </span>
                 </th>
                 <th className="px-3 py-2 text-right"
@@ -315,14 +335,11 @@ export function ScoutQueue() {
               {data.candidates.map((c: Candidate) => (
                 <tr
                   key={c.id}
-                  onClick={() => setSelectedId(c.id)}
-                  className="cursor-pointer transition-colors"
+                  className="transition-colors"
                   style={{
                     borderBottom: '1px solid rgba(38,38,58,0.6)',
                     background: selectedId === c.id ? 'rgba(124,58,237,0.12)' : undefined,
                   }}
-                  onMouseEnter={e => { if (selectedId !== c.id) (e.currentTarget as HTMLElement).style.background = 'rgba(22,22,31,0.8)'; }}
-                  onMouseLeave={e => { if (selectedId !== c.id) (e.currentTarget as HTMLElement).style.background = ''; }}
                 >
                   <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
                     <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
@@ -343,9 +360,14 @@ export function ScoutQueue() {
                     </span>
                   </td>
                   <td className="px-3 py-2 max-w-xs">
-                    <span className="truncate block font-medium" style={{ color: 'var(--c-text)' }}>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedId(c.id)}
+                      className="truncate block font-medium text-left w-full hover:underline cursor-pointer"
+                      style={{ color: 'var(--c-text)' }}
+                    >
                       {c.jellyfin_title ?? c.parsed_title ?? c.folder_name}
-                    </span>
+                    </button>
                   </td>
                   <td className="px-3 py-2" style={{ color: 'var(--c-muted)' }}>{c.parsed_year ?? '—'}</td>
                   <td className="px-3 py-2">

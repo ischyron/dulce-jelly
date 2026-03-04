@@ -1,10 +1,11 @@
 import { useRef, useState, useEffect } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Search, Film, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { api, type Movie, type Stats } from '../api/client.js';
 import { ResolutionBadge, CodecBadge, HdrBadge, QualityFlagsBadge, CriticScoreBadge } from '../components/QualityBadge.js';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer.js';
+import { InfoHint } from '../components/InfoHint.js';
 
 const RESOLUTION_OPTIONS = ['2160p', '1080p', '720p', '480p', 'other'];
 const CODEC_OPTIONS = ['hevc', 'h264', 'av1', 'mpeg4'];
@@ -52,7 +53,7 @@ function StatusDots({ m }: { m: Movie }) {
     </span>
   );
 }
-const PAGE_SIZE_OPTIONS = [25, 50, 100, 200];
+const PAGE_SIZE_OPTIONS = [25, 50, 100, 200, 'all'] as const;
 
 type SortField = 'quality' | 'title' | 'year' | 'rating' | 'size';
 
@@ -87,14 +88,7 @@ function SortHeader({
           : <ChevronsUpDown size={11} className="opacity-30" />)}
         {label}
         {infoTitle && (
-          <span
-            className="text-[10px] font-semibold normal-case tracking-normal"
-            style={{ color: 'var(--c-border)' }}
-            title={infoTitle}
-            aria-label={`${label} info`}
-          >
-            [i]
-          </span>
+          <InfoHint label={`${label} info`} text={infoTitle} />
         )}
         {align !== 'right' && (active
           ? (dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)
@@ -128,6 +122,7 @@ export function Library() {
 
   // All state lives in URL params (bookmarkable)
   const page       = spInt(searchParams, 'page', 1);
+  const limitParam = sp(searchParams, 'limit', '50');
   const limit      = spInt(searchParams, 'limit', 50);
   const sortBy     = sp(searchParams, 'sort', 'title') as SortField;
   const sortDir    = sp(searchParams, 'dir', 'asc') as 'asc' | 'desc';
@@ -144,6 +139,7 @@ export function Library() {
   const tagFilter = sp(searchParams, 'tags', '');
   const selectedTags = tagFilter ? tagFilter.split(',').map(t => normalizeTag(t)).filter(Boolean) : [];
   const search     = sp(searchParams, 'q', '');
+  const showAll    = limitParam === 'all' || searchParams.get('all') === '1';
   const selectedId = spInt(searchParams, 'movie', 0) || undefined;
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -226,13 +222,6 @@ export function Library() {
     }
   }
 
-  function clearFilters() {
-    patch({
-      q: null, resolution: null, codec: null, audioFormat: null, audioLayout: null, genre: null, tags: null,
-      hdr: null, dv: null, av1Compat: null, legacy: null, noJf: null, page: '1',
-    });
-  }
-
   function resetView() {
     setSearchParams({}, { replace: true });
   }
@@ -256,9 +245,11 @@ export function Library() {
   });
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['movies', page, limit, search, resolution, codec, audioFormat, audioLayout, genre, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, sortBy, sortDir],
+    queryKey: ['movies', page, limit, showAll, search, resolution, codec, audioFormat, audioLayout, genre, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, sortBy, sortDir],
     queryFn: () => api.movies({
-      page, limit, sortBy, sortDir,
+      page: showAll ? 1 : page,
+      limit: showAll ? 100000 : limit,
+      sortBy, sortDir,
       ...(search ? { search } : {}),
       ...(resolution ? { resolution } : {}),
       ...((av1CompatOnly ? 'av1' : codec) ? { codec: (av1CompatOnly ? 'av1' : codec) } : {}),
@@ -270,12 +261,12 @@ export function Library() {
       ...(dvOnly ? { dv: 'true' } : {}),
       ...(legacyOnly ? { legacy: 'true' } : {}),
       ...(noJf ? { noJf: 'true' } : {}),
+      ...(showAll ? { showAll: 'true' } : {}),
     }),
     placeholderData: (prev) => prev,
   });
 
-  const totalPages = data ? Math.ceil(data.total / limit) : 1;
-  const hasActiveFilter = search || resolution || codec || audioFormat || audioLayout || genre || selectedTags.length > 0 || hdrOnly || dvOnly || av1CompatOnly || legacyOnly || noJf;
+  const totalPages = showAll ? 1 : (data ? Math.ceil(data.total / limit) : 1);
   const clientProfile = (() => { try { return localStorage.getItem('clientProfile') ?? 'android_tv'; } catch { return 'android_tv'; } })();
   const av1CompatRelevant = AV1_WARN_PROFILES.has(clientProfile);
   const pageMovieIds = data?.movies.map((m: Movie) => m.id) ?? [];
@@ -382,27 +373,53 @@ export function Library() {
           </div>
         )}
 
-        <h1 className="text-sm font-semibold shrink-0 mr-1" style={{ color: 'var(--c-text)' }}>Library</h1>
+        <h1 className="text-sm font-semibold shrink-0 mr-1 flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
+          <Film size={16} style={{ color: 'var(--c-accent)' }} />
+          Library
+        </h1>
         <div className="w-px h-4 shrink-0" style={{ background: 'var(--c-border)' }} />
 
         <div className="relative">
-          <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2"
+          <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2"
             style={{ color: 'var(--c-muted)' }} />
           <input
             type="text" placeholder="Search titles…"
             value={searchInput}
             onChange={e => handleSearchInput(e.target.value)}
-            className="pl-7 pr-3 py-1.5 rounded-lg text-sm focus:outline-none w-52"
+            className="pl-8 pr-3 py-1.5 rounded-lg text-sm focus:outline-none w-52"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
             onFocus={e => (e.target.style.borderColor = 'var(--c-accent)')}
             onBlur={e => (e.target.style.borderColor = 'var(--c-border)')}
           />
         </div>
 
+        <div className="flex items-center gap-2 px-1 py-1" style={{ color: 'var(--c-muted)' }}>
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Genre
+          </span>
+          <select
+            value={genre}
+            onChange={e => patch({ genre: e.target.value || null, page: '1' })}
+            className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: genre ? 'var(--c-accent)' : 'var(--c-muted)' }}
+          >
+            <option value="">All</option>
+            {(genresData?.genres ?? []).map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
+        </div>
+
         {/* Resolution group */}
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
-          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>Resolution</span>
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Resolution
+          </span>
           {RESOLUTION_OPTIONS.map(r => (
             <button key={r}
               onClick={() => patch({ resolution: resolution === r ? null : r, page: '1' })}
@@ -418,7 +435,12 @@ export function Library() {
         {/* Video codec + HDR group */}
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
-          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>Video Codec / HDR</span>
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Video Codec / HDR
+          </span>
           {CODEC_OPTIONS.map(c => (
             <button key={c}
               onClick={() => patch({ codec: codec === c ? null : c, page: '1' })}
@@ -467,7 +489,12 @@ export function Library() {
 
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}>
-          <span className="text-xs whitespace-nowrap">Audio Codec</span>
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Audio
+          </span>
           <select
             value={audioFormat}
             onChange={e => patch({ audioFormat: e.target.value || null, page: '1' })}
@@ -492,7 +519,12 @@ export function Library() {
 
         <div ref={tagFilterRef} className="relative flex items-center gap-2 text-xs px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}>
-          <span>Tag</span>
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Tag
+          </span>
           <button
             onClick={() => setTagFilterOpen(v => !v)}
             className="px-2 py-1 text-xs rounded border"
@@ -537,9 +569,8 @@ export function Library() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
-          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>Jellyfin</span>
+        <div className="flex items-center gap-2 px-1 py-1"
+          style={{ background: 'transparent' }}>
           <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
             style={{ color: noJf ? '#c4b5fd' : 'var(--c-muted)' }}
             title="Show movies not yet matched in Jellyfin">
@@ -550,28 +581,26 @@ export function Library() {
           </label>
         </div>
 
-        <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}>
-          <span className="text-xs">Genre</span>
+        {/* Page size */}
+        <div className="flex items-center gap-1.5 ml-2 text-xs" style={{ color: 'var(--c-muted)' }}>
+          <span>Show</span>
           <select
-            value={genre}
-            onChange={e => patch({ genre: e.target.value || null, page: '1' })}
+            value={showAll ? 'all' : String(limit)}
+            onChange={e => {
+              const v = e.target.value;
+              if (v === 'all') {
+                patch({ limit: 'all', all: '1', page: '1' });
+              } else {
+                patch({ limit: v, all: null, page: '1' });
+              }
+            }}
             className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: genre ? 'var(--c-accent)' : 'var(--c-muted)' }}
-          >
-            <option value="">All</option>
-            {(genresData?.genres ?? []).map(g => <option key={g} value={g}>{g}</option>)}
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}>
+            {PAGE_SIZE_OPTIONS.map(n => (
+              <option key={n} value={n}>{n === 'all' ? 'All' : n}</option>
+            ))}
           </select>
         </div>
-
-        {hasActiveFilter && (
-          <button
-            onClick={clearFilters}
-            className="text-xs px-2 py-1 rounded border font-semibold"
-            style={{ color: '#c4b5fd', borderColor: 'var(--c-border)', background: 'rgba(124,58,237,0.12)' }}>
-            clear filters
-          </button>
-        )}
         {hasNonDefaultView && (
           <button
             onClick={resetView}
@@ -581,18 +610,6 @@ export function Library() {
             reset view
           </button>
         )}
-
-        {/* Page size */}
-        <div className="flex items-center gap-1.5 ml-2 text-xs" style={{ color: 'var(--c-muted)' }}>
-          <span>Show</span>
-          <select
-            value={limit}
-            onChange={e => patch({ limit: e.target.value, page: '1' })}
-            className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}>
-            {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n}</option>)}
-          </select>
-        </div>
 
         <span className="ml-auto text-xs flex items-center gap-2" style={{ color: 'var(--c-muted)' }}>
           {av1CompatOnly && av1CompatRelevant && (
@@ -689,14 +706,10 @@ export function Library() {
                   style={{ color: 'var(--c-muted)' }}>
                   <span className="inline-flex items-center gap-1">
                     Group
-                    <span
-                      className="text-[10px] font-semibold normal-case tracking-normal"
-                      style={{ color: 'var(--c-border)' }}
-                      title="Torrent/Usenet release group inferred from the filename only."
-                      aria-label="Group info"
-                    >
-                      [i]
-                    </span>
+                    <InfoHint
+                      label="Group info"
+                      text="Torrent/Usenet release group inferred from the filename only."
+                    />
                   </span>
                 </th>
                 <SortHeader
@@ -719,20 +732,14 @@ export function Library() {
                 </th>
                 <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-center w-20"
                   style={{ color: 'var(--c-muted)' }}>
-                  <span
-                    className="inline-flex items-center justify-center gap-1"
-                    title={`Status dot guide:
+                  <span className="inline-flex items-center justify-center gap-1">
+                    Status
+                    <InfoHint
+                      label="Status color guide"
+                      text={`Status dot guide:
 Left dot (scan): green = ok, orange = verify failed, red = scan error, yellow = pending scan, gray = not scanned.
 Right dot (Jellyfin): purple = matched, gray = not matched.`}
-                    aria-label="Status color guide"
-                  >
-                    Status
-                    <span
-                      className="text-[10px] font-semibold normal-case tracking-normal"
-                      style={{ color: 'var(--c-border)' }}
-                    >
-                      [i]
-                    </span>
+                    />
                   </span>
                 </th>
               </tr>
@@ -741,14 +748,11 @@ Right dot (Jellyfin): purple = matched, gray = not matched.`}
               {data.movies.map((m: Movie) => (
                 <tr
                   key={m.id}
-                  onClick={() => patch({ movie: selectedId === m.id ? null : String(m.id) })}
-                  className="cursor-pointer transition-colors"
+                  className="transition-colors"
                   style={{
                     borderBottom: '1px solid rgba(38,38,58,0.5)',
                     background: selectedId === m.id ? 'rgba(124,58,237,0.1)' : undefined,
                   }}
-                  onMouseEnter={e => { if (selectedId !== m.id) (e.currentTarget as HTMLElement).style.background = 'rgba(22,22,31,0.7)'; }}
-                  onMouseLeave={e => { if (selectedId !== m.id) (e.currentTarget as HTMLElement).style.background = ''; }}
                 >
                   <td className="px-2 py-2 text-center">
                     <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
@@ -765,13 +769,13 @@ Right dot (Jellyfin): purple = matched, gray = not matched.`}
                     </label>
                   </td>
                   <td className="px-3 py-2 max-w-xs">
-                    <Link
-                      to={`/movies/${m.id}`}
-                      onClick={e => e.stopPropagation()}
-                      className="truncate block font-medium text-sm hover:underline"
+                    <button
+                      type="button"
+                      onClick={() => patch({ movie: selectedId === m.id ? null : String(m.id) })}
+                      className="truncate block font-medium text-sm hover:underline text-left w-full cursor-pointer"
                       style={{ color: 'var(--c-text)' }}>
                       {m.jellyfin_title ?? m.parsed_title ?? m.folder_name}
-                    </Link>
+                    </button>
                   </td>
                   <td className="px-3 py-2 text-sm whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>
                     {m.parsed_year ?? '—'}
@@ -814,7 +818,7 @@ Right dot (Jellyfin): purple = matched, gray = not matched.`}
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {totalPages > 1 && !showAll && (
         <div className="px-4 py-2.5 border-t flex items-center justify-center text-sm"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="flex items-center gap-2.5">

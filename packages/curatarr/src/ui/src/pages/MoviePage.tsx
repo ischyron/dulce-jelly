@@ -30,7 +30,6 @@ export function MoviePage() {
         <MovieDetailContent
           movieId={movieId}
           mode="page"
-          enableScoutSearch
           onDeleted={() => navigate('/library')}
         />
       </div>

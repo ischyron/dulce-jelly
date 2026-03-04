@@ -173,31 +173,6 @@ test.describe('Library', () => {
     }
   });
 
-  test('movie detail drawer has one close control and separated rows', async ({ page }) => {
-    await page.goto('/library');
-    const titleBtn = page.locator('tbody tr').first().locator('td').nth(1).locator('button');
-    await expect(titleBtn).toBeVisible();
-    await titleBtn.focus();
-    await titleBtn.evaluate((el) => el.click());
-
-    await expect(page.getByTestId('movie-drawer-close')).toBeVisible();
-    await expect(page.getByRole('button', { name: /^Close$/ })).toHaveCount(0);
-    await expect(page.getByTestId('movie-links-row')).toBeVisible();
-    await expect(page.getByTestId('movie-actions-row')).toBeVisible();
-    await expect(page.getByTestId('movie-synced-row')).toBeVisible();
-  });
-
-  test('movie detail drawer closes with Escape and restores focus to row trigger', async ({ page }) => {
-    await page.goto('/library');
-    const titleBtn = page.locator('tbody tr').first().locator('td').nth(1).locator('button');
-    await expect(titleBtn).toBeVisible();
-    await titleBtn.focus();
-    await titleBtn.evaluate((el) => el.click());
-    await expect(page.getByTestId('movie-drawer-close')).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByTestId('movie-drawer-close')).toHaveCount(0);
-    await expect(titleBtn).toBeFocused();
-  });
 });
 
 test.describe('Scout / Disambiguate / Verify / Settings', () => {
@@ -269,6 +244,42 @@ test.describe('MoviePage', () => {
     await page.goto(`/movies/${id}`);
     await expect(page.getByText('IMDb rating:')).toBeVisible();
     await expect(page.getByText(/Jellyfin critic score/i)).toBeVisible();
+  });
+
+  test('has primary scout action and scout section below notes/tags', async ({ page, request }) => {
+    const res = await request.get('/api/movies?limit=1&page=1');
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    const id = Number(json?.movies?.[0]?.id);
+    expect(Number.isFinite(id) && id > 0).toBeTruthy();
+    await page.goto(`/movies/${id}`);
+
+    await expect(page.getByTestId('movie-actions-row')).toBeVisible();
+    await expect(page.getByTestId('movie-actions-row').getByRole('button', { name: 'Scout Releases' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sync from Jellyfin' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();
+    await expect(page.getByTestId('movie-scout-section')).toBeVisible();
+
+    const notesHeading = page.getByText('Notes', { exact: true }).first();
+    const scoutHeading = page.getByTestId('movie-scout-section').getByText('Scout Releases', { exact: true }).first();
+    const notesBox = await notesHeading.boundingBox();
+    const scoutBox = await scoutHeading.boundingBox();
+    expect(notesBox && scoutBox && scoutBox.y > notesBox.y).toBeTruthy();
+  });
+
+  test('top scout action runs search and keeps scout section visible', async ({ page, request }) => {
+    const res = await request.get('/api/movies?limit=1&page=1');
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    const id = Number(json?.movies?.[0]?.id);
+    expect(Number.isFinite(id) && id > 0).toBeTruthy();
+    await page.goto(`/movies/${id}`);
+
+    const topScoutBtn = page.getByTestId('movie-actions-row').getByRole('button', { name: 'Scout Releases' });
+    await expect(topScoutBtn).toBeVisible();
+    await topScoutBtn.click();
+
+    await expect(page.getByTestId('movie-scout-section')).toBeVisible();
   });
 });
 

@@ -56,6 +56,16 @@ function StatusDots({ m }: { m: Movie }) {
 const PAGE_SIZE_OPTIONS = [25, 50, 100, 200, 'all'] as const;
 
 type SortField = 'quality' | 'title' | 'year' | 'rating' | 'size';
+const SORT_FIELDS: ReadonlySet<SortField> = new Set(['quality', 'title', 'year', 'rating', 'size']);
+
+function toSortField(value: string | null): SortField {
+  if (!value) return 'title';
+  return SORT_FIELDS.has(value as SortField) ? (value as SortField) : 'title';
+}
+
+function toSortDir(value: string | null): 'asc' | 'desc' {
+  return value === 'desc' ? 'desc' : 'asc';
+}
 
 function fmtSize(bytes: number | null): string {
   if (!bytes) return '—';
@@ -121,11 +131,11 @@ export function Library() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
   // All state lives in URL params (bookmarkable)
-  const page       = spInt(searchParams, 'page', 1);
+  const pageRaw    = spInt(searchParams, 'page', 1);
   const limitParam = sp(searchParams, 'limit', '50');
-  const limit      = spInt(searchParams, 'limit', 50);
-  const sortBy     = sp(searchParams, 'sort', 'title') as SortField;
-  const sortDir    = sp(searchParams, 'dir', 'asc') as 'asc' | 'desc';
+  const limitRaw   = spInt(searchParams, 'limit', 50);
+  const sortBy     = toSortField(searchParams.get('sort'));
+  const sortDir    = toSortDir(searchParams.get('dir'));
   const resolution = sp(searchParams, 'resolution', '');
   const codec      = sp(searchParams, 'codec', '');
   const audioFormat = sp(searchParams, 'audioFormat', '');
@@ -142,6 +152,8 @@ export function Library() {
   const selectedTags = tagFilter ? tagFilter.split(',').map(t => normalizeTag(t)).filter(Boolean) : [];
   const search     = sp(searchParams, 'q', '');
   const showAll    = limitParam === 'all' || searchParams.get('all') === '1';
+  const page       = Math.max(1, pageRaw);
+  const limit      = showAll ? 50 : Math.max(1, limitRaw);
   const selectedId = spInt(searchParams, 'movie', 0) || undefined;
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

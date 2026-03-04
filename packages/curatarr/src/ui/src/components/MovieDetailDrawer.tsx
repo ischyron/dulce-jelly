@@ -6,10 +6,9 @@ import { MovieDetailContent } from './MovieDetailContent.js';
 interface Props {
   movieId: number;
   onClose: () => void;
-  enableScoutSearch?: boolean;
 }
 
-export function MovieDetailDrawer({ movieId, onClose, enableScoutSearch = false }: Props) {
+export function MovieDetailDrawer({ movieId, onClose }: Props) {
   const asideRef = useRef<HTMLElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -88,7 +87,6 @@ export function MovieDetailDrawer({ movieId, onClose, enableScoutSearch = false 
           <MovieDetailContent
             movieId={movieId}
             mode="drawer"
-            enableScoutSearch={enableScoutSearch}
             onDeleted={onClose}
           />
         </div>

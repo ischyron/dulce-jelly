@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import {
@@ -20,7 +20,6 @@ import { DeleteConfirmModal } from './DeleteConfirmModal.js';
 interface Props {
   movieId: number;
   mode: 'page' | 'drawer';
-  enableScoutSearch?: boolean;
   onClose?: () => void;
   onDeleted?: () => void;
 }
@@ -161,7 +160,7 @@ function ScoutResultsTable({ releases }: { releases: ScoutRelease[] }) {
   );
 }
 
-export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, onDeleted }: Props) {
+export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   const queryClient = useQueryClient();
   const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: api.settings, staleTime: 60_000 });
   const { data: tagsData } = useQuery({ queryKey: ['tags'], queryFn: api.tags, staleTime: 60_000 });
@@ -172,6 +171,8 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
   const [notes, setNotes] = useState('');
   const [notesSaved, setNotesSaved] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const scoutSectionRef = useRef<HTMLDivElement | null>(null);
+  const scoutHeadingRef = useRef<HTMLHeadingElement | null>(null);
 
   useEffect(() => {
     if (data) setNotes(data.notes ?? '');
@@ -243,6 +244,12 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
     patchMutation.mutate({ notes });
     setNotesSaved(true);
     setTimeout(() => setNotesSaved(false), 2500);
+  }
+
+  function triggerScoutAndJump() {
+    scoutSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setTimeout(() => scoutHeadingRef.current?.focus(), 120);
+    scoutSearch.mutate();
   }
 
   return (
@@ -351,6 +358,16 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
 
             <div className="flex flex-wrap items-center gap-2 w-full" data-testid="movie-actions-row">
               <button
+                onClick={triggerScoutAndJump}
+                disabled={scoutSearch.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-60"
+                style={{ borderColor: 'var(--c-accent)', background: 'var(--c-accent)', color: '#fff' }}
+                title="Search live releases from Prowlarr"
+              >
+                {scoutSearch.isPending ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                Scout Releases
+              </button>
+              <button
                 onClick={() => jfRefreshMutation.mutate()}
                 disabled={jfRefreshMutation.isPending}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-50"
@@ -404,49 +421,6 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
           </div>
         </div>
 
-        {enableScoutSearch && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-                Scout Releases
-              </h3>
-              <button
-                onClick={() => scoutSearch.mutate()}
-                disabled={scoutSearch.isPending}
-                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50"
-                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-                title="Search live releases from Prowlarr"
-              >
-                {scoutSearch.isPending ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-                Scout Releases
-              </button>
-            </div>
-            {scoutSearch.isError && (
-              <div className="text-xs text-red-400 inline-flex items-center gap-1">
-                <AlertCircle size={12} />
-                {(scoutSearch.error as Error).message}
-              </div>
-            )}
-            {scoutSearch.data && scoutSearch.data.releases.length === 0 && (
-              <div className="text-xs" style={{ color: '#8b87aa' }}>No releases found.</div>
-            )}
-            {scoutSearch.data && scoutSearch.data.releases.length > 0 && (
-              <div className="space-y-2">
-                <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: '#3a3657', background: 'rgba(30,30,46,0.6)' }}>
-                  <div style={{ color: '#8b87aa' }} className="uppercase tracking-wider mb-1">Most Efficient Path</div>
-                  <div style={{ color: '#d4cfff' }}>{scoutSearch.data.recommendation.summary}</div>
-                  {scoutSearch.data.recommendation.best && (
-                    <div className="mt-1" style={{ color: '#8b87aa' }}>
-                      Recommended: <span className="text-amber-400 font-semibold">{scoutSearch.data.recommendation.best.title}</span>
-                    </div>
-                  )}
-                </div>
-                <ScoutResultsTable releases={scoutSearch.data.releases} />
-              </div>
-            )}
-          </div>
-        )}
-
         <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'rgba(27,27,41,0.45)' }}>
           <div className="text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5" style={{ color: '#8b87aa' }}>
             <Tag size={12} /> Tags
@@ -487,12 +461,63 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
             />
             <div className="mt-2 flex items-center gap-3">
-              <button onClick={saveNotes} disabled={patchMutation.isPending} className="px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-60" style={{ background: 'var(--c-accent)' }}>
+              <button
+                onClick={saveNotes}
+                disabled={patchMutation.isPending}
+                className="px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-60"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
                 Save Notes
               </button>
               {notesSaved && <span className="inline-flex items-center gap-1 text-xs text-green-400"><Check size={12} /> Saved</span>}
             </div>
           </div>
+        </div>
+
+        <div ref={scoutSectionRef} className="space-y-2" data-testid="movie-scout-section">
+          <div className="flex items-center justify-between">
+            <h3
+              ref={scoutHeadingRef}
+              tabIndex={-1}
+              className="text-xs font-semibold uppercase tracking-wider focus:outline-none"
+              style={{ color: '#8b87aa' }}
+            >
+              Scout Releases
+            </h3>
+            <button
+              onClick={() => scoutSearch.mutate()}
+              disabled={scoutSearch.isPending}
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50"
+              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              title="Search live releases from Prowlarr"
+            >
+              {scoutSearch.isPending ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+              Scout Releases
+            </button>
+          </div>
+          {scoutSearch.isError && (
+            <div className="text-xs text-red-400 inline-flex items-center gap-1">
+              <AlertCircle size={12} />
+              {(scoutSearch.error as Error).message}
+            </div>
+          )}
+          {scoutSearch.data && scoutSearch.data.releases.length === 0 && (
+            <div className="text-xs" style={{ color: '#8b87aa' }}>No releases found.</div>
+          )}
+          {scoutSearch.data && scoutSearch.data.releases.length > 0 && (
+            <div className="space-y-2">
+              <div className="rounded-lg border px-3 py-2 text-xs" style={{ borderColor: '#3a3657', background: 'rgba(30,30,46,0.6)' }}>
+                <div style={{ color: '#8b87aa' }} className="uppercase tracking-wider mb-1">Most Efficient Path</div>
+                <div style={{ color: '#d4cfff' }}>{scoutSearch.data.recommendation.summary}</div>
+                {scoutSearch.data.recommendation.best && (
+                  <div className="mt-1" style={{ color: '#8b87aa' }}>
+                    Recommended: <span className="text-amber-400 font-semibold">{scoutSearch.data.recommendation.best.title}</span>
+                  </div>
+                )}
+              </div>
+              <ScoutResultsTable releases={scoutSearch.data.releases} />
+            </div>
+          )}
         </div>
       </div>
       {showDelete && (

@@ -495,7 +495,6 @@ export function ScoutQueue() {
         <MovieDetailDrawer
           movieId={selectedId}
           onClose={() => setSelectedId(undefined)}
-          enableScoutSearch
         />
       )}
 

@@ -6,7 +6,14 @@
 - Work through todos independently; pause only if human review is required.
 - Strike out when done/blocked.
 - Don't create new sections for TODOs or bugs. Keep status inline.
-- After feature/fix complete, deploy it on docker. Then mark as complete or done 
+- Process to mark a TODO  as DONE or closure of any work item.
+  - develop feature/fix with all edge cases considred
+  - unit/interaction test if any need to commit
+  - run e2e test 
+  - commit and push changed to git.
+  - deploy it on docker
+  - Then mark as complete or done
+  - Follow up questions if any edge cases left unhanlded due to lack of requirement clarity
 
 ### Curatarr Backlog
 
@@ -15,8 +22,6 @@
 
 
 ** Disambigation **
-- [TODO] Test http://dulce.local:3270/disambiguate against parity with radarr open source code in github. When ready to work on this ask me to rename a live file on disk and we will run disabiute and test (waiting for user to rename a live folder/file to run parity scenario)
-
 **Quality tests**
 - [DONE] ~~Scout functional test using a dummy response api mock. get one relaistic for a movie using current prowlar integation I have.~~ (added mock Prowlarr API integration test with realistic movie payload)
 

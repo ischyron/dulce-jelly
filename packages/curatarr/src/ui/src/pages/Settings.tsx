@@ -1,7 +1,7 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X } from 'lucide-react';
+import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown } from 'lucide-react';
 import { api } from '../api/client.js';
 import { InfoHint } from '../components/InfoHint.js';
 
@@ -90,6 +90,19 @@ const SEEDER_DIVISOR_TOOLTIP = `Seeder bonus uses this formula:
 Lower divisor boosts seed-heavy torrents more aggressively.
 Higher divisor makes seeders matter less in final score.`;
 
+const SEEDER_MAX_BONUS_TOOLTIP = `Caps how many points seeders can add to score.
+
+Formula:
+  seederBonus = floor(seeders / Seeder Divisor)
+  finalSeederBonus = min(seederBonus, Seeder Max Bonus)
+
+Example:
+  divisor = 25, max bonus = 10
+  80 seeders -> floor(80/25)=3 points
+  500 seeders -> floor(500/25)=20 -> capped to 10 points
+
+This prevents very high-seed releases from overpowering quality/source signals.`;
+
 const SCOUT_OBJECTIVE_SAMPLES = [
   'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
   'Prioritize playback compatibility for Android TV and Chromecast devices.',
@@ -164,14 +177,18 @@ function AccordionSection({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <section className="rounded-xl border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+    <section className="rounded-xl border overflow-hidden" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="w-full px-5 py-4 text-left flex items-center justify-between"
+        className="w-full px-5 py-4 text-left flex items-center justify-between transition-colors hover:bg-white/5"
       >
         <span className="font-semibold" style={{ color: '#d4cfff' }}>{title}</span>
-        <span className="text-xs" style={{ color: 'var(--c-muted)' }}>{open ? 'Collapse' : 'Expand'}</span>
+        <ChevronDown
+          size={16}
+          className={`transition-transform ${open ? 'rotate-180' : 'rotate-0'}`}
+          style={{ color: 'var(--c-muted)' }}
+        />
       </button>
       {open && <div className="px-5 pb-5 space-y-4">{children}</div>}
     </section>
@@ -572,7 +589,7 @@ export function Settings() {
       </h1>
 
       <AccordionSection title="General" defaultOpen>
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Jellyfin Connection</h2>
           <Field label="Jellyfin URL" name="jellyfinUrl" value={form.jellyfinUrl ?? ''}
             onChange={v => set('jellyfinUrl', v)} placeholder="http://localhost:8096"
@@ -610,12 +627,12 @@ export function Settings() {
           </div>
         </section>
 
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Library</h2>
           <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''} onChange={v => set('libraryPath', v)} placeholder="/media/Movies" hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also read from env var: LIBRARY_PATH" />
         </section>
 
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
             <Tv2 size={16} style={{ color: 'var(--c-accent)' }} />
             Primary Playback Client
@@ -652,7 +669,7 @@ export function Settings() {
       </AccordionSection>
 
       <AccordionSection title="Scout" defaultOpen>
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Prowlarr</h2>
           <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''} onChange={v => set('prowlarrUrl', v)} placeholder="http://localhost:9696" hint="Used by Scout release search and auto-scout. Also read from env var: PROWLARR_URL" />
           <MaskedKeyField
@@ -675,7 +692,7 @@ export function Settings() {
           </div>
         </section>
 
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
           <div className="space-y-1">
             <label className="text-sm font-medium" style={{ color: '#c4b5fd' }}>Provider</label>
@@ -698,7 +715,7 @@ export function Settings() {
             hint="OpenAI API key. You can also set it via env var: OPENAI_API_KEY (or legacy LLM_API_KEY)." />
         </section>
 
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
           CF Scoring, Rules, Scout
           <InfoHint label="CF scoring info" text={SCOUT_CF_SCORING_TOOLTIP} />
@@ -814,7 +831,8 @@ export function Settings() {
                 tooltip={SEEDER_DIVISOR_TOOLTIP} />
               <Field label="Seeder Max Bonus" name="scoutCfSeedersBonusCap"
                 value={form.scoutCfSeedersBonusCap ?? '12'}
-                onChange={v => set('scoutCfSeedersBonusCap', v)} />
+                onChange={v => set('scoutCfSeedersBonusCap', v)}
+                tooltip={SEEDER_MAX_BONUS_TOOLTIP} />
             </div>
           </div>
         </div>
@@ -1037,8 +1055,7 @@ export function Settings() {
       </section>
 
       {/* Scout Defaults */}
-      <section className="rounded-xl p-5 space-y-4 border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+      <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
           Scout Defaults
           <InfoHint label="Scout defaults info" text={CODEC_SCORING_TOOLTIP} />
@@ -1090,8 +1107,7 @@ export function Settings() {
         </div>
       </section>
 
-      <section className="rounded-xl p-5 space-y-4 border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+      <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Scout Automation</h2>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Automatic Scout runs process at most your Scout Batch Size (hard max 10) per run.

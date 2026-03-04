@@ -21,8 +21,10 @@ export const SCOUT_SETTING_KEYS = [
   'scoutCfLegacyPenalty',
   'scoutCfSmall4kPenalty',
   'scoutCfSmall4kMinGiB',
-  'scoutCfBitrateMinMbps',
-  'scoutCfBitrateMaxMbps',
+  'scoutCfBitrateFloor2160Mbps',
+  'scoutCfBitrateFloor1080Mbps',
+  'scoutCfBitrateFloor720Mbps',
+  'scoutCfBitrateFloorOtherMbps',
   'scoutCfSeedersDivisor',
   'scoutCfSeedersBonusCap',
   'scoutCfUsenetBonus',
@@ -60,8 +62,10 @@ const FALLBACK_SCOUT_DEFAULTS: Record<ScoutSettingKey, string> = {
   scoutCfLegacyPenalty: '40',
   scoutCfSmall4kPenalty: '22',
   scoutCfSmall4kMinGiB: '10',
-  scoutCfBitrateMinMbps: '0',
-  scoutCfBitrateMaxMbps: '120',
+  scoutCfBitrateFloor2160Mbps: '14',
+  scoutCfBitrateFloor1080Mbps: '6',
+  scoutCfBitrateFloor720Mbps: '3',
+  scoutCfBitrateFloorOtherMbps: '1',
   scoutCfSeedersDivisor: '25',
   scoutCfSeedersBonusCap: '10',
   scoutCfUsenetBonus: '10',
@@ -70,10 +74,24 @@ const FALLBACK_SCOUT_DEFAULTS: Record<ScoutSettingKey, string> = {
 
 let cached: ScoutYamlDoc | null = null;
 
+function configSearchPaths(file: string): string[] {
+  const cwd = process.cwd();
+  return [
+    path.resolve('/config', file),
+    path.resolve(cwd, 'config', file),
+    path.resolve(cwd, 'data', 'curatarr', 'config', file),
+  ];
+}
+
+function firstExistingPath(paths: string[]): string {
+  for (const p of paths) {
+    if (fs.existsSync(p)) return p;
+  }
+  return paths[0];
+}
+
 export function scoringYamlPath(): string {
-  const configured = process.env.CURATARR_SCORING_FILE?.trim();
-  if (configured) return path.resolve(configured);
-  return path.resolve(process.cwd(), 'config', 'scoring.yaml');
+  return firstExistingPath(configSearchPaths('scoring.yaml'));
 }
 
 function loadDoc(): ScoutYamlDoc {
@@ -133,9 +151,7 @@ export function syncScoringYamlFromSettings(settings: Record<string, string>): v
 }
 
 function secretsYamlPath(): string {
-  const configured = process.env.CURATARR_SECRETS_FILE?.trim();
-  if (configured) return path.resolve(configured);
-  return path.resolve(process.cwd(), 'config', 'secrets.yaml');
+  return firstExistingPath(configSearchPaths('secrets.yaml'));
 }
 
 function readLlmProviderFromSecrets(): string {

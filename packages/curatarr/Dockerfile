@@ -46,23 +46,22 @@ COPY docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # ── Environment defaults ──────────────────────────────────────────
-# Override any of these in docker run / compose
-ENV CURATARR_DB=/config/curatarr.db
-ENV CURATARR_PORT=7474
-ENV CURATARR_HOST=0.0.0.0
+# Container-level defaults only; runtime app settings are YAML-driven.
 ENV PUID=1000
 ENV PGID=1000
 ENV TZ=UTC
 
-# /config  — DB + settings (mount a persistent volume here)
+# /config  — config.yaml + scoring.yaml + secrets.yaml
+# /data    — SQLite DB path (e.g. /data/curatarr.db)
 # /media   — read-only library path (mount your movie library here)
 VOLUME /config
+VOLUME /data
 VOLUME /media
 
 EXPOSE 7474
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:${CURATARR_PORT}/api/stats > /dev/null || exit 1
+  CMD wget -qO- http://localhost:7474/api/stats > /dev/null || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "dist/index.js", "serve"]

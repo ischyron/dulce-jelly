@@ -1,219 +1,45 @@
-# Curatarr Configuration Example
-# Copy to config.yaml and configure your settings
-#
-# API KEYS:
-# Never put API keys in this file.
-# Preferred: set environment variables (CURATARR_LLM_API_KEY, CURATARR_INDEXER_API_KEY, etc.)
-# Alternative: enter keys in UI → Settings → AI Provider / Services
-# Keys are stored AES-256 encrypted in curatarr.sqlite when entered via UI.
-#
-# Environment variables can be used anywhere with ${VAR_NAME} syntax.
+# Curatarr runtime configuration
+# Copy to one of:
+# - data/curatarr/config/config.yaml (repo/local default)
+# - /config/config.yaml (docker volume)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Library Paths
-# ─────────────────────────────────────────────────────────────────────────────
-library:
-  moviePaths:
-    - /media/movies
-    # - /media/movies-4k
-  tvPaths: []  # TV support coming in a future phase
+server:
+  host: 0.0.0.0
+  port: 7474
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Indexer — Prowlarr (primary / recommended)
-# Prowlarr aggregates multiple Newznab/Torznab indexers into a single API
-# endpoint and is the intended integration point. A direct Newznab URL also
-# works for simple single-indexer setups.
-# ─────────────────────────────────────────────────────────────────────────────
-indexer:
-  url: http://localhost:9696   # Prowlarr default port; or a direct Newznab/Torznab URL
-  # apiKey: set CURATARR_INDEXER_API_KEY env var
-  categories:
-    movies: [2000, 2010, 2020, 2030, 2040, 2045, 2050, 2060]
-    tv: [5000, 5020, 5030, 5040, 5045, 5050, 5060]
+paths:
+  # Base path defaults to ./data/curatarr from current working directory.
+  # This typically maps to the folder where docker compose runs.
+  curatarrDataPath: ./data/curatarr
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Download Clients
-# ─────────────────────────────────────────────────────────────────────────────
-downloadClients:
-  usenet:
-    type: sabnzbd          # sabnzbd | nzbget
-    url: http://localhost:8080
-    # apiKey: set CURATARR_SAB_API_KEY env var
-    category: movies
+  # Optional explicit DB override. Relative paths resolve from this config file folder.
+  dbPath: ../data/curatarr.db
 
-  torrent:
-    type: qbittorrent      # qbittorrent | transmission | deluge
-    url: http://localhost:8080
-    # username / password: set CURATARR_TORRENT_USER / CURATARR_TORRENT_PASS env vars
-    category: movies
+settings:
+  # Jellyfin
+  jellyfinUrl: http://jellyfin:8096
+  jellyfinPublicUrl: http://localhost:3278
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Media Server
-# ─────────────────────────────────────────────────────────────────────────────
-mediaServer:
-  type: jellyfin           # jellyfin | plex | emby
-  url: http://localhost:8096
-  # apiKey: set CURATARR_JELLYFIN_API_KEY env var
+  # Library path as seen by Curatarr process/container
+  libraryPath: /media
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TMDB — movie metadata (used for LLM content verification)
-# ─────────────────────────────────────────────────────────────────────────────
-tmdb:
-  # apiKey: set CURATARR_TMDB_API_KEY env var
+  # Prowlarr
+  prowlarrUrl: http://prowlarr:9696
 
-# ─────────────────────────────────────────────────────────────────────────────
-# AI Provider — users bring their own key
-#
-# Supported providers:
-#   anthropic   → Claude (recommended: claude-sonnet-4-6)
-#   openai      → GPT-4o, GPT-4o-mini
-#   ollama      → local LLM, no API key required
-#   openrouter  → aggregator, many models
-#
-# API key: set CURATARR_LLM_API_KEY env var (takes precedence over UI-stored key)
-# ─────────────────────────────────────────────────────────────────────────────
-llm:
-  provider: anthropic
-  model: claude-sonnet-4-6
-  temperature: 0.1
-  maxTokensPerSession: 50000  # cost guard: scout session aborts if exceeded
+  # Scout queue defaults
+  scoutMinCritic: "65"
+  scoutMinCommunity: "7.0"
+  scoutMaxResolution: "2160p"
+  scoutSearchBatchSize: "5"
 
-  # Uncomment for local Ollama (no API key required)
-  # provider: ollama
-  # baseUrl: http://localhost:11434
-  # model: llama3.3
+  # Scout scheduler
+  scoutAutoEnabled: "false"
+  scoutAutoIntervalMin: "60"
+  scoutAutoCooldownMin: "240"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# TRaSH Guide Sync
-# Automatically populates group reputation tiers and CF definitions.
-# Run: curatarr trash sync
-# ─────────────────────────────────────────────────────────────────────────────
-trash:
-  enabled: true
-  syncSchedule: "0 4 * * 1"    # Weekly, Monday 4 AM
-  source: github                # github | local (for air-gapped setups)
-  # localPath: /path/to/TRaSH-Guides  # only for source: local
+  # Jellyfin sync scheduler
+  jfSyncIntervalMin: "30"
+  jfSyncBatchSize: "10"
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Group Reputation
-#
-# TRaSH sync (above) auto-populates 'high' from Tier 01/02/03 custom formats
-# and 'lq' from the TRaSH LQ custom format. The lists below are merged on top
-# of synced data — your manual entries always win.
-#
-# 'lq' describes a BEHAVIORAL PATTERN, not a specific named list:
-# releases that consistently misrepresent quality through misleading filenames,
-# aggressive re-encoding, or inflated quality claims (e.g. 2 GB claimed 4K).
-# Consult TRaSH guides for the community-maintained list of known LQ groups.
-# ─────────────────────────────────────────────────────────────────────────────
-groupReputation:
-  # High: TRaSH Tier 01/02/03 groups — auto-populated via trash sync
-  # Add manual entries here for groups not yet in TRaSH guides
-  high: []
-
-  # Medium: reliable groups not yet in TRaSH tiers
-  medium:
-    - KyoGo
-    - NeoNoir
-    - TORK
-
-  # LQ: groups with documented pattern of misleading filenames or re-encoding
-  # Auto-populated via trash sync. Add site-specific overrides here.
-  lq: []
-
-  # Blocked: hard-reject regardless of source or score
-  blocked: []
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Quality Profiles
-# ─────────────────────────────────────────────────────────────────────────────
-profiles:
-  - name: HD
-    resolution: 1080p
-    minSize: 8      # MB per minute
-    maxSize: 75
-    allowedCodecs: [x264, x265, hevc]
-    allowedSources: [bluray, webdl, webrip]
-    preferHdr: false
-
-  - name: Efficient-4K
-    resolution: 2160p
-    minSize: 20
-    maxSize: 130
-    allowedCodecs: [x265, hevc, av1]
-    allowedSources: [webdl, webrip]
-    preferHdr: true
-
-  - name: HighQuality-4K
-    resolution: 2160p
-    minSize: 45
-    maxSize: 170
-    allowedCodecs: [x265, hevc, av1]
-    allowedSources: [bluray, webdl]
-    preferHdr: true
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Upgrade Scout Daemon
-# ─────────────────────────────────────────────────────────────────────────────
-scout:
-  enabled: false               # Enable after initial library setup
-  schedule: "0 3 * * *"        # 3 AM daily (cron expression)
-  sessionMaxMinutes: 30        # Hard time budget per session
-  moviesPerSession: 10         # Max candidates evaluated per run
-  minAgeHours: 48              # Skip files added more recently than this
-  dismissCooldownDays: 90      # Re-surface dismissed items after N days
-  interventionExpiryDays: 14   # Auto-expire pending queue items
-
-  autoGrab:
-    enabled: true              # false = dry-run (all → intervention queue)
-    requireMinRepute: high     # Minimum group repute for auto-grab
-    requireUsenet: false       # true = never auto-grab torrents
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Cache
-# ─────────────────────────────────────────────────────────────────────────────
-cache:
-  dbPath: ./data/curatarr.sqlite
-  searchTtlHours: 24
-  maxEntries: 50000
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Rate Limiting
-# ─────────────────────────────────────────────────────────────────────────────
-rateLimits:
-  movies:
-    maxPerDay: 10
-    maxPerHour: 3
-    cooldownMinutes: 30
-
-  global:
-    maxConcurrent: 2
-    pauseOnDiskSpaceMB: 50000  # Pause if less than 50 GB free
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Recycle Bin
-# ─────────────────────────────────────────────────────────────────────────────
-recycleBin:
-  enabled: true
-  path: /media/.curatarr-recycle
-  retentionDays: 30
-  maxSizeGB: 500
-
-  # ⚠ DANGEROUS: files deleted permanently bypass the recycle bin
-  # Enable only if you understand the risk. Cannot be undone.
-  allowPermanentDelete: false
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Playback Verification (optional)
-# ─────────────────────────────────────────────────────────────────────────────
-playbackVerification:
-  enabled: true
-  defaultMode: soft            # soft (fast FFprobe check) | hard (decode probe)
-  hardVerifyTimeoutSeconds: 180
-  clientProfiles:
-    googletv:
-      container: [mkv, mp4]
-      videoCodecs: [h264, hevc]
-      audioCodecs: [aac, ac3, eac3]
-      maxChannels: 8
-      maxBitrateKbps: 120000
+# Secrets (API keys, LLM provider/key) belong in config/secrets.yaml.
+# CF scoring defaults belong in config/scoring.yaml.

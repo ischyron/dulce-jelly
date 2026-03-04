@@ -75,7 +75,7 @@ Penalties:
   Legacy codec penalty (xvid/mpeg4)
   Small-4K penalty when size < Small 4K Min GiB
 Bitrate gate:
-  Hard exclude releases outside Min/Max bitrate window
+  Hard exclude releases below per-resolution bitrate floors
 Availability:
   Seeder bonus = floor(seeders / divisor), capped by max bonus
 
@@ -107,11 +107,10 @@ This prevents very high-seed releases from overpowering quality/source signals.`
 
 const BITRATE_GATE_TOOLTIP = `Hard exclusion by estimated bitrate (size/duration) in Scout search results.
 
-Min bitrate: releases below this are excluded.
-Max bitrate: releases above this are excluded.
+Each resolution has its own minimum bitrate floor.
+Codec normalization is applied (AV1 lower floor, H264 higher floor) before filtering.
 
-Estimated bitrate is compared after resolution/codec normalization, so these
-bounds act as a global safety clamp.`;
+This avoids one global bitrate threshold across all formats.`;
 
 const SCOUT_OBJECTIVE_SAMPLES = [
   'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
@@ -581,8 +580,10 @@ export function Settings() {
         scoutCfLegacyPenalty: data.settings.scoutCfLegacyPenalty ?? '30',
         scoutCfSmall4kPenalty: data.settings.scoutCfSmall4kPenalty ?? '15',
         scoutCfSmall4kMinGiB: data.settings.scoutCfSmall4kMinGiB ?? '8',
-        scoutCfBitrateMinMbps: data.settings.scoutCfBitrateMinMbps ?? '0',
-        scoutCfBitrateMaxMbps: data.settings.scoutCfBitrateMaxMbps ?? '120',
+        scoutCfBitrateFloor2160Mbps: data.settings.scoutCfBitrateFloor2160Mbps ?? '14',
+        scoutCfBitrateFloor1080Mbps: data.settings.scoutCfBitrateFloor1080Mbps ?? '6',
+        scoutCfBitrateFloor720Mbps: data.settings.scoutCfBitrateFloor720Mbps ?? '3',
+        scoutCfBitrateFloorOtherMbps: data.settings.scoutCfBitrateFloorOtherMbps ?? '1',
         scoutCfSeedersDivisor: data.settings.scoutCfSeedersDivisor ?? '20',
         scoutCfSeedersBonusCap: data.settings.scoutCfSeedersBonusCap ?? '12',
         scoutCfUsenetBonus: data.settings.scoutCfUsenetBonus ?? '10',
@@ -974,25 +975,54 @@ export function Settings() {
                 value={form.scoutCfSmall4kMinGiB ?? '8'}
                 onChange={v => set('scoutCfSmall4kMinGiB', v)} />
             </div>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Bitrate
+            </div>
+            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Radarr-style bitrate floors by resolution (Mbps).
+            </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <SliderField
-                label="Bitrate Min"
-                name="scoutCfBitrateMinMbps"
-                value={form.scoutCfBitrateMinMbps ?? '0'}
-                onChange={v => set('scoutCfBitrateMinMbps', v)}
+                label="2160p Min Mbps"
+                name="scoutCfBitrateFloor2160Mbps"
+                value={form.scoutCfBitrateFloor2160Mbps ?? '14'}
+                onChange={v => set('scoutCfBitrateFloor2160Mbps', v)}
                 min={0}
-                max={80}
+                max={120}
                 step={0.5}
                 tooltip={BITRATE_GATE_TOOLTIP}
               />
               <SliderField
-                label="Bitrate Max"
-                name="scoutCfBitrateMaxMbps"
-                value={form.scoutCfBitrateMaxMbps ?? '120'}
-                onChange={v => set('scoutCfBitrateMaxMbps', v)}
-                min={1}
-                max={200}
-                step={1}
+                label="1080p Min Mbps"
+                name="scoutCfBitrateFloor1080Mbps"
+                value={form.scoutCfBitrateFloor1080Mbps ?? '6'}
+                onChange={v => set('scoutCfBitrateFloor1080Mbps', v)}
+                min={0}
+                max={60}
+                step={0.5}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <SliderField
+                label="720p Min Mbps"
+                name="scoutCfBitrateFloor720Mbps"
+                value={form.scoutCfBitrateFloor720Mbps ?? '3'}
+                onChange={v => set('scoutCfBitrateFloor720Mbps', v)}
+                min={0}
+                max={40}
+                step={0.5}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <SliderField
+                label="Other Min Mbps"
+                name="scoutCfBitrateFloorOtherMbps"
+                value={form.scoutCfBitrateFloorOtherMbps ?? '1'}
+                onChange={v => set('scoutCfBitrateFloorOtherMbps', v)}
+                min={0}
+                max={20}
+                step={0.25}
                 tooltip={BITRATE_GATE_TOOLTIP}
               />
             </div>

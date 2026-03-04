@@ -13,8 +13,6 @@ echo "
 ╚═══════════════════════════════╝
   PUID  : ${PUID}
   PGID  : ${PGID}
-  DB    : ${CURATARR_DB:-/config/curatarr.db}
-  Port  : ${CURATARR_PORT:-7474}
 "
 
 # ── Group ──────────────────────────────────────────────────────────
@@ -28,11 +26,9 @@ if ! getent passwd "${PUID}" > /dev/null 2>&1; then
   adduser -u "${PUID}" -G "${GID_NAME}" -s /bin/sh -D curatarr
 fi
 
-# ── Config dir ─────────────────────────────────────────────────────
-DB_PATH=${CURATARR_DB:-/config/curatarr.db}
-DB_DIR=$(dirname "${DB_PATH}")
-mkdir -p "${DB_DIR}"
-chown -R "${PUID}:${PGID}" "${DB_DIR}"
+# ── Writable dirs ──────────────────────────────────────────────────
+mkdir -p /config /data
+chown -R "${PUID}:${PGID}" /config /data
 
 # ── Drop privileges and exec ───────────────────────────────────────
 exec su-exec "${PUID}:${PGID}" "$@"

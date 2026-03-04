@@ -9,15 +9,11 @@ services:
       - PUID=1000
       - PGID=1000
       - TZ=UTC
-      # Jellyfin connection (required for jf-sync and jf-refresh)
-      - JELLYFIN_URL=http://jellyfin:8096
-      - JELLYFIN_API_KEY=your_jellyfin_api_key_here
-      # Curatarr defaults (optional overrides)
-      - CURATARR_PORT=7474
-      # CURATARR_DB defaults to /config/curatarr.db — change only if needed
     volumes:
-      # Persistent config + DB (required)
+      # Persistent config files (config.yaml, scoring.yaml, secrets.yaml)
       - /path/to/curatarr/config:/config
+      # Persistent sqlite data path (set paths.dbPath in /config/config.yaml)
+      - /path/to/curatarr/data:/data
       # Movie library (optional) — mount your library here, then set Library Path to /media in Settings.
       # On macOS, ensure the path is in Docker Desktop → Settings → Resources → File Sharing first.
       # - /path/to/movies:/media:ro

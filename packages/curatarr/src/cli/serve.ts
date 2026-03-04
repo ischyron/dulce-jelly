@@ -11,22 +11,25 @@ import { serve } from '@hono/node-server';
 import { CuratDb } from '../db/client.js';
 import { createApp } from '../server/app.js';
 import { seedDefaults } from '../db/seeds.js';
-import { readEnvFile, findCuratarrEnv, ENV_TO_SETTING } from '../shared/envFile.js';
 import { JellyfinClient } from '../jellyfin/client.js';
 import { syncJellyfin } from '../jellyfin/sync.js';
 import { syncEmitter } from '../server/sse.js';
 import { runScoutAutoBatch } from '../server/routes/scout.js';
+import { applyRuntimeSettingsToDb, ensureRuntimePaths, loadRuntimeConfig } from '../shared/runtimeConfig.js';
+import { getScoutDefaultSettings } from '../shared/scoutDefaults.js';
 
 export function makeServeCommand(): Command {
+  const runtimeCfg = loadRuntimeConfig();
   return new Command('serve')
     .description('Start the Curatarr web UI server')
-    .option('-p, --port <n>', 'HTTP port', process.env.CURATARR_PORT ?? '7474')
-    .option('-d, --db <path>', 'SQLite DB path', defaultDbPath())
-    .option('--host <host>', 'Bind host', process.env.CURATARR_HOST ?? '0.0.0.0')
+    .option('-p, --port <n>', 'HTTP port', String(runtimeCfg.port))
+    .option('-d, --db <path>', 'SQLite DB path', runtimeCfg.dbPath)
+    .option('--host <host>', 'Bind host', runtimeCfg.host)
     .action(async (opts) => {
       const port = parseInt(opts.port, 10);
       const dbPath = opts.db.replace(/^~/, os.homedir());
       const host = opts.host;
+      ensureRuntimePaths(runtimeCfg);
 
       // dist-ui is next to dist/ — both are siblings of src/
       const __filename = fileURLToPath(import.meta.url);
@@ -41,20 +44,19 @@ export function makeServeCommand(): Command {
       console.log('');
 
       const db = new CuratDb(dbPath);
-
-      // Load settings from packages/curatarr/.env (or cwd/.env) — overrides DB on every start.
-      // This is the primary config source; edit the .env file, restart to apply.
-      const envFilePath = findCuratarrEnv(__dirname);
-      if (envFilePath) {
-        const envVars = readEnvFile(envFilePath);
-        let loaded = 0;
-        for (const [envKey, dbKey] of Object.entries(ENV_TO_SETTING)) {
-          if (envVars[envKey]) {
-            db.setSetting(dbKey, envVars[envKey]);
-            loaded++;
-          }
-        }
-        if (loaded > 0) console.log(`  Config : ${envFilePath} (${loaded} setting${loaded > 1 ? 's' : ''} applied)`);
+      const yamlMasterSettings: Record<string, string> = {
+        ...runtimeCfg.settings,
+        ...getScoutDefaultSettings(),
+      };
+      const syncStats = applyRuntimeSettingsToDb(
+        (k) => db.getSetting(k),
+        (k, v) => db.setSetting(k, v),
+        yamlMasterSettings,
+      );
+      if (syncStats.total > 0) {
+        console.log(
+          `  Config : ${runtimeCfg.configPath} (${syncStats.changed}/${syncStats.total} settings synced from YAML)`,
+        );
       }
 
       seedDefaults(db);
@@ -90,8 +92,8 @@ function startJfSyncScheduler(db: CuratDb): void {
   const runScheduledSync = async () => {
     if (syncEmitter.running) return; // skip — manual or scheduled sync already in progress
 
-    const url = db.getSetting('jellyfinUrl') ?? process.env.JELLYFIN_URL ?? '';
-    const apiKey = db.getSetting('jellyfinApiKey') ?? process.env.JELLYFIN_API_KEY ?? '';
+    const url = db.getSetting('jellyfinUrl') ?? '';
+    const apiKey = db.getSetting('jellyfinApiKey') ?? '';
     if (!url || !apiKey) return; // JF not configured yet
 
     const batchSize = parseInt(db.getSetting('jfSyncBatchSize') ?? '10', 10);
@@ -163,10 +165,4 @@ function startScoutScheduler(db: CuratDb): void {
   };
 
   setInterval(runScheduledScout, intervalMs);
-}
-
-function defaultDbPath(): string {
-  // Priority: CURATARR_DB env var → ~/.curatarr/curatarr.db
-  // In Docker the image sets CURATARR_DB=/config/curatarr.db by default.
-  return process.env.CURATARR_DB ?? path.join(os.homedir(), '.curatarr', 'curatarr.db');
 }

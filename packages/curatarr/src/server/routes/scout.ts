@@ -31,8 +31,10 @@ interface ScoutScoreConfig {
   legacyPenalty: number;
   small4kPenalty: number;
   small4kMinGiB: number;
-  bitrateMinMbps: number;
-  bitrateMaxMbps: number;
+  bitrateFloor2160Mbps: number;
+  bitrateFloor1080Mbps: number;
+  bitrateFloor720Mbps: number;
+  bitrateFloorOtherMbps: number;
   seedersDivisor: number;
   seedersBonusCap: number;
   usenetBonus: number;
@@ -120,8 +122,10 @@ const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
   legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfLegacyPenalty, 40),
   small4kPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kPenalty, 22),
   small4kMinGiB: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kMinGiB, 10),
-  bitrateMinMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMinMbps, 0),
-  bitrateMaxMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMaxMbps, 120),
+  bitrateFloor2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloor2160Mbps, 14),
+  bitrateFloor1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloor1080Mbps, 6),
+  bitrateFloor720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloor720Mbps, 3),
+  bitrateFloorOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloorOtherMbps, 1),
   seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersDivisor, 25),
   seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersBonusCap, 10),
   usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfUsenetBonus, 10),
@@ -147,8 +151,10 @@ const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
   scoutCfLegacyPenalty: '40',
   scoutCfSmall4kPenalty: '20',
   scoutCfSmall4kMinGiB: '10',
-  scoutCfBitrateMinMbps: '0',
-  scoutCfBitrateMaxMbps: '120',
+  scoutCfBitrateFloor2160Mbps: '14',
+  scoutCfBitrateFloor1080Mbps: '6',
+  scoutCfBitrateFloor720Mbps: '3',
+  scoutCfBitrateFloorOtherMbps: '1',
   scoutCfSeedersDivisor: '25',
   scoutCfSeedersBonusCap: '10',
   scoutCfUsenetBonus: '10',
@@ -159,6 +165,44 @@ interface ScoutRuleSeed {
   name: string;
   priority: number;
   config: Record<string, unknown>;
+}
+
+interface TrashAppliedRuleSnapshot {
+  id: number;
+  name: string;
+  priority: number;
+  enabled: boolean;
+  config: unknown;
+}
+
+interface TrashUpstreamFileSnapshot {
+  name: string;
+  size: number;
+  downloadUrl: string;
+  parsedJson?: unknown;
+  warning?: string;
+}
+
+interface TrashUpstreamSnapshot {
+  path: string;
+  fileCount: number;
+  truncated: boolean;
+  files: TrashUpstreamFileSnapshot[];
+}
+
+interface TrashSyncDetailsResponse {
+  meta: {
+    source: string;
+    revision: string | null;
+    syncedAt: string | null;
+    rulesSynced: number;
+    warning?: string;
+  };
+  applied: {
+    settings: Record<string, string>;
+    rules: TrashAppliedRuleSnapshot[];
+  };
+  upstream: TrashUpstreamSnapshot | null;
 }
 
 const SCOUT_RULE_BASELINE: ScoutRuleSeed[] = [
@@ -330,6 +374,99 @@ async function fetchTrashGuidesRevision(): Promise<{ source: string; revision: s
   }
 }
 
+async function fetchTrashGuidesSnapshot(): Promise<{ snapshot: TrashUpstreamSnapshot | null; warning?: string }> {
+  const path = 'docs/json/radarr/custom-formats';
+  const maxFiles = 10;
+  const maxBytes = 180_000;
+  try {
+    const listRes = await fetch(
+      `https://api.github.com/repos/TRaSH-Guides/Guides/contents/${path}`,
+      { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'curatarr-scout-sync' } },
+    );
+    if (!listRes.ok) {
+      return { snapshot: null, warning: `upstream_list_failed_${listRes.status}` };
+    }
+    const list = await listRes.json() as Array<{
+      type?: string;
+      name?: string;
+      size?: number;
+      download_url?: string | null;
+    }>;
+    const jsonFiles = list
+      .filter(f => f.type === 'file' && typeof f.name === 'string' && f.name.endsWith('.json') && typeof f.download_url === 'string')
+      .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
+    const selected = jsonFiles.slice(0, maxFiles);
+    const files: TrashUpstreamFileSnapshot[] = [];
+    for (const file of selected) {
+      const name = file.name ?? 'unknown.json';
+      const size = Number(file.size ?? 0);
+      const downloadUrl = file.download_url ?? '';
+      if (size > maxBytes) {
+        files.push({ name, size, downloadUrl, warning: `skipped_oversize_${size}` });
+        continue;
+      }
+      try {
+        const contentRes = await fetch(downloadUrl, { headers: { 'User-Agent': 'curatarr-scout-sync' } });
+        if (!contentRes.ok) {
+          files.push({ name, size, downloadUrl, warning: `content_fetch_failed_${contentRes.status}` });
+          continue;
+        }
+        const parsedJson = await contentRes.json().catch(() => null);
+        if (parsedJson == null) {
+          files.push({ name, size, downloadUrl, warning: 'invalid_json' });
+          continue;
+        }
+        files.push({ name, size, downloadUrl, parsedJson });
+      } catch (err) {
+        files.push({ name, size, downloadUrl, warning: `content_fetch_failed_${(err as Error).message}` });
+      }
+    }
+    return {
+      snapshot: {
+        path,
+        fileCount: jsonFiles.length,
+        truncated: jsonFiles.length > maxFiles,
+        files,
+      },
+      warning: jsonFiles.length > maxFiles ? `upstream_files_truncated_${maxFiles}` : undefined,
+    };
+  } catch (err) {
+    return { snapshot: null, warning: `upstream_fetch_failed_${(err as Error).message}` };
+  }
+}
+
+function parseJsonSetting<T>(db: CuratDb, key: string, fallback: T): T {
+  const raw = db.getSetting(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+function getTrashSyncDetails(db: CuratDb): TrashSyncDetailsResponse {
+  const source = db.getSetting('scoutTrashSyncSource') ?? '';
+  const revisionRaw = db.getSetting('scoutTrashSyncRevision') ?? '';
+  const syncedAtRaw = db.getSetting('scoutTrashSyncedAt') ?? '';
+  const rulesSyncedRaw = parseInt(db.getSetting('scoutTrashSyncedRules') ?? '0', 10);
+  const warning = db.getSetting('scoutTrashSyncWarning') ?? '';
+  return {
+    meta: {
+      source: source || 'TRaSH-Guides',
+      revision: revisionRaw || null,
+      syncedAt: syncedAtRaw || null,
+      rulesSynced: Number.isFinite(rulesSyncedRaw) ? rulesSyncedRaw : 0,
+      warning: warning || undefined,
+    },
+    applied: {
+      settings: parseJsonSetting<Record<string, string>>(db, 'scoutTrashAppliedSettingsJson', {}),
+      rules: parseJsonSetting<TrashAppliedRuleSnapshot[]>(db, 'scoutTrashAppliedRulesJson', []),
+    },
+    upstream: parseJsonSetting<TrashUpstreamSnapshot | null>(db, 'scoutTrashUpstreamSnapshotJson', null),
+  };
+}
+
 function buildScoutRefinementDraft(
   db: CuratDb,
   objective: string,
@@ -416,9 +553,6 @@ function floatSetting(db: CuratDb, key: string, fallback: number, min: number, m
 }
 
 function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
-  const bitrateMinMbps = floatSetting(db, 'scoutCfBitrateMinMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMinMbps, 0, 200);
-  const bitrateMaxRaw = floatSetting(db, 'scoutCfBitrateMaxMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxMbps, 1, 300);
-  const bitrateMaxMbps = Math.max(bitrateMinMbps, bitrateMaxRaw);
   return {
     res2160: intSetting(db, 'scoutCfRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
     res1080: intSetting(db, 'scoutCfRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
@@ -438,8 +572,18 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
     legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
     small4kPenalty: intSetting(db, 'scoutCfSmall4kPenalty', DEFAULT_SCOUT_SCORE_CONFIG.small4kPenalty, 0, 400),
     small4kMinGiB: floatSetting(db, 'scoutCfSmall4kMinGiB', DEFAULT_SCOUT_SCORE_CONFIG.small4kMinGiB, 0.5, 60),
-    bitrateMinMbps,
-    bitrateMaxMbps,
+    bitrateFloor2160Mbps: floatSetting(
+      db, 'scoutCfBitrateFloor2160Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloor2160Mbps, 0, 200,
+    ),
+    bitrateFloor1080Mbps: floatSetting(
+      db, 'scoutCfBitrateFloor1080Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloor1080Mbps, 0, 120,
+    ),
+    bitrateFloor720Mbps: floatSetting(
+      db, 'scoutCfBitrateFloor720Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloor720Mbps, 0, 80,
+    ),
+    bitrateFloorOtherMbps: floatSetting(
+      db, 'scoutCfBitrateFloorOtherMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloorOtherMbps, 0, 60,
+    ),
     seedersDivisor: intSetting(db, 'scoutCfSeedersDivisor', DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor, 1, 500),
     seedersBonusCap: intSetting(db, 'scoutCfSeedersBonusCap', DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap, 0, 200),
     usenetBonus: intSetting(db, 'scoutCfUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
@@ -525,10 +669,10 @@ function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: Sc
   if (!res) return { excluded: false };
 
   const floorByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
-    '2160p': 8,
-    '1080p': 4,
-    '720p': 2,
-    'other': 0.8,
+    '2160p': cfg.bitrateFloor2160Mbps,
+    '1080p': cfg.bitrateFloor1080Mbps,
+    '720p': cfg.bitrateFloor720Mbps,
+    'other': cfg.bitrateFloorOtherMbps,
   };
   const codecMultiplier: Record<'av1' | 'hevc' | 'h264' | 'unknown', number> = {
     av1: 0.8,
@@ -538,7 +682,7 @@ function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: Sc
   };
 
   const codec = codecFromTitle(r.title);
-  const floor = Math.max(cfg.bitrateMinMbps, floorByResMbps[res] * codecMultiplier[codec]);
+  const floor = Math.max(0, floorByResMbps[res] * codecMultiplier[codec]);
   const estimatedMbps = (r.size * 8) / runtimeSec / 1_000_000;
   if (estimatedMbps < floor) {
     return {
@@ -546,18 +690,12 @@ function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: Sc
       reason: `excluded low bitrate for ${res}: ${estimatedMbps.toFixed(2)} Mbps < ${floor.toFixed(2)} Mbps`,
     };
   }
-  if (estimatedMbps > cfg.bitrateMaxMbps) {
-    return {
-      excluded: true,
-      reason: `excluded high bitrate: ${estimatedMbps.toFixed(2)} Mbps > ${cfg.bitrateMaxMbps.toFixed(2)} Mbps`,
-    };
-  }
   return { excluded: false };
 }
 
 function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | null {
-  const url = db.getSetting('prowlarrUrl') ?? process.env.PROWLARR_URL ?? '';
-  const apiKey = db.getSetting('prowlarrApiKey') ?? process.env.PROWLARR_API_KEY ?? '';
+  const url = db.getSetting('prowlarrUrl') ?? '';
+  const apiKey = db.getSetting('prowlarrApiKey') ?? '';
   if (!url || !apiKey) return null;
   return { url, apiKey };
 }
@@ -719,17 +857,39 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     applySettings(db, TRASH_SCOUT_BASELINE_SETTINGS);
     const savedRuleIds = ensureScoutRuleBaseline(db);
     const meta = await fetchTrashGuidesRevision();
+    const upstream = await fetchTrashGuidesSnapshot();
+    const appliedRules = db.getRules('scout')
+      .filter(r => savedRuleIds.includes(r.id))
+      .map(r => ({
+        id: r.id,
+        name: r.name,
+        priority: r.priority,
+        enabled: r.enabled !== 0,
+        config: safeParseJson(r.config),
+      }));
+    const warningCombined = [meta.warning, upstream.warning].filter(Boolean).join('; ');
     applySettings(db, {
       scoutTrashSyncSource: meta.source,
       scoutTrashSyncRevision: meta.revision ?? '',
       scoutTrashSyncedAt: meta.fetchedAt,
       scoutTrashSyncedRules: String(savedRuleIds.length),
+      scoutTrashAppliedSettingsJson: JSON.stringify(TRASH_SCOUT_BASELINE_SETTINGS),
+      scoutTrashAppliedRulesJson: JSON.stringify(appliedRules),
+      scoutTrashUpstreamSnapshotJson: JSON.stringify(upstream.snapshot),
+      scoutTrashSyncWarning: warningCombined,
     });
+    const details = getTrashSyncDetails(db);
     return c.json({
       applied: TRASH_SCOUT_BASELINE_SETTINGS,
       syncedRules: savedRuleIds.length,
-      meta,
+      meta: { ...meta, warning: warningCombined || meta.warning },
+      details,
     });
+  });
+
+  // GET /api/scout/trash-sync-details
+  app.get('/trash-sync-details', (c) => {
+    return c.json(getTrashSyncDetails(db));
   });
 
   // POST /api/scout/rules/refine-draft  { objective: string }

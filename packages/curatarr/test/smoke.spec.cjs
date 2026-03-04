@@ -127,7 +127,7 @@ test.describe('Library', () => {
     const guideBtn = page.getByRole('button', { name: 'Status color guide' });
     await guideBtn.click();
     await expect(page.getByText('Status dot guide')).toBeVisible();
-    await expect(page.getByText(/Left dot \(scan\):/)).toBeVisible();
+    await expect(page.getByText(/Left dot \(Scan\)/i)).toBeVisible();
 
     await page.locator('body').click({ position: { x: 4, y: 4 } });
     await expect(page.getByText('Status dot guide')).toBeHidden();
@@ -209,6 +209,8 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
   test('disambiguate loads', async ({ page }) => {
     await page.goto('/disambiguate');
     await expect(page.getByRole('heading', { name: 'Disambiguate' })).toBeVisible();
+    await expect(page.getByText('Folder Naming Support')).toBeVisible();
+    await expect(page.getByText('Rename folder to match Jellyfin title/year or adjust Jellyfin metadata, then click Refresh.')).toBeVisible();
   });
 
   test('verify loads', async ({ page }) => {

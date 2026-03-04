@@ -1,7 +1,7 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown, Link2, Bot, Library as LibraryIcon } from 'lucide-react';
+import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown, Link2, Bot, Library as LibraryIcon, Plus, Minus, FolderOpen } from 'lucide-react';
 import { api } from '../api/client.js';
 import { InfoHint } from '../components/InfoHint.js';
 
@@ -73,7 +73,6 @@ Protocol weights:
   Usenet bonus, Torrent bonus
 Penalties:
   Legacy codec penalty (xvid/mpeg4)
-  Small-4K penalty when size < Small 4K Min GiB
 Bitrate gate:
   Hard exclude releases outside per-resolution Min/Max bitrate bands
 Availability:
@@ -112,6 +111,75 @@ Codec normalization is applied (AV1 lower band, H264 higher band) before filteri
 
 This avoids one global bitrate threshold across all formats.`;
 
+const BITRATE_PROFILE_DESCRIPTION = 'Choose a bias profile to prefill recommended bitrate Min/Max gates by resolution. By default, WEB-DL bias is selected for storage efficiency.';
+
+const BITRATE_PREVIEW_MINUTES = 110;
+type BitrateProfileId = 'webdl' | 'bluray' | 'remux';
+
+type BitrateBandPreset = {
+  min2160: string;
+  max2160: string;
+  min1080: string;
+  max1080: string;
+  min720: string;
+  max720: string;
+  minOther: string;
+  maxOther: string;
+};
+
+const BITRATE_BIAS_PROFILES: Array<{
+  id: BitrateProfileId;
+  label: string;
+  summary: string;
+  values: BitrateBandPreset;
+}> = [
+  {
+    id: 'webdl',
+    label: 'WEB-DL biased',
+    summary: 'Balanced quality with storage efficiency.',
+    values: {
+      min2160: '10',
+      max2160: '35',
+      min1080: '4',
+      max1080: '15',
+      min720: '2.5',
+      max720: '8',
+      minOther: '1',
+      maxOther: '12',
+    },
+  },
+  {
+    id: 'bluray',
+    label: 'BluRay biased',
+    summary: 'Higher quality headroom with larger files.',
+    values: {
+      min2160: '18',
+      max2160: '70',
+      min1080: '8',
+      max1080: '35',
+      min720: '4',
+      max720: '16',
+      minOther: '1',
+      maxOther: '12',
+    },
+  },
+  {
+    id: 'remux',
+    label: 'Remux biased',
+    summary: 'Maximum quality targets and largest files.',
+    values: {
+      min2160: '35',
+      max2160: '120',
+      min1080: '18',
+      max1080: '70',
+      min720: '8',
+      max720: '30',
+      minOther: '1',
+      maxOther: '12',
+    },
+  },
+];
+
 const SCOUT_OBJECTIVE_SAMPLES = [
   'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
   'Prioritize playback compatibility for Android TV and Chromecast devices.',
@@ -138,7 +206,6 @@ const SCOUT_PRESET_SAMPLES: Array<{
       scoutCfSourceBluray: '22',
       scoutCfSourceWebdl: '14',
       scoutCfLegacyPenalty: '40',
-      scoutCfSmall4kPenalty: '20',
     },
   },
   {
@@ -150,7 +217,6 @@ const SCOUT_PRESET_SAMPLES: Array<{
       scoutCfCodecAv1: '6',
       scoutCfCodecH264: '14',
       scoutCfCodecHevc: '20',
-      scoutCfSmall4kPenalty: '24',
     },
   },
   {
@@ -160,8 +226,6 @@ const SCOUT_PRESET_SAMPLES: Array<{
     objective: 'Optimize for storage efficiency and practical upgrades.',
     settingsPatch: {
       scoutCfSourceRemux: '22',
-      scoutCfSmall4kPenalty: '28',
-      scoutCfSmall4kMinGiB: '12',
       scoutCfSeedersBonusCap: '8',
     },
   },
@@ -173,6 +237,11 @@ interface ScoutRuleDraft {
   enabled: boolean;
   priority: number;
   configText: string;
+}
+
+interface LibraryRootEntry {
+  type: 'movies' | 'series';
+  path: string;
 }
 
 interface OrderedScoreField {
@@ -207,9 +276,77 @@ const AUDIO_SCORE_FIELDS: OrderedScoreField[] = [
   { key: 'scoutCfAudioAac', label: 'AAC' },
 ];
 
+const BITRATE_KEYS = {
+  min2160: 'scoutCfBitrateMin2160Mbps',
+  max2160: 'scoutCfBitrateMax2160Mbps',
+  min1080: 'scoutCfBitrateMin1080Mbps',
+  max1080: 'scoutCfBitrateMax1080Mbps',
+  min720: 'scoutCfBitrateMin720Mbps',
+  max720: 'scoutCfBitrateMax720Mbps',
+  minOther: 'scoutCfBitrateMinOtherMbps',
+  maxOther: 'scoutCfBitrateMaxOtherMbps',
+} as const;
+
+function detectBitrateProfileFromSettings(current: Record<string, string>): BitrateProfileId | null {
+  const same = (a: string | undefined, b: string): boolean => {
+    const av = Number(a ?? '');
+    const bv = Number(b);
+    return Number.isFinite(av) && Number.isFinite(bv) && Math.abs(av - bv) < 0.001;
+  };
+  for (const profile of BITRATE_BIAS_PROFILES) {
+    const v = profile.values;
+    if (
+      same(current[BITRATE_KEYS.min2160], v.min2160)
+      && same(current[BITRATE_KEYS.max2160], v.max2160)
+      && same(current[BITRATE_KEYS.min1080], v.min1080)
+      && same(current[BITRATE_KEYS.max1080], v.max1080)
+      && same(current[BITRATE_KEYS.min720], v.min720)
+      && same(current[BITRATE_KEYS.max720], v.max720)
+      && same(current[BITRATE_KEYS.minOther], v.minOther)
+      && same(current[BITRATE_KEYS.maxOther], v.maxOther)
+    ) return profile.id;
+  }
+  return null;
+}
+
 function parseScore(value: string | undefined): number {
   const n = Number(value ?? '');
   return Number.isFinite(n) ? n : 0;
+}
+
+function normalizeRootPath(input: string): string {
+  return (input ?? '').trim().replace(/\/+$/, '');
+}
+
+function parseLibraryRoots(raw: string | undefined): LibraryRootEntry[] {
+  if (!raw || !raw.trim()) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((row): row is { type: string; path: string } => !!row && typeof row === 'object')
+      .map((row) => ({
+        type: row.type === 'series' ? 'series' : 'movies',
+        path: typeof row.path === 'string' ? row.path : '',
+      }))
+      .filter((row) => row.path.trim().length > 0);
+  } catch {
+    return [];
+  }
+}
+
+function toLibraryRootsJson(entries: LibraryRootEntry[]): string {
+  const seen = new Set<string>();
+  const normalized = entries
+    .map((e) => ({ type: e.type, path: normalizeRootPath(e.path) }))
+    .filter((e) => e.path.length > 0)
+    .filter((e) => {
+      const key = `${e.type}:${e.path}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  return JSON.stringify(normalized);
 }
 
 function rankByScore(order: string[], fields: OrderedScoreField[], form: Record<string, string>): string[] {
@@ -285,6 +422,16 @@ function fmtBytes(bytes: number): string {
   return `${n.toFixed(idx === 0 ? 0 : 1)} ${units[idx]}`;
 }
 
+function bitrateToSizeGb(mbps: number, minutes: number): number {
+  if (!Number.isFinite(mbps) || mbps <= 0 || !Number.isFinite(minutes) || minutes <= 0) return 0;
+  return (mbps * 1_000_000 / 8) * (minutes * 60) / 1_000_000_000;
+}
+
+function fmtGb(gb: number): string {
+  if (!Number.isFinite(gb) || gb <= 0) return '0.0 GB';
+  return `${gb.toFixed(1)} GB`;
+}
+
 function extractRuleDescription(configText: string): string {
   try {
     const obj = JSON.parse(configText) as Record<string, unknown>;
@@ -337,41 +484,87 @@ function Field({
   );
 }
 
-function SliderField({
-  label, name, value, onChange, min, max, step = 1, tooltip = '',
+function BitrateBandField({
+  label,
+  minName,
+  maxName,
+  minValue,
+  maxValue,
+  onChange,
+  minLimit,
+  maxLimit,
+  step = 0.5,
+  tooltip = '',
+  minutes = BITRATE_PREVIEW_MINUTES,
 }: {
   label: string;
-  name: string;
-  value: string;
-  onChange: (v: string) => void;
-  min: number;
-  max: number;
+  minName: string;
+  maxName: string;
+  minValue: string;
+  maxValue: string;
+  onChange: (key: string, v: string) => void;
+  minLimit: number;
+  maxLimit: number;
   step?: number;
   tooltip?: string;
+  minutes?: number;
 }) {
-  const numeric = Number.isFinite(Number(value)) ? Number(value) : min;
-  const shown = step < 1 ? numeric.toFixed(1) : String(Math.round(numeric));
+  const parsedMin = Number.isFinite(Number(minValue)) ? Number(minValue) : minLimit;
+  const parsedMax = Number.isFinite(Number(maxValue)) ? Number(maxValue) : maxLimit;
+  const safeMin = Math.min(parsedMin, parsedMax);
+  const safeMax = Math.max(parsedMin, parsedMax);
+  const shownMin = step < 1 ? safeMin.toFixed(1) : String(Math.round(safeMin));
+  const shownMax = step < 1 ? safeMax.toFixed(1) : String(Math.round(safeMax));
+  const estMin = fmtGb(bitrateToSizeGb(safeMin, minutes));
+  const estMax = fmtGb(bitrateToSizeGb(safeMax, minutes));
+
   return (
     <div>
       <label className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
         <span className="whitespace-nowrap">{label}</span>
         {tooltip && <InfoHint label={`${label} info`} text={tooltip} />}
       </label>
-      <div className="flex items-center gap-3">
-        <input
-          type="range"
-          name={name}
-          min={min}
-          max={max}
-          step={step}
-          value={numeric}
-          onChange={e => onChange(e.target.value)}
-          className="w-full"
-        />
-        <span className="text-xs font-mono min-w-[4rem] text-right" style={{ color: 'var(--c-text)' }}>
-          {shown} Mbps
-        </span>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-muted)' }}>Min</div>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              name={minName}
+              min={minLimit}
+              max={maxLimit}
+              step={step}
+              value={safeMin}
+              onChange={e => onChange(minName, e.target.value)}
+              className="w-full"
+            />
+            <span className="text-xs font-mono min-w-[4rem] text-right" style={{ color: 'var(--c-text)' }}>
+              {shownMin}
+            </span>
+          </div>
+        </div>
+        <div>
+          <div className="text-[11px] uppercase tracking-wider mb-1" style={{ color: 'var(--c-muted)' }}>Max</div>
+          <div className="flex items-center gap-3">
+            <input
+              type="range"
+              name={maxName}
+              min={minLimit}
+              max={maxLimit}
+              step={step}
+              value={safeMax}
+              onChange={e => onChange(maxName, e.target.value)}
+              className="w-full"
+            />
+            <span className="text-xs font-mono min-w-[4rem] text-right" style={{ color: 'var(--c-text)' }}>
+              {shownMax}
+            </span>
+          </div>
+        </div>
       </div>
+      <p className="mt-2 text-xs" style={{ color: 'var(--c-muted)' }}>
+        Typical file size for {minutes}min video: {estMin}–{estMax}
+      </p>
     </div>
   );
 }
@@ -546,6 +739,18 @@ export function Settings() {
   const [scoutRulesSaved, setScoutRulesSaved] = useState(false);
   const [scoutRulesError, setScoutRulesError] = useState('');
   const [refineObjective, setRefineObjective] = useState('');
+  const [bitrateProfileId, setBitrateProfileId] = useState<BitrateProfileId>('webdl');
+  const [movieRoots, setMovieRoots] = useState<string[]>(['']);
+  const [seriesRoots] = useState<string[]>([]);
+  const [browseOpen, setBrowseOpen] = useState(false);
+  const [browseForIndex, setBrowseForIndex] = useState<number | null>(null);
+  const [browseRoots, setBrowseRoots] = useState<string[]>([]);
+  const [browsePath, setBrowsePath] = useState<string>('/');
+  const [browseEntries, setBrowseEntries] = useState<Array<{ name: string; path: string }>>([]);
+  const [browseParentPath, setBrowseParentPath] = useState<string | null>(null);
+  const [browseRestricted, setBrowseRestricted] = useState(false);
+  const [browseMode, setBrowseMode] = useState<'docker-mounted' | 'local-full'>('local-full');
+  const [browseError, setBrowseError] = useState('');
 
   useEffect(() => {
     if (data?.settings) {
@@ -557,7 +762,7 @@ export function Settings() {
         prowlarrUrl: data.settings.prowlarrUrl ?? '',
         prowlarrApiKey: '',
         prowlarrApiKeyMasked: data.settings.prowlarrApiKey ?? '',
-        libraryPath: data.settings.libraryPath ?? '',
+        libraryRoots: data.settings.libraryRoots ?? '',
         llmProvider: 'openai',
         llmApiKey: '',
         llmApiKeyMasked: data.settings.llmApiKey ?? '',
@@ -578,16 +783,14 @@ export function Settings() {
         scoutCfCodecAv1: data.settings.scoutCfCodecAv1 ?? '16',
         scoutCfCodecH264: data.settings.scoutCfCodecH264 ?? '8',
         scoutCfLegacyPenalty: data.settings.scoutCfLegacyPenalty ?? '30',
-        scoutCfSmall4kPenalty: data.settings.scoutCfSmall4kPenalty ?? '15',
-        scoutCfSmall4kMinGiB: data.settings.scoutCfSmall4kMinGiB ?? '8',
-        scoutCfBitrateMin2160Mbps: data.settings.scoutCfBitrateMin2160Mbps ?? '14',
-        scoutCfBitrateMax2160Mbps: data.settings.scoutCfBitrateMax2160Mbps ?? '120',
-        scoutCfBitrateMin1080Mbps: data.settings.scoutCfBitrateMin1080Mbps ?? '6',
-        scoutCfBitrateMax1080Mbps: data.settings.scoutCfBitrateMax1080Mbps ?? '60',
-        scoutCfBitrateMin720Mbps: data.settings.scoutCfBitrateMin720Mbps ?? '3',
-        scoutCfBitrateMax720Mbps: data.settings.scoutCfBitrateMax720Mbps ?? '30',
+        scoutCfBitrateMin2160Mbps: data.settings.scoutCfBitrateMin2160Mbps ?? '10',
+        scoutCfBitrateMax2160Mbps: data.settings.scoutCfBitrateMax2160Mbps ?? '35',
+        scoutCfBitrateMin1080Mbps: data.settings.scoutCfBitrateMin1080Mbps ?? '4',
+        scoutCfBitrateMax1080Mbps: data.settings.scoutCfBitrateMax1080Mbps ?? '15',
+        scoutCfBitrateMin720Mbps: data.settings.scoutCfBitrateMin720Mbps ?? '2.5',
+        scoutCfBitrateMax720Mbps: data.settings.scoutCfBitrateMax720Mbps ?? '8',
         scoutCfBitrateMinOtherMbps: data.settings.scoutCfBitrateMinOtherMbps ?? '1',
-        scoutCfBitrateMaxOtherMbps: data.settings.scoutCfBitrateMaxOtherMbps ?? '20',
+        scoutCfBitrateMaxOtherMbps: data.settings.scoutCfBitrateMaxOtherMbps ?? '12',
         scoutCfSeedersDivisor: data.settings.scoutCfSeedersDivisor ?? '20',
         scoutCfSeedersBonusCap: data.settings.scoutCfSeedersBonusCap ?? '12',
         scoutCfUsenetBonus: data.settings.scoutCfUsenetBonus ?? '10',
@@ -595,11 +798,26 @@ export function Settings() {
         jfSyncIntervalMin: data.settings.jfSyncIntervalMin ?? '30',
         jfSyncBatchSize:   data.settings.jfSyncBatchSize   ?? '10',
       });
+      const parsedRoots = parseLibraryRoots(data.settings.libraryRoots);
+      const fallbackPath = data.settings.libraryPath ?? '';
+      const movie = parsedRoots.filter((r) => r.type === 'movies').map((r) => r.path);
+      if (movie.length > 0) {
+        setMovieRoots(movie);
+      } else if (fallbackPath) {
+        setMovieRoots([fallbackPath]);
+      } else {
+        setMovieRoots(['']);
+      }
       const savedProfile = data.settings.clientProfile ?? 'android_tv';
       setClientProfile(savedProfile);
       try { localStorage.setItem('clientProfile', savedProfile); } catch { /* */ }
     }
   }, [data]);
+
+  useEffect(() => {
+    const match = detectBitrateProfileFromSettings(form);
+    if (match) setBitrateProfileId(match);
+  }, [form]);
 
   const saveMutation = useMutation({
     mutationFn: (settings: Record<string, string>) => {
@@ -609,6 +827,18 @@ export function Settings() {
         if (k.endsWith('Masked')) continue;
         if (v !== '') payload[k] = v;
       }
+      const rootsPayload: LibraryRootEntry[] = [
+        ...movieRoots
+          .map((p) => normalizeRootPath(p))
+          .filter((p) => p.length > 0)
+          .map((p) => ({ type: 'movies' as const, path: p })),
+        ...seriesRoots
+          .map((p) => normalizeRootPath(p))
+          .filter((p) => p.length > 0)
+          .map((p) => ({ type: 'series' as const, path: p })),
+      ];
+      payload.libraryRoots = toLibraryRootsJson(rootsPayload);
+      delete payload.libraryPath;
       payload.llmProvider = 'openai';
       return api.saveSettings(payload);
     },
@@ -616,10 +846,10 @@ export function Settings() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       queryClient.invalidateQueries({ queryKey: ['settings'] });
-      // Prompt for scan if library path was newly set or changed
-      const prevPath = data?.settings.libraryPath ?? '';
-      const newPath = variables.libraryPath ?? '';
-      if (newPath && newPath !== prevPath) setShowScanPrompt(true);
+      // Prompt for scan if library roots were newly set or changed
+      const prevRoots = data?.settings.libraryRoots ?? '';
+      const newRoots = variables.libraryRoots ?? '';
+      if (newRoots && newRoots !== prevRoots) setShowScanPrompt(true);
     },
   });
   const { data: autoStatusData, refetch: refetchAutoStatus } = useQuery({
@@ -752,6 +982,51 @@ export function Settings() {
     setForm(prev => ({ ...prev, [key]: val }));
   }
 
+  function updateMovieRoot(index: number, value: string) {
+    setMovieRoots((prev) => prev.map((row, i) => (i === index ? value : row)));
+  }
+
+  function addMovieRoot() {
+    setMovieRoots((prev) => [...prev, '']);
+  }
+
+  function removeMovieRoot(index: number) {
+    setMovieRoots((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      return next.length > 0 ? next : [''];
+    });
+  }
+
+  async function loadBrowse(pathValue?: string) {
+    try {
+      const rootsRes = await api.fsRoots();
+      const target = pathValue || rootsRes.roots[0] || '/';
+      const list = await api.fsBrowse({ path: target });
+      setBrowseMode(list.mode);
+      setBrowseRestricted(list.restricted);
+      setBrowseRoots(list.roots);
+      setBrowsePath(list.currentPath);
+      setBrowseEntries(list.entries);
+      setBrowseParentPath(list.parentPath);
+      setBrowseError('');
+    } catch (err) {
+      setBrowseError((err as Error).message);
+    }
+  }
+
+  async function openBrowse(index: number) {
+    setBrowseForIndex(index);
+    setBrowseOpen(true);
+    await loadBrowse(normalizeRootPath(movieRoots[index]) || undefined);
+  }
+
+  function applyBrowsedPath() {
+    if (browseForIndex == null) return;
+    updateMovieRoot(browseForIndex, browsePath);
+    setBrowseOpen(false);
+    setBrowseForIndex(null);
+  }
+
   function handleSave() {
     saveMutation.mutate({ ...form, clientProfile });
     try { localStorage.setItem('clientProfile', clientProfile); } catch { /* */ }
@@ -779,6 +1054,26 @@ export function Settings() {
     setForm(prev => ({ ...prev, ...preset.settingsPatch }));
     setRefineObjective(preset.objective);
   }
+
+  function applyBitrateProfile(id: BitrateProfileId) {
+    const profile = BITRATE_BIAS_PROFILES.find(p => p.id === id);
+    if (!profile) return;
+    const v = profile.values;
+    setForm(prev => ({
+      ...prev,
+      [BITRATE_KEYS.min2160]: v.min2160,
+      [BITRATE_KEYS.max2160]: v.max2160,
+      [BITRATE_KEYS.min1080]: v.min1080,
+      [BITRATE_KEYS.max1080]: v.max1080,
+      [BITRATE_KEYS.min720]: v.min720,
+      [BITRATE_KEYS.max720]: v.max720,
+      [BITRATE_KEYS.minOther]: v.minOther,
+      [BITRATE_KEYS.maxOther]: v.maxOther,
+    }));
+  }
+
+  const selectedBitrateProfile = BITRATE_BIAS_PROFILES.find(p => p.id === bitrateProfileId) ?? BITRATE_BIAS_PROFILES[0];
+  const detectedBitrateProfile = detectBitrateProfileFromSettings(form);
 
   const activeProfile = CLIENT_PROFILES.find(p => p.id === clientProfile) ?? CLIENT_PROFILES[0];
 
@@ -836,9 +1131,58 @@ export function Settings() {
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
             <LibraryIcon size={16} style={{ color: 'var(--c-accent)' }} />
-            Library
+            Library Root Folders
           </h2>
-          <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''} onChange={v => set('libraryPath', v)} placeholder="/media/Movies" hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also configurable via config/config.yaml (settings.libraryPath)." />
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>Movies</div>
+            {movieRoots.map((value, idx) => (
+              <div key={`movie-root-${idx}`} className="flex items-center gap-2">
+                <input
+                  value={value}
+                  onChange={(e) => updateMovieRoot(idx, e.target.value)}
+                  placeholder="/media/Movies"
+                  className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
+                  style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => openBrowse(idx)}
+                  className="px-3 py-2 rounded-lg text-sm flex items-center gap-1"
+                  style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}
+                  title="Browse folders"
+                >
+                  <FolderOpen size={14} />
+                  Browse
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeMovieRoot(idx)}
+                  className="px-2 py-2 rounded-lg"
+                  style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
+                  title="Remove folder"
+                >
+                  <Minus size={14} />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={addMovieRoot}
+              className="px-3 py-1.5 rounded-lg text-sm flex items-center gap-1"
+              style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}
+            >
+              <Plus size={14} />
+              Add folder
+            </button>
+            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Used by Scan when path override is blank. Configurable via <code>config/config.yaml</code> (<code>settings.libraryRoots</code>).
+            </p>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-2 opacity-80" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>Series</div>
+            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>Coming soon</p>
+          </div>
         </section>
 
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
@@ -978,108 +1322,11 @@ export function Settings() {
                 Video codec AV1: <span style={{ color: 'var(--c-text)' }}>{activeProfile.videoCodec.av1}</span>.
               </span>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Legacy Penalty" name="scoutCfLegacyPenalty"
                 value={form.scoutCfLegacyPenalty ?? '30'}
                 onChange={v => set('scoutCfLegacyPenalty', v)}
                 tooltip={LEGACY_PENALTY_TOOLTIP} />
-              <Field label="Small 4K Penalty" name="scoutCfSmall4kPenalty"
-                value={form.scoutCfSmall4kPenalty ?? '15'}
-                onChange={v => set('scoutCfSmall4kPenalty', v)} />
-              <Field label="Small 4K Min GiB" name="scoutCfSmall4kMinGiB"
-                value={form.scoutCfSmall4kMinGiB ?? '8'}
-                onChange={v => set('scoutCfSmall4kMinGiB', v)} />
-            </div>
-          </div>
-
-          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
-            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-              Bitrate
-            </div>
-            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              Radarr-style bitrate min/max by resolution (Mbps).
-            </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <SliderField
-                label="2160p Min Mbps"
-                name="scoutCfBitrateMin2160Mbps"
-                value={form.scoutCfBitrateMin2160Mbps ?? '14'}
-                onChange={v => set('scoutCfBitrateMin2160Mbps', v)}
-                min={0}
-                max={120}
-                step={0.5}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
-              <SliderField
-                label="2160p Max Mbps"
-                name="scoutCfBitrateMax2160Mbps"
-                value={form.scoutCfBitrateMax2160Mbps ?? '120'}
-                onChange={v => set('scoutCfBitrateMax2160Mbps', v)}
-                min={1}
-                max={300}
-                step={1}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
-              <SliderField
-                label="1080p Min Mbps"
-                name="scoutCfBitrateMin1080Mbps"
-                value={form.scoutCfBitrateMin1080Mbps ?? '6'}
-                onChange={v => set('scoutCfBitrateMin1080Mbps', v)}
-                min={0}
-                max={60}
-                step={0.5}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
-              <SliderField
-                label="1080p Max Mbps"
-                name="scoutCfBitrateMax1080Mbps"
-                value={form.scoutCfBitrateMax1080Mbps ?? '60'}
-                onChange={v => set('scoutCfBitrateMax1080Mbps', v)}
-                min={1}
-                max={200}
-                step={1}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
-              <SliderField
-                label="720p Min Mbps"
-                name="scoutCfBitrateMin720Mbps"
-                value={form.scoutCfBitrateMin720Mbps ?? '3'}
-                onChange={v => set('scoutCfBitrateMin720Mbps', v)}
-                min={0}
-                max={40}
-                step={0.5}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
-              <SliderField
-                label="720p Max Mbps"
-                name="scoutCfBitrateMax720Mbps"
-                value={form.scoutCfBitrateMax720Mbps ?? '30'}
-                onChange={v => set('scoutCfBitrateMax720Mbps', v)}
-                min={1}
-                max={150}
-                step={1}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
-              <SliderField
-                label="Other Min Mbps"
-                name="scoutCfBitrateMinOtherMbps"
-                value={form.scoutCfBitrateMinOtherMbps ?? '1'}
-                onChange={v => set('scoutCfBitrateMinOtherMbps', v)}
-                min={0}
-                max={20}
-                step={0.25}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
-              <SliderField
-                label="Other Max Mbps"
-                name="scoutCfBitrateMaxOtherMbps"
-                value={form.scoutCfBitrateMaxOtherMbps ?? '20'}
-                onChange={v => set('scoutCfBitrateMaxOtherMbps', v)}
-                min={1}
-                max={120}
-                step={0.5}
-                tooltip={BITRATE_GATE_TOOLTIP}
-              />
             </div>
           </div>
 
@@ -1092,6 +1339,109 @@ export function Settings() {
               form={form}
               onChange={set}
             />
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Curatarr Recommended Bitrate Profiles
+            </div>
+            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              {BITRATE_PROFILE_DESCRIPTION}
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
+              <div>
+                <label className="text-sm font-medium mb-1 block" style={{ color: '#c4b5fd' }}>Profile</label>
+                <select
+                  value={bitrateProfileId}
+                  onChange={e => setBitrateProfileId(e.target.value as BitrateProfileId)}
+                  className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
+                  style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                >
+                  {BITRATE_BIAS_PROFILES.map(profile => (
+                    <option key={profile.id} value={profile.id}>
+                      {profile.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                onClick={() => applyBitrateProfile(bitrateProfileId)}
+                className="px-4 py-2 rounded-lg text-sm font-medium"
+                style={{ background: 'rgba(124,58,237,0.18)', border: '1px solid rgba(124,58,237,0.45)', color: '#ddd6fe' }}
+              >
+                Apply Profile
+              </button>
+            </div>
+            <div className="rounded-lg border p-3 text-xs space-y-1" style={{ borderColor: 'var(--c-border)', background: 'rgba(139,135,170,0.08)', color: 'var(--c-muted)' }}>
+              <div>{selectedBitrateProfile.summary}</div>
+              <div>
+                Preview ({BITRATE_PREVIEW_MINUTES}min): 2160p {selectedBitrateProfile.values.min2160}-{selectedBitrateProfile.values.max2160} Mbps ·
+                1080p {selectedBitrateProfile.values.min1080}-{selectedBitrateProfile.values.max1080} Mbps ·
+                720p {selectedBitrateProfile.values.min720}-{selectedBitrateProfile.values.max720} Mbps
+              </div>
+              <div>&lt;720p uses fallback band ({selectedBitrateProfile.values.minOther}-{selectedBitrateProfile.values.maxOther} Mbps).</div>
+              {detectedBitrateProfile == null && <div style={{ color: '#f5d0fe' }}>Current state: Custom</div>}
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+              Bitrate Gates (Adjust below)
+            </div>
+            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Bitrate includes video + audio streams. Curatarr tuning is focused on 720p, 1080p, and 2160p.
+            </p>
+            <div className="space-y-3">
+              <BitrateBandField
+                label="2160p"
+                minName={BITRATE_KEYS.min2160}
+                maxName={BITRATE_KEYS.max2160}
+                minValue={form[BITRATE_KEYS.min2160] ?? '10'}
+                maxValue={form[BITRATE_KEYS.max2160] ?? '35'}
+                onChange={set}
+                minLimit={0}
+                maxLimit={120}
+                step={0.5}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <BitrateBandField
+                label="1080p"
+                minName={BITRATE_KEYS.min1080}
+                maxName={BITRATE_KEYS.max1080}
+                minValue={form[BITRATE_KEYS.min1080] ?? '4'}
+                maxValue={form[BITRATE_KEYS.max1080] ?? '15'}
+                onChange={set}
+                minLimit={0}
+                maxLimit={60}
+                step={0.5}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <BitrateBandField
+                label="720p"
+                minName={BITRATE_KEYS.min720}
+                maxName={BITRATE_KEYS.max720}
+                minValue={form[BITRATE_KEYS.min720] ?? '2.5'}
+                maxValue={form[BITRATE_KEYS.max720] ?? '8'}
+                onChange={set}
+                minLimit={0}
+                maxLimit={40}
+                step={0.5}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <BitrateBandField
+                label="Other (<720p fallback)"
+                minName={BITRATE_KEYS.minOther}
+                maxName={BITRATE_KEYS.maxOther}
+                minValue={form[BITRATE_KEYS.minOther] ?? '1'}
+                maxValue={form[BITRATE_KEYS.maxOther] ?? '12'}
+                onChange={set}
+                minLimit={0}
+                maxLimit={30}
+                step={0.25}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+            </div>
           </div>
 
           <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
@@ -1563,14 +1913,14 @@ export function Settings() {
       </section>
       </AccordionSection>
 
-      {/* Scan prompt — shown after library path is saved */}
+      {/* Scan prompt — shown after library roots are saved */}
       {showScanPrompt && (
         <div className="flex items-start gap-3 p-4 rounded-xl border"
           style={{ background: 'rgba(124,58,237,0.08)', borderColor: 'rgba(124,58,237,0.3)' }}>
           <ScanLine size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--c-accent)' }} />
           <div className="flex-1 space-y-2">
             <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>
-              Library path updated — start a scan?
+              Library root folders updated — start a scan?
             </div>
             <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
               An initial scan reads every file with ffprobe to extract resolution, codec, HDR, audio, and size metadata.
@@ -1587,6 +1937,101 @@ export function Settings() {
                 onClick={() => setShowScanPrompt(false)}
                 className="text-xs underline" style={{ color: 'var(--c-muted)' }}>
                 Dismiss
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {browseOpen && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl rounded-xl border p-4 space-y-3" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="font-semibold" style={{ color: '#d4cfff' }}>Browse Folder</div>
+                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                  {browseRestricted
+                    ? 'Browsing limited to mounted volumes in Docker mode.'
+                    : 'Local mode: full-disk browsing enabled.'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setBrowseOpen(false); setBrowseForIndex(null); }}
+                className="p-2 rounded-lg"
+                style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Mode: <span style={{ color: 'var(--c-text)' }}>{browseMode}</span>
+              {' · '}Current: <span style={{ color: '#c4b5fd' }}>{browsePath}</span>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {browseRoots.map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => { void loadBrowse(r); }}
+                  className="px-2 py-1 rounded text-xs"
+                  style={{ border: '1px solid var(--c-border)', color: '#c4b5fd' }}
+                >
+                  {r}
+                </button>
+              ))}
+              {browseParentPath && (
+                <button
+                  type="button"
+                  onClick={() => { void loadBrowse(browseParentPath); }}
+                  className="px-2 py-1 rounded text-xs"
+                  style={{ border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                >
+                  Parent
+                </button>
+              )}
+            </div>
+
+            <div className="rounded border overflow-auto max-h-72" style={{ borderColor: 'var(--c-border)' }}>
+              {browseError ? (
+                <div className="p-3 text-sm text-red-400">{browseError}</div>
+              ) : browseEntries.length === 0 ? (
+                <div className="p-3 text-sm" style={{ color: 'var(--c-muted)' }}>No subfolders found.</div>
+              ) : (
+                <div className="divide-y" style={{ borderColor: 'var(--c-border)' }}>
+                  {browseEntries.map((entry) => (
+                    <button
+                      key={entry.path}
+                      type="button"
+                      onClick={() => { void loadBrowse(entry.path); }}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
+                      style={{ color: 'var(--c-text)' }}
+                    >
+                      {entry.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => { setBrowseOpen(false); setBrowseForIndex(null); }}
+                className="px-3 py-1.5 rounded text-sm"
+                style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={applyBrowsedPath}
+                className="px-3 py-1.5 rounded text-sm text-white"
+                style={{ background: 'var(--c-accent)' }}
+              >
+                Use This Folder
               </button>
             </div>
           </div>

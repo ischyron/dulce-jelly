@@ -111,7 +111,7 @@ export function ScanPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2">
-            <label className="text-xs text-[#6b6888] block mb-1">Library Path (leave blank to use saved path)</label>
+            <label className="text-xs text-[#6b6888] block mb-1">Library Path (leave blank to use saved Movies roots)</label>
             <input
               type="text"
               placeholder="e.g. /media/Movies"

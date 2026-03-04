@@ -736,6 +736,13 @@ export class CuratDb {
     return Object.fromEntries(rows.map(r => [r.key, r.value]));
   }
 
+  deleteSettings(keys: string[]): number {
+    if (keys.length === 0) return 0;
+    const placeholders = keys.map(() => '?').join(', ');
+    const result = this.db.prepare(`DELETE FROM settings WHERE key IN (${placeholders})`).run(...keys);
+    return result.changes;
+  }
+
   // ──────────────────────────────────────────────────────────────────
   // Quality rules
   // ──────────────────────────────────────────────────────────────────

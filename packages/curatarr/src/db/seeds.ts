@@ -16,12 +16,15 @@ import os from 'node:os';
 import path from 'node:path';
 import type { CuratDb } from './client.js';
 import { getDefaultLlmProvider, getScoutDefaultSettings } from '../shared/scoutDefaults.js';
+import { stringifyLibraryRoots } from '../shared/libraryRoots.js';
 
 // ── Default settings ────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   /** Resolved at runtime to avoid hardcoding username */
-  libraryPath: path.join(os.homedir(), 'Media', 'MEDIA1', 'Movies'),
+  libraryRoots: stringifyLibraryRoots([
+    { type: 'movies', path: path.join(os.homedir(), 'Media', 'MEDIA1', 'Movies') },
+  ]),
 
   /** Scan workers — half of logical CPUs, capped at 8 */
   defaultJobs: String(Math.min(8, Math.max(2, Math.floor(os.cpus().length / 2)))),

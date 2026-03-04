@@ -29,8 +29,6 @@ interface ScoutScoreConfig {
   audioAc3: number;
   audioAac: number;
   legacyPenalty: number;
-  small4kPenalty: number;
-  small4kMinGiB: number;
   bitrateMin2160Mbps: number;
   bitrateMax2160Mbps: number;
   bitrateMin1080Mbps: number;
@@ -124,16 +122,14 @@ const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
   audioAc3: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAc3, 2),
   audioAac: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAac, 1),
   legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfLegacyPenalty, 40),
-  small4kPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kPenalty, 22),
-  small4kMinGiB: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kMinGiB, 10),
-  bitrateMin2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin2160Mbps, 14),
-  bitrateMax2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax2160Mbps, 120),
-  bitrateMin1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin1080Mbps, 6),
-  bitrateMax1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax1080Mbps, 60),
-  bitrateMin720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin720Mbps, 3),
-  bitrateMax720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax720Mbps, 30),
+  bitrateMin2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin2160Mbps, 10),
+  bitrateMax2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax2160Mbps, 35),
+  bitrateMin1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin1080Mbps, 4),
+  bitrateMax1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax1080Mbps, 15),
+  bitrateMin720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin720Mbps, 2.5),
+  bitrateMax720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax720Mbps, 8),
   bitrateMinOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMinOtherMbps, 1),
-  bitrateMaxOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMaxOtherMbps, 20),
+  bitrateMaxOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMaxOtherMbps, 12),
   seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersDivisor, 25),
   seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersBonusCap, 10),
   usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfUsenetBonus, 10),
@@ -157,16 +153,14 @@ const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
   scoutCfAudioAc3: '2',
   scoutCfAudioAac: '1',
   scoutCfLegacyPenalty: '40',
-  scoutCfSmall4kPenalty: '20',
-  scoutCfSmall4kMinGiB: '10',
-  scoutCfBitrateMin2160Mbps: '14',
-  scoutCfBitrateMax2160Mbps: '120',
-  scoutCfBitrateMin1080Mbps: '6',
-  scoutCfBitrateMax1080Mbps: '60',
-  scoutCfBitrateMin720Mbps: '3',
-  scoutCfBitrateMax720Mbps: '30',
+  scoutCfBitrateMin2160Mbps: '10',
+  scoutCfBitrateMax2160Mbps: '35',
+  scoutCfBitrateMin1080Mbps: '4',
+  scoutCfBitrateMax1080Mbps: '15',
+  scoutCfBitrateMin720Mbps: '2.5',
+  scoutCfBitrateMax720Mbps: '8',
   scoutCfBitrateMinOtherMbps: '1',
-  scoutCfBitrateMaxOtherMbps: '20',
+  scoutCfBitrateMaxOtherMbps: '12',
   scoutCfSeedersDivisor: '25',
   scoutCfSeedersBonusCap: '10',
   scoutCfUsenetBonus: '10',
@@ -496,14 +490,11 @@ function buildScoutRefinementDraft(
 
   if (/\b(storage|size|efficient|space|compact)\b/.test(normalized)) {
     proposedSettings.scoutCfSourceRemux = '24';
-    proposedSettings.scoutCfSmall4kPenalty = '26';
-    proposedSettings.scoutCfSmall4kMinGiB = '12';
   }
   if (/\b(quality|cinema|reference|best|archive)\b/.test(normalized)) {
     proposedSettings.scoutCfSourceRemux = '40';
     proposedSettings.scoutCfSourceBluray = '26';
     proposedSettings.scoutCfRes2160 = '52';
-    proposedSettings.scoutCfSmall4kPenalty = '12';
   }
   if (/\b(compat|android|chromecast|transcode|playback)\b/.test(normalized)) {
     proposedSettings.scoutCfCodecAv1 = '6';
@@ -582,8 +573,6 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
     audioAc3: intSetting(db, 'scoutCfAudioAc3', DEFAULT_SCOUT_SCORE_CONFIG.audioAc3, -200, 200),
     audioAac: intSetting(db, 'scoutCfAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
     legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
-    small4kPenalty: intSetting(db, 'scoutCfSmall4kPenalty', DEFAULT_SCOUT_SCORE_CONFIG.small4kPenalty, 0, 400),
-    small4kMinGiB: floatSetting(db, 'scoutCfSmall4kMinGiB', DEFAULT_SCOUT_SCORE_CONFIG.small4kMinGiB, 0.5, 60),
     bitrateMin2160Mbps: floatSetting(
       db, 'scoutCfBitrateMin2160Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin2160Mbps, 0, 200,
     ),

@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import type { CuratDb } from '../../db/client.js';
 import { scanEmitter } from '../sse.js';
 import { scanLibrary } from '../../scanner/scan.js';
+import { movieLibraryPaths, parseLibraryRootsJson } from '../../shared/libraryRoots.js';
 
 export function makeScanRoutes(db: CuratDb): Hono {
   const app = new Hono();
@@ -17,37 +18,76 @@ export function makeScanRoutes(db: CuratDb): Hono {
     }
 
     const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
-    const rawPath = (body.path as string) ?? db.getSetting('libraryPath') ?? '';
+    const requestedPath = typeof body.path === 'string' ? body.path : '';
     const jobs = Math.max(1, parseInt(String(body.jobs ?? Math.floor(os.cpus().length / 2)), 10));
     const rescan = Boolean(body.rescan);
 
-    if (!rawPath) {
-      return c.json({ error: 'Library path not configured. Set in Settings or provide path in request body.' }, 400);
+    const configuredRoots = parseLibraryRootsJson(db.getSetting('libraryRoots'));
+    const configuredMoviePaths = movieLibraryPaths(configuredRoots);
+    const libraryPaths = requestedPath
+      ? [path.resolve(requestedPath.replace(/^~/, os.homedir()))]
+      : configuredMoviePaths;
+
+    if (libraryPaths.length === 0) {
+      return c.json({ error: 'Library root folders not configured. Add Movies roots in Settings or provide a path in request body.' }, 400);
     }
 
-    const libraryPath = path.resolve(rawPath.replace(/^~/, os.homedir()));
-
-    if (!fs.existsSync(libraryPath)) {
-      return c.json({ error: `Library path does not exist: ${libraryPath}` }, 400);
+    for (const p of libraryPaths) {
+      if (!fs.existsSync(p)) {
+        return c.json({ error: `Library path does not exist: ${p}` }, 400);
+      }
     }
 
     const signal = scanEmitter.start();
 
-    scanEmitter.emit('start', { libraryPath, jobs, rescan });
+    scanEmitter.emit('start', { libraryPaths, jobs, rescan });
 
     setImmediate(async () => {
       try {
-        const result = await scanLibrary(libraryPath, db, {
-          concurrency: jobs,
-          rescan,
-          signal,
-          onProgress: (p) => {
-            scanEmitter.emit('progress', p);
-          },
-          onFolderComplete: (folderName, fileCount) => {
-            scanEmitter.emit('folder_complete', { folderName, fileCount });
-          },
-        });
+        const aggregate = {
+          totalFolders: 0,
+          totalFiles: 0,
+          scannedOk: 0,
+          scanErrors: 0,
+          durationSec: 0,
+          errors: [] as Array<{ file: string; error: string }>,
+          cancelled: false,
+          notes: '',
+        };
+        const startedAt = Date.now();
+
+        for (let i = 0; i < libraryPaths.length; i++) {
+          const libraryPath = libraryPaths[i];
+          if (signal.aborted) {
+            aggregate.cancelled = true;
+            break;
+          }
+
+          scanEmitter.emit('root_start', { libraryPath, index: i + 1, total: libraryPaths.length });
+          const result = await scanLibrary(libraryPath, db, {
+            concurrency: jobs,
+            rescan,
+            signal,
+            onProgress: (p) => {
+              scanEmitter.emit('progress', { ...p, rootPath: libraryPath, rootIndex: i + 1, rootTotal: libraryPaths.length });
+            },
+            onFolderComplete: (folderName, fileCount) => {
+              scanEmitter.emit('folder_complete', { folderName, fileCount, rootPath: libraryPath, rootIndex: i + 1, rootTotal: libraryPaths.length });
+            },
+          });
+          aggregate.totalFolders += result.totalFolders;
+          aggregate.totalFiles += result.totalFiles;
+          aggregate.scannedOk += result.scannedOk;
+          aggregate.scanErrors += result.scanErrors;
+          aggregate.errors.push(...result.errors);
+          scanEmitter.emit('root_complete', { libraryPath, index: i + 1, total: libraryPaths.length, result });
+        }
+        aggregate.durationSec = (Date.now() - startedAt) / 1000;
+        aggregate.notes = libraryPaths.length > 1
+          ? `Scanned ${libraryPaths.length} movie roots`
+          : `Scanned ${libraryPaths[0]}`;
+
+        const result = aggregate;
         if (signal.aborted) {
           scanEmitter.emit('complete', { ...result, cancelled: true });
         } else {
@@ -60,7 +100,7 @@ export function makeScanRoutes(db: CuratDb): Hono {
       }
     });
 
-    return c.json({ started: true, libraryPath, jobs, rescan });
+    return c.json({ started: true, libraryPaths, jobs, rescan });
   });
 
   // POST /api/scan/cancel

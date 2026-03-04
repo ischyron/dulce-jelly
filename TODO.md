@@ -13,11 +13,6 @@
 
 **CF scoring, Rules, Scout**
 
-- [DONE] ~~Show colors in HTML in tooltip. Tooltip on status column on Libary page~~ (status tooltip now renders colored dots and labels for scan/Jellyfin states)
-- [DONE] ~~Re opened after 3rd fix. FIX CAREFULLY. http://dulce.local:3270/library?page=1&tags=p1 show empty resutls but match count is 1 and api probebly works. need to find the row using playwrigth test~~ (verified API+UI parity and added Playwright regression test for `tags=p1` bookmark flow)
-
-
-- [DONE] ~~BUG RE OPEN card IS NOT fully clickable  (tooltip click now stops card-link navigation;) ~The info tooltip on Dashboard Movies (that is: total movies) card cannot be cliksed as it is already linked. We need a way to link the card as full and also that tool tip. If tool tip is relavent to be moved out then lets do so. deliberate a design.~~ (card body is fully clickable again; tooltip remains independently clickable without forced navigation)
 
 ** Disambigation **
 - [TODO] Test http://dulce.local:3270/disambiguate against parity with radarr open source code in github. When ready to work on this ask me to rename a live file on disk and we will run disabiute and test (waiting for user to rename a live folder/file to run parity scenario)

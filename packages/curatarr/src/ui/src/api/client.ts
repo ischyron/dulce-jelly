@@ -373,7 +373,7 @@ export const api = {
   },
 
   triggerScan: (body: { path?: string; jobs?: number; rescan?: boolean }) =>
-    req<{ started: boolean; libraryPath: string }>('/scan', {
+    req<{ started: boolean; libraryPaths: string[] }>('/scan', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -424,6 +424,19 @@ export const api = {
       jellyfin: { ok: boolean; libraries?: number; error?: string };
       prowlarr: { ok: boolean; indexers?: number; error?: string };
     }>(`/settings/health${qs}`);
+  },
+  fsRoots: () =>
+    req<{ mode: 'docker-mounted' | 'local-full'; roots: string[]; restricted: boolean }>('/fs/roots'),
+  fsBrowse: (params?: { path?: string }) => {
+    const qs = params?.path ? `?path=${encodeURIComponent(params.path)}` : '';
+    return req<{
+      mode: 'docker-mounted' | 'local-full';
+      restricted: boolean;
+      roots: string[];
+      currentPath: string;
+      parentPath: string | null;
+      entries: Array<{ name: string; path: string }>;
+    }>(`/fs/browse${qs}`);
   },
 
   disambiguateBatch: (items: DisambiguateRequest[]) =>

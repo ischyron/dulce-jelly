@@ -166,7 +166,7 @@ export function Dashboard() {
               Your library is empty. To get started:
             </p>
             <ol className="text-sm text-[#8b87aa] list-decimal list-inside space-y-0.5 mt-1">
-              <li>Go to <Link to="/settings" className="text-[#a78bfa] hover:underline">Settings</Link> and set your Library Path (e.g. <code className="font-mono text-xs px-1 rounded bg-[#26263a]">/media</code>).</li>
+              <li>Go to <Link to="/settings" className="text-[#a78bfa] hover:underline">Settings</Link> and set your Library Root Folders (Movies).</li>
               <li>Return here and click <strong className="text-[#c4b5fd]">Scan Library</strong> to analyse your files with ffprobe.</li>
               <li>Optionally run <Link to="/scan" className="text-[#a78bfa] hover:underline">Jellyfin Sync</Link> to enrich metadata from Jellyfin.</li>
             </ol>

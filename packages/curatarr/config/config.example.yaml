@@ -20,8 +20,12 @@ settings:
   jellyfinUrl: http://jellyfin:8096
   jellyfinPublicUrl: http://localhost:3278
 
-  # Library path as seen by Curatarr process/container
-  libraryPath: /media
+  # Library root folders as seen by Curatarr process/container
+  libraryRoots:
+    - type: movies
+      path: /media/Movies
+    - type: series
+      path: /media/Series
 
   # Prowlarr
   prowlarrUrl: http://prowlarr:9696

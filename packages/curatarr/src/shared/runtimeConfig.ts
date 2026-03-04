@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
+import { parseLibraryRootsUnknown, stringifyLibraryRoots } from './libraryRoots.js';
 
 export interface RuntimeConfig {
   host: string;
@@ -78,6 +79,11 @@ function resolveSecretsPath(): string {
 function extractSettings(raw: PlainObject): Record<string, string> {
   const out: Record<string, string> = {};
   for (const [key, value] of Object.entries(raw)) {
+    if (key === 'libraryRoots') {
+      const roots = parseLibraryRootsUnknown(value);
+      if (roots.length > 0) out.libraryRoots = stringifyLibraryRoots(roots);
+      continue;
+    }
     const scalar = str(value);
     if (scalar != null) out[key] = scalar;
   }

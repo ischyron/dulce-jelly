@@ -26,8 +26,14 @@ scoutDefaults:
   scoutCfAudioAc3: 2
   scoutCfAudioAac: 1
   scoutCfLegacyPenalty: 40
-  scoutCfSmall4kPenalty: 22
-  scoutCfSmall4kMinGiB: 10
+  scoutCfBitrateMin2160Mbps: 10
+  scoutCfBitrateMax2160Mbps: 35
+  scoutCfBitrateMin1080Mbps: 4
+  scoutCfBitrateMax1080Mbps: 15
+  scoutCfBitrateMin720Mbps: 2.5
+  scoutCfBitrateMax720Mbps: 8
+  scoutCfBitrateMinOtherMbps: 1
+  scoutCfBitrateMaxOtherMbps: 12
   scoutCfSeedersDivisor: 25
   scoutCfSeedersBonusCap: 10
   scoutCfUsenetBonus: 10
@@ -44,8 +50,10 @@ scoutDefaults:
 - `scoutCfCodecHevc`, `scoutCfCodecAv1`, `scoutCfCodecH264`: video codec weights.
 - `scoutCfAudioAtmos`, `scoutCfAudioTruehd`, `scoutCfAudioDts`, `scoutCfAudioDdp`, `scoutCfAudioAc3`, `scoutCfAudioAac`: audio weights.
 - `scoutCfLegacyPenalty`: subtracts score for legacy video codecs (xvid/mpeg4/mpeg2).
-- `scoutCfSmall4kPenalty`: subtracts score when a 2160p release is suspiciously small.
-- `scoutCfSmall4kMinGiB`: size threshold used by small-4K penalty.
+- `scoutCfBitrateMin2160Mbps`, `scoutCfBitrateMax2160Mbps`: 2160p bitrate gate band.
+- `scoutCfBitrateMin1080Mbps`, `scoutCfBitrateMax1080Mbps`: 1080p bitrate gate band.
+- `scoutCfBitrateMin720Mbps`, `scoutCfBitrateMax720Mbps`: 720p bitrate gate band.
+- `scoutCfBitrateMinOtherMbps`, `scoutCfBitrateMaxOtherMbps`: fallback band for other resolutions.
 - `scoutCfSeedersDivisor`: seeder bonus divisor (`floor(seeders / divisor)`).
 - `scoutCfSeedersBonusCap`: max seeder bonus after divisor calculation.
 - `scoutCfUsenetBonus`: fixed protocol bonus for usenet results.
@@ -57,4 +65,4 @@ scoutDefaults:
 
 Where:
 - `seederBonus = min(floor(seeders / scoutCfSeedersDivisor), scoutCfSeedersBonusCap)`
-- penalties include legacy codec and suspiciously-small 4K.
+- bitrate gate excludes releases outside per-resolution bands.

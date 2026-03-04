@@ -2,9 +2,26 @@ import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { JellyfinClient } from '../../jellyfin/client.js';
 import { syncScoringYamlFromSettings } from '../../shared/scoutDefaults.js';
+import { parseLibraryRootsUnknown, validateLibraryRootsEntries } from '../../shared/libraryRoots.js';
+
+const DEPRECATED_SCOUT_SETTINGS = [
+  'scoutCfSmall4kPenalty',
+  'scoutCfSmall4kMinGiB',
+] as const;
 
 export function makeSettingsRoutes(db: CuratDb): Hono {
   const app = new Hono();
+  let deprecatedScoutSettingsLogged = false;
+
+  function cleanupDeprecatedScoutSettings(): void {
+    const removed = db.deleteSettings([...DEPRECATED_SCOUT_SETTINGS]);
+    if (removed > 0 && !deprecatedScoutSettingsLogged) {
+      deprecatedScoutSettingsLogged = true;
+      console.info('[scout] removed deprecated small4k settings; bitrate gates are now canonical');
+    }
+  }
+
+  cleanupDeprecatedScoutSettings();
 
   async function testProwlarr(url: string, apiKey: string): Promise<{ ok: boolean; indexers?: number; error?: string }> {
     const endpoint = `${url.replace(/\/+$/, '')}/api/v1/indexer`;
@@ -49,11 +66,28 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
   // PUT /api/settings  { key: value, ... }
   app.put('/', async (c) => {
     const body = await c.req.json() as Record<string, string>;
+    if (typeof body.libraryRoots === 'string') {
+      let decoded: unknown;
+      try {
+        decoded = JSON.parse(body.libraryRoots);
+      } catch {
+        return c.json({ error: 'libraryRoots must be a valid JSON array.' }, 400);
+      }
+      if (!Array.isArray(decoded)) {
+        return c.json({ error: 'libraryRoots must be a valid JSON array.' }, 400);
+      }
+      const parsed = parseLibraryRootsUnknown(decoded);
+      const validationError = validateLibraryRootsEntries(parsed);
+      if (validationError) {
+        return c.json({ error: validationError }, 400);
+      }
+    }
     for (const [k, v] of Object.entries(body)) {
       if (typeof v === 'string') {
         db.setSetting(k, v);
       }
     }
+    cleanupDeprecatedScoutSettings();
     let scoringYamlSynced = true;
     try {
       const merged = db.getAllSettings();

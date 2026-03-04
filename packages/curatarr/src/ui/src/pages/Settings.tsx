@@ -234,7 +234,7 @@ function Field({
   return (
     <div>
       <label className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
-        <span>{label}</span>
+        <span className="whitespace-nowrap">{label}</span>
         {tooltip && <InfoHint label={`${label} info`} text={tooltip} />}
       </label>
       <input
@@ -590,7 +590,10 @@ export function Settings() {
 
       <AccordionSection title="General" defaultOpen>
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
-          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Jellyfin Connection</h2>
+          <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
+            <img src="/icons/jellyfin.svg" alt="Jellyfin" className="w-4 h-4" />
+            Jellyfin Connection
+          </h2>
           <Field label="Jellyfin URL" name="jellyfinUrl" value={form.jellyfinUrl ?? ''}
             onChange={v => set('jellyfinUrl', v)} placeholder="http://localhost:8096"
             hint={[
@@ -693,7 +696,7 @@ export function Settings() {
         </section>
 
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
-          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
+          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider (Optional)</h2>
           <div className="space-y-1">
             <label className="text-sm font-medium" style={{ color: '#c4b5fd' }}>Provider</label>
             <input
@@ -703,7 +706,7 @@ export function Settings() {
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
             />
             <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              Fixed to OpenAI for now. Provider selection will be re-enabled when multi-provider support is finalized.
+              Optional: used to filter Scout results more intelligently, break near-score ties, and bias recommendations toward your selected playback client preferences.
             </p>
           </div>
           <MaskedKeyField

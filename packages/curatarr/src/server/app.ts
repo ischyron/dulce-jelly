@@ -55,6 +55,20 @@ export function createApp(db: CuratDb, distUiPath: string): Hono {
   const uiExists = fs.existsSync(distUiPath);
 
   if (uiExists) {
+    // Hashed Vite assets can be cached aggressively.
+    app.use('/assets/*', async (c, next) => {
+      await next();
+      c.header('Cache-Control', 'public, max-age=31536000, immutable');
+    });
+
+    // HTML shell should not be cached to avoid stale bundle references after deploy.
+    app.use('/*', async (c, next) => {
+      await next();
+      const p = c.req.path;
+      if (p.startsWith('/api/') || p.startsWith('/assets/')) return;
+      c.header('Cache-Control', 'no-store, no-cache, must-revalidate');
+    });
+
     app.use('/*', serveStatic({ root: relRoot }));
     // SPA fallback — serve index.html for client-side routes
     app.get('/*', serveStatic({ root: relRoot, path: '/index.html' }));

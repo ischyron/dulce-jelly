@@ -6,6 +6,62 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
 
+function qs(obj) {
+  return new URLSearchParams(
+    Object.fromEntries(
+      Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && String(v) !== '')
+    )
+  ).toString();
+}
+
+function toApiParams(pageParams) {
+  const apiParams = { ...pageParams };
+  if (!('limit' in apiParams)) apiParams.limit = '50';
+  if (apiParams.hdr === '1') apiParams.hdr = 'true';
+  if (apiParams.dv === '1') apiParams.dv = 'true';
+  if (apiParams.legacy === '1') apiParams.legacy = 'true';
+  if (apiParams.noJf === '1') apiParams.noJf = 'true';
+  if (apiParams.multi === '1') apiParams.multi = 'true';
+  if (apiParams.av1Compat === '1') {
+    delete apiParams.av1Compat;
+    apiParams.codec = 'av1';
+  }
+  if (apiParams.q) {
+    apiParams.search = apiParams.q;
+    delete apiParams.q;
+  }
+  return apiParams;
+}
+
+async function assertLibraryParity(page, request, pageParams, label) {
+  const errors = [];
+  const onErr = (e) => errors.push(e.message);
+  page.on('pageerror', onErr);
+  try {
+    const apiParams = toApiParams(pageParams);
+    const apiRes = await request.get(`/api/movies?${qs(apiParams)}`);
+    expect(apiRes.ok(), `${label}: API failed`).toBeTruthy();
+    const apiJson = await apiRes.json();
+    const expectedRows = Array.isArray(apiJson.movies) ? apiJson.movies.length : 0;
+
+    await page.goto(`/library?${qs(pageParams)}`, { waitUntil: 'networkidle' });
+    await page.waitForTimeout(700);
+
+    const uiRows = await page.locator('tbody tr').count();
+    expect(uiRows, `${label}: UI rows should equal API movies.length`).toBe(expectedRows);
+
+    if (expectedRows > 0) {
+      await expect(page.locator('tbody tr').first(), `${label}: first row should be visible`).toBeVisible();
+      await expect(page.getByText('No movies match the current filters.')).toBeHidden();
+    } else {
+      await expect(page.getByText('No movies match the current filters.'), `${label}: empty state expected`).toBeVisible();
+    }
+    expect(errors, `${label}: page errors detected`).toEqual([]);
+  } finally {
+    page.off('pageerror', onErr);
+  }
+}
+
 test.describe('Dashboard', () => {
   test('loads and links to key filters', async ({ page }) => {
     await page.goto('/');
@@ -88,6 +144,34 @@ test.describe('Library', () => {
       await expect(page.locator('tbody tr').first()).toBeVisible();
     }
   });
+
+  test('API-vs-UI row parity across broad filter matrix', async ({ page, request }) => {
+    const tagsRes = await request.get('/api/movies/tags');
+    const tagsJson = await tagsRes.json();
+    const allTags = Array.isArray(tagsJson?.tags) ? tagsJson.tags : [];
+    const chosenTag = allTags.includes('p1') ? 'p1' : (allTags[0] ?? '');
+
+    const genresRes = await request.get('/api/movies/genres');
+    const genresJson = await genresRes.json();
+    const chosenGenre = Array.isArray(genresJson?.genres) ? (genresJson.genres[0] ?? '') : '';
+
+    const matrix = [
+      { label: 'tag-filter', pageParams: { tags: chosenTag, page: '1' } },
+      { label: 'av1-compat', pageParams: { av1Compat: '1', page: '1' } },
+      { label: 'multi-only', pageParams: { multi: '1', page: '1' } },
+      { label: 'nojf-only', pageParams: { noJf: '1', page: '1' } },
+      { label: 'video-combo', pageParams: { page: '1', limit: '100', resolution: '2160p', hdr: '1', dv: '1', legacy: '1' } },
+      { label: 'audio-format-ddp', pageParams: { page: '1', audioFormat: 'ddp' } },
+      { label: 'audio-layout-5.1', pageParams: { page: '1', audioLayout: '5.1' } },
+      { label: 'genre-filter', pageParams: { page: '1', genre: chosenGenre } },
+      { label: 'tag-plus-multi', pageParams: { page: '1', tags: chosenTag, multi: '1' } },
+    ];
+
+    for (const m of matrix) {
+      if (m.pageParams.tags === '' || m.pageParams.genre === '') continue;
+      await assertLibraryParity(page, request, m.pageParams, m.label);
+    }
+  });
 });
 
 test.describe('Scout / Disambiguate / Verify / Settings', () => {
@@ -149,5 +233,23 @@ test.describe('API sanity', () => {
     expect(res.ok()).toBeTruthy();
     const json = await res.json();
     expect(Array.isArray(json.movies)).toBeTruthy();
+  });
+
+  test('cache headers are correct for HTML shell and hashed assets', async ({ request }) => {
+    const htmlRes = await request.get('/library');
+    expect(htmlRes.ok()).toBeTruthy();
+    const htmlCache = htmlRes.headers()['cache-control'] ?? '';
+    expect(htmlCache).toContain('no-store');
+
+    const html = await htmlRes.text();
+    const assetMatch = html.match(/assets\/index-[A-Za-z0-9_-]+\.js/);
+    expect(assetMatch).toBeTruthy();
+    const assetPath = `/${assetMatch[0]}`;
+
+    const assetRes = await request.get(assetPath);
+    expect(assetRes.ok()).toBeTruthy();
+    const assetCache = assetRes.headers()['cache-control'] ?? '';
+    expect(assetCache).toContain('immutable');
+    expect(assetCache).toContain('max-age');
   });
 });

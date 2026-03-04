@@ -6,6 +6,30 @@ import { syncScoringYamlFromSettings } from '../../shared/scoutDefaults.js';
 export function makeSettingsRoutes(db: CuratDb): Hono {
   const app = new Hono();
 
+  async function testProwlarr(url: string, apiKey: string): Promise<{ ok: boolean; indexers?: number; error?: string }> {
+    const endpoint = `${url.replace(/\/+$/, '')}/api/v1/indexer`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    try {
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: { 'X-Api-Key': apiKey },
+        signal: controller.signal,
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        return { ok: false, error: `Prowlarr error ${res.status}${detail ? `: ${detail}` : ''}` };
+      }
+      const body = await res.json().catch(() => []);
+      const indexers = Array.isArray(body) ? body.length : 0;
+      return { ok: true, indexers };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
   // GET /api/settings
   app.get('/', (c) => {
     const settings = db.getAllSettings();
@@ -53,26 +77,49 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
     return c.json({ saved: Object.keys(body), scoringYamlSynced });
   });
 
-  // GET /api/settings/health — test Jellyfin connectivity
-  // Accepts optional ?url=&apiKey= query params to test unsaved form values.
+  // GET /api/settings/health — test Jellyfin + Prowlarr connectivity
+  // Accepts optional query params to test unsaved form values.
   // Falls back to saved DB / env vars when not provided.
   app.get('/health', async (c) => {
-    const qUrl    = c.req.query('url')    ?? '';
-    const qApiKey = c.req.query('apiKey') ?? '';
+    const qJfUrl = c.req.query('url') ?? '';
+    const qJfApiKey = c.req.query('apiKey') ?? '';
+    const qProwlarrUrl = c.req.query('prowlarrUrl') ?? '';
+    const qProwlarrApiKey = c.req.query('prowlarrApiKey') ?? '';
 
-    const url    = qUrl    || db.getSetting('jellyfinUrl')    || process.env.JELLYFIN_URL    || process.env.JELLYFIN_BASE_URL || '';
-    const apiKey = qApiKey || db.getSetting('jellyfinApiKey') || process.env.JELLYFIN_API_KEY || '';
+    const jfUrl = qJfUrl || db.getSetting('jellyfinUrl') || process.env.JELLYFIN_URL || process.env.JELLYFIN_BASE_URL || '';
+    const jfApiKey = qJfApiKey || db.getSetting('jellyfinApiKey') || process.env.JELLYFIN_API_KEY || '';
+    const prowlarrUrl = qProwlarrUrl || db.getSetting('prowlarrUrl') || process.env.PROWLARR_URL || '';
+    const prowlarrApiKey = qProwlarrApiKey || db.getSetting('prowlarrApiKey') || process.env.PROWLARR_API_KEY || '';
 
-    if (!url || !apiKey) {
-      return c.json({ jellyfin: { ok: false, error: 'Not configured' } });
+    const base = {
+      jellyfin: { ok: false, error: 'Not configured' } as { ok: boolean; libraries?: number; error?: string },
+      prowlarr: { ok: false, error: 'Not configured' } as { ok: boolean; indexers?: number; error?: string },
+    };
+
+    if (!jfUrl || !jfApiKey) {
+      if (!prowlarrUrl || !prowlarrApiKey) {
+        return c.json(base);
+      }
+      const prowlarr = await testProwlarr(prowlarrUrl, prowlarrApiKey);
+      return c.json({ ...base, prowlarr });
     }
 
     try {
-      const client = new JellyfinClient(url, apiKey);
+      const client = new JellyfinClient(jfUrl, jfApiKey);
       const libs = await client.getLibraries();
-      return c.json({ jellyfin: { ok: true, libraries: libs.length } });
+      const jellyfin = { ok: true, libraries: libs.length };
+      if (!prowlarrUrl || !prowlarrApiKey) {
+        return c.json({ jellyfin, prowlarr: base.prowlarr });
+      }
+      const prowlarr = await testProwlarr(prowlarrUrl, prowlarrApiKey);
+      return c.json({ jellyfin, prowlarr });
     } catch (err) {
-      return c.json({ jellyfin: { ok: false, error: (err as Error).message } });
+      const jellyfin = { ok: false, error: (err as Error).message };
+      if (!prowlarrUrl || !prowlarrApiKey) {
+        return c.json({ jellyfin, prowlarr: base.prowlarr });
+      }
+      const prowlarr = await testProwlarr(prowlarrUrl, prowlarrApiKey);
+      return c.json({ jellyfin, prowlarr });
     }
   });
 

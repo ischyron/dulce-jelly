@@ -821,11 +821,37 @@ export function Library() {
                           <div className="space-y-1">
                             <div>
                               <span className="font-semibold">Left dot (scan): </span>
-                              <span>green = scanned/verified OK, orange = verify failed, red = scan error, yellow = file pending scan, gray = not scanned.</span>
+                              <span className="inline-flex items-center gap-1.5 ml-1">
+                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#4ade80' }} />
+                                <span>scanned/verified OK</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 ml-2">
+                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#fb923c' }} />
+                                <span>verify failed</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 ml-2">
+                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#f87171' }} />
+                                <span>scan error</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 ml-2">
+                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#fbbf24' }} />
+                                <span>pending scan</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 ml-2">
+                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#3f3f5a' }} />
+                                <span>not scanned</span>
+                              </span>
                             </div>
                             <div>
                               <span className="font-semibold">Right dot (Jellyfin): </span>
-                              <span>purple = matched in Jellyfin, gray = not matched.</span>
+                              <span className="inline-flex items-center gap-1.5 ml-1">
+                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#7c3aed' }} />
+                                <span>matched in Jellyfin</span>
+                              </span>
+                              <span className="inline-flex items-center gap-1.5 ml-2">
+                                <span className="inline-block w-2 h-2 rounded-full" style={{ background: '#3f3f5a' }} />
+                                <span>not matched</span>
+                              </span>
                             </div>
                           </div>
                           <p className="text-[11px] opacity-90">

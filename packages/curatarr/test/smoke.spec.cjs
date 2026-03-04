@@ -21,8 +21,15 @@ test.describe('Dashboard', () => {
   test('movies card info tooltip is clickable without triggering card navigation', async ({ page }) => {
     await page.goto('/');
     await expect(page).toHaveURL(/\/$/);
-    await page.getByRole('button', { name: 'Movies info' }).click({ force: true });
+    await page.getByRole('button', { name: 'Movies info' }).click();
+    await expect(page.getByText('Curatarr treats one library folder as one movie record.')).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
+  });
+
+  test('movies card body remains fully clickable and opens Library', async ({ page }) => {
+    await page.goto('/');
+    await page.getByLabel('Open library from Movies card').click({ position: { x: 24, y: 24 } });
+    await expect(page).toHaveURL(/\/library(?:\?reset=1)?$/);
   });
 });
 
@@ -68,6 +75,18 @@ test.describe('Library', () => {
 
     await page.locator('body').click({ position: { x: 4, y: 4 } });
     await expect(page.getByText('Status dot guide')).toBeHidden();
+  });
+
+  test('tag bookmark filter renders rows when API total > 0', async ({ page, request }) => {
+    const res = await request.get('/api/movies?tags=p1&page=1&limit=50');
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    expect(typeof json.total).toBe('number');
+    if (json.total > 0) {
+      await page.goto('/library?tags=p1&page=1');
+      await page.waitForSelector('tbody tr', { timeout: 10000 });
+      await expect(page.locator('tbody tr').first()).toBeVisible();
+    }
   });
 });
 

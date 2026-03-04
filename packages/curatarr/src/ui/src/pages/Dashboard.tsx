@@ -179,14 +179,14 @@ export function Dashboard() {
         <div className="relative h-full">
           <Link
             to="/library?reset=1"
-            className="absolute inset-0 rounded-xl z-0"
+            className="absolute inset-0 rounded-xl z-10"
             aria-label="Open library from Movies card"
           />
-          <div className="relative z-10 bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
+          <div className="relative z-20 pointer-events-none bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
             <div className="flex items-center gap-2 mb-2 text-sm text-[#a78bfa]">
               <Film size={16} />
               <span>Movies</span>
-              <span className="ml-auto" onClick={(e) => e.stopPropagation()}>
+              <span className="ml-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                 <InfoHint
                   label="Movies info"
                   text="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."

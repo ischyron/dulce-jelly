@@ -366,13 +366,16 @@ export const api = {
   saveSettings: (settings: Record<string, string>) =>
     req<{ saved: string[] }>('/settings', { method: 'PUT', body: JSON.stringify(settings) }),
 
-  health: (params?: { url?: string; apiKey?: string }) => {
+  health: (params?: { url?: string; apiKey?: string; prowlarrUrl?: string; prowlarrApiKey?: string }) => {
     const qs = params
       ? '?' + new URLSearchParams(
           Object.fromEntries(Object.entries(params).filter(([, v]) => v).map(([k, v]) => [k, v!]))
         )
       : '';
-    return req<{ jellyfin: { ok: boolean; libraries?: number; error?: string } }>(`/settings/health${qs}`);
+    return req<{
+      jellyfin: { ok: boolean; libraries?: number; error?: string };
+      prowlarr: { ok: boolean; indexers?: number; error?: string };
+    }>(`/settings/health${qs}`);
   },
 
   disambiguateBatch: (items: DisambiguateRequest[]) =>

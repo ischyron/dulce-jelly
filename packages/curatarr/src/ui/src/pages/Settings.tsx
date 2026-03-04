@@ -490,23 +490,41 @@ export function Settings() {
     setScoutRulesDraft(mapped);
   }, [scoutRulesData]);
 
-  const [healthData, setHealthData] = useState<{ jellyfin: { ok: boolean; libraries?: number; error?: string } } | null>(null);
-  const [checkingHealth, setCheckingHealth] = useState(false);
+  const [jellyfinHealth, setJellyfinHealth] = useState<{ ok: boolean; libraries?: number; error?: string } | null>(null);
+  const [checkingJellyfinHealth, setCheckingJellyfinHealth] = useState(false);
+  const [prowlarrHealth, setProwlarrHealth] = useState<{ ok: boolean; indexers?: number; error?: string } | null>(null);
+  const [checkingProwlarrHealth, setCheckingProwlarrHealth] = useState(false);
 
-  async function checkHealth() {
-    setCheckingHealth(true);
-    setHealthData(null);
+  async function checkJellyfinHealth() {
+    setCheckingJellyfinHealth(true);
+    setJellyfinHealth(null);
     try {
       // Pass current form values so unsaved changes are tested, not just DB values
       const result = await api.health({
         url: form.jellyfinUrl || undefined,
         apiKey: form.jellyfinApiKey || undefined,
       });
-      setHealthData(result);
+      setJellyfinHealth(result.jellyfin);
     } catch (err) {
-      setHealthData({ jellyfin: { ok: false, error: (err as Error).message } });
+      setJellyfinHealth({ ok: false, error: (err as Error).message });
     } finally {
-      setCheckingHealth(false);
+      setCheckingJellyfinHealth(false);
+    }
+  }
+
+  async function checkProwlarrHealth() {
+    setCheckingProwlarrHealth(true);
+    setProwlarrHealth(null);
+    try {
+      const result = await api.health({
+        prowlarrUrl: form.prowlarrUrl || undefined,
+        prowlarrApiKey: form.prowlarrApiKey || undefined,
+      });
+      setProwlarrHealth(result.prowlarr);
+    } catch (err) {
+      setProwlarrHealth({ ok: false, error: (err as Error).message });
+    } finally {
+      setCheckingProwlarrHealth(false);
     }
   }
 
@@ -580,14 +598,14 @@ export function Settings() {
             <Field label="Sync batch size" name="jfSyncBatchSize" value={form.jfSyncBatchSize ?? '10'} onChange={v => set('jfSyncBatchSize', v)} placeholder="10" hint="Items per Jellyfin API page during sync." />
           </div>
           <div className="flex items-center gap-3">
-            <button onClick={checkHealth} disabled={checkingHealth} className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}>
-              {checkingHealth ? <Loader2 size={13} className="animate-spin" /> : null}
+            <button onClick={checkJellyfinHealth} disabled={checkingJellyfinHealth} className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}>
+              {checkingJellyfinHealth ? <Loader2 size={13} className="animate-spin" /> : null}
               Test Connection
             </button>
-            {healthData && (
-              healthData.jellyfin.ok
-                ? <span className="flex items-center gap-1 text-sm text-green-400"><CheckCircle size={14} /> Connected — {healthData.jellyfin.libraries} libraries</span>
-                : <span className="flex items-center gap-1 text-sm text-red-400"><AlertCircle size={14} /> {healthData.jellyfin.error}</span>
+            {jellyfinHealth && (
+              jellyfinHealth.ok
+                ? <span className="flex items-center gap-1 text-sm text-green-400"><CheckCircle size={14} /> Connected — {jellyfinHealth.libraries} libraries</span>
+                : <span className="flex items-center gap-1 text-sm text-red-400"><AlertCircle size={14} /> {jellyfinHealth.error}</span>
             )}
           </div>
         </section>
@@ -595,41 +613,6 @@ export function Settings() {
         <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Library</h2>
           <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''} onChange={v => set('libraryPath', v)} placeholder="/media/Movies" hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also read from env var: LIBRARY_PATH" />
-        </section>
-
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
-          <div className="space-y-1">
-            <label className="text-sm font-medium" style={{ color: '#c4b5fd' }}>Provider</label>
-            <input
-              value="openai"
-              disabled
-              className="w-full px-3 py-2 rounded-lg text-sm opacity-85 cursor-not-allowed"
-              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-            />
-            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              Fixed to OpenAI for now. Provider selection will be re-enabled when multi-provider support is finalized.
-            </p>
-          </div>
-          <MaskedKeyField
-            label="API Key"
-            name="llmApiKey"
-            maskedValue={form.llmApiKeyMasked ?? ''}
-            value={form.llmApiKey ?? ''}
-            onChange={v => set('llmApiKey', v)}
-            hint="OpenAI API key. You can also set it via env var: OPENAI_API_KEY (or legacy LLM_API_KEY)." />
-        </section>
-
-        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Prowlarr</h2>
-          <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''} onChange={v => set('prowlarrUrl', v)} placeholder="http://localhost:9696" hint="Used by Scout release search and auto-scout. Also read from env var: PROWLARR_URL" />
-          <MaskedKeyField
-            label="API Key"
-            name="prowlarrApiKey"
-            maskedValue={form.prowlarrApiKeyMasked ?? ''}
-            value={form.prowlarrApiKey ?? ''}
-            onChange={v => set('prowlarrApiKey', v)}
-            hint="Prowlarr Settings → General → Security → API Key. Also read from env var: PROWLARR_API_KEY" />
         </section>
 
         <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
@@ -669,6 +652,52 @@ export function Settings() {
       </AccordionSection>
 
       <AccordionSection title="Scout" defaultOpen>
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Prowlarr</h2>
+          <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''} onChange={v => set('prowlarrUrl', v)} placeholder="http://localhost:9696" hint="Used by Scout release search and auto-scout. Also read from env var: PROWLARR_URL" />
+          <MaskedKeyField
+            label="API Key"
+            name="prowlarrApiKey"
+            maskedValue={form.prowlarrApiKeyMasked ?? ''}
+            value={form.prowlarrApiKey ?? ''}
+            onChange={v => set('prowlarrApiKey', v)}
+            hint="Prowlarr Settings → General → Security → API Key. Also read from env var: PROWLARR_API_KEY" />
+          <div className="flex items-center gap-3">
+            <button onClick={checkProwlarrHealth} disabled={checkingProwlarrHealth} className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}>
+              {checkingProwlarrHealth ? <Loader2 size={13} className="animate-spin" /> : null}
+              Test Connection
+            </button>
+            {prowlarrHealth && (
+              prowlarrHealth.ok
+                ? <span className="flex items-center gap-1 text-sm text-green-400"><CheckCircle size={14} /> Connected — {prowlarrHealth.indexers} indexers</span>
+                : <span className="flex items-center gap-1 text-sm text-red-400"><AlertCircle size={14} /> {prowlarrHealth.error}</span>
+            )}
+          </div>
+        </section>
+
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
+          <div className="space-y-1">
+            <label className="text-sm font-medium" style={{ color: '#c4b5fd' }}>Provider</label>
+            <input
+              value="openai"
+              disabled
+              className="w-full px-3 py-2 rounded-lg text-sm opacity-85 cursor-not-allowed"
+              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+            />
+            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Fixed to OpenAI for now. Provider selection will be re-enabled when multi-provider support is finalized.
+            </p>
+          </div>
+          <MaskedKeyField
+            label="API Key"
+            name="llmApiKey"
+            maskedValue={form.llmApiKeyMasked ?? ''}
+            value={form.llmApiKey ?? ''}
+            onChange={v => set('llmApiKey', v)}
+            hint="OpenAI API key. You can also set it via env var: OPENAI_API_KEY (or legacy LLM_API_KEY)." />
+        </section>
+
         <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
           CF Scoring, Rules, Scout

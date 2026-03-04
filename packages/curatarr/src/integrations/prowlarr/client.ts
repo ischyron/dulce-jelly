@@ -52,7 +52,8 @@ export class ProwlarrClient {
     url.searchParams.set('type', 'movie');
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 12_000);
+    // Live indexer fan-out can be slow; avoid aborting legitimate searches too early.
+    const timeout = setTimeout(() => controller.abort(), 35_000);
 
     let res: Response;
     try {
@@ -89,4 +90,3 @@ export class ProwlarrClient {
     });
   }
 }
-

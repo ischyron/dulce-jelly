@@ -37,6 +37,23 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   scoutAutoEnabled: 'false',     // scheduled scout disabled by default
   scoutAutoIntervalMin: '60',    // auto scout schedule (minutes)
   scoutAutoCooldownMin: '240',   // don't rescout same title too aggressively
+  // Scout release scoring (CF-style knobs, configurable in Settings)
+  scoutCfRes2160: '40',
+  scoutCfRes1080: '25',
+  scoutCfRes720: '10',
+  scoutCfSourceRemux: '28',
+  scoutCfSourceBluray: '16',
+  scoutCfSourceWebdl: '12',
+  scoutCfCodecHevc: '20',
+  scoutCfCodecAv1: '16',
+  scoutCfCodecH264: '8',
+  scoutCfLegacyPenalty: '30',
+  scoutCfSmall4kPenalty: '15',
+  scoutCfSmall4kMinGiB: '8',
+  scoutCfSeedersDivisor: '20',
+  scoutCfSeedersBonusCap: '12',
+  scoutCfUsenetBonus: '10',
+  scoutCfTorrentBonus: '0',
 
   /**
    * Primary playback client profile.

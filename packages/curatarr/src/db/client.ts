@@ -568,6 +568,7 @@ export class CuratDb {
     maxResolution?: string;     // "1080p" = include 1080p and below
     releaseGroups?: string[];   // e.g. ['YTS.MX', 'YTS', 'YIFY']
     genre?: string;
+    genres?: string[];
     minCriticRating?: number;   // Metacritic, 0-100
     minCommunityRating?: number;// IMDb-style, 0-10
     limit?: number;
@@ -596,13 +597,17 @@ export class CuratDb {
       bindings.push(...opts.releaseGroups.map(g => `%${g}%`));
     }
 
-    if (opts.genre) {
+    const genres = opts.genres && opts.genres.length > 0
+      ? opts.genres
+      : (opts.genre ? [opts.genre] : []);
+    if (genres.length > 0) {
+      const placeholders = genres.map(() => '?').join(',');
       sql += ` AND EXISTS (
         SELECT 1
         FROM json_each(COALESCE(m.genres, '[]')) g
-        WHERE LOWER(CAST(g.value AS TEXT)) = LOWER(?)
+        WHERE LOWER(CAST(g.value AS TEXT)) IN (${placeholders})
       )`;
-      bindings.push(opts.genre);
+      bindings.push(...genres.map(g => g.toLowerCase()));
     }
 
     if (opts.minCriticRating !== undefined) {

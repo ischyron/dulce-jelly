@@ -78,6 +78,11 @@ export interface Movie {
   verify_status: string | null;
   // v8 quality analytics
   quality_flags: string;   // JSON: QualityFlag[] — populated after deep verify
+  // disambiguation / metadata resolution state
+  disambiguation_required?: boolean;
+  disambiguation_reason?: string | null;
+  disambiguation_pending_id?: number | null;
+  disambiguation_created_at?: string | null;
 }
 
 export interface MovieDetail extends Movie {
@@ -241,6 +246,24 @@ export interface ScoutAutoRunResponse {
   finishedAt: string;
 }
 
+export interface ScoutTrashSyncResponse {
+  applied: Record<string, string>;
+  syncedRules: number;
+  meta: {
+    source: string;
+    revision: string | null;
+    fetchedAt: string;
+    warning?: string;
+  };
+}
+
+export interface ScoutRulesRefineDraftResponse {
+  objective: string;
+  prompt: string;
+  proposedSettings: Record<string, string>;
+  suggestedRuleToggles: Array<{ id: number; name: string; enabled: boolean }>;
+}
+
 // ── API methods ────────────────────────────────────────────────────
 
 export const api = {
@@ -394,4 +417,16 @@ export const api = {
     }),
 
   scoutAutoStatus: () => req<ScoutAutoStatusResponse>('/scout/auto-status'),
+
+  scoutSyncTrashScores: () =>
+    req<ScoutTrashSyncResponse>('/scout/sync-trash-scores', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  scoutRulesRefineDraft: (body: { objective: string }) =>
+    req<ScoutRulesRefineDraftResponse>('/scout/rules/refine-draft', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };

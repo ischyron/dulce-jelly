@@ -10,13 +10,24 @@
 
 ### Curatarr Backlog
 
-- [todo] Understand visoon of curatarr and CF scoring and scoutiung in curatarr refer scout relase skill in this repo .claude/skills/release-scout. This will becomes the reference baseline to make an opionated ruleset for curatarr scout feature. FINALLY: Document apporoch on Scout in packages/curatarr/docs and link to README. 
-- [TODO] Need to execute below Scout features: 
-- [TODO] Scout feature: sync Trash guide into Scout configuration in Settings. Find a way for users to keep syncing like Recyclarr sync; reuse Recyclarr if that's the best approach. Recyclarr would only add Sonarr/Radarr as config patterns in their config. If Recyclarr is simple to implement, let's plug that into Curatarr.
-- [TODO] Scout feature:  CF scoring and bit rate settings
-- - [TODO]  MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations. USe an apporoch, splice it into current priority apporch. dont over rank the legacy codec, but make sure they are not lost/buried in last page of scout queue. if current apprch is reaosble then dont do anything. 
-- [TODO] USe Chrome MCP Verify page: run deep-check on 2-3 files, evaluate impact and how users can view results. Is this result user-friendly? Is the information useful or too technical. If not, improvise.
+- [TODO] bug http://dulce.local:3270/library?tags=p1&page=1 filetr by tag doesnt work
+- [TODO] Score in Scout page need a tooltip like CRITIC column in libary. Need to inform user what is this score based on IMDB or a an internal logic. Look at Ground truth - analsye code how this is scored 
+- [TODO] Show ALL feature where pagination is removed and all items are shown. Let user take the risk
 
+**CF scoring, Rules, Scout**
+- [DONE] Understand visoon of curatarr and CF scoring and scoutiung in curatarr refer scout relase skill in this repo .claude/skills/release-scout. This will becomes the reference baseline to make an opionated ruleset for curatarr scout feature.  Find a way for users to keep syncing like Recyclarr sync; reuse Recyclarr if that's the best approach. Recyclarr would only add Sonarr/Radarr as config patterns in their config. If Recyclarr is simple to implement, let's plug that into Curatarr.
+ FINALLY: [DONE] Document apporoch on Scout in packages/curatarr/docs and link to README. 
+
+- [DONE] Scout feature:  CF scoring and bit rate settings. Create settings similar to Radarr
+- [DONE] Scout feature: Create rule set, create LLM assisten refinement rulese. IMprovside from current hand-made repo .claude/skills/release-scout
+- [DONE] Scout feature: sync Trash guide as Trash scores into Scout configuration in Settings.
+
+** Disambigation **
+- [TODO] Currently disambigation is not so good apart from Jellyfin title mismatch. Need to study and document radarr disambigation done against title of the name and parsed title from filename. Lets make this more robust. I am sure in  libary I have many items for disambigation eg: Les MIsrables etc. Find it and surface a list of actions under this route http://dulce.local:3270/disambiguate
+
+**Quality tests**
+ - [TODO]  MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations. USe an apporoch, splice it into current priority apporch. dont over rank the legacy codec, but make sure they are not lost/buried in last page of scout queue. if current apprch is reaosble then dont do anything. 
+- [TODO] USe Chrome MCP Verify page: run deep-check on 2-3 files, evaluate impact and how users can view results. Is this result user-friendly? Is the information useful or too technical. If not, improvise.
 
 - [DONE] Prowlarr integration into Scout
 - [DONE] Scout feature (like Radarr but not using Radarr): an interactive flow that gives AI-recommended releases, or otherwise tabulate the most efficient path

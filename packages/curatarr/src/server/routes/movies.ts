@@ -36,11 +36,38 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       .trim();
   }
 
+  function flagDisambiguationNeeded(
+    movieId: number,
+    inputTitle: string,
+    inputYear: number | null,
+    reason: string,
+  ): void {
+    db.raw().prepare(`
+      INSERT INTO disambiguation_log
+        (job_id, request_id, input_title, input_year, method, confidence,
+         matched_movie_id, ambiguous, reason, reviewed)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    `).run(
+      `jf-refresh-${movieId}`,
+      `jf-refresh-${movieId}-${Date.now()}`,
+      inputTitle,
+      inputYear,
+      'jf_refresh',
+      null,
+      movieId,
+      1,
+      reason,
+    );
+  }
+
   // GET /api/movies?page=1&limit=50&resolution=1080p&codec=h264&search=title
   app.get('/', (c) => {
     const page = Math.max(1, parseInt(c.req.query('page') ?? '1', 10));
-    const limit = Math.min(200, Math.max(1, parseInt(c.req.query('limit') ?? '50', 10)));
-    const offset = (page - 1) * limit;
+    const showAll = c.req.query('showAll') === 'true' || c.req.query('all') === '1';
+    const limit = showAll
+      ? 100000
+      : Math.min(200, Math.max(1, parseInt(c.req.query('limit') ?? '50', 10)));
+    const offset = showAll ? 0 : (page - 1) * limit;
     const resolution = c.req.query('resolution');
     const codec = c.req.query('codec');
     const search = c.req.query('search');
@@ -52,6 +79,10 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const audioLayout = (c.req.query('audioLayout') ?? '').toLowerCase().trim();
     const releaseGroup = c.req.query('releaseGroup');
     const genre = c.req.query('genre');
+    const genres = (genre ?? '')
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean);
     const tagsQuery = c.req.query('tags');
     const sortBy = c.req.query('sortBy') ?? 'title';
     const sortDir = c.req.query('sortDir') === 'desc' ? 'DESC' : 'ASC';
@@ -128,13 +159,14 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       sql += ' AND f.release_group LIKE ?';
       bindings.push(`%${releaseGroup}%`);
     }
-    if (genre) {
+    if (genres.length > 0) {
+      const placeholders = genres.map(() => '?').join(',');
       sql += ` AND EXISTS (
         SELECT 1
         FROM json_each(COALESCE(m.genres, '[]')) g
-        WHERE LOWER(CAST(g.value AS TEXT)) = LOWER(?)
+        WHERE LOWER(CAST(g.value AS TEXT)) IN (${placeholders})
       )`;
-      bindings.push(genre);
+      bindings.push(...genres.map(g => g.toLowerCase()));
     }
     if (tags.length > 0) {
       const placeholders = tags.map(() => '?').join(',');
@@ -269,7 +301,27 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
     const files = db.getFilesForMovie(id);
-    return c.json({ ...movie, files });
+    const pending = db.raw().prepare(`
+      SELECT id, reason, created_at
+      FROM disambiguation_log
+      WHERE matched_movie_id = ? AND reviewed = 0 AND ambiguous = 1
+      ORDER BY id DESC
+      LIMIT 1
+    `).get(id) as { id: number; reason: string | null; created_at: string } | undefined;
+
+    const disambiguationRequired = !movie.jellyfin_id || Boolean(pending);
+    const disambiguationReason =
+      pending?.reason ??
+      (movie.jellyfin_id ? null : 'missing_jellyfin_match');
+
+    return c.json({
+      ...movie,
+      files,
+      disambiguation_required: disambiguationRequired,
+      disambiguation_reason: disambiguationReason,
+      disambiguation_pending_id: pending?.id ?? null,
+      disambiguation_created_at: pending?.created_at ?? null,
+    });
   });
 
   // PATCH /api/movies/:id  { tags?: string[]; notes?: string }
@@ -362,13 +414,30 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
         const searchYear = movie.jellyfin_year ?? movie.parsed_year ?? undefined;
         const candidates = await client.searchMovies(searchTitle, searchYear ?? undefined);
         const expected = normTitle(searchTitle);
-        jf = candidates.find(c => {
+        const strictMatches = candidates.filter(c => {
           const t = normTitle(c.Name ?? '');
-          const yearOk = searchYear == null || c.ProductionYear == null || c.ProductionYear === searchYear;
-          return t === expected && yearOk;
-        }) ?? candidates.find(c => normTitle(c.Name ?? '') === expected) ?? candidates[0];
+          return t === expected && (searchYear == null || c.ProductionYear === searchYear);
+        });
+        const titleMatches = candidates.filter(c => normTitle(c.Name ?? '') === expected);
+
+        if (strictMatches.length === 1) {
+          jf = strictMatches[0];
+        } else if (strictMatches.length > 1 || titleMatches.length > 1) {
+          flagDisambiguationNeeded(id, searchTitle, searchYear ?? null, 'multiple_jellyfin_candidates');
+          return c.json({
+            error: 'disambiguation_required',
+            detail: `Multiple Jellyfin candidates found for "${searchTitle}".`,
+          }, 409);
+        } else if (titleMatches.length === 1) {
+          jf = titleMatches[0];
+        }
+
         if (!jf) {
-          return c.json({ error: 'not_found_in_jellyfin', detail: `No Jellyfin match found for "${searchTitle}"` }, 404);
+          flagDisambiguationNeeded(id, searchTitle, searchYear ?? null, 'no_jellyfin_match');
+          return c.json({
+            error: 'disambiguation_required',
+            detail: `No reliable Jellyfin match found for "${searchTitle}".`,
+          }, 409);
         }
       }
       db.enrichMovieById(id, {

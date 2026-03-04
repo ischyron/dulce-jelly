@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Search, Film, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { Search, BookOpen, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
 import { api, type Movie, type Stats } from '../api/client.js';
 import { ResolutionBadge, CodecBadge, HdrBadge, QualityFlagsBadge, CriticScoreBadge } from '../components/QualityBadge.js';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer.js';
@@ -130,7 +130,8 @@ export function Library() {
   const codec      = sp(searchParams, 'codec', '');
   const audioFormat = sp(searchParams, 'audioFormat', '');
   const audioLayout = sp(searchParams, 'audioLayout', '');
-  const genre      = sp(searchParams, 'genre', '');
+  const genreFilter = sp(searchParams, 'genre', '');
+  const selectedGenres = genreFilter ? genreFilter.split(',').map(g => g.trim()).filter(Boolean) : [];
   const hdrOnly    = searchParams.get('hdr') === '1';
   const dvOnly     = searchParams.get('dv') === '1';
   const av1CompatOnly = searchParams.get('av1Compat') === '1';
@@ -144,10 +145,12 @@ export function Library() {
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tagFilterRef = useRef<HTMLDivElement | null>(null);
+  const genreFilterRef = useRef<HTMLDivElement | null>(null);
 
   // Controlled input value — stays in sync with URL param but updates immediately on keystroke
   const [searchInput, setSearchInput] = useState(search);
   const [tagFilterOpen, setTagFilterOpen] = useState(false);
+  const [genreFilterOpen, setGenreFilterOpen] = useState(false);
   const [showAddTagsModal, setShowAddTagsModal] = useState(false);
   const [showRemoveTagsModal, setShowRemoveTagsModal] = useState(false);
   const [batchTagPick, setBatchTagPick] = useState('');
@@ -157,12 +160,12 @@ export function Library() {
   useEffect(() => { setSearchInput(search); }, [search]);
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (!tagFilterRef.current) return;
-      if (!tagFilterRef.current.contains(e.target as Node)) setTagFilterOpen(false);
+      if (tagFilterRef.current && !tagFilterRef.current.contains(e.target as Node)) setTagFilterOpen(false);
+      if (genreFilterRef.current && !genreFilterRef.current.contains(e.target as Node)) setGenreFilterOpen(false);
     }
-    if (tagFilterOpen) document.addEventListener('mousedown', onDocClick);
+    if (tagFilterOpen || genreFilterOpen) document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [tagFilterOpen]);
+  }, [tagFilterOpen, genreFilterOpen]);
 
   function persistedFilterParams(params: URLSearchParams): URLSearchParams {
     const next = new URLSearchParams();
@@ -245,7 +248,7 @@ export function Library() {
   });
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['movies', page, limit, showAll, search, resolution, codec, audioFormat, audioLayout, genre, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, sortBy, sortDir],
+    queryKey: ['movies', page, limit, showAll, search, resolution, codec, audioFormat, audioLayout, genreFilter, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, sortBy, sortDir],
     queryFn: () => api.movies({
       page: showAll ? 1 : page,
       limit: showAll ? 100000 : limit,
@@ -255,7 +258,7 @@ export function Library() {
       ...((av1CompatOnly ? 'av1' : codec) ? { codec: (av1CompatOnly ? 'av1' : codec) } : {}),
       ...(audioFormat ? { audioFormat } : {}),
       ...(audioLayout ? { audioLayout } : {}),
-      ...(genre ? { genre } : {}),
+      ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
       ...(selectedTags.length > 0 ? { tags: selectedTags.join(',') } : {}),
       ...(hdrOnly ? { hdr: 'true' } : {}),
       ...(dvOnly ? { dv: 'true' } : {}),
@@ -338,6 +341,21 @@ export function Library() {
     patch({ tags: [...selectedTags, t].join(','), page: '1' });
   }
 
+  function removeGenreFilter(genre: string) {
+    const next = selectedGenres.filter(g => g !== genre);
+    patch({ genre: next.length > 0 ? next.join(',') : null, page: '1' });
+  }
+
+  function toggleGenreFilter(genre: string) {
+    const g = genre.trim();
+    if (!g) return;
+    if (selectedGenres.includes(g)) {
+      removeGenreFilter(g);
+      return;
+    }
+    patch({ genre: [...selectedGenres, g].join(','), page: '1' });
+  }
+
   function startBatchTagModal(mode: 'add' | 'remove') {
     setBatchTags([]);
     setBatchTagPick('');
@@ -365,7 +383,7 @@ export function Library() {
   return (
     <div className="flex flex-col">
       {/* Filter bar — sticky so it stays at top when the table scrolls via the outer <main> */}
-      <div className="sticky top-0 z-10 px-4 py-2.5 border-b flex flex-wrap items-center gap-2"
+      <div className="sticky top-0 z-10 px-6 py-3 border-b flex flex-wrap items-center gap-4"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
         {isFetching && (
           <div className="absolute left-0 right-0 top-0 h-[2px] overflow-hidden">
@@ -373,11 +391,10 @@ export function Library() {
           </div>
         )}
 
-        <h1 className="text-sm font-semibold shrink-0 mr-1 flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
-          <Film size={16} style={{ color: 'var(--c-accent)' }} />
+        <h1 className="text-base font-semibold shrink-0 flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
+          <BookOpen size={17} style={{ color: 'var(--c-accent)' }} />
           Library
         </h1>
-        <div className="w-px h-4 shrink-0" style={{ background: 'var(--c-border)' }} />
 
         <div className="relative">
           <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2"
@@ -393,22 +410,56 @@ export function Library() {
           />
         </div>
 
-        <div className="flex items-center gap-2 px-1 py-1" style={{ color: 'var(--c-muted)' }}>
+        <div ref={genreFilterRef} className="relative flex items-center gap-2 text-xs px-2 py-1 rounded-lg border"
+          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}>
           <span
             className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
           >
             Genre
           </span>
-          <select
-            value={genre}
-            onChange={e => patch({ genre: e.target.value || null, page: '1' })}
-            className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: genre ? 'var(--c-accent)' : 'var(--c-muted)' }}
+          <button
+            onClick={() => setGenreFilterOpen(v => !v)}
+            className="px-2 py-1 text-xs rounded border"
+            style={{ borderColor: 'var(--c-border)', color: selectedGenres.length ? '#c4b5fd' : 'var(--c-muted)' }}
           >
-            <option value="">All</option>
-            {(genresData?.genres ?? []).map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
+            {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : 'Select genres'}
+          </button>
+          {genreFilterOpen && (
+            <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+              {(genresData?.genres ?? []).length === 0 && (
+                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>No genres available.</div>
+              )}
+              {(genresData?.genres ?? []).map(g => (
+                <label key={g} className="flex items-center gap-2 text-xs cursor-pointer"
+                  style={{ color: selectedGenres.includes(g) ? '#d4cfff' : 'var(--c-muted)' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedGenres.includes(g)}
+                    onChange={() => toggleGenreFilter(g)}
+                    className="accent-violet-600"
+                  />
+                  <span>{g}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedGenres.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+            {selectedGenres.map(g => (
+              <button
+                key={g}
+                onClick={() => removeGenreFilter(g)}
+                className="px-2 py-0.5 rounded-full text-xs border"
+                style={{ color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }}
+                title="Remove genre filter"
+              >
+                {g} ×
+              </button>
+            ))}
+            </div>
+          )}
         </div>
 
         {/* Resolution group */}

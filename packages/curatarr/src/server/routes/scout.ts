@@ -6,6 +6,24 @@ interface ScoredRelease extends ProwlarrSearchResult {
   score: number;
   reasons: string[];
 }
+interface ScoutScoreConfig {
+  res2160: number;
+  res1080: number;
+  res720: number;
+  sourceRemux: number;
+  sourceBluray: number;
+  sourceWebdl: number;
+  codecHevc: number;
+  codecAv1: number;
+  codecH264: number;
+  legacyPenalty: number;
+  small4kPenalty: number;
+  small4kMinGiB: number;
+  seedersDivisor: number;
+  seedersBonusCap: number;
+  usenetBonus: number;
+  torrentBonus: number;
+}
 
 interface SearchSuccess {
   movieId: number;
@@ -57,32 +75,358 @@ function toText(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
-function scoreRelease(r: ProwlarrSearchResult): ScoredRelease {
+const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
+  res2160: 40,
+  res1080: 25,
+  res720: 10,
+  sourceRemux: 28,
+  sourceBluray: 16,
+  sourceWebdl: 12,
+  codecHevc: 20,
+  codecAv1: 16,
+  codecH264: 8,
+  legacyPenalty: 30,
+  small4kPenalty: 15,
+  small4kMinGiB: 8,
+  seedersDivisor: 20,
+  seedersBonusCap: 12,
+  usenetBonus: 10,
+  torrentBonus: 0,
+};
+
+const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
+  scoutCfRes2160: '46',
+  scoutCfRes1080: '24',
+  scoutCfRes720: '8',
+  scoutCfSourceRemux: '34',
+  scoutCfSourceBluray: '22',
+  scoutCfSourceWebdl: '14',
+  scoutCfCodecHevc: '22',
+  scoutCfCodecAv1: '12',
+  scoutCfCodecH264: '6',
+  scoutCfLegacyPenalty: '40',
+  scoutCfSmall4kPenalty: '20',
+  scoutCfSmall4kMinGiB: '10',
+  scoutCfSeedersDivisor: '25',
+  scoutCfSeedersBonusCap: '10',
+  scoutCfUsenetBonus: '10',
+  scoutCfTorrentBonus: '0',
+};
+
+interface ScoutRuleSeed {
+  name: string;
+  priority: number;
+  config: Record<string, unknown>;
+}
+
+const SCOUT_RULE_BASELINE: ScoutRuleSeed[] = [
+  {
+    name: 'Avoid quality downgrade',
+    priority: 10,
+    config: {
+      kind: 'hard_filter',
+      description: 'Drop results whose resolution tier is lower than current file tier.',
+      enabledWhen: { sameMovie: true },
+    },
+  },
+  {
+    name: 'Prefer WEB-DL over WEBRip at same tier',
+    priority: 11,
+    config: {
+      kind: 'tiebreaker',
+      when: 'same_resolution',
+      prefer: 'webdl',
+      over: 'webrip',
+      reason: 'WEB-DL is direct source; WEBRip is re-encode.',
+    },
+  },
+  {
+    name: 'Prefer verified groups in close-score ties',
+    priority: 12,
+    config: {
+      kind: 'tiebreaker',
+      thresholdDelta: 250,
+      prefer: 'verified_group',
+      over: 'unknown_group',
+      reason: 'Reduces fake-quality and mislabeled encodes.',
+    },
+  },
+  {
+    name: 'Prefer lower playback-risk in close-score ties',
+    priority: 13,
+    config: {
+      kind: 'tiebreaker',
+      thresholdDelta: 200,
+      prefer: 'lower_playback_risk',
+      reason: 'Avoid high transcode load and weak client compatibility.',
+    },
+  },
+  {
+    name: 'Prefer DD+/EAC3 over DTS-HD MA in close-score ties',
+    priority: 14,
+    config: {
+      kind: 'tiebreaker',
+      thresholdDelta: 200,
+      prefer: ['dd+', 'eac3'],
+      over: ['dts-hd-ma'],
+      reason: 'Better passthrough compatibility on common TV clients.',
+    },
+  },
+  {
+    name: 'Prefer Dolby Vision in close-score ties',
+    priority: 15,
+    config: {
+      kind: 'tiebreaker',
+      thresholdDelta: 300,
+      prefer: 'dolby_vision',
+      guard: 'skip_if_non_high_repute_remux',
+      reason: 'DV is meaningful when source integrity is reliable.',
+    },
+  },
+  {
+    name: 'Prefer original-language releases over dub-only',
+    priority: 16,
+    config: {
+      kind: 'hard_filter',
+      description: 'Drop releases that do not include original-language audio when original-language options exist.',
+    },
+  },
+  {
+    name: 'De-prioritize AV1 for weak client support',
+    priority: 17,
+    config: {
+      kind: 'tiebreaker',
+      condition: 'client_profile_without_av1_hw_decode',
+      penaltyHint: 'codec_av1',
+      reason: 'Avoid avoidable transcode load.',
+    },
+  },
+  {
+    name: 'Usenet-first within comparable quality bands',
+    priority: 18,
+    config: {
+      kind: 'tiebreaker',
+      thresholdDelta: 200,
+      prefer: 'usenet',
+      over: 'torrent',
+      reason: 'Improves reliability in typical stacks.',
+    },
+  },
+  {
+    name: 'Escalate exceptional titles for remux review',
+    priority: 19,
+    config: {
+      kind: 'escalation',
+      trigger: 'mc>=85_and_high_repute_remux_available',
+      action: 'manual_confirm',
+      reason: 'Landmark titles can justify remux despite storage cost.',
+    },
+  },
+];
+
+function safeParseJson(s: string): unknown {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
+}
+
+function applySettings(db: CuratDb, values: Record<string, string>): void {
+  for (const [key, value] of Object.entries(values)) {
+    db.setSetting(key, value);
+  }
+}
+
+function ensureScoutRuleBaseline(db: CuratDb): number[] {
+  const existing = db.getRules('scout');
+  const existingByName = new Map(existing.map(r => [r.name, r]));
+  const saved: number[] = [];
+  for (const seed of SCOUT_RULE_BASELINE) {
+    const prev = existingByName.get(seed.name);
+    const id = db.upsertRule({
+      id: prev?.id,
+      category: 'scout',
+      name: seed.name,
+      enabled: prev ? prev.enabled !== 0 : true,
+      priority: prev?.priority ?? seed.priority,
+      config: prev ? safeParseJson(prev.config) as object : seed.config,
+    });
+    saved.push(id);
+  }
+  return saved;
+}
+
+async function fetchTrashGuidesRevision(): Promise<{ source: string; revision: string | null; fetchedAt: string; warning?: string }> {
+  const fetchedAt = new Date().toISOString();
+  try {
+    const res = await fetch(
+      'https://api.github.com/repos/TRaSH-Guides/Guides/commits?path=docs/json/radarr/custom-formats&per_page=1',
+      { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'curatarr-scout-sync' } },
+    );
+    if (!res.ok) {
+      return {
+        source: 'TRaSH-Guides',
+        revision: null,
+        fetchedAt,
+        warning: `revision_lookup_failed_${res.status}`,
+      };
+    }
+    const body = await res.json() as Array<{ sha?: string }>;
+    return {
+      source: 'TRaSH-Guides',
+      revision: body?.[0]?.sha?.slice(0, 12) ?? null,
+      fetchedAt,
+    };
+  } catch (err) {
+    return {
+      source: 'TRaSH-Guides',
+      revision: null,
+      fetchedAt,
+      warning: `revision_lookup_failed_${(err as Error).message}`,
+    };
+  }
+}
+
+function buildScoutRefinementDraft(
+  db: CuratDb,
+  objective: string,
+): {
+  objective: string;
+  prompt: string;
+  proposedSettings: Record<string, string>;
+  suggestedRuleToggles: Array<{ id: number; name: string; enabled: boolean }>;
+} {
+  const normalized = objective.toLowerCase();
+  const proposedSettings: Record<string, string> = {};
+  const rules = db.getRules('scout');
+  const toggles: Array<{ id: number; name: string; enabled: boolean }> = [];
+
+  if (/\b(storage|size|efficient|space|compact)\b/.test(normalized)) {
+    proposedSettings.scoutCfSourceRemux = '24';
+    proposedSettings.scoutCfSmall4kPenalty = '26';
+    proposedSettings.scoutCfSmall4kMinGiB = '12';
+  }
+  if (/\b(quality|cinema|reference|best|archive)\b/.test(normalized)) {
+    proposedSettings.scoutCfSourceRemux = '40';
+    proposedSettings.scoutCfSourceBluray = '26';
+    proposedSettings.scoutCfRes2160 = '52';
+    proposedSettings.scoutCfSmall4kPenalty = '12';
+  }
+  if (/\b(compat|android|chromecast|transcode|playback)\b/.test(normalized)) {
+    proposedSettings.scoutCfCodecAv1 = '6';
+    proposedSettings.scoutCfCodecH264 = '14';
+    for (const rule of rules) {
+      if (rule.name.toLowerCase().includes('av1 compatibility audit')) {
+        toggles.push({ id: rule.id, name: rule.name, enabled: true });
+      }
+    }
+  }
+  if (/\b(torrent)\b/.test(normalized) && !/\b(usenet)\b/.test(normalized)) {
+    proposedSettings.scoutCfTorrentBonus = '8';
+    proposedSettings.scoutCfUsenetBonus = '0';
+  }
+  if (/\b(usenet)\b/.test(normalized) && !/\b(torrent)\b/.test(normalized)) {
+    proposedSettings.scoutCfUsenetBonus = '12';
+    proposedSettings.scoutCfTorrentBonus = '-2';
+  }
+
+  const scoreCfg = resolveScoutScoreConfig(db);
+  const compactRules = rules.map(r => ({
+    id: r.id,
+    name: r.name,
+    enabled: r.enabled !== 0,
+    priority: r.priority,
+    config: safeParseJson(r.config),
+  }));
+
+  const prompt = [
+    'You are refining Curatarr Scout rules and CF scoring.',
+    `Goal: ${objective || 'No explicit goal provided; refine for balanced quality + compatibility.'}`,
+    'Current CF settings:',
+    JSON.stringify(scoreCfg, null, 2),
+    'Current Scout rules:',
+    JSON.stringify(compactRules, null, 2),
+    'Return JSON with keys: settingsPatch (string values), rulePatches (id/name/enabled/priority/config), rationale.',
+    'Preserve safety guardrails: no quality downgrades, keep legacy codec penalty non-zero, keep batch safety cap untouched.',
+  ].join('\n');
+
+  return {
+    objective,
+    prompt,
+    proposedSettings,
+    suggestedRuleToggles: toggles,
+  };
+}
+
+function intSetting(db: CuratDb, key: string, fallback: number, min: number, max: number): number {
+  const raw = parseInt(db.getSetting(key) ?? '', 10);
+  if (!Number.isFinite(raw)) return fallback;
+  return Math.max(min, Math.min(max, raw));
+}
+
+function floatSetting(db: CuratDb, key: string, fallback: number, min: number, max: number): number {
+  const raw = parseFloat(db.getSetting(key) ?? '');
+  if (!Number.isFinite(raw)) return fallback;
+  return Math.max(min, Math.min(max, raw));
+}
+
+function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
+  return {
+    res2160: intSetting(db, 'scoutCfRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
+    res1080: intSetting(db, 'scoutCfRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
+    res720: intSetting(db, 'scoutCfRes720', DEFAULT_SCOUT_SCORE_CONFIG.res720, -200, 200),
+    sourceRemux: intSetting(db, 'scoutCfSourceRemux', DEFAULT_SCOUT_SCORE_CONFIG.sourceRemux, -200, 200),
+    sourceBluray: intSetting(db, 'scoutCfSourceBluray', DEFAULT_SCOUT_SCORE_CONFIG.sourceBluray, -200, 200),
+    sourceWebdl: intSetting(db, 'scoutCfSourceWebdl', DEFAULT_SCOUT_SCORE_CONFIG.sourceWebdl, -200, 200),
+    codecHevc: intSetting(db, 'scoutCfCodecHevc', DEFAULT_SCOUT_SCORE_CONFIG.codecHevc, -200, 200),
+    codecAv1: intSetting(db, 'scoutCfCodecAv1', DEFAULT_SCOUT_SCORE_CONFIG.codecAv1, -200, 200),
+    codecH264: intSetting(db, 'scoutCfCodecH264', DEFAULT_SCOUT_SCORE_CONFIG.codecH264, -200, 200),
+    legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
+    small4kPenalty: intSetting(db, 'scoutCfSmall4kPenalty', DEFAULT_SCOUT_SCORE_CONFIG.small4kPenalty, 0, 400),
+    small4kMinGiB: floatSetting(db, 'scoutCfSmall4kMinGiB', DEFAULT_SCOUT_SCORE_CONFIG.small4kMinGiB, 0.5, 60),
+    seedersDivisor: intSetting(db, 'scoutCfSeedersDivisor', DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor, 1, 500),
+    seedersBonusCap: intSetting(db, 'scoutCfSeedersBonusCap', DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap, 0, 200),
+    usenetBonus: intSetting(db, 'scoutCfUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
+    torrentBonus: intSetting(db, 'scoutCfTorrentBonus', DEFAULT_SCOUT_SCORE_CONFIG.torrentBonus, -200, 200),
+  };
+}
+
+function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig): ScoredRelease {
   const t = r.title.toLowerCase();
   let score = 0;
   const reasons: string[] = [];
 
-  if (/\b2160p\b|\b4k\b/.test(t)) { score += 40; reasons.push('2160p'); }
-  else if (/\b1080p\b/.test(t)) { score += 25; reasons.push('1080p'); }
-  else if (/\b720p\b/.test(t)) { score += 10; reasons.push('720p'); }
+  if (/\b2160p\b|\b4k\b/.test(t)) { score += cfg.res2160; reasons.push('2160p'); }
+  else if (/\b1080p\b/.test(t)) { score += cfg.res1080; reasons.push('1080p'); }
+  else if (/\b720p\b/.test(t)) { score += cfg.res720; reasons.push('720p'); }
 
-  if (/\b(remux)\b/.test(t)) { score += 28; reasons.push('remux'); }
-  else if (/\bbluray\b|\bbd\b/.test(t)) { score += 16; reasons.push('bluray'); }
-  else if (/\bweb-?dl\b/.test(t)) { score += 12; reasons.push('web-dl'); }
+  if (/\b(remux)\b/.test(t)) { score += cfg.sourceRemux; reasons.push('remux'); }
+  else if (/\bbluray\b|\bbd\b/.test(t)) { score += cfg.sourceBluray; reasons.push('bluray'); }
+  else if (/\bweb-?dl\b/.test(t)) { score += cfg.sourceWebdl; reasons.push('web-dl'); }
 
-  if (/\bhevc\b|\bx265\b/.test(t)) { score += 20; reasons.push('hevc'); }
-  else if (/\bav1\b/.test(t)) { score += 16; reasons.push('av1'); }
-  else if (/\bh264\b|\bx264\b/.test(t)) { score += 8; reasons.push('h264'); }
+  if (/\bhevc\b|\bx265\b/.test(t)) { score += cfg.codecHevc; reasons.push('hevc'); }
+  else if (/\bav1\b/.test(t)) { score += cfg.codecAv1; reasons.push('av1'); }
+  else if (/\bh264\b|\bx264\b/.test(t)) { score += cfg.codecH264; reasons.push('h264'); }
 
-  if (/\bxvid\b|\bmpeg4\b/.test(t)) { score -= 30; reasons.push('legacy codec penalty'); }
+  if (/\bxvid\b|\bmpeg4\b/.test(t)) { score -= cfg.legacyPenalty; reasons.push('legacy codec penalty'); }
 
-  if (r.size && /\b2160p\b|\b4k\b/.test(t) && r.size < 8_000_000_000) {
-    score -= 15;
+  const min4kSizeBytes = Math.round(cfg.small4kMinGiB * 1024 * 1024 * 1024);
+  if (r.size && /\b2160p\b|\b4k\b/.test(t) && r.size < min4kSizeBytes) {
+    score -= cfg.small4kPenalty;
     reasons.push('small-for-4k penalty');
   }
 
   if (r.seeders != null) {
-    score += Math.min(12, Math.max(0, Math.floor(r.seeders / 20)));
+    score += Math.min(cfg.seedersBonusCap, Math.max(0, Math.floor(r.seeders / cfg.seedersDivisor)));
+  }
+
+  if (r.protocol === 'usenet') {
+    score += cfg.usenetBonus;
+    reasons.push('usenet preference');
+  } else if (r.protocol === 'torrent') {
+    score += cfg.torrentBonus;
+    reasons.push('torrent preference');
   }
 
   return { ...r, score, reasons };
@@ -113,9 +457,10 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
   const title = movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name;
   const year = movie.jellyfin_year ?? movie.parsed_year;
   const query = toText(queryOverride).trim() || [title, year].filter(Boolean).join(' ');
+  const scoreCfg = resolveScoutScoreConfig(db);
 
   const releases = await client.searchMovie(query);
-  const scored = releases.map(scoreRelease).sort((a, b) => b.score - a.score);
+  const scored = releases.map(r => scoreRelease(r, scoreCfg)).sort((a, b) => b.score - a.score);
   const best = scored[0] ?? null;
   return {
     movieId,
@@ -230,6 +575,31 @@ export async function runScoutAutoBatch(
 
 export function makeScoutRoutes(db: CuratDb): Hono {
   const app = new Hono();
+
+  // POST /api/scout/sync-trash-scores
+  app.post('/sync-trash-scores', async (c) => {
+    applySettings(db, TRASH_SCOUT_BASELINE_SETTINGS);
+    const savedRuleIds = ensureScoutRuleBaseline(db);
+    const meta = await fetchTrashGuidesRevision();
+    applySettings(db, {
+      scoutTrashSyncSource: meta.source,
+      scoutTrashSyncRevision: meta.revision ?? '',
+      scoutTrashSyncedAt: meta.fetchedAt,
+    });
+    return c.json({
+      applied: TRASH_SCOUT_BASELINE_SETTINGS,
+      syncedRules: savedRuleIds.length,
+      meta,
+    });
+  });
+
+  // POST /api/scout/rules/refine-draft  { objective: string }
+  app.post('/rules/refine-draft', async (c) => {
+    const body = await c.req.json().catch(() => ({})) as { objective?: unknown };
+    const objective = toText(body.objective).trim();
+    const draft = buildScoutRefinementDraft(db, objective);
+    return c.json(draft);
+  });
 
   // POST /api/scout/search-one  { movieId: number, query?: string }
   app.post('/search-one', async (c) => {

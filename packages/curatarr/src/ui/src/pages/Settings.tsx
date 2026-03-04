@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X } from 'lucide-react';
@@ -56,6 +56,141 @@ const CODEC_SCORING_TOOLTIP = `Video codec quality scores (compression efficienc
 ⚠ Scout Queue and Library show a compatibility warning
   when an AV1 file is paired with a client that lacks
   hardware AV1 decode (software transcode = CPU load).`;
+
+const SCOUT_CF_SCORING_TOOLTIP = `Scout release scoring (CF-style) is additive:
+  Score = Resolution + Source + Codec + Protocol + Seeder bonus - Penalties
+
+Resolution weights:
+  2160p, 1080p, 720p
+Source weights:
+  Remux, BluRay, WEB-DL
+Codec weights:
+  HEVC, AV1, H264
+Protocol weights:
+  Usenet bonus, Torrent bonus
+Penalties:
+  Legacy codec penalty (xvid/mpeg4)
+  Small-4K penalty when size < Small 4K Min GiB
+Availability:
+  Seeder bonus = floor(seeders / divisor), capped by max bonus
+
+These settings affect Scout release ranking (search results), not the Library candidate priority score.`;
+
+const SCOUT_OBJECTIVE_SAMPLES = [
+  'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
+  'Prioritize playback compatibility for Android TV and Chromecast devices.',
+  'Prefer WEB-DL over WEBRip and reduce transcode-heavy picks.',
+  'Storage-efficient upgrades: avoid oversized remux unless title is exceptional.',
+  'Usenet-first policy with safe torrent fallback only when needed.',
+];
+
+const SCOUT_PRESET_SAMPLES: Array<{
+  id: string;
+  title: string;
+  summary: string;
+  objective: string;
+  settingsPatch: Record<string, string>;
+}> = [
+  {
+    id: 'balanced',
+    title: 'Balanced 4K',
+    summary: 'Quality-first, keeps strong penalties for legacy/suspicious releases.',
+    objective: 'Balance 4K quality, authenticity, and compatibility.',
+    settingsPatch: {
+      scoutCfRes2160: '46',
+      scoutCfSourceRemux: '34',
+      scoutCfSourceBluray: '22',
+      scoutCfSourceWebdl: '14',
+      scoutCfLegacyPenalty: '40',
+      scoutCfSmall4kPenalty: '20',
+    },
+  },
+  {
+    id: 'compat',
+    title: 'Compatibility First',
+    summary: 'De-prioritize AV1 and transcode-heavy outcomes for TV clients.',
+    objective: 'Prioritize compatibility on Android TV / Google TV clients.',
+    settingsPatch: {
+      scoutCfCodecAv1: '6',
+      scoutCfCodecH264: '14',
+      scoutCfCodecHevc: '20',
+      scoutCfSmall4kPenalty: '24',
+    },
+  },
+  {
+    id: 'storage',
+    title: 'Storage Saver',
+    summary: 'Reduce oversized upgrades while still targeting meaningful quality gains.',
+    objective: 'Optimize for storage efficiency and practical upgrades.',
+    settingsPatch: {
+      scoutCfSourceRemux: '22',
+      scoutCfSmall4kPenalty: '28',
+      scoutCfSmall4kMinGiB: '12',
+      scoutCfSeedersBonusCap: '8',
+    },
+  },
+];
+
+interface ScoutRuleDraft {
+  id: number;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  configText: string;
+}
+
+function AccordionSection({
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section className="rounded-xl border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full px-5 py-4 text-left flex items-center justify-between"
+      >
+        <span className="font-semibold" style={{ color: '#d4cfff' }}>{title}</span>
+        <span className="text-xs" style={{ color: 'var(--c-muted)' }}>{open ? 'Collapse' : 'Expand'}</span>
+      </button>
+      {open && <div className="px-5 pb-5 space-y-4">{children}</div>}
+    </section>
+  );
+}
+
+function toPrettyJson(value: unknown): string {
+  try {
+    return JSON.stringify(value, null, 2);
+  } catch {
+    return '{}';
+  }
+}
+
+function extractRuleDescription(configText: string): string {
+  try {
+    const obj = JSON.parse(configText) as Record<string, unknown>;
+    const val = obj.description ?? obj.reason ?? '';
+    return typeof val === 'string' ? val : '';
+  } catch {
+    return '';
+  }
+}
+
+function patchRuleDescription(configText: string, description: string): string {
+  try {
+    const obj = JSON.parse(configText) as Record<string, unknown>;
+    obj.description = description;
+    return JSON.stringify(obj, null, 2);
+  } catch {
+    return JSON.stringify({ description }, null, 2);
+  }
+}
 
 // ── Field component ────────────────────────────────────────────────────
 
@@ -236,6 +371,10 @@ export function Settings() {
   const [clientProfile, setClientProfile] = useState('android_tv');
   const [saved, setSaved] = useState(false);
   const [showScanPrompt, setShowScanPrompt] = useState(false);
+  const [scoutRulesDraft, setScoutRulesDraft] = useState<ScoutRuleDraft[]>([]);
+  const [scoutRulesSaved, setScoutRulesSaved] = useState(false);
+  const [scoutRulesError, setScoutRulesError] = useState('');
+  const [refineObjective, setRefineObjective] = useState('');
 
   useEffect(() => {
     if (data?.settings) {
@@ -258,6 +397,22 @@ export function Settings() {
         scoutAutoEnabled: data.settings.scoutAutoEnabled ?? 'false',
         scoutAutoIntervalMin: data.settings.scoutAutoIntervalMin ?? '60',
         scoutAutoCooldownMin: data.settings.scoutAutoCooldownMin ?? '240',
+        scoutCfRes2160: data.settings.scoutCfRes2160 ?? '40',
+        scoutCfRes1080: data.settings.scoutCfRes1080 ?? '25',
+        scoutCfRes720: data.settings.scoutCfRes720 ?? '10',
+        scoutCfSourceRemux: data.settings.scoutCfSourceRemux ?? '28',
+        scoutCfSourceBluray: data.settings.scoutCfSourceBluray ?? '16',
+        scoutCfSourceWebdl: data.settings.scoutCfSourceWebdl ?? '12',
+        scoutCfCodecHevc: data.settings.scoutCfCodecHevc ?? '20',
+        scoutCfCodecAv1: data.settings.scoutCfCodecAv1 ?? '16',
+        scoutCfCodecH264: data.settings.scoutCfCodecH264 ?? '8',
+        scoutCfLegacyPenalty: data.settings.scoutCfLegacyPenalty ?? '30',
+        scoutCfSmall4kPenalty: data.settings.scoutCfSmall4kPenalty ?? '15',
+        scoutCfSmall4kMinGiB: data.settings.scoutCfSmall4kMinGiB ?? '8',
+        scoutCfSeedersDivisor: data.settings.scoutCfSeedersDivisor ?? '20',
+        scoutCfSeedersBonusCap: data.settings.scoutCfSeedersBonusCap ?? '12',
+        scoutCfUsenetBonus: data.settings.scoutCfUsenetBonus ?? '10',
+        scoutCfTorrentBonus: data.settings.scoutCfTorrentBonus ?? '0',
         jfSyncIntervalMin: data.settings.jfSyncIntervalMin ?? '30',
         jfSyncBatchSize:   data.settings.jfSyncBatchSize   ?? '10',
       });
@@ -292,12 +447,63 @@ export function Settings() {
     queryFn: api.scoutAutoStatus,
     refetchInterval: 10_000,
   });
+  const { data: scoutRulesData, refetch: refetchScoutRules } = useQuery({
+    queryKey: ['rules', 'scout'],
+    queryFn: () => api.rules('scout'),
+    staleTime: 60_000,
+  });
   const scoutAutoRunMutation = useMutation({
     mutationFn: () => api.scoutAutoRun(),
     onSuccess: () => {
       refetchAutoStatus();
     },
   });
+  const scoutSyncTrashMutation = useMutation({
+    mutationFn: () => api.scoutSyncTrashScores(),
+    onSuccess: (res) => {
+      setForm(prev => ({ ...prev, ...res.applied }));
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      refetchScoutRules();
+    },
+  });
+  const scoutRefineDraftMutation = useMutation({
+    mutationFn: (objective: string) => api.scoutRulesRefineDraft({ objective }),
+  });
+  const saveScoutRulesMutation = useMutation({
+    mutationFn: (rules: ScoutRuleDraft[]) => {
+      const payload = rules.map(r => ({
+        id: r.id,
+        category: 'scout',
+        name: r.name,
+        enabled: r.enabled,
+        priority: r.priority,
+        config: JSON.parse(r.configText || '{}'),
+      }));
+      return api.saveRules(payload);
+    },
+    onSuccess: () => {
+      setScoutRulesSaved(true);
+      setScoutRulesError('');
+      setTimeout(() => setScoutRulesSaved(false), 2500);
+      refetchScoutRules();
+    },
+    onError: (err) => {
+      setScoutRulesSaved(false);
+      setScoutRulesError((err as Error).message);
+    },
+  });
+
+  useEffect(() => {
+    const rules = scoutRulesData?.rules?.scout ?? [];
+    const mapped = rules.map(r => ({
+      id: r.id,
+      name: r.name,
+      enabled: r.enabled !== 0,
+      priority: r.priority,
+      configText: toPrettyJson(r.config),
+    }));
+    setScoutRulesDraft(mapped);
+  }, [scoutRulesData]);
 
   const [healthData, setHealthData] = useState<{ jellyfin: { ok: boolean; libraries?: number; error?: string } } | null>(null);
   const [checkingHealth, setCheckingHealth] = useState(false);
@@ -328,6 +534,29 @@ export function Settings() {
     try { localStorage.setItem('clientProfile', clientProfile); } catch { /* */ }
   }
 
+  function updateScoutRule(id: number, patch: Partial<ScoutRuleDraft>) {
+    setScoutRulesDraft(prev => prev.map(r => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  function applyRefinementSuggestions() {
+    const draft = scoutRefineDraftMutation.data;
+    if (!draft) return;
+    if (Object.keys(draft.proposedSettings).length > 0) {
+      setForm(prev => ({ ...prev, ...draft.proposedSettings }));
+    }
+    if (draft.suggestedRuleToggles.length > 0) {
+      setScoutRulesDraft(prev => prev.map(r => {
+        const t = draft.suggestedRuleToggles.find(x => x.id === r.id);
+        return t ? { ...r, enabled: t.enabled } : r;
+      }));
+    }
+  }
+
+  function applyScoutPreset(preset: (typeof SCOUT_PRESET_SAMPLES)[number]) {
+    setForm(prev => ({ ...prev, ...preset.settingsPatch }));
+    setRefineObjective(preset.objective);
+  }
+
   const activeProfile = CLIENT_PROFILES.find(p => p.id === clientProfile) ?? CLIENT_PROFILES[0];
 
   if (isLoading) return <div className="p-8" style={{ color: 'var(--c-muted)' }}>Loading settings…</div>;
@@ -339,120 +568,354 @@ export function Settings() {
         Settings
       </h1>
 
-      {/* Jellyfin */}
-      <section className="rounded-xl p-5 space-y-4 border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Jellyfin Connection</h2>
-        <Field label="Jellyfin URL" name="jellyfinUrl" value={form.jellyfinUrl ?? ''}
-          onChange={v => set('jellyfinUrl', v)} placeholder="http://localhost:8096"
-          hint={[
-            'Server-side URL — used by Curatarr\'s backend, not your browser.',
-            'Bare-metal / local dev: http://localhost:8096',
-            'Docker (same compose stack): http://jellyfin:8096',
-            'Docker Desktop on Mac: http://host.docker.internal:8096',
-            'Also read from env var: JELLYFIN_URL',
-          ].join(' · ')} />
-        <Field label="Jellyfin Public Web URL" name="jellyfinPublicUrl" value={form.jellyfinPublicUrl ?? ''}
-          onChange={v => set('jellyfinPublicUrl', v)} placeholder="https://jellyfin.example.com"
-          hint="Browser-facing Jellyfin URL used for Movie detail page links (Open in Jellyfin)." />
-        <MaskedKeyField
-          label="API Key"
-          name="jellyfinApiKey"
-          maskedValue={form.jellyfinApiKeyMasked ?? ''}
-          value={form.jellyfinApiKey ?? ''}
-          onChange={v => set('jellyfinApiKey', v)}
-          hint="Jellyfin Dashboard → Administration → API Keys → Add Key. Also read from env var: JELLYFIN_API_KEY" />
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Auto-sync interval (min)" name="jfSyncIntervalMin"
-            value={form.jfSyncIntervalMin ?? '30'}
-            onChange={v => set('jfSyncIntervalMin', v)}
-            placeholder="30"
-            hint="Minutes between automatic JF syncs. 0 = disabled. Takes effect after server restart." />
-          <Field label="Sync batch size" name="jfSyncBatchSize"
-            value={form.jfSyncBatchSize ?? '10'}
-            onChange={v => set('jfSyncBatchSize', v)}
-            placeholder="10"
-            hint="Items per Jellyfin API page during sync." />
-        </div>
-        <div className="flex items-center gap-3">
-          <button onClick={checkHealth} disabled={checkingHealth}
-            className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm"
-            style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}>
-            {checkingHealth ? <Loader2 size={13} className="animate-spin" /> : null}
-            Test Connection
-          </button>
-          {healthData && (
-            healthData.jellyfin.ok ? (
-              <span className="flex items-center gap-1 text-sm text-green-400">
-                <CheckCircle size={14} /> Connected — {healthData.jellyfin.libraries} libraries
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-sm text-red-400">
-                <AlertCircle size={14} /> {healthData.jellyfin.error}
-              </span>
-            )
-          )}
-        </div>
-      </section>
+      <AccordionSection title="General" defaultOpen>
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Jellyfin Connection</h2>
+          <Field label="Jellyfin URL" name="jellyfinUrl" value={form.jellyfinUrl ?? ''}
+            onChange={v => set('jellyfinUrl', v)} placeholder="http://localhost:8096"
+            hint={[
+              'Server-side URL — used by Curatarr\'s backend, not your browser.',
+              'Bare-metal / local dev: http://localhost:8096',
+              'Docker (same compose stack): http://jellyfin:8096',
+              'Docker Desktop on Mac: http://host.docker.internal:8096',
+              'Also read from env var: JELLYFIN_URL',
+            ].join(' · ')} />
+          <Field label="Jellyfin Public Web URL" name="jellyfinPublicUrl" value={form.jellyfinPublicUrl ?? ''}
+            onChange={v => set('jellyfinPublicUrl', v)} placeholder="https://jellyfin.example.com"
+            hint="Browser-facing Jellyfin URL used for Movie detail page links (Open in Jellyfin)." />
+          <MaskedKeyField
+            label="API Key"
+            name="jellyfinApiKey"
+            maskedValue={form.jellyfinApiKeyMasked ?? ''}
+            value={form.jellyfinApiKey ?? ''}
+            onChange={v => set('jellyfinApiKey', v)}
+            hint="Jellyfin Dashboard → Administration → API Keys → Add Key. Also read from env var: JELLYFIN_API_KEY" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Auto-sync interval (min)" name="jfSyncIntervalMin" value={form.jfSyncIntervalMin ?? '30'} onChange={v => set('jfSyncIntervalMin', v)} placeholder="30" hint="Minutes between automatic JF syncs. 0 = disabled. Takes effect after server restart." />
+            <Field label="Sync batch size" name="jfSyncBatchSize" value={form.jfSyncBatchSize ?? '10'} onChange={v => set('jfSyncBatchSize', v)} placeholder="10" hint="Items per Jellyfin API page during sync." />
+          </div>
+          <div className="flex items-center gap-3">
+            <button onClick={checkHealth} disabled={checkingHealth} className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm" style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#c4b5fd' }}>
+              {checkingHealth ? <Loader2 size={13} className="animate-spin" /> : null}
+              Test Connection
+            </button>
+            {healthData && (
+              healthData.jellyfin.ok
+                ? <span className="flex items-center gap-1 text-sm text-green-400"><CheckCircle size={14} /> Connected — {healthData.jellyfin.libraries} libraries</span>
+                : <span className="flex items-center gap-1 text-sm text-red-400"><AlertCircle size={14} /> {healthData.jellyfin.error}</span>
+            )}
+          </div>
+        </section>
 
-      {/* Library */}
-      <section className="rounded-xl p-5 space-y-4 border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Library</h2>
-        <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''}
-          onChange={v => set('libraryPath', v)} placeholder="/media/Movies"
-          hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also read from env var: LIBRARY_PATH" />
-      </section>
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Library</h2>
+          <Field label="Library Path" name="libraryPath" value={form.libraryPath ?? ''} onChange={v => set('libraryPath', v)} placeholder="/media/Movies" hint="Path used by the Scan command — as seen by the Curatarr process. In Docker use the container path of the mounted volume (e.g. /media). Also read from env var: LIBRARY_PATH" />
+        </section>
 
-      {/* Client Profile */}
-      <section className="rounded-xl p-5 space-y-4 border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
-          <Tv2 size={16} style={{ color: 'var(--c-accent)' }} />
-          Primary Playback Client
-        </h2>
-        <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Drives AV1 compatibility warnings, DV profile badges, and codec scoring in Scout Queue and Library.
-        </p>
-        <div className="grid grid-cols-1 gap-2">
-          {CLIENT_PROFILES.map(p => (
-            <label
-              key={p.id}
-              className="flex items-start gap-3 p-3 rounded-lg cursor-pointer border transition-colors"
-              style={{
-                borderColor: clientProfile === p.id ? 'var(--c-accent)' : 'var(--c-border)',
-                background: clientProfile === p.id ? 'rgba(124,58,237,0.1)' : 'var(--c-bg)',
-              }}
-            >
-              <input
-                type="radio"
-                name="clientProfile"
-                value={p.id}
-                checked={clientProfile === p.id}
-                onChange={() => setClientProfile(p.id)}
-                className="mt-0.5 accent-violet-600"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>{p.label}</div>
-                <div className="text-xs mt-0.5" style={{ color: 'var(--c-muted)' }}>{p.hint}</div>
-                {/* Codec capability table */}
-                <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <span style={{ color: 'var(--c-muted)', minWidth: '72px' }}>Video codec AV1</span>
-                    <span style={{ color: 'var(--c-text)' }}>{p.videoCodec.av1}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span style={{ color: 'var(--c-muted)', minWidth: '48px' }}>HEVC (H.265)</span>
-                    <span style={{ color: 'var(--c-text)' }}>{p.videoCodec.hevc}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 col-span-2">
-                    <span style={{ color: 'var(--c-muted)', minWidth: '72px' }}>Dolby Vision</span>
-                    <span style={{ color: 'var(--c-text)' }}>{p.dv}</span>
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
+          <Field label="Provider" name="llmProvider" value={form.llmProvider ?? ''} onChange={v => set('llmProvider', v)} placeholder="openai / anthropic / ollama" hint="One of: openai, anthropic, ollama, openrouter. Also read from env var: LLM_PROVIDER" />
+          <MaskedKeyField
+            label="API Key"
+            name="llmApiKey"
+            maskedValue={form.llmApiKeyMasked ?? ''}
+            value={form.llmApiKey ?? ''}
+            onChange={v => set('llmApiKey', v)}
+            hint="API key for the chosen LLM provider. Not needed for Ollama (local). Also read from env var: LLM_API_KEY" />
+        </section>
+
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Prowlarr</h2>
+          <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''} onChange={v => set('prowlarrUrl', v)} placeholder="http://localhost:9696" hint="Used by Scout release search and auto-scout. Also read from env var: PROWLARR_URL" />
+          <MaskedKeyField
+            label="API Key"
+            name="prowlarrApiKey"
+            maskedValue={form.prowlarrApiKeyMasked ?? ''}
+            value={form.prowlarrApiKey ?? ''}
+            onChange={v => set('prowlarrApiKey', v)}
+            hint="Prowlarr Settings → General → Security → API Key. Also read from env var: PROWLARR_API_KEY" />
+        </section>
+
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
+            <Tv2 size={16} style={{ color: 'var(--c-accent)' }} />
+            Primary Playback Client
+          </h2>
+          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+            Drives AV1 compatibility warnings, DV profile badges, and codec scoring in Scout Queue and Library.
+          </p>
+          <div className="grid grid-cols-1 gap-2">
+            {CLIENT_PROFILES.map(p => (
+              <label key={p.id} className="flex items-start gap-3 p-3 rounded-lg cursor-pointer border transition-colors" style={{ borderColor: clientProfile === p.id ? 'var(--c-accent)' : 'var(--c-border)', background: clientProfile === p.id ? 'rgba(124,58,237,0.1)' : 'var(--c-bg)' }}>
+                <input type="radio" name="clientProfile" value={p.id} checked={clientProfile === p.id} onChange={() => setClientProfile(p.id)} className="mt-0.5 accent-violet-600" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>{p.label}</div>
+                  <div className="text-xs mt-0.5" style={{ color: 'var(--c-muted)' }}>{p.hint}</div>
+                  <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ color: 'var(--c-muted)', minWidth: '72px' }}>Video codec AV1</span>
+                      <span style={{ color: 'var(--c-text)' }}>{p.videoCodec.av1}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ color: 'var(--c-muted)', minWidth: '48px' }}>HEVC (H.265)</span>
+                      <span style={{ color: 'var(--c-text)' }}>{p.videoCodec.hevc}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 col-span-2">
+                      <span style={{ color: 'var(--c-muted)', minWidth: '72px' }}>Dolby Vision</span>
+                      <span style={{ color: 'var(--c-text)' }}>{p.dv}</span>
+                    </div>
                   </div>
                 </div>
+              </label>
+            ))}
+          </div>
+        </section>
+      </AccordionSection>
+
+      <AccordionSection title="Scout" defaultOpen>
+        <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
+          CF Scoring, Rules, Scout
+          <InfoTooltip content={SCOUT_CF_SCORING_TOOLTIP} />
+        </h2>
+        <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+          Tune Scout release ranking without code changes. Higher score means a release is recommended first.
+        </p>
+        <div className="grid grid-cols-4 gap-3">
+          <Field label="2160p" name="scoutCfRes2160"
+            value={form.scoutCfRes2160 ?? '40'}
+            onChange={v => set('scoutCfRes2160', v)} />
+          <Field label="1080p" name="scoutCfRes1080"
+            value={form.scoutCfRes1080 ?? '25'}
+            onChange={v => set('scoutCfRes1080', v)} />
+          <Field label="720p" name="scoutCfRes720"
+            value={form.scoutCfRes720 ?? '10'}
+            onChange={v => set('scoutCfRes720', v)} />
+          <Field label="Legacy Penalty" name="scoutCfLegacyPenalty"
+            value={form.scoutCfLegacyPenalty ?? '30'}
+            onChange={v => set('scoutCfLegacyPenalty', v)} />
+
+          <Field label="Remux" name="scoutCfSourceRemux"
+            value={form.scoutCfSourceRemux ?? '28'}
+            onChange={v => set('scoutCfSourceRemux', v)} />
+          <Field label="BluRay" name="scoutCfSourceBluray"
+            value={form.scoutCfSourceBluray ?? '16'}
+            onChange={v => set('scoutCfSourceBluray', v)} />
+          <Field label="WEB-DL" name="scoutCfSourceWebdl"
+            value={form.scoutCfSourceWebdl ?? '12'}
+            onChange={v => set('scoutCfSourceWebdl', v)} />
+          <Field label="Small 4K Penalty" name="scoutCfSmall4kPenalty"
+            value={form.scoutCfSmall4kPenalty ?? '15'}
+            onChange={v => set('scoutCfSmall4kPenalty', v)} />
+
+          <Field label="HEVC" name="scoutCfCodecHevc"
+            value={form.scoutCfCodecHevc ?? '20'}
+            onChange={v => set('scoutCfCodecHevc', v)} />
+          <Field label="AV1" name="scoutCfCodecAv1"
+            value={form.scoutCfCodecAv1 ?? '16'}
+            onChange={v => set('scoutCfCodecAv1', v)} />
+          <Field label="H264" name="scoutCfCodecH264"
+            value={form.scoutCfCodecH264 ?? '8'}
+            onChange={v => set('scoutCfCodecH264', v)} />
+          <Field label="Small 4K Min GiB" name="scoutCfSmall4kMinGiB"
+            value={form.scoutCfSmall4kMinGiB ?? '8'}
+            onChange={v => set('scoutCfSmall4kMinGiB', v)} />
+
+          <Field label="Usenet Bonus" name="scoutCfUsenetBonus"
+            value={form.scoutCfUsenetBonus ?? '10'}
+            onChange={v => set('scoutCfUsenetBonus', v)} />
+          <Field label="Torrent Bonus" name="scoutCfTorrentBonus"
+            value={form.scoutCfTorrentBonus ?? '0'}
+            onChange={v => set('scoutCfTorrentBonus', v)} />
+          <Field label="Seeder Divisor" name="scoutCfSeedersDivisor"
+            value={form.scoutCfSeedersDivisor ?? '20'}
+            onChange={v => set('scoutCfSeedersDivisor', v)} />
+          <Field label="Seeder Max Bonus" name="scoutCfSeedersBonusCap"
+            value={form.scoutCfSeedersBonusCap ?? '12'}
+            onChange={v => set('scoutCfSeedersBonusCap', v)} />
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => scoutSyncTrashMutation.mutate()}
+            disabled={scoutSyncTrashMutation.isPending}
+            className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+            style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+            title="Apply Curatarr TRaSH-aligned baseline scoring and refresh Scout rules"
+          >
+            {scoutSyncTrashMutation.isPending ? 'Syncing…' : 'Sync TRaSH Scores'}
+          </button>
+          {scoutSyncTrashMutation.data?.meta && (
+            <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Source: {scoutSyncTrashMutation.data.meta.source}
+              {scoutSyncTrashMutation.data.meta.revision ? ` @ ${scoutSyncTrashMutation.data.meta.revision}` : ''}
+            </span>
+          )}
+          {scoutSyncTrashMutation.isError && (
+            <span className="text-xs text-red-400">
+              {(scoutSyncTrashMutation.error as Error).message}
+            </span>
+          )}
+        </div>
+
+        <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Scout Rules
+          </div>
+          {scoutRulesDraft.length === 0 && (
+            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>No Scout rules found.</div>
+          )}
+          <div className="space-y-3">
+            {scoutRulesDraft.map((rule) => (
+              <div key={rule.id} className="rounded border p-3 space-y-2" style={{ borderColor: 'var(--c-border)' }}>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>
+                    {rule.name}
+                  </div>
+                  <label className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--c-muted)' }}>
+                    <input
+                      type="checkbox"
+                      checked={rule.enabled}
+                      onChange={e => updateScoutRule(rule.id, { enabled: e.target.checked })}
+                    />
+                    Enabled
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: '#8b87aa' }}>Priority</label>
+                  <input
+                    type="number"
+                    value={String(rule.priority)}
+                    onChange={e => updateScoutRule(rule.id, { priority: Number(e.target.value || 0) })}
+                    className="w-32 px-2 py-1 rounded text-xs focus:outline-none"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: '#8b87aa' }}>Rule Intent (Natural Text)</label>
+                  <input
+                    type="text"
+                    value={extractRuleDescription(rule.configText)}
+                    onChange={e => updateScoutRule(rule.id, { configText: patchRuleDescription(rule.configText, e.target.value) })}
+                    className="w-full px-2 py-1 rounded text-xs focus:outline-none"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder="Example: prefer WEB-DL over WEBRip at same resolution"
+                  />
+                </div>
+                <details>
+                  <summary className="cursor-pointer text-xs" style={{ color: 'var(--c-muted)' }}>Advanced JSON</summary>
+                  <textarea
+                    rows={5}
+                    value={rule.configText}
+                    onChange={e => updateScoutRule(rule.id, { configText: e.target.value })}
+                    className="w-full mt-2 px-2 py-1 rounded text-xs font-mono focus:outline-none"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                  />
+                </details>
+                <div>
+                  <label className="block text-xs mb-1" style={{ color: '#8b87aa' }}>Rule Name</label>
+                  <input
+                    type="text"
+                    value={rule.name}
+                    onChange={e => updateScoutRule(rule.id, { name: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs focus:outline-none"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                  />
+                </div>
               </div>
-            </label>
-          ))}
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => saveScoutRulesMutation.mutate(scoutRulesDraft)}
+              disabled={saveScoutRulesMutation.isPending || scoutRulesDraft.length === 0}
+              className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+            >
+              {saveScoutRulesMutation.isPending ? 'Saving Rules…' : 'Save Scout Rules'}
+            </button>
+            {scoutRulesSaved && <span className="text-xs text-green-400">Saved</span>}
+            {scoutRulesError && <span className="text-xs text-red-400">{scoutRulesError}</span>}
+          </div>
+        </div>
+
+        <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            LLM Rule Refinement
+          </div>
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>Opinionated Samples</div>
+            <div className="flex flex-wrap gap-2">
+              {SCOUT_PRESET_SAMPLES.map(preset => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => applyScoutPreset(preset)}
+                  className="px-2 py-1 rounded border text-xs"
+                  style={{ borderColor: 'var(--c-border)', color: '#c4b5fd', background: 'rgba(124,58,237,0.08)' }}
+                  title={preset.summary}
+                >
+                  {preset.title}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>Natural Objective Samples</div>
+            <div className="flex flex-wrap gap-2">
+              {SCOUT_OBJECTIVE_SAMPLES.map(sample => (
+                <button
+                  key={sample}
+                  type="button"
+                  onClick={() => setRefineObjective(sample)}
+                  className="px-2 py-1 rounded border text-xs"
+                  style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
+                >
+                  {sample}
+                </button>
+              ))}
+            </div>
+          </div>
+          <textarea
+            rows={2}
+            value={refineObjective}
+            onChange={e => setRefineObjective(e.target.value)}
+            placeholder="Example: favor compatibility on Android TV while keeping 4K quality high."
+            className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => scoutRefineDraftMutation.mutate(refineObjective)}
+              disabled={scoutRefineDraftMutation.isPending}
+              className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+            >
+              {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate LLM Draft'}
+            </button>
+            {scoutRefineDraftMutation.data && (
+              <button
+                type="button"
+                onClick={applyRefinementSuggestions}
+                className="px-3 py-1.5 rounded border text-xs"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                Apply Suggestions
+              </button>
+            )}
+          </div>
+          {scoutRefineDraftMutation.data && (
+            <textarea
+              rows={8}
+              readOnly
+              value={scoutRefineDraftMutation.data.prompt}
+              className="w-full px-3 py-2 rounded text-xs font-mono"
+              style={{ background: 'rgba(30,30,46,0.7)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
+            />
+          )}
         </div>
       </section>
 
@@ -555,39 +1018,7 @@ export function Settings() {
           </button>
         </div>
       </section>
-
-      {/* LLM */}
-      <section className="rounded-xl p-5 space-y-4 border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
-        <Field label="Provider" name="llmProvider" value={form.llmProvider ?? ''}
-          onChange={v => set('llmProvider', v)} placeholder="openai / anthropic / ollama"
-          hint="One of: openai, anthropic, ollama, openrouter. Also read from env var: LLM_PROVIDER" />
-        <MaskedKeyField
-          label="API Key"
-          name="llmApiKey"
-          maskedValue={form.llmApiKeyMasked ?? ''}
-          value={form.llmApiKey ?? ''}
-          onChange={v => set('llmApiKey', v)}
-          hint="API key for the chosen LLM provider. Not needed for Ollama (local). Also read from env var: LLM_API_KEY" />
-      </section>
-
-      {/* Prowlarr */}
-      <section className="rounded-xl p-5 space-y-4 border"
-        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Prowlarr</h2>
-        <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''}
-          onChange={v => set('prowlarrUrl', v)}
-          placeholder="http://localhost:9696"
-          hint="Used by Scout release search and auto-scout. Also read from env var: PROWLARR_URL" />
-        <MaskedKeyField
-          label="API Key"
-          name="prowlarrApiKey"
-          maskedValue={form.prowlarrApiKeyMasked ?? ''}
-          value={form.prowlarrApiKey ?? ''}
-          onChange={v => set('prowlarrApiKey', v)}
-          hint="Prowlarr Settings → General → Security → API Key. Also read from env var: PROWLARR_API_KEY" />
-      </section>
+      </AccordionSection>
 
       {/* Scan prompt — shown after library path is saved */}
       {showScanPrompt && (

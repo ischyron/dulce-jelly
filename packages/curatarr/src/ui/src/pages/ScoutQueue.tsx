@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { TrendingUp, Star, AlertTriangle, X } from 'lucide-react';
@@ -81,6 +81,18 @@ export function ScoutQueue() {
   const effMinComm = qMinCommunity != null ? Number(qMinCommunity) : seedMinComm;
   const effMaxRes = qMaxRes ?? seedMaxRes;
   const effGenre = qGenre ?? seedGenre;
+  const selectedGenres = effGenre ? effGenre.split(',').map(g => g.trim()).filter(Boolean) : [];
+  const genreRef = useRef<HTMLDivElement | null>(null);
+  const [genreOpen, setGenreOpen] = useState(false);
+
+  useEffect(() => {
+    function onDocClick(e: MouseEvent) {
+      if (!genreRef.current) return;
+      if (!genreRef.current.contains(e.target as Node)) setGenreOpen(false);
+    }
+    if (genreOpen) document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [genreOpen]);
 
   function patch(changes: Record<string, string | null>) {
     setSearchParams(prev => {
@@ -99,17 +111,33 @@ export function ScoutQueue() {
     staleTime: 120_000,
   });
 
+  const genreKey = selectedGenres.join(',');
   const { data, isLoading } = useQuery({
-    queryKey: ['candidates', effMinCritic, effMinComm, effMaxRes, effGenre],
+    queryKey: ['candidates', effMinCritic, effMinComm, effMaxRes, genreKey],
     queryFn: () => api.candidates({
       minCritic: effMinCritic,
       minCommunity: effMinComm,
       maxResolution: effMaxRes,
-      ...(effGenre ? { genre: effGenre } : {}),
+      ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
       limit: 200,
     }),
     enabled: Number.isFinite(effMinCritic) && Number.isFinite(effMinComm),
   });
+
+  function removeGenreFilter(genre: string) {
+    const next = selectedGenres.filter(g => g !== genre);
+    patch({ genre: next.length > 0 ? next.join(',') : null });
+  }
+
+  function toggleGenreFilter(genre: string) {
+    const g = genre.trim();
+    if (!g) return;
+    if (selectedGenres.includes(g)) {
+      removeGenreFilter(g);
+      return;
+    }
+    patch({ genre: [...selectedGenres, g].join(',') });
+  }
 
   const candidateById = useMemo(() => {
     const map = new Map<number, Candidate>();
@@ -121,6 +149,8 @@ export function ScoutQueue() {
     .map(id => candidateById.get(id))
     .filter((v): v is Candidate => Boolean(v))
     .slice(0, 10);
+  const pageCandidateIds = data?.candidates.map((c: Candidate) => c.id) ?? [];
+  const allPageSelected = pageCandidateIds.length > 0 && pageCandidateIds.every(id => selectedBatch.includes(id));
 
   const batchMutation = useMutation({
     mutationFn: (movieIds: number[]) => api.scoutSearchBatch({ movieIds, batchSize: movieIds.length }),
@@ -161,6 +191,22 @@ export function ScoutQueue() {
     batchMutation.mutate(capped);
   }
 
+  function toggleSelectAllOnPage(checked: boolean) {
+    setBatchUiError('');
+    setBatchResultMsg('');
+    setSelectedBatch(prev => {
+      if (checked) {
+        const merged = Array.from(new Set([...prev, ...pageCandidateIds]));
+        if (merged.length > maxBatch) {
+          setBatchUiError(`Max batch size reached (${maxBatch}).`);
+          return merged.slice(0, maxBatch);
+        }
+        return merged;
+      }
+      return prev.filter(id => !pageCandidateIds.includes(id));
+    });
+  }
+
   return (
     <div className="flex flex-col h-full">
       {/* Filters */}
@@ -171,22 +217,55 @@ export function ScoutQueue() {
           Scout Queue
         </h1>
 
-        <div className="flex items-center gap-2 text-sm ml-4">
+        <div ref={genreRef} className="relative flex items-center gap-2 text-sm ml-4">
           <label
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
           >
             Genre
           </label>
-          <select
-            value={effGenre}
-            onChange={e => patch({ genre: e.target.value || null })}
+          <button
+            onClick={() => setGenreOpen(v => !v)}
             className="px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: effGenre ? 'var(--c-accent)' : 'var(--c-muted)' }}
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: selectedGenres.length > 0 ? 'var(--c-accent)' : 'var(--c-muted)' }}
           >
-            <option value="">All</option>
-            {(genresData?.genres ?? []).map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
+            {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : 'Select genres'}
+          </button>
+          {genreOpen && (
+            <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+              {(genresData?.genres ?? []).length === 0 && (
+                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>No genres available.</div>
+              )}
+              {(genresData?.genres ?? []).map(g => (
+                <label key={g} className="flex items-center gap-2 text-xs cursor-pointer"
+                  style={{ color: selectedGenres.includes(g) ? '#d4cfff' : 'var(--c-muted)' }}>
+                  <input
+                    type="checkbox"
+                    checked={selectedGenres.includes(g)}
+                    onChange={() => toggleGenreFilter(g)}
+                    className="accent-violet-600"
+                  />
+                  <span>{g}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedGenres.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {selectedGenres.map(g => (
+                <button
+                  key={g}
+                  onClick={() => removeGenreFilter(g)}
+                  className="px-2 py-0.5 rounded-full text-xs border"
+                  style={{ color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }}
+                  title="Remove genre filter"
+                >
+                  {g} ×
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2 ml-4 text-sm">
@@ -291,7 +370,18 @@ export function ScoutQueue() {
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider sticky top-0"
                 style={{ borderBottom: '1px solid var(--c-border)', background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
-                <th className="px-3 py-2" aria-label="Select rows" />
+                <th className="px-2 py-2 text-center" style={{ width: '32px' }}>
+                  <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
+                    style={{ minWidth: 28, minHeight: 28 }}>
+                    <input
+                      type="checkbox"
+                      checked={allPageSelected}
+                      onChange={e => toggleSelectAllOnPage(e.target.checked)}
+                      className="w-5 h-5 accent-violet-600 cursor-pointer"
+                      title="Select all rows on this page"
+                    />
+                  </label>
+                </th>
                 <th className="px-3 py-2"
                   title="Priority score = round((CriticRating * 0.4) + (IMDbRating * 6)). Higher means better upgrade candidate.">
                   <span className="inline-flex items-center gap-1">
@@ -341,7 +431,7 @@ export function ScoutQueue() {
                     background: selectedId === c.id ? 'rgba(124,58,237,0.12)' : undefined,
                   }}
                 >
-                  <td className="px-3 py-2" onClick={e => e.stopPropagation()}>
+                  <td className="px-2 py-2 text-center" onClick={e => e.stopPropagation()}>
                     <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
                       style={{ minWidth: 28, minHeight: 28 }}>
                       <input
@@ -349,7 +439,7 @@ export function ScoutQueue() {
                         checked={selectedBatch.includes(c.id)}
                         onChange={e => toggleRowSelection(c.id, e.target.checked)}
                         aria-label={`Select ${c.jellyfin_title ?? c.parsed_title ?? c.folder_name}`}
-                        className="w-5 h-5 cursor-pointer"
+                        className="w-5 h-5 accent-violet-600 cursor-pointer"
                       />
                     </label>
                   </td>

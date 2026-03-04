@@ -1,5 +1,6 @@
 import { type Movie } from '../api/client.js';
 import { ResolutionBadge, CodecBadge, HdrBadge } from './QualityBadge.js';
+import { InfoHint } from './InfoHint.js';
 
 interface Props {
   movies: Movie[];
@@ -26,27 +27,19 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
             <th className="px-3 py-2 font-medium">
               <span className="inline-flex items-center gap-1">
                 Group
-                <span
-                  className="text-[10px] font-semibold normal-case tracking-normal"
-                  style={{ color: 'var(--c-border)' }}
-                  title="Torrent/Usenet release group inferred from the filename only."
-                  aria-label="Group info"
-                >
-                  [i]
-                </span>
+                <InfoHint
+                  label="Group info"
+                  text="Torrent/Usenet release group inferred from the filename only."
+                />
               </span>
             </th>
             <th className="px-3 py-2 font-medium text-right">
               <span className="inline-flex items-center gap-1">
                 MC
-                <span
-                  className="text-[10px] font-semibold normal-case tracking-normal"
-                  style={{ color: 'var(--c-border)' }}
-                  title="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
-                  aria-label="Critic info"
-                >
-                  [i]
-                </span>
+                <InfoHint
+                  label="Critic info"
+                  text="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                />
               </span>
             </th>
             <th className="px-3 py-2 font-medium text-right">IMDb</th>

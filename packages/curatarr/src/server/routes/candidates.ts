@@ -12,13 +12,14 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const limit = parseInt(c.req.query('limit') ?? '100', 10);
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
     const genre = c.req.query('genre') ?? undefined;
+    const genres = (genre ?? '').split(',').map(v => v.trim()).filter(Boolean);
 
     const candidates = db.getUpgradeCandidates({
       maxResolution,
       minCriticRating: minCritic,
       minCommunityRating: minCommunity,
       releaseGroups,
-      genre,
+      genres: genres.length > 0 ? genres : undefined,
       limit,
     });
 

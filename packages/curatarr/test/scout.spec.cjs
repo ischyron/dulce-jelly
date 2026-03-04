@@ -39,6 +39,30 @@ test.describe('Scout feature checks', () => {
     expect(settings).toHaveProperty('scoutAutoEnabled');
   });
 
+  test('sync TRaSH scores updates scout CF settings', async ({ request }) => {
+    const res = await request.post('/api/scout/sync-trash-scores', { data: {} });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.applied).toBeTruthy();
+    expect(body.applied.scoutCfRes2160).toBeTruthy();
+    expect(body.meta?.source).toBe('TRaSH-Guides');
+
+    const settingsRes = await request.get('/api/settings');
+    const settings = (await settingsRes.json()).settings ?? {};
+    expect(settings.scoutCfRes2160).toBe(body.applied.scoutCfRes2160);
+  });
+
+  test('scout refinement draft endpoint returns prompt + suggestions', async ({ request }) => {
+    const res = await request.post('/api/scout/rules/refine-draft', {
+      data: { objective: 'favor compatibility on android tv and reduce transcodes' },
+    });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(typeof body.prompt).toBe('string');
+    expect(body.prompt.length).toBeGreaterThan(50);
+    expect(body.proposedSettings).toBeTruthy();
+  });
+
   test('scout search-one behavior matches prowlarr config state', async ({ request }) => {
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();
@@ -51,17 +75,23 @@ test.describe('Scout feature checks', () => {
     const first = candidateJson?.candidates?.[0];
     expect(first?.id).toBeTruthy();
 
-    const scoutRes = await request.post('/api/scout/search-one', {
-      data: { movieId: first.id },
-    });
-
     if (!hasProwlarr) {
+      const scoutRes = await request.post('/api/scout/search-one', {
+        data: { movieId: first.id },
+      });
       expect(scoutRes.status()).toBe(422);
       const body = await scoutRes.json();
       expect(body.error).toBe('prowlarr_not_configured');
       return;
     }
 
-    expect([200, 502]).toContain(scoutRes.status());
+    // Keep this fast/deterministic when Prowlarr is configured:
+    // movie_not_found path validates request plumbing without waiting on live indexer search.
+    const scoutRes = await request.post('/api/scout/search-one', {
+      data: { movieId: 99999999 },
+    });
+    expect(scoutRes.status()).toBe(404);
+    const body = await scoutRes.json();
+    expect(body.error).toBe('movie_not_found');
   });
 });

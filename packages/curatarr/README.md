@@ -9,6 +9,7 @@ Curatarr replaces the traditional *arr stack (Radarr, Sonarr, Prowlarr, Recyclar
 🚧 **Work in Progress** — CLI scaffold implemented, core modules pending.
 
 See [docs/VISION.md](docs/VISION.md) for full design document.
+See [docs/scout-approach.md](docs/scout-approach.md) for the current CF scoring + Scout rules + TRaSH sync approach.
 
 ## Quick Start
 

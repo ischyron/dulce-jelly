@@ -58,9 +58,24 @@ test.describe('Scout feature checks', () => {
     });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
+    expect(body.mode).toBe('heuristic');
     expect(typeof body.prompt).toBe('string');
     expect(body.prompt.length).toBeGreaterThan(50);
     expect(body.proposedSettings).toBeTruthy();
+  });
+
+  test('movies endpoint supports multi-version filter', async ({ request }) => {
+    const allRes = await request.get('/api/movies?limit=1&page=1');
+    expect(allRes.ok()).toBeTruthy();
+    const allJson = await allRes.json();
+    expect(typeof allJson.total).toBe('number');
+
+    const multiRes = await request.get('/api/movies?limit=5&page=1&multi=true');
+    expect(multiRes.ok()).toBeTruthy();
+    const multiJson = await multiRes.json();
+    expect(typeof multiJson.total).toBe('number');
+    expect(multiJson.total).toBeLessThanOrEqual(allJson.total);
+    expect(Array.isArray(multiJson.movies)).toBeTruthy();
   });
 
   test('scout search-one behavior matches prowlarr config state', async ({ request }) => {

@@ -94,6 +94,14 @@ export interface DisambiguationLogRow {
   db_parsed_year?: number | null;
 }
 
+export interface UnmatchedMovieRow {
+  id: number;
+  folder_name: string;
+  parsed_title: string | null;
+  parsed_year: number | null;
+  jellyfin_id: string | null;
+}
+
 export interface MovieUpsert {
   folderPath: string;
   folderName: string;
@@ -873,6 +881,16 @@ export class CuratDb {
       'SELECT COUNT(*) as n FROM disambiguation_log'
     ).get() as { n: number }).n;
     return { pending, total };
+  }
+
+  getUnmatchedMovies(limit = 200): UnmatchedMovieRow[] {
+    return this.db.prepare(`
+      SELECT id, folder_name, parsed_title, parsed_year, jellyfin_id
+      FROM movies
+      WHERE jellyfin_id IS NULL
+      ORDER BY parsed_year DESC, folder_name ASC
+      LIMIT ?
+    `).all(limit) as UnmatchedMovieRow[];
   }
 
   // ──────────────────────────────────────────────────────────────────

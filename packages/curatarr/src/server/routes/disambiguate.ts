@@ -83,7 +83,8 @@ export function makeDisambiguateRoutes(db: CuratDb): Hono {
   app.get('/pending', (c) => {
     const items = db.getAmbiguousDisambiguations(200);
     const count = db.getDisambiguationCount();
-    return c.json({ items, ...count });
+    const unmatchedMovies = db.getUnmatchedMovies(200);
+    return c.json({ items, unmatchedMovies, ...count });
   });
 
   // POST /api/disambiguate/:id/review  { decision: 'confirm' | 'reject' }

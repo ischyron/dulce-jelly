@@ -39,6 +39,7 @@ WORKDIR /app
 COPY --from=builder /build/dist     ./dist
 COPY --from=builder /build/dist-ui  ./dist-ui
 COPY --from=builder /build/node_modules ./node_modules
+COPY config/ ./config/
 
 # Entrypoint
 COPY docker/entrypoint.sh /entrypoint.sh

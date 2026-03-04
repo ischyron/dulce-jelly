@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { ProwlarrClient, type ProwlarrSearchResult } from '../../integrations/prowlarr/client.js';
+import { getScoutDefaultSettings } from '../../shared/scoutDefaults.js';
 
 interface ScoredRelease extends ProwlarrSearchResult {
   score: number;
@@ -81,29 +82,41 @@ function toText(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
+function toInt(raw: string | undefined, fallback: number): number {
+  const v = parseInt(raw ?? '', 10);
+  return Number.isFinite(v) ? v : fallback;
+}
+
+function toFloat(raw: string | undefined, fallback: number): number {
+  const v = parseFloat(raw ?? '');
+  return Number.isFinite(v) ? v : fallback;
+}
+
+const SCOUT_DEFAULT_SETTINGS = getScoutDefaultSettings();
+
 const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
-  res2160: 40,
-  res1080: 25,
-  res720: 10,
-  sourceRemux: 28,
-  sourceBluray: 16,
-  sourceWebdl: 12,
-  codecHevc: 20,
-  codecAv1: 16,
-  codecH264: 8,
-  audioAtmos: 10,
-  audioTruehd: 8,
-  audioDts: 6,
-  audioDdp: 5,
-  audioAc3: 2,
-  audioAac: 1,
-  legacyPenalty: 30,
-  small4kPenalty: 15,
-  small4kMinGiB: 8,
-  seedersDivisor: 20,
-  seedersBonusCap: 12,
-  usenetBonus: 10,
-  torrentBonus: 0,
+  res2160: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfRes2160, 46),
+  res1080: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfRes1080, 24),
+  res720: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfRes720, 8),
+  sourceRemux: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSourceRemux, 30),
+  sourceBluray: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSourceBluray, 20),
+  sourceWebdl: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSourceWebdl, 14),
+  codecHevc: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfCodecHevc, 22),
+  codecAv1: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfCodecAv1, 10),
+  codecH264: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfCodecH264, 8),
+  audioAtmos: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAtmos, 10),
+  audioTruehd: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioTruehd, 8),
+  audioDts: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioDts, 6),
+  audioDdp: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioDdp, 5),
+  audioAc3: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAc3, 2),
+  audioAac: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAac, 1),
+  legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfLegacyPenalty, 40),
+  small4kPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kPenalty, 22),
+  small4kMinGiB: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kMinGiB, 10),
+  seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersDivisor, 25),
+  seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersBonusCap, 10),
+  usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfUsenetBonus, 10),
+  torrentBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfTorrentBonus, 0),
 };
 
 const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {

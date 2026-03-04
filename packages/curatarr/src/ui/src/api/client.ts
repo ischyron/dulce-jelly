@@ -160,6 +160,14 @@ export interface DisambiguationLogRow {
   db_parsed_year?: number | null;
 }
 
+export interface UnmatchedMovie {
+  id: number;
+  folder_name: string;
+  parsed_title: string | null;
+  parsed_year: number | null;
+  jellyfin_id: string | null;
+}
+
 export interface FolderEntry {
   name: string;
   size: number;
@@ -373,7 +381,7 @@ export const api = {
     }),
 
   disambiguatePending: () =>
-    req<{ items: DisambiguationLogRow[]; pending: number; total: number }>('/disambiguate/pending'),
+    req<{ items: DisambiguationLogRow[]; unmatchedMovies: UnmatchedMovie[]; pending: number; total: number }>('/disambiguate/pending'),
 
   disambiguateReview: (id: number, decision: 'confirm' | 'reject') =>
     req<{ updated: boolean }>(`/disambiguate/${id}/review`, {

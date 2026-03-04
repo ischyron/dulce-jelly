@@ -43,6 +43,19 @@ function makeMatch(req: DisambiguateRequest, m: MovieRow): DisambiguateResult['m
   };
 }
 
+function normPath(p: string): string {
+  return p
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '')
+    .toLowerCase();
+}
+
+function pathFolderName(p: string): string {
+  const n = normPath(p);
+  const idx = n.lastIndexOf('/');
+  return idx >= 0 ? n.slice(idx + 1) : n;
+}
+
 // ── Strategy functions ─────────────────────────────────────────────
 
 export function strategyPath(
@@ -50,12 +63,31 @@ export function strategyPath(
   dbMovies: MovieRow[]
 ): DisambiguateResult | undefined {
   if (!req.folderPath) return undefined;
-  const m = dbMovies.find(m => m.folder_path === req.folderPath);
-  if (!m) return undefined;
+  const reqPath = normPath(req.folderPath);
+
+  // 1) Exact path match after path normalization.
+  const exact = dbMovies.find(m => normPath(m.folder_path) === reqPath);
+  if (exact) {
+    return {
+      requestId: req.id,
+      match: makeMatch(req, exact),
+      confidence: 1.0,
+      method: 'path',
+      ambiguous: false,
+    };
+  }
+
+  // 2) Mount-root tolerant fallback:
+  //    if Jellyfin and Curatarr use different roots (/Volumes/Movies vs /media),
+  //    match by the movie folder name when it is unique.
+  const folder = pathFolderName(reqPath);
+  const byFolder = dbMovies.filter(m => pathFolderName(m.folder_path) === folder);
+  if (byFolder.length !== 1) return undefined;
+  const m = byFolder[0];
   return {
     requestId: req.id,
     match: makeMatch(req, m),
-    confidence: 1.0,
+    confidence: 0.98,
     method: 'path',
     ambiguous: false,
   };

@@ -397,7 +397,7 @@ export function Settings() {
         prowlarrApiKey: '',
         prowlarrApiKeyMasked: data.settings.prowlarrApiKey ?? '',
         libraryPath: data.settings.libraryPath ?? '',
-        llmProvider: data.settings.llmProvider ?? '',
+        llmProvider: 'openai',
         llmApiKey: '',
         llmApiKeyMasked: data.settings.llmApiKey ?? '',
         scoutMinCritic:    data.settings.scoutMinCritic    ?? '65',
@@ -440,6 +440,7 @@ export function Settings() {
         if (k.endsWith('Masked')) continue;
         if (v !== '') payload[k] = v;
       }
+      payload.llmProvider = 'openai';
       return api.saveSettings(payload);
     },
     onSuccess: (_result, variables) => {
@@ -624,14 +625,25 @@ export function Settings() {
 
         <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold" style={{ color: '#d4cfff' }}>LLM Provider</h2>
-          <Field label="Provider" name="llmProvider" value={form.llmProvider ?? ''} onChange={v => set('llmProvider', v)} placeholder="openai / anthropic / ollama" hint="One of: openai, anthropic, ollama, openrouter. Also read from env var: LLM_PROVIDER" />
+          <div className="space-y-1">
+            <label className="text-sm font-medium" style={{ color: '#c4b5fd' }}>Provider</label>
+            <input
+              value="openai"
+              disabled
+              className="w-full px-3 py-2 rounded-lg text-sm opacity-85 cursor-not-allowed"
+              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+            />
+            <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Fixed to OpenAI for now. Provider selection will be re-enabled when multi-provider support is finalized.
+            </p>
+          </div>
           <MaskedKeyField
             label="API Key"
             name="llmApiKey"
             maskedValue={form.llmApiKeyMasked ?? ''}
             value={form.llmApiKey ?? ''}
             onChange={v => set('llmApiKey', v)}
-            hint="API key for the chosen LLM provider. Not needed for Ollama (local). Also read from env var: LLM_API_KEY" />
+            hint="OpenAI API key. You can also set it via env var: OPENAI_API_KEY (or legacy LLM_API_KEY)." />
         </section>
 
         <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>

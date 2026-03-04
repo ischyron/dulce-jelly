@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, X, GitMerge, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { api, type DisambiguationLogRow, type UnmatchedMovie } from '../api/client.js';
+import { ScanProgressModal } from '../components/ScanProgressModal.js';
 
 const REASON_LABELS: Record<string, string> = {
   year_mismatch: 'Year mismatch',
@@ -23,6 +25,9 @@ function ConfidenceBadge({ value }: { value: number | null }) {
 
 export function DisambiguatePage() {
   const queryClient = useQueryClient();
+  const [scanModalOpen, setScanModalOpen] = useState(false);
+  const [refreshingMovieId, setRefreshingMovieId] = useState<number | null>(null);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['disambiguate-pending'],
@@ -38,15 +43,42 @@ export function DisambiguatePage() {
       queryClient.invalidateQueries({ queryKey: ['disambiguate-pending-count'] });
     },
   });
-  const retryMut = useMutation({
-    mutationFn: (movieId: number) => api.jfRefreshMovie(movieId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['disambiguate-pending'] });
-      queryClient.invalidateQueries({ queryKey: ['disambiguate-pending-count'] });
-      queryClient.invalidateQueries({ queryKey: ['movies'] });
-      queryClient.invalidateQueries({ queryKey: ['stats'] });
-    },
-  });
+  async function invalidateAfterRefresh() {
+    await queryClient.invalidateQueries({ queryKey: ['disambiguate-pending'] });
+    await queryClient.invalidateQueries({ queryKey: ['disambiguate-pending-count'] });
+    await queryClient.invalidateQueries({ queryKey: ['movies'] });
+    await queryClient.invalidateQueries({ queryKey: ['stats'] });
+  }
+
+  async function refreshUnmatched(movieId: number) {
+    setRefreshError(null);
+    setRefreshingMovieId(movieId);
+    try {
+      const folder = await api.movieFolderContents(movieId);
+      if (!folder.folderExists || folder.videoCount === 0) {
+        try {
+          await api.triggerScan({});
+        } catch (err) {
+          const msg = (err as Error).message ?? 'scan_failed';
+          if (!msg.toLowerCase().includes('scan already running')) throw err;
+        }
+        setScanModalOpen(true);
+        return;
+      }
+
+      await api.jfRefreshMovie(movieId);
+      await invalidateAfterRefresh();
+    } catch (err) {
+      setRefreshError((err as Error).message ?? 'Failed to refresh.');
+    } finally {
+      setRefreshingMovieId(null);
+    }
+  }
+
+  async function closeScanModal() {
+    setScanModalOpen(false);
+    await invalidateAfterRefresh();
+  }
 
   const pending = data?.items ?? [];
   const unmatched = data?.unmatchedMovies ?? [];
@@ -62,6 +94,18 @@ export function DisambiguatePage() {
             {data?.pending} pending
           </span>
         )}
+      </div>
+
+      <div className="rounded-xl border px-4 py-3 text-sm"
+        style={{ background: 'rgba(251,191,36,0.08)', borderColor: 'rgba(251,191,36,0.3)', color: '#fcd34d' }}>
+        <div className="flex items-start gap-2">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+          <div className="space-y-1">
+            <div className="font-semibold">Folder Naming Support</div>
+            <div>Curatarr currently supports movie folders named{' '}<span className="italic">Movie Title (year)</span>.</div>
+            <div>File names can be anything. Rename helper coming soon.</div>
+          </div>
+        </div>
       </div>
 
       {/* Pending review table */}
@@ -171,11 +215,20 @@ export function DisambiguatePage() {
         style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
         <div className="px-4 py-3 border-b flex items-center justify-between"
           style={{ borderColor: 'var(--c-border)' }}>
-          <h2 className="font-semibold text-sm">Unmatched Movie Folders</h2>
-          <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
-            {unmatched.length} items
-          </span>
+          <div className="space-y-1">
+            <h2 className="font-semibold text-sm">Unmatched Movie Folders</h2>
+            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              Rename folder to match Jellyfin title/year or adjust Jellyfin metadata, then click Refresh.
+            </div>
+          </div>
+          <span className="text-xs" style={{ color: 'var(--c-muted)' }}>{unmatched.length} items</span>
         </div>
+        {refreshError && (
+          <div className="px-4 py-2 text-xs border-b"
+            style={{ color: '#fca5a5', borderColor: 'var(--c-border)', background: 'rgba(239,68,68,0.08)' }}>
+            {refreshError}
+          </div>
+        )}
         {unmatched.length === 0 && !isLoading ? (
           <div className="px-4 py-8 text-center text-sm" style={{ color: 'var(--c-muted)' }}>
             No unmatched folders.
@@ -199,15 +252,16 @@ export function DisambiguatePage() {
                       {(m.parsed_title ?? '—')}{m.parsed_year ? ` (${m.parsed_year})` : ''}
                     </td>
                     <td className="px-4 py-2.5">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-col items-start gap-1">
+                        <div className="flex items-center gap-2">
                         <button
-                          onClick={() => retryMut.mutate(m.id)}
-                          disabled={retryMut.isPending}
+                          onClick={() => refreshUnmatched(m.id)}
+                          disabled={refreshingMovieId === m.id}
                           className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border"
                           style={{ borderColor: 'rgba(125,211,252,0.4)', color: '#7dd3fc', background: 'rgba(56,189,248,0.12)' }}
                         >
-                          <RefreshCw size={12} className={retryMut.isPending ? 'animate-spin' : ''} />
-                          Retry Jellyfin Match
+                          <RefreshCw size={12} className={refreshingMovieId === m.id ? 'animate-spin' : ''} />
+                          Refresh
                         </button>
                         <Link
                           to={`/movies/${m.id}`}
@@ -216,6 +270,10 @@ export function DisambiguatePage() {
                         >
                           Open
                         </Link>
+                        </div>
+                        <div className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
+                          Tip: After fixing names or metadata, click Refresh.
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -225,6 +283,10 @@ export function DisambiguatePage() {
           </div>
         )}
       </div>
+
+      {scanModalOpen && (
+        <ScanProgressModal mode="scan" onClose={closeScanModal} />
+      )}
 
     </div>
   );

@@ -18,13 +18,7 @@
 - [TODO] Test http://dulce.local:3270/disambiguate against parity with radarr open source code in github. When ready to work on this ask me to rename a live file on disk and we will run disabiute and test
 
 **Quality tests**
- - [DONE] ~~MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations. USe an apporoch, splice it into current priority apporch. dont over rank the legacy codec, but make sure they are not lost/buried in last page of scout queue. if current apprch is reaosble then dont do anything.~~ (added bounded legacy-codec priority boost in `/api/candidates` sort path)
-- [DONE] ~~USe Chrome MCP Verify page: run deep-check on 2-3 files, evaluate impact and how users can view results. Is this result user-friendly? Is the information useful or too technical. If not, improvise.~~ (API deep-check run done on 3 files; page already includes ffmpeg explanation and condensed failure surfacing)
-
-- [DONE] Prowlarr integration into Scout
-- [DONE] Scout feature (like Radarr but not using Radarr): an interactive flow that gives AI-recommended releases, or otherwise tabulate the most efficient path
-- [DONE] Scout feature (automatic with batch size configured). Do not accept batch sizes that can overwhelm the indexers.
-- [DONE] ~~Playwright smoke tests: update/extend coverage for all pages (Dashboard, Library, Scout, Disambiguate, Verify, Settings, MoviePage). Do exoploratory tests and find bugs and record them -  Chrome MCP exploratory testing from layman user POV — report findings as TODO/BUGS, fix UX issue~~ (17/17 passing)
+- [TODO] Scout functional test using a dummy response api mock. get one relaistic for a movie using current prowlar integation I have.
 
 ### Other Todo Items/Issues 
 - [BLOCKED] qBittorrent lockout of IP from accessing.

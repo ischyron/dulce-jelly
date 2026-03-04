@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { JellyfinClient } from '../../jellyfin/client.js';
+import { syncScoringYamlFromSettings } from '../../shared/scoutDefaults.js';
 
 export function makeSettingsRoutes(db: CuratDb): Hono {
   const app = new Hono();
@@ -41,7 +42,15 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
         db.setSetting(k, v);
       }
     }
-    return c.json({ saved: Object.keys(body) });
+    let scoringYamlSynced = true;
+    try {
+      const merged = db.getAllSettings();
+      syncScoringYamlFromSettings(merged);
+    } catch (err) {
+      scoringYamlSynced = false;
+      console.error(`[settings] failed to sync scoring.yaml: ${(err as Error).message}`);
+    }
+    return c.json({ saved: Object.keys(body), scoringYamlSynced });
   });
 
   // GET /api/settings/health — test Jellyfin connectivity

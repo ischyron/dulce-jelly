@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ScanLine, RefreshCw, Info } from 'lucide-react';
+import { ScanLine, RefreshCw } from 'lucide-react';
 import { api } from '../api/client.js';
 import { ScanProgressModal } from '../components/ScanProgressModal.js';
+import { InfoHint } from '../components/InfoHint.js';
 
 const JF_SYNC_HOW_IT_WORKS = `Jellyfin Sync — how it works
 
@@ -26,38 +27,6 @@ const JF_SYNC_HOW_IT_WORKS = `Jellyfin Sync — how it works
 
 A full sync of 1 000+ movies typically takes 20–60 seconds,
 depending on Jellyfin's response time.`;
-
-function JfSyncTooltip() {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center"
-        style={{ color: 'var(--c-muted)' }}
-        title="How does Jellyfin Sync work?"
-      >
-        <Info size={14} />
-      </button>
-      {open && (
-        <div
-          className="absolute left-6 top-0 z-50 text-xs font-mono whitespace-pre rounded-lg p-3 shadow-xl"
-          style={{
-            background: '#1e1e2e',
-            border: '1px solid var(--c-border)',
-            color: 'var(--c-muted)',
-            width: '360px',
-            lineHeight: '1.6',
-          }}
-          onClick={() => setOpen(false)}
-        >
-          {JF_SYNC_HOW_IT_WORKS}
-        </div>
-      )}
-    </span>
-  );
-}
 
 type ModalMode = 'scan' | 'sync' | null;
 
@@ -176,7 +145,7 @@ export function ScanPage() {
         <h2 className="font-semibold text-[#d4cfff] flex items-center gap-2">
           <RefreshCw size={16} className="text-purple-400" />
           Jellyfin Sync
-          <JfSyncTooltip />
+          <InfoHint label="How Jellyfin sync works" text={JF_SYNC_HOW_IT_WORKS} />
         </h2>
         <p className="text-sm text-[#8b87aa]">
           Fetch movie metadata from Jellyfin (ratings, genres, IDs) and enrich the local database.

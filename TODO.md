@@ -10,26 +10,15 @@
 
 ### Curatarr Backlog
 
-- [DONE] ~~bug http://dulce.local:3270/library?tags=p1&page=1 filetr by tag doesnt work~~ (verified working on live API/UI)
-- [DONE] ~~Score in Scout page need a tooltip like CRITIC column in libary. Need to inform user what is this score based on IMDB or a an internal logic. Look at Ground truth - analsye code how this is scored~~
-- [DONE] ~~Show ALL feature where pagination is removed and all items are shown. Let user take the risk~~
 
 **CF scoring, Rules, Scout**
 
-- [DONE] ~~Scout feature:  CF scoring . Currently user cant score high a partuclar relese group or a format external to the inbut scoring added.~~
-- [DONE] ~~TODO and bit rate settings, decide an optioimal one - look at my settings and relax it even further. and set this as a default. Configure into an external file.~~
-eg: Yaml scoring.yaml maintain the config here (if need t be synced to db - do that but main source of truth will be this packages/curatarr/config. Now config is empty see why ?????? )
-llm:
-  apiKey: ${OPENAI_API_KEY} llm provider needed here
-  For now ork with just open ai (hard code in UI and disable that input and wirte same to config)
-  
-- [DONE] ~~Update Document apporoch on Scout in packages/curatarr/docs and link to README.~~
-
+- [TODO] The info tooltip on Dashboard Movies (that is: total movies) card cannot be cliksed as it is already linked. We need a way to link the card as full and also that tool tip. If tool tip is relavent to be moved out then lets do so. deliberate a design. 
 ** Disambigation **
-- [DONE] ~~Currently disambigation is not so good apart from Jellyfin title mismatch. Need to study and document radarr disambigation done against title of the name and parsed title from filename. Lets make this more robust. I am sure in  libary I have many items for disambigation eg: Les MIsrables etc. Find it and surface a list of actions under this route http://dulce.local:3270/disambiguate~~
+- [TODO] Test http://dulce.local:3270/disambiguate against parity with radarr open source code in github. When ready to work on this ask me to rename a live file on disk and we will run disabiute and test
 
 **Quality tests**
- - [TODO]  MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations. USe an apporoch, splice it into current priority apporch. dont over rank the legacy codec, but make sure they are not lost/buried in last page of scout queue. if current apprch is reaosble then dont do anything. 
+ - [DONE] ~~MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations. USe an apporoch, splice it into current priority apporch. dont over rank the legacy codec, but make sure they are not lost/buried in last page of scout queue. if current apprch is reaosble then dont do anything.~~ (added bounded legacy-codec priority boost in `/api/candidates` sort path)
 - [DONE] ~~USe Chrome MCP Verify page: run deep-check on 2-3 files, evaluate impact and how users can view results. Is this result user-friendly? Is the information useful or too technical. If not, improvise.~~ (API deep-check run done on 3 files; page already includes ffmpeg explanation and condensed failure surfacing)
 
 - [DONE] Prowlarr integration into Scout

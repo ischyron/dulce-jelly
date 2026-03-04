@@ -10,6 +10,7 @@ Curatarr replaces the traditional *arr stack (Radarr, Sonarr, Prowlarr, Recyclar
 
 See [docs/VISION.md](docs/VISION.md) for full design document.
 See [docs/scout-approach.md](docs/scout-approach.md) for the current CF scoring + Scout rules + TRaSH sync approach.
+See [docs/scoring-yaml.md](docs/scoring-yaml.md) for `scoring.yaml` field-level reference.
 
 ## Quick Start
 

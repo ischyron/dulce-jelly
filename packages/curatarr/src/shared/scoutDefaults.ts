@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import YAML from 'yaml';
 
-const SCOUT_SETTING_KEYS = [
+export const SCOUT_SETTING_KEYS = [
   'scoutCfRes2160',
   'scoutCfRes1080',
   'scoutCfRes720',
@@ -64,7 +64,7 @@ const FALLBACK_SCOUT_DEFAULTS: Record<ScoutSettingKey, string> = {
 
 let cached: ScoutYamlDoc | null = null;
 
-function scoringYamlPath(): string {
+export function scoringYamlPath(): string {
   const configured = process.env.CURATARR_SCORING_FILE?.trim();
   if (configured) return path.resolve(configured);
   return path.resolve(process.cwd(), 'config', 'scoring.yaml');
@@ -76,8 +76,14 @@ function loadDoc(): ScoutYamlDoc {
   try {
     const raw = fs.readFileSync(p, 'utf8');
     cached = (YAML.parse(raw) ?? {}) as ScoutYamlDoc;
+    if (!cached.scoutDefaults || Object.keys(cached.scoutDefaults).length === 0) {
+      cached.scoutDefaults = { ...FALLBACK_SCOUT_DEFAULTS };
+    }
   } catch {
-    cached = {};
+    cached = {
+      llm: { provider: 'openai', apiKeyEnv: 'OPENAI_API_KEY' },
+      scoutDefaults: { ...FALLBACK_SCOUT_DEFAULTS },
+    };
   }
   return cached;
 }
@@ -97,4 +103,31 @@ export function getDefaultLlmProvider(): string {
   const doc = loadDoc();
   const provider = (doc.llm?.provider ?? '').trim().toLowerCase();
   return provider || 'openai';
+}
+
+export function syncScoringYamlFromSettings(settings: Record<string, string>): void {
+  const current = loadDoc();
+  const nextDefaults: Record<string, string> = {};
+  for (const key of SCOUT_SETTING_KEYS) {
+    const fromSettings = settings[key];
+    if (fromSettings != null && String(fromSettings).trim() !== '') {
+      nextDefaults[key] = String(fromSettings);
+      continue;
+    }
+    const fromYaml = current.scoutDefaults?.[key];
+    nextDefaults[key] = fromYaml == null ? FALLBACK_SCOUT_DEFAULTS[key] : String(fromYaml);
+  }
+
+  const out: ScoutYamlDoc = {
+    llm: {
+      provider: 'openai',
+      apiKeyEnv: 'OPENAI_API_KEY',
+    },
+    scoutDefaults: nextDefaults,
+  };
+  const p = scoringYamlPath();
+  const yamlText = YAML.stringify(out);
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, yamlText, 'utf8');
+  cached = out;
 }

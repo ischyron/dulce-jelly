@@ -797,9 +797,21 @@ export function Library() {
                     Status
                     <InfoHint
                       label="Status color guide"
-                      text={`Status dot guide:
-Left dot (scan): green = ok, orange = verify failed, red = scan error, yellow = pending scan, gray = not scanned.
-Right dot (Jellyfin): purple = matched, gray = not matched.`}
+                      content={
+                        <div className="space-y-2">
+                          <div className="font-semibold">Status dot guide</div>
+                          <div className="space-y-1">
+                            <div>
+                              <span className="font-semibold">Left dot (scan): </span>
+                              green = ok, orange = verify failed, red = scan error, yellow = pending scan, gray = not scanned.
+                            </div>
+                            <div>
+                              <span className="font-semibold">Right dot (Jellyfin): </span>
+                              purple = matched, gray = not matched.
+                            </div>
+                          </div>
+                        </div>
+                      }
                     />
                   </span>
                 </th>

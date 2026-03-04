@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 
+const LEGACY_CODECS = new Set(['mpeg4', 'mpeg2video', 'msmpeg4v3', 'xvid']);
+
 export function makeCandidatesRoutes(db: CuratDb): Hono {
   const app = new Hono();
 
@@ -27,8 +29,15 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const withScore = candidates.map(c => {
       const mc = c.critic_rating ?? 0;
       const imdb = c.community_rating ?? 0;
-      const score = Math.round(mc * 0.4 + imdb * 6);
-      return { ...c, priority_score: score };
+      const base = Math.round(mc * 0.4 + imdb * 6);
+      const codec = (c.video_codec ?? '').toLowerCase();
+      const legacyBoost = LEGACY_CODECS.has(codec) ? 8 : 0;
+      const score = base + legacyBoost;
+      return {
+        ...c,
+        priority_score: score,
+        priority_reasons: legacyBoost > 0 ? ['legacy_codec_surface'] : [],
+      };
     });
 
     withScore.sort((a, b) => b.priority_score - a.priority_score);

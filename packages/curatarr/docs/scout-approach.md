@@ -16,6 +16,7 @@ Scout release ranking uses additive scoring:
 `score = resolution + source + codec + protocol + seeders - penalties`
 
 Configurable settings are stored under `scoutCf*` in Settings.
+Canonical config lives in `config/scoring.yaml` and is synchronized when Settings are saved.
 
 Key penalties:
 - Legacy codec penalty (xvid/mpeg4).

@@ -853,13 +853,23 @@ export class CuratDb {
 
   getAmbiguousDisambiguations(limit = 100): DisambiguationLogRow[] {
     return this.db.prepare(`
+      WITH latest AS (
+        SELECT MAX(id) AS id
+        FROM disambiguation_log
+        WHERE reviewed = 0 AND ambiguous = 1
+        GROUP BY
+          COALESCE(matched_movie_id, -1),
+          LOWER(COALESCE(input_title, '')),
+          COALESCE(input_year, -1),
+          LOWER(COALESCE(reason, ''))
+      )
       SELECT dl.*,
              m.folder_name AS db_folder_name,
              m.folder_path AS db_folder_path,
              m.parsed_year AS db_parsed_year
       FROM   disambiguation_log dl
+      JOIN   latest l ON l.id = dl.id
       LEFT JOIN movies m ON dl.matched_movie_id = m.id
-      WHERE  dl.reviewed = 0 AND dl.ambiguous = 1
       ORDER  BY dl.id DESC
       LIMIT  ?
     `).all(limit) as DisambiguationLogRow[];
@@ -875,7 +885,17 @@ export class CuratDb {
 
   getDisambiguationCount(): { pending: number; total: number } {
     const pending = (this.db.prepare(
-      'SELECT COUNT(*) as n FROM disambiguation_log WHERE reviewed = 0 AND ambiguous = 1'
+      `WITH latest AS (
+         SELECT MAX(id) AS id
+         FROM disambiguation_log
+         WHERE reviewed = 0 AND ambiguous = 1
+         GROUP BY
+           COALESCE(matched_movie_id, -1),
+           LOWER(COALESCE(input_title, '')),
+           COALESCE(input_year, -1),
+           LOWER(COALESCE(reason, ''))
+       )
+       SELECT COUNT(*) as n FROM latest`
     ).get() as { n: number }).n;
     const total = (this.db.prepare(
       'SELECT COUNT(*) as n FROM disambiguation_log'

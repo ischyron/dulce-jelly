@@ -122,6 +122,7 @@ export interface FileRow {
 export interface Candidate extends Movie {
   priority_score: number;
   file_file_path: string;
+  priority_reasons?: string[];
 }
 
 export interface QualityRule {

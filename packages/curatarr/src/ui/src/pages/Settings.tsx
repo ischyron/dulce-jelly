@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X } from 'lucide-react';
 import { api } from '../api/client.js';
+import { InfoHint } from '../components/InfoHint.js';
 
 // ── Client profile definitions ────────────────────────────────────────
 
@@ -82,6 +83,12 @@ const LEGACY_PENALTY_TOOLTIP = `Subtracts points from releases that use legacy c
 
 Higher value = stronger penalty (legacy files drop lower in Scout ranking).
 Lower value = legacy files are penalized less.`;
+
+const SEEDER_DIVISOR_TOOLTIP = `Seeder bonus uses this formula:
+  bonus = floor(seeders / divisor), then capped by "Seeder Max Bonus".
+
+Lower divisor boosts seed-heavy torrents more aggressively.
+Higher divisor makes seeders matter less in final score.`;
 
 const SCOUT_OBJECTIVE_SAMPLES = [
   'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
@@ -211,7 +218,7 @@ function Field({
     <div>
       <label className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
         <span>{label}</span>
-        {tooltip && <InfoTooltip content={tooltip} />}
+        {tooltip && <InfoHint label={`${label} info`} text={tooltip} />}
       </label>
       <input
         type={type} name={name} value={value}
@@ -228,39 +235,6 @@ function Field({
       />
       {hint && <p className="mt-1 text-xs" style={{ color: 'var(--c-muted)' }}>{hint}</p>}
     </div>
-  );
-}
-
-// ── Tooltip wrapper ────────────────────────────────────────────────────
-
-function InfoTooltip({ content }: { content: string }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className="relative inline-flex">
-      <button
-        type="button"
-        onClick={() => setOpen(v => !v)}
-        className="inline-flex items-center"
-        style={{ color: 'var(--c-muted)' }}
-      >
-        <Info size={14} />
-      </button>
-      {open && (
-        <div
-          className="absolute left-6 top-0 z-50 text-xs font-mono whitespace-pre rounded-lg p-3 shadow-xl"
-          style={{
-            background: '#1e1e2e',
-            border: '1px solid var(--c-border)',
-            color: 'var(--c-muted)',
-            width: '320px',
-            lineHeight: '1.6',
-          }}
-          onClick={() => setOpen(false)}
-        >
-          {content}
-        </div>
-      )}
-    </span>
   );
 }
 
@@ -698,10 +672,13 @@ export function Settings() {
         <section className="rounded-xl p-5 space-y-4 border" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
           CF Scoring, Rules, Scout
-          <InfoTooltip content={SCOUT_CF_SCORING_TOOLTIP} />
+          <InfoHint label="CF scoring info" text={SCOUT_CF_SCORING_TOOLTIP} />
         </h2>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Tune Scout release ranking without code changes. Higher score means a release is recommended first.
+        </p>
+        <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+          Source of truth: <code>packages/curatarr/config/scoring.yaml</code>. Saving Settings also syncs this file.
         </p>
         <div className="space-y-3">
           <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
@@ -804,7 +781,8 @@ export function Settings() {
                 onChange={v => set('scoutCfTorrentBonus', v)} />
               <Field label="Seeder Divisor" name="scoutCfSeedersDivisor"
                 value={form.scoutCfSeedersDivisor ?? '20'}
-                onChange={v => set('scoutCfSeedersDivisor', v)} />
+                onChange={v => set('scoutCfSeedersDivisor', v)}
+                tooltip={SEEDER_DIVISOR_TOOLTIP} />
               <Field label="Seeder Max Bonus" name="scoutCfSeedersBonusCap"
                 value={form.scoutCfSeedersBonusCap ?? '12'}
                 onChange={v => set('scoutCfSeedersBonusCap', v)} />
@@ -1034,7 +1012,7 @@ export function Settings() {
         style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
           Scout Defaults
-          <InfoTooltip content={CODEC_SCORING_TOOLTIP} />
+          <InfoHint label="Scout defaults info" text={CODEC_SCORING_TOOLTIP} />
         </h2>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           These defaults pre-fill the Scout Queue filters. Override per-session in Scout Queue.

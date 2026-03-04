@@ -241,7 +241,7 @@ test.describe('MoviePage', () => {
     await page.goto(`/movies/${id}`);
     const bodyText = await page.textContent('body');
     expect(bodyText && bodyText.length > 0).toBeTruthy();
-    expect(/Refresh Jellyfin|Movie not found|Library/i.test(bodyText ?? '')).toBeTruthy();
+    expect(/Sync from Jellyfin|Movie not found|Library/i.test(bodyText ?? '')).toBeTruthy();
   });
 
   test('shows explicit ratings labels on detail page', async ({ page, request }) => {

@@ -357,7 +357,7 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
                 style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
               >
                 {jfRefreshMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                Refresh Jellyfin
+                Sync from Jellyfin
               </button>
               <button
                 onClick={() => setShowDelete(true)}
@@ -383,7 +383,7 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
             </div>
             <div className="mt-2 flex items-center gap-2">
               <button onClick={() => jfRefreshMutation.mutate()} className="px-2 py-1 rounded text-[11px] border" style={{ borderColor: 'rgba(248,113,113,0.45)', color: '#fecaca' }}>
-                Retry Jellyfin Refresh
+                Retry Jellyfin Sync
               </button>
               <Link to="/disambiguate" className="px-2 py-1 rounded text-[11px] border" style={{ borderColor: 'rgba(248,113,113,0.45)', color: '#fecaca' }}>
                 Open Disambiguate

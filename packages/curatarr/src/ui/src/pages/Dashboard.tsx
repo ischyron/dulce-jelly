@@ -5,6 +5,23 @@ import { Film, LayoutDashboard, ScanLine, CheckCircle, AlertCircle, Rocket, Load
 import { api } from '../api/client.js';
 import { ResolutionPieChart, CodecBarChart } from '../components/Charts.js';
 import { ScanProgressModal } from '../components/ScanProgressModal.js';
+import { InfoHint } from '../components/InfoHint.js';
+
+function JellyfinIcon({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) {
+  return (
+    <svg
+      role="img"
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      fill="currentColor"
+      aria-label="Jellyfin"
+      {...props}
+    >
+      <path d="M12 .002C8.826.002-1.398 18.537.16 21.666c1.56 3.129 22.14 3.094 23.682 0C25.384 18.573 15.177 0 12 0zm7.76 18.949c-1.008 2.028-14.493 2.05-15.514 0C3.224 16.9 9.92 4.755 12.003 4.755c2.081 0 8.77 12.166 7.759 14.196zM12 9.198c-1.054 0-4.446 6.15-3.93 7.189.518 1.04 7.348 1.027 7.86 0 .511-1.027-2.874-7.19-3.93-7.19z" />
+    </svg>
+  );
+}
 
 function fmtSyncDate(value: string): string {
   const d = new Date(value);
@@ -23,21 +40,29 @@ function StatCard({
   value,
   sub,
   color = 'text-[#a78bfa]',
+  subWrap = false,
+  infoText,
 }: {
   icon: React.ElementType;
   label: string;
   value: string | number;
   sub?: React.ReactNode;
   color?: string;
+  subWrap?: boolean;
+  infoText?: string;
 }) {
   return (
-    <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full flex flex-col">
+    <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
       <div className={`flex items-center gap-2 mb-2 text-sm ${color}`}>
         <Icon size={16} />
         <span>{label}</span>
+        {infoText && <InfoHint label={`${label} info`} text={infoText} />}
       </div>
       <div className="text-2xl font-bold text-[#f0eeff]">{value}</div>
-      <div className="text-xs text-[#6b6888] mt-0.5 min-h-[16px] truncate" title={sub ?? ''}>
+      <div
+        className={`text-xs text-[#6b6888] mt-0.5 min-h-[16px] ${subWrap ? 'leading-5 whitespace-normal break-words' : 'truncate'}`}
+        title={typeof sub === 'string' ? sub : undefined}
+      >
         {sub ?? ''}
       </div>
     </div>
@@ -80,6 +105,33 @@ export function Dashboard() {
     : 0;
 
   const lastScan = data.lastScan as Record<string, unknown> | undefined;
+  const lastScanSummary = lastScan ? (
+    <div className="space-y-0.5 leading-5">
+      <div>
+        Last scan: {fmtSyncDate(String(lastScan.started_at ?? '—'))} ({Number(lastScan.duration_sec ?? 0).toFixed(0)}s)
+      </div>
+      <div>
+        <span className="text-emerald-400 font-semibold">{String(lastScan.scanned_ok ?? 0)}</span>
+        <span className="text-[#8b87aa]"> ok </span>
+        <span className="text-red-400 font-semibold">{String(lastScan.scan_errors ?? 0)}</span>
+        <span className="text-[#8b87aa]"> errors</span>
+      </div>
+    </div>
+  ) : undefined;
+  const audioQuickLinks = Object.entries(data.audioCodecDist ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 6)
+    .map(([codec, count]) => ({
+      codec,
+      count,
+      filter:
+        codec === 'eac3' ? 'ddp'
+        : codec === 'truehd' ? 'truehd'
+        : codec.startsWith('dts') ? 'dts'
+        : codec === 'aac' ? 'aac'
+        : codec === 'ac3' ? 'ac3'
+        : codec,
+    }));
 
   return (
     <div className="p-6 space-y-6 max-w-6xl">
@@ -125,53 +177,66 @@ export function Dashboard() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Link to="/library?reset=1" className="block h-full hover:opacity-80 transition-opacity">
-          <StatCard icon={Film} label="Total Movies" value={data.totalMovies.toLocaleString()} />
+          <StatCard
+            icon={Film}
+            label="Movie Folders"
+            value={data.totalMovies.toLocaleString()}
+            infoText="Unique movie folders discovered under the configured library path."
+          />
         </Link>
         <StatCard
           icon={CheckCircle}
-          label="Scanned"
+          label="Scanned Files"
           value={`${data.scannedFiles.toLocaleString()} / ${data.totalFiles.toLocaleString()}`}
-          sub={data.totalFiles > data.scannedFiles ? `${(data.totalFiles - data.scannedFiles).toLocaleString()} pending` : 'All scanned'}
+          sub={lastScanSummary ?? (data.totalFiles > data.scannedFiles ? `${(data.totalFiles - data.scannedFiles).toLocaleString()} pending` : '')}
+          subWrap
           color="text-green-400"
+          infoText="File-level ffprobe scan coverage. This is per video file, not per movie folder."
         />
         <StatCard
-          icon={Film}
+          icon={JellyfinIcon}
           label="Jellyfin Synced"
           value={`${jfPct}%`}
           sub={
-            <>
+            <span className="inline-flex items-center gap-1 text-sm">
               <span className="text-[#d4cfff] font-semibold">{data.jfEnriched}</span>
-              <span className="text-[#6b6888]"> matched</span>
-              <span className="text-[#6b6888]"> · </span>
+              <span className="text-[#6b6888]">matched folders</span>
+              <span className="text-[#6b6888]">·</span>
               <span className="text-amber-400 font-semibold">{data.totalMovies - data.jfEnriched}</span>
-              <span className="text-[#6b6888]"> unmatched</span>
-            </>
+              <span className="text-[#6b6888]">unmatched folders</span>
+              <span className="text-[#6b6888]">·</span>
+              <span className="text-[#6b6888]">{data.totalMovies} folders</span>
+            </span>
           }
-          color="text-purple-400"
+          color="text-cyan-400"
+          infoText="Movie-level count from Curatarr movies table. matched + unmatched always equals total movies, not total files."
         />
         <StatCard
           icon={AlertCircle}
           label="Scan Errors"
           value={data.errorFiles}
           color={data.errorFiles > 0 ? 'text-red-400' : 'text-[#6b6888]'}
+          infoText="Basic file sanity/metadata scan failures from ffprobe during library scan. This is separate from Disambiguate and Deep Verify errors."
         />
       </div>
 
-      {/* HDR + codec summary row */}
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Library Views</h2>
+      </div>
+
+      {/* Library views quick links */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">
-            Video Codec
-          </h2>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Video</h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 items-center text-sm">
           <Link to="/library?hdr=1" className="hover:underline" title="Show HDR files in Library">
-            <span className="text-amber-400 font-medium">{data.hdrCount}</span>
-            <span className="text-[#8b87aa]"> HDR</span>
+            <span className="text-amber-400 font-semibold">{data.hdrCount}</span>
+            <span className="text-[#8b87aa]">HDR</span>
           </Link>
           <span className="text-[#26263a]">·</span>
           <Link to="/library?dv=1" className="hover:underline" title="Show Dolby Vision files in Library">
-            <span className="text-amber-400 font-medium">{data.dolbyVisionCount}</span>
-            <span className="text-[#8b87aa]"> Dolby Vision</span>
+            <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
+            <span className="text-[#8b87aa]">Dolby Vision</span>
           </Link>
           {(data.codecDist['av1'] ?? 0) > 0 && (
             <>
@@ -179,8 +244,8 @@ export function Dashboard() {
               <Link to="/library?av1Compat=1"
                 className="hover:underline"
                 title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library">
-                <span className="text-emerald-400 font-medium">{data.codecDist['av1']}</span>
-                <span className="text-[#8b87aa]"> AV1 </span>
+                <span className="text-emerald-400 font-semibold">{data.codecDist['av1']}</span>
+                <span className="text-[#8b87aa]">AV1</span>
                 <span className="text-amber-400 text-xs">⚠ compat</span>
               </Link>
             </>
@@ -191,40 +256,56 @@ export function Dashboard() {
               <Link to="/library?legacy=1"
                 className="hover:underline"
                 title="Legacy codec — click to filter in Library">
-                <span className="text-orange-400 font-medium">
+                <span className="text-orange-400 font-semibold">
                   {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)}
                 </span>
-                <span className="text-[#8b87aa]"> legacy codec</span>
+                <span className="text-[#8b87aa]">legacy codec</span>
               </Link>
             </>
           )}
           </div>
         </div>
-        {lastScan && (
-          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-            <div className="text-xs text-[#8b87aa] mb-1">
-              Last scan: <span className="text-[#d4cfff] font-semibold">{fmtSyncDate(String(lastScan.started_at ?? '—'))}</span>
-              {lastScan.duration_sec ? <><span className="text-[#26263a] mx-2">·</span>{Number(lastScan.duration_sec).toFixed(0)}s</> : null}
-            </div>
-            <div className="text-sm">
-              <span className="text-emerald-400 font-semibold text-base">{String(lastScan.scanned_ok ?? 0)}</span>
-              <span className="text-[#6b6888] ml-1 mr-3">ok</span>
-              <span className="text-red-400 font-semibold text-base">{String(lastScan.scan_errors ?? 0)}</span>
-              <span className="text-[#6b6888] ml-1">errors</span>
-            </div>
+        <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Audio</h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+            {audioQuickLinks.length === 0 && (
+              <span className="text-[#6b6888]">No audio codec data yet.</span>
+            )}
+            {audioQuickLinks.map((row) => (
+              <Link
+                key={row.codec}
+                to={`/library?audioFormat=${encodeURIComponent(row.filter)}`}
+                className="hover:underline"
+                title={`Filter Library by audio codec: ${row.codec}`}
+              >
+                <span className="text-cyan-400 font-medium">{row.count}</span>
+                <span className="text-[#8b87aa]"> {row.codec.toUpperCase()}</span>
+              </Link>
+            ))}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Analytics</h2>
+      </div>
+
+      {/* Analytics charts */}
+      <div className="space-y-6">
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
           <h2 className="text-sm font-medium text-[#8b87aa] mb-3">Resolution Distribution</h2>
           <ResolutionPieChart data={data.resolutionDist} />
         </div>
-        <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-          <h2 className="text-sm font-medium text-[#8b87aa] mb-3">Codec Distribution</h2>
-          <CodecBarChart data={data.codecDist} />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
+            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">Video Codec Distribution</h2>
+            <CodecBarChart data={data.codecDist} />
+          </div>
+          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
+            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">Audio Codec Distribution</h2>
+            <CodecBarChart data={data.audioCodecDist ?? {}} />
+          </div>
         </div>
       </div>
 

@@ -108,6 +108,7 @@ export async function scanLibrary(
   }
 
   const workItems: WorkItem[] = [];
+  const presentFilePaths = new Set<string>();
   // Track file counts per folder for onFolderComplete
   const folderFileCounts = new Map<string, number>();
   const folderFileDone = new Map<string, number>();
@@ -126,6 +127,7 @@ export async function scanLibrary(
 
     for (const filePath of folder.videoFiles) {
       result.totalFiles++;
+      presentFilePaths.add(filePath);
       const filename = path.basename(filePath);
 
       // Check if already scanned
@@ -155,11 +157,15 @@ export async function scanLibrary(
 
   // Walk complete — now safe to create the DB scan record
   const runId = db.startScanRun(rootPath);
+  const prunedMissingFiles = db.pruneMissingFilesUnderRoot(rootPath, presentFilePaths);
 
   if (workItems.length === 0) {
     const durationSec = (Date.now() - startTime) / 1000;
     result.durationSec = durationSec;
-    db.finishScanRun(runId, { ...result, durationSec, notes: 'All files already scanned' });
+    const notes = prunedMissingFiles > 0
+      ? `All files already scanned; pruned ${prunedMissingFiles} stale DB file rows`
+      : 'All files already scanned';
+    db.finishScanRun(runId, { ...result, durationSec, notes });
     return result;
   }
 
@@ -249,7 +255,10 @@ export async function scanLibrary(
     scannedOk: result.scannedOk,
     scanErrors: result.scanErrors,
     durationSec: result.durationSec,
-    notes: result.errors.length > 0 ? `${result.errors.length} errors` : undefined,
+    notes: [
+      result.errors.length > 0 ? `${result.errors.length} errors` : null,
+      prunedMissingFiles > 0 ? `pruned ${prunedMissingFiles} stale DB file rows` : null,
+    ].filter(Boolean).join('; ') || undefined,
   });
 
   return result;

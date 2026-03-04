@@ -510,6 +510,28 @@ export class CuratDb {
     ).all() as FileRow[];
   }
 
+  /**
+   * Remove file rows under a library root that are no longer present in the latest walk.
+   * Returns number of deleted rows.
+   */
+  pruneMissingFilesUnderRoot(rootPath: string, presentFilePaths: Set<string>): number {
+    const prefix = rootPath.endsWith(path.sep) ? rootPath : `${rootPath}${path.sep}`;
+    const rows = this.db.prepare(
+      'SELECT id, file_path FROM files WHERE file_path LIKE ?'
+    ).all(`${prefix}%`) as Array<{ id: number; file_path: string }>;
+
+    const del = this.db.prepare('DELETE FROM files WHERE id = ?');
+    const tx = this.db.transaction((candidates: Array<{ id: number; file_path: string }>) => {
+      let removed = 0;
+      for (const row of candidates) {
+        if (presentFilePaths.has(row.file_path)) continue;
+        removed += del.run(row.id).changes;
+      }
+      return removed;
+    });
+    return tx(rows);
+  }
+
   // ──────────────────────────────────────────────────────────────────
   // Stats & Reports
   // ──────────────────────────────────────────────────────────────────
@@ -523,6 +545,7 @@ export class CuratDb {
     totalLibrarySize: number;
     resolutionDist: Record<string, number>;
     codecDist: Record<string, number>;
+    audioCodecDist: Record<string, number>;
     hdrCount: number;
     dolbyVisionCount: number;
   } {
@@ -539,6 +562,9 @@ export class CuratDb {
 
     const codecDist = this.db.prepare(
       "SELECT video_codec as codec, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY video_codec ORDER BY n DESC"
+    ).all() as { codec: string; n: number }[];
+    const audioCodecDist = this.db.prepare(
+      "SELECT audio_codec as codec, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY audio_codec ORDER BY n DESC"
     ).all() as { codec: string; n: number }[];
 
     const hdrCount = (this.db.prepare(
@@ -558,6 +584,7 @@ export class CuratDb {
       totalLibrarySize,
       resolutionDist: Object.fromEntries(resDist.map(r => [r.cat ?? 'unknown', r.n])),
       codecDist: Object.fromEntries(codecDist.map(r => [r.codec ?? 'unknown', r.n])),
+      audioCodecDist: Object.fromEntries(audioCodecDist.map(r => [r.codec ?? 'unknown', r.n])),
       hdrCount,
       dolbyVisionCount,
     };

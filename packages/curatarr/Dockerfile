@@ -61,7 +61,7 @@ VOLUME /media
 EXPOSE 7474
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
-  CMD wget -qO- http://localhost:7474/api/stats > /dev/null || exit 1
+  CMD wget -qO- http://127.0.0.1:7474/api/stats > /dev/null || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
 CMD ["node", "dist/index.js", "serve"]

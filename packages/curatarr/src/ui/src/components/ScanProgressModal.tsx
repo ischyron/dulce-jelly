@@ -20,18 +20,30 @@ interface ScanProgress {
   cancelled?: boolean;
 }
 
+interface ScanComplete {
+  cancelled?: boolean;
+  totalFolders?: number;
+  totalFiles?: number;
+  scannedOk?: number;
+  scanErrors?: number;
+  durationSec?: number;
+  notes?: string | null;
+}
+
 interface Props {
   mode: 'scan' | 'sync';
   onClose: () => void;
+  onCompleted?: (summary?: ScanComplete) => void;
 }
 
-export function ScanProgressModal({ mode, onClose }: Props) {
+export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
   const [done, setDone] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ScanProgress>({});
   const [completedFolders, setCompletedFolders] = useState<FolderStatus[]>([]);
   const [ambiguous, setAmbiguous] = useState<unknown[]>([]);
+  const [complete, setComplete] = useState<ScanComplete | null>(null);
   const folderListRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource | null>(null);
 
@@ -63,9 +75,11 @@ export function ScanProgressModal({ mode, onClose }: Props) {
     });
 
     es.addEventListener('complete', (e: MessageEvent) => {
-      const data = JSON.parse(e.data || '{}') as { cancelled?: boolean };
+      const data = JSON.parse(e.data || '{}') as ScanComplete;
+      setComplete(data);
       if (data.cancelled) setCancelled(true);
       setDone(true);
+      onCompleted?.(data);
       es.close();
     });
 
@@ -91,7 +105,7 @@ export function ScanProgressModal({ mode, onClose }: Props) {
     });
 
     return () => es.close();
-  }, [endpoint]);
+  }, [endpoint, onCompleted]);
 
   async function stopScan() {
     setStopping(true);
@@ -109,11 +123,11 @@ export function ScanProgressModal({ mode, onClose }: Props) {
     }
   }
 
-  const filesProcessed = Number(progress.filesProcessed ?? 0);
-  const filesOk = Number(progress.filesOk ?? 0);
-  const filesErrored = Number(progress.filesErrored ?? 0);
-  const foldersTotal = Number(progress.foldersTotal ?? 0);
-  const foldersDone = Number(progress.foldersDone ?? 0);
+  const filesProcessed = Number(progress.filesProcessed ?? complete?.totalFiles ?? 0);
+  const filesOk = Number(progress.filesOk ?? complete?.scannedOk ?? 0);
+  const filesErrored = Number(progress.filesErrored ?? complete?.scanErrors ?? 0);
+  const foldersTotal = Number(progress.foldersTotal ?? complete?.totalFolders ?? 0);
+  const foldersDone = Number(progress.foldersDone ?? complete?.totalFolders ?? 0);
   const rate = Number(progress.currentRate ?? 0);
   const pct = foldersTotal > 0 ? Math.round((foldersDone / foldersTotal) * 100) : 0;
 
@@ -163,12 +177,18 @@ export function ScanProgressModal({ mode, onClose }: Props) {
           )}
 
           {/* Stats grid */}
-          {mode === 'scan' && filesProcessed > 0 && (
+          {mode === 'scan' && (filesProcessed > 0 || done) && (
             <div className="grid grid-cols-3 gap-3 text-center">
               <Stat label="Processed" value={filesProcessed} />
               <Stat label="OK" value={filesOk} color="text-green-400" />
               <Stat label="Errors" value={filesErrored} color={filesErrored > 0 ? 'text-red-400' : 'text-[#6b6888]'} />
             </div>
+          )}
+
+          {mode === 'scan' && done && !cancelled && !error && (
+            <p className="text-xs text-[#8b87aa]">
+              {complete?.notes?.trim() || 'Completed.'}
+            </p>
           )}
 
           {rate > 0 && (

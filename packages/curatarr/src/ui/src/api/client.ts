@@ -179,6 +179,8 @@ export interface FolderContents {
   folderPath: string;
   contents: FolderEntry[];
   hasNonVideo: boolean;
+  folderExists: boolean;
+  videoCount: number;
 }
 
 export interface VerifyFailure {
@@ -265,6 +267,39 @@ export interface ScoutTrashSyncResponse {
     fetchedAt: string;
     warning?: string;
   };
+  details?: ScoutTrashSyncDetailsResponse;
+}
+
+export interface ScoutTrashSyncDetailsResponse {
+  meta: {
+    source: string;
+    revision: string | null;
+    syncedAt: string | null;
+    rulesSynced: number;
+    warning?: string;
+  };
+  applied: {
+    settings: Record<string, string>;
+    rules: Array<{
+      id: number;
+      name: string;
+      priority: number;
+      enabled: boolean;
+      config: unknown;
+    }>;
+  };
+  upstream: {
+    path: string;
+    fileCount: number;
+    truncated: boolean;
+    files: Array<{
+      name: string;
+      size: number;
+      downloadUrl: string;
+      parsedJson?: unknown;
+      warning?: string;
+    }>;
+  } | null;
 }
 
 export interface ScoutRulesRefineDraftResponse {
@@ -273,6 +308,19 @@ export interface ScoutRulesRefineDraftResponse {
   prompt: string;
   proposedSettings: Record<string, string>;
   suggestedRuleToggles: Array<{ id: number; name: string; enabled: boolean }>;
+}
+
+export interface ScanHistoryRun {
+  id: number;
+  started_at: string | null;
+  finished_at: string | null;
+  root_path: string;
+  total_folders: number | null;
+  total_files: number | null;
+  scanned_ok: number | null;
+  scan_errors: number | null;
+  duration_sec: number | null;
+  notes: string | null;
 }
 
 // ── API methods ────────────────────────────────────────────────────
@@ -332,7 +380,7 @@ export const api = {
 
   scanStatus: () => req<{ running: boolean }>('/scan/status'),
 
-  scanHistory: () => req<{ runs: unknown[] }>('/scan/history'),
+  scanHistory: () => req<{ runs: ScanHistoryRun[] }>('/scan/history'),
 
   triggerSync: (body: { url?: string; apiKey?: string; resync?: boolean }) =>
     req<{ started: boolean }>('/jf-sync', {
@@ -437,6 +485,9 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({}),
     }),
+
+  scoutTrashSyncDetails: () =>
+    req<ScoutTrashSyncDetailsResponse>('/scout/trash-sync-details'),
 
   scoutRulesRefineDraft: (body: { objective: string }) =>
     req<ScoutRulesRefineDraftResponse>('/scout/rules/refine-draft', {

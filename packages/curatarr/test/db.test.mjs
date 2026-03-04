@@ -161,4 +161,28 @@ describe('CuratDb', () => {
     assert.equal(last.total_folders, 100);
     assert.equal(last.scanned_ok, 93);
   });
+
+  test('scan history retains latest 200 runs and rotates older rows', () => {
+    const ids = [];
+    for (let i = 0; i < 205; i++) {
+      const runId = db.startScanRun('/media/Movies');
+      ids.push(runId);
+      db.finishScanRun(runId, {
+        totalFolders: 1,
+        totalFiles: 1,
+        scannedOk: 1,
+        scanErrors: 0,
+        durationSec: 0.1,
+        notes: i % 2 === 0 ? 'All files already scanned' : undefined,
+      });
+    }
+
+    const runs = db.getScanRuns(999);
+    assert.equal(runs.length, 200);
+    assert.equal(runs[0].id, ids[204]);   // newest kept
+    assert.equal(runs[199].id, ids[5]);   // first 5 rotated out
+
+    const total = db.raw().prepare('SELECT COUNT(*) as n FROM scan_runs').get().n;
+    assert.equal(total, 200);
+  });
 });

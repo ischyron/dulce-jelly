@@ -169,6 +169,7 @@ export interface JellyfinEnrichment {
 
 export class CuratDb {
   private db: Database.Database;
+  private static readonly SCAN_HISTORY_MAX_RUNS = 200;
 
   constructor(dbPath: string) {
     const dir = path.dirname(dbPath);
@@ -705,6 +706,7 @@ export class CuratDb {
       stats.notes ?? null,
       runId
     );
+    this.pruneOldScanRuns(CuratDb.SCAN_HISTORY_MAX_RUNS);
   }
 
   getLastScanRun(): Record<string, unknown> | undefined {
@@ -792,10 +794,25 @@ export class CuratDb {
   // Scan runs (read)
   // ──────────────────────────────────────────────────────────────────
 
-  getScanRuns(limit = 20): Record<string, unknown>[] {
+  private pruneOldScanRuns(maxRuns = CuratDb.SCAN_HISTORY_MAX_RUNS): number {
+    const max = Math.max(1, Math.floor(maxRuns));
+    const result = this.db.prepare(`
+      DELETE FROM scan_runs
+      WHERE id NOT IN (
+        SELECT id
+        FROM scan_runs
+        ORDER BY id DESC
+        LIMIT ?
+      )
+    `).run(max);
+    return result.changes;
+  }
+
+  getScanRuns(limit = CuratDb.SCAN_HISTORY_MAX_RUNS): Record<string, unknown>[] {
+    const safeLimit = Math.max(1, Math.min(CuratDb.SCAN_HISTORY_MAX_RUNS, Math.floor(limit)));
     return this.db.prepare(
       'SELECT * FROM scan_runs ORDER BY id DESC LIMIT ?'
-    ).all(limit) as Record<string, unknown>[];
+    ).all(safeLimit) as Record<string, unknown>[];
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -908,6 +925,7 @@ export class CuratDb {
       SELECT id, folder_name, parsed_title, parsed_year, jellyfin_id
       FROM movies
       WHERE jellyfin_id IS NULL
+        AND EXISTS (SELECT 1 FROM files f WHERE f.movie_id = movies.id)
       ORDER BY parsed_year DESC, folder_name ASC
       LIMIT ?
     `).all(limit) as UnmatchedMovieRow[];

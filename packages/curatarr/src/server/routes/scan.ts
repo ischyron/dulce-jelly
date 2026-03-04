@@ -112,7 +112,7 @@ export function makeScanRoutes(db: CuratDb): Hono {
 
   // GET /api/scan/history
   app.get('/history', (c) => {
-    const runs = db.getScanRuns(20);
+    const runs = db.getScanRuns(200);
     return c.json({ runs });
   });
 

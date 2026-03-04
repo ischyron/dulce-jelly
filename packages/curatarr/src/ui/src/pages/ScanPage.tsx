@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ScanLine, RefreshCw } from 'lucide-react';
-import { api } from '../api/client.js';
+import { api, type ScanHistoryRun } from '../api/client.js';
 import { ScanProgressModal } from '../components/ScanProgressModal.js';
 import { InfoHint } from '../components/InfoHint.js';
 
@@ -79,9 +79,24 @@ export function ScanPage() {
     }
   }
 
+  function formatScanResult(run: ScanHistoryRun): string {
+    const note = (run.notes ?? '').trim();
+    if (note) {
+      if (note.toLowerCase().includes('all files already scanned')) {
+        return note.replace(/all files already scanned/i, 'No changes detected — all files already scanned');
+      }
+      return note;
+    }
+    if (run.finished_at) return 'Completed';
+    return 'In progress';
+  }
+
   return (
     <div className="p-6 space-y-6 max-w-3xl">
-      <h1 className="text-xl font-bold text-[#f0eeff]">Scan &amp; Sync</h1>
+      <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
+        <ScanLine size={20} style={{ color: 'var(--c-accent)' }} />
+        Scan &amp; Sync
+      </h1>
 
       {/* Scan section */}
       <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-5 space-y-4">
@@ -90,8 +105,8 @@ export function ScanPage() {
           Library Scan
         </h2>
         <p className="text-sm text-[#8b87aa]">
-          Walk the library root with ffprobe and update quality data in the database.
-          Existing files are skipped unless Rescan is enabled.
+          Scan movie folders and video files (uses ffprobe on video files to refresh quality metadata).
+          By default, already scanned files are skipped. Enable "Force rescan all files" below to re-scan all files.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -124,8 +139,13 @@ export function ScanPage() {
             onChange={e => setRescan(e.target.checked)}
             className="accent-violet-600"
           />
-          Force rescan (re-probe already scanned files)
+          Force rescan all files
         </label>
+        <p className="text-xs -mt-2" style={{ color: 'var(--c-muted)' }}>
+          {rescan
+            ? 'Checked: full rescan (slower, runs ffprobe again on all video files).'
+            : 'Unchecked: incremental scan (faster, skips already scanned files).'}
+        </p>
 
         <button
           onClick={triggerScan}
@@ -133,7 +153,7 @@ export function ScanPage() {
           className="flex items-center gap-2 px-5 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ScanLine size={15} />
-          {scanRunning ? 'Scanning…' : 'Start Scan'}
+          {scanRunning ? 'Scanning…' : (rescan ? 'Start Full Rescan' : 'Start Incremental Scan')}
         </button>
         {scanError && (
           <p className="text-sm text-red-400 mt-1">{scanError}</p>
@@ -168,7 +188,7 @@ export function ScanPage() {
       {histData?.runs && histData.runs.length > 0 && (
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-5">
           <h2 className="font-semibold text-[#d4cfff] mb-3">Scan History</h2>
-          <div className="overflow-auto">
+          <div className="overflow-auto max-h-[26rem]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-[#6b6888] border-b border-[#26263a]">
@@ -177,19 +197,23 @@ export function ScanPage() {
                   <th className="pb-2 pr-4">Files</th>
                   <th className="pb-2 pr-4">OK</th>
                   <th className="pb-2 pr-4">Errors</th>
-                  <th className="pb-2">Duration</th>
+                  <th className="pb-2 pr-4">Duration</th>
+                  <th className="pb-2">Result</th>
                 </tr>
               </thead>
               <tbody>
-                {(histData.runs as Record<string, unknown>[]).map((r, i) => (
-                  <tr key={i} className="border-b border-[#26263a]/40 text-[#c4b5fd]">
-                    <td className="py-1.5 pr-4 text-xs text-[#8b87aa]">{String(r.started_at ?? '—')}</td>
-                    <td className="py-1.5 pr-4">{String(r.total_folders ?? '—')}</td>
-                    <td className="py-1.5 pr-4">{String(r.total_files ?? '—')}</td>
-                    <td className="py-1.5 pr-4 text-green-400">{String(r.scanned_ok ?? '—')}</td>
-                    <td className="py-1.5 pr-4 text-red-400">{String(r.scan_errors ?? '—')}</td>
-                    <td className="py-1.5 text-xs text-[#8b87aa]">
+                {histData.runs.map((r, i) => (
+                  <tr key={r.id ?? i} className="border-b border-[#26263a]/40 text-[#c4b5fd]">
+                    <td className="py-1.5 pr-4 text-xs text-[#8b87aa]">{r.started_at ?? '—'}</td>
+                    <td className="py-1.5 pr-4">{r.total_folders ?? '—'}</td>
+                    <td className="py-1.5 pr-4">{r.total_files ?? '—'}</td>
+                    <td className="py-1.5 pr-4 text-green-400">{r.scanned_ok ?? '—'}</td>
+                    <td className="py-1.5 pr-4 text-red-400">{r.scan_errors ?? '—'}</td>
+                    <td className="py-1.5 pr-4 text-xs text-[#8b87aa]">
                       {r.duration_sec ? `${Number(r.duration_sec).toFixed(1)}s` : '—'}
+                    </td>
+                    <td className="py-1.5 text-xs" style={{ color: 'var(--c-muted)' }} title={r.notes ?? undefined}>
+                      {formatScanResult(r)}
                     </td>
                   </tr>
                 ))}
@@ -200,7 +224,11 @@ export function ScanPage() {
       )}
 
       {modal && (
-        <ScanProgressModal mode={modal} onClose={() => setModal(null)} />
+        <ScanProgressModal
+          mode={modal}
+          onCompleted={() => { void refetchHistory(); }}
+          onClose={() => { setModal(null); void refetchHistory(); }}
+        />
       )}
     </div>
   );

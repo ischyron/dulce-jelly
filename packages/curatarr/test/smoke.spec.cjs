@@ -231,6 +231,20 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     await expect(page.getByText('Jellyfin Sync — how it works')).toBeVisible();
     await expect(page.getByText('Fetches your entire movie library from Jellyfin')).toBeVisible();
   });
+
+  test('scan page history includes Result column when runs exist', async ({ page, request }) => {
+    const res = await request.get('/api/scan/history');
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    const runs = Array.isArray(json?.runs) ? json.runs : [];
+
+    await page.goto('/scan');
+    if (runs.length > 0) {
+      await page.waitForResponse((r) => r.url().includes('/api/scan/history') && r.ok());
+      await expect(page.getByText('Scan History')).toBeVisible();
+      await expect(page.locator('thead th', { hasText: 'Result' })).toBeVisible();
+    }
+  });
 });
 
 test.describe('MoviePage', () => {
@@ -290,5 +304,13 @@ test.describe('API sanity', () => {
     const assetCache = assetRes.headers()['cache-control'] ?? '';
     expect(assetCache).toContain('immutable');
     expect(assetCache).toContain('max-age');
+  });
+
+  test('scan history API is capped at 200 rows', async ({ request }) => {
+    const res = await request.get('/api/scan/history');
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    expect(Array.isArray(json.runs)).toBeTruthy();
+    expect(json.runs.length).toBeLessThanOrEqual(200);
   });
 });

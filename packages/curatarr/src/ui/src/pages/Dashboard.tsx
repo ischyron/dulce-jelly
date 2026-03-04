@@ -121,7 +121,7 @@ export function Dashboard() {
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <Link to="/library" className="block h-full hover:opacity-80 transition-opacity">
+        <Link to="/library?reset=1" className="block h-full hover:opacity-80 transition-opacity">
           <StatCard icon={Film} label="Total Movies" value={data.totalMovies.toLocaleString()} />
         </Link>
         <StatCard
@@ -156,7 +156,11 @@ export function Dashboard() {
 
       {/* HDR + codec summary row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm flex flex-wrap gap-x-4 gap-y-1 items-center">
+        <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">
+            Video Codec
+          </h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
           <Link to="/library?hdr=1" className="hover:underline" title="Show HDR files in Library">
             <span className="text-amber-400 font-medium">{data.hdrCount}</span>
             <span className="text-[#8b87aa]"> HDR</span>
@@ -169,7 +173,7 @@ export function Dashboard() {
           {(data.codecDist['av1'] ?? 0) > 0 && (
             <>
               <span className="text-[#26263a]">·</span>
-              <Link to="/library?codec=av1"
+              <Link to="/library?av1Compat=1"
                 className="hover:underline"
                 title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library">
                 <span className="text-emerald-400 font-medium">{data.codecDist['av1']}</span>
@@ -191,6 +195,7 @@ export function Dashboard() {
               </Link>
             </>
           )}
+          </div>
         </div>
         {lastScan && (
           <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">

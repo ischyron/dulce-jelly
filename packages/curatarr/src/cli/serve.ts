@@ -15,6 +15,7 @@ import { readEnvFile, findCuratarrEnv, ENV_TO_SETTING } from '../shared/envFile.
 import { JellyfinClient } from '../jellyfin/client.js';
 import { syncJellyfin } from '../jellyfin/sync.js';
 import { syncEmitter } from '../server/sse.js';
+import { runScoutAutoBatch } from '../server/routes/scout.js';
 
 export function makeServeCommand(): Command {
   return new Command('serve')
@@ -64,6 +65,7 @@ export function makeServeCommand(): Command {
         console.log('  Press Ctrl+C to stop\n');
         // Start JF sync scheduler after server is up
         startJfSyncScheduler(db);
+        startScoutScheduler(db);
       });
 
       // Graceful shutdown
@@ -126,6 +128,41 @@ function startJfSyncScheduler(db: CuratDb): void {
   };
 
   setInterval(runScheduledSync, intervalMs);
+}
+
+function startScoutScheduler(db: CuratDb): void {
+  const enabled = (db.getSetting('scoutAutoEnabled') ?? 'false').toLowerCase();
+  if (!['1', 'true', 'yes', 'on'].includes(enabled)) {
+    console.log('  Scout   : Auto-scout disabled');
+    return;
+  }
+
+  const intervalRaw = parseInt(db.getSetting('scoutAutoIntervalMin') ?? '60', 10);
+  const intervalMin = Number.isFinite(intervalRaw) ? Math.max(5, Math.min(24 * 60, intervalRaw)) : 60;
+  const intervalMs = intervalMin * 60 * 1000;
+  console.log(`  Scout   : Auto-scout every ${intervalMin} min`);
+
+  const runScheduledScout = async () => {
+    try {
+      const summary = await runScoutAutoBatch(db, 'scheduled');
+      const errors = summary.results.filter(r => r.error).length;
+      console.log(
+        `  [Scout] Auto batch done — ${summary.processed}/${summary.maxAllowed} processed` +
+        `${summary.skippedByCooldown ? `, ${summary.skippedByCooldown} cooldown-skipped` : ''}` +
+        `${errors ? `, ${errors} errors` : ''}`,
+      );
+    } catch (err) {
+      const msg = (err as Error).message;
+      if (msg === 'prowlarr_not_configured') {
+        console.log('  [Scout] Skipped — Prowlarr not configured');
+        return;
+      }
+      if (msg === 'auto_scout_already_running') return;
+      console.error(`  [Scout] Error: ${msg}`);
+    }
+  };
+
+  setInterval(runScheduledScout, intervalMs);
 }
 
 function defaultDbPath(): string {

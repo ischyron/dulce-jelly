@@ -48,6 +48,8 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const dvOnly = c.req.query('dv') === 'true';
     const legacyOnly = c.req.query('legacy') === 'true';
     const noJf = c.req.query('noJf') === 'true';
+    const audioFormat = (c.req.query('audioFormat') ?? '').toLowerCase().trim();
+    const audioLayout = (c.req.query('audioLayout') ?? '').toLowerCase().trim();
     const releaseGroup = c.req.query('releaseGroup');
     const genre = c.req.query('genre');
     const tagsQuery = c.req.query('tags');
@@ -64,6 +66,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       SELECT m.*,
              f.id as file_id,
              f.resolution_cat, f.video_codec, f.audio_codec, f.audio_profile,
+             f.audio_channels, f.audio_layout,
              f.file_size, f.mb_per_minute, f.release_group, f.hdr_formats,
              f.width, f.height, f.bit_depth, f.dv_profile, f.duration,
              f.scan_error, f.scanned_at, f.verify_status, f.quality_flags
@@ -93,6 +96,30 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     }
     if (legacyOnly) {
       sql += " AND COALESCE(f.video_codec,'') IN ('mpeg4','mpeg2video','msmpeg4v3')";
+    }
+    if (audioLayout) {
+      if (audioLayout === 'stereo') {
+        sql += " AND (LOWER(COALESCE(f.audio_layout,'')) = 'stereo' OR COALESCE(f.audio_channels, 0) = 2)";
+      } else if (audioLayout === '5.1') {
+        sql += " AND (LOWER(COALESCE(f.audio_layout,'')) LIKE '%5.1%' OR COALESCE(f.audio_channels, 0) = 6)";
+      } else if (audioLayout === '7.1') {
+        sql += " AND (LOWER(COALESCE(f.audio_layout,'')) LIKE '%7.1%' OR COALESCE(f.audio_channels, 0) = 8)";
+      }
+    }
+    if (audioFormat) {
+      if (audioFormat === 'ddp') {
+        sql += " AND (LOWER(COALESCE(f.audio_codec,'')) = 'eac3' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%dolby digital plus%' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%ddp%')";
+      } else if (audioFormat === 'truehd') {
+        sql += " AND (LOWER(COALESCE(f.audio_codec,'')) = 'truehd' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%truehd%')";
+      } else if (audioFormat === 'dts') {
+        sql += " AND (LOWER(COALESCE(f.audio_codec,'')) LIKE 'dts%' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%dts%')";
+      } else if (audioFormat === 'aac') {
+        sql += " AND LOWER(COALESCE(f.audio_codec,'')) = 'aac'";
+      } else if (audioFormat === 'ac3') {
+        sql += " AND LOWER(COALESCE(f.audio_codec,'')) = 'ac3'";
+      } else if (audioFormat === 'atmos') {
+        sql += " AND LOWER(COALESCE(f.audio_profile,'')) LIKE '%atmos%'";
+      }
     }
     if (noJf) {
       sql += ' AND m.jellyfin_id IS NULL';

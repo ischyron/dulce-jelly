@@ -56,7 +56,13 @@ export const ENV_TO_SETTING: Record<string, string> = {
   JELLYFIN_BASE_URL:'jellyfinUrl',
   JELLYFIN_PUBLIC_URL:'jellyfinPublicUrl',
   JELLYFIN_API_KEY: 'jellyfinApiKey',
+  PROWLARR_URL:     'prowlarrUrl',
+  PROWLARR_API_KEY: 'prowlarrApiKey',
   LIBRARY_PATH:     'libraryPath',
   LLM_PROVIDER:     'llmProvider',
   LLM_API_KEY:      'llmApiKey',
+  SCOUT_SEARCH_BATCH_SIZE: 'scoutSearchBatchSize',
+  SCOUT_AUTO_ENABLED: 'scoutAutoEnabled',
+  SCOUT_AUTO_INTERVAL_MIN: 'scoutAutoIntervalMin',
+  SCOUT_AUTO_COOLDOWN_MIN: 'scoutAutoCooldownMin',
 };

@@ -10,19 +10,17 @@
 
 ### Curatarr Backlog
 
-- [DONE] Refresh from Jellyfin button no longer stays disabled when `jellyfin_id` is missing; server now falls back to Jellyfin title/year lookup and refresh works for unmatched entries (e.g. `movie/1784` validated).
-- [DONE] Library now shows a visible line-style top loading indicator during refetch/filter updates (including HDR/DV filter combinations).
-- [DONE] Tapping legacy codec on Dashboard now opens a Library legacy filter view (`/library?legacy=1`) instead of going to Scout.
-- [TODO]  AV1 files — identify which movies, and surface them in Library with a client-profile compatibility warning
-- [TODO] Dashboard: Video codec summary card minor UI label/title polish + add Library audio codec/channel filters (Stereo, 5.1, DDP, TrueHD, etc.)
-- [TODO]  MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations
-- [TODO] USe Chrome MCP Verify page: run deep-check on 2-3 files, evaluate impact and how users can view results. Is this result user-friendly? Is the popup working? If not, improvise.
-- Scout features: 
+- [todo] Understand visoon of curatarr and CF scoring and scoutiung in curatarr refer scout relase skill in this repo .claude/skills/release-scout. This will becomes the reference baseline to make an opionated ruleset for curatarr scout feature. FINALLY: Document apporoch on Scout in packages/curatarr/docs and link to README. 
+- [TODO] Need to execute below Scout features: 
 - [TODO] Scout feature: sync Trash guide into Scout configuration in Settings. Find a way for users to keep syncing like Recyclarr sync; reuse Recyclarr if that's the best approach. Recyclarr would only add Sonarr/Radarr as config patterns in their config. If Recyclarr is simple to implement, let's plug that into Curatarr.
-- [TODO] Scout feature:  F scoring and bit rate settings
-- [TODO] Prowlarr integration into Scout
-- [TODO] Scout feature (like Radarr but not using Radarr): an interactive flow that gives AI-recommended releases, or otherwise tabulate the most efficient path
-- [TODO] Scout feature (automatic with batch size configured). Do not accept batch sizes that can overwhelm the indexers.
+- [TODO] Scout feature:  CF scoring and bit rate settings
+- - [TODO]  MPEG-4 legacy codec files — surface in Scout Queue for replacement recommendations. USe an apporoch, splice it into current priority apporch. dont over rank the legacy codec, but make sure they are not lost/buried in last page of scout queue. if current apprch is reaosble then dont do anything. 
+- [TODO] USe Chrome MCP Verify page: run deep-check on 2-3 files, evaluate impact and how users can view results. Is this result user-friendly? Is the information useful or too technical. If not, improvise.
+
+
+- [DONE] Prowlarr integration into Scout
+- [DONE] Scout feature (like Radarr but not using Radarr): an interactive flow that gives AI-recommended releases, or otherwise tabulate the most efficient path
+- [DONE] Scout feature (automatic with batch size configured). Do not accept batch sizes that can overwhelm the indexers.
 - [TODO] Playwright smoke tests: update/extend coverage for all pages (Dashboard, Library, Scout, Disambiguate, Verify, Settings, MoviePage). Do exoploratory tests and find bugs and record them -  Chrome MCP exploratory testing from layman user POV — report findings as TODO/BUGS, fix UX issue
 
 ### Other Todo Items/Issues 

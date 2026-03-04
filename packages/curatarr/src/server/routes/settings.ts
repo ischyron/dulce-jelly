@@ -16,6 +16,10 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
       settings.jellyfinPublicUrl = process.env.JELLYFIN_PUBLIC_URL ?? '';
     if (!settings.jellyfinApiKey)
       settings.jellyfinApiKey = process.env.JELLYFIN_API_KEY ?? '';
+    if (!settings.prowlarrUrl)
+      settings.prowlarrUrl = process.env.PROWLARR_URL ?? '';
+    if (!settings.prowlarrApiKey)
+      settings.prowlarrApiKey = process.env.PROWLARR_API_KEY ?? '';
 
     // Mask API keys in response (show last 4 chars only)
     const safe: Record<string, string> = {};

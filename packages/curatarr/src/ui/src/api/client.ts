@@ -61,6 +61,8 @@ export interface Movie {
   video_codec: string | null;
   audio_codec: string | null;
   audio_profile: string | null;
+  audio_channels: number | null;
+  audio_layout: string | null;
   file_size: number | null;
   mb_per_minute: number | null;
   release_group: string | null;
@@ -195,6 +197,11 @@ export interface ScoutSearchOneResponse {
   query: string;
   total: number;
   releases: ScoutRelease[];
+  recommendation: {
+    mode: 'tabulated';
+    summary: string;
+    best: ScoutRelease | null;
+  };
 }
 
 export interface ScoutBatchItem {
@@ -209,6 +216,29 @@ export interface ScoutSearchBatchResponse {
   processed: number;
   maxAllowed: number;
   results: ScoutBatchItem[];
+}
+
+export interface ScoutAutoStatusResponse {
+  running: boolean;
+  lastRun: {
+    trigger: 'manual' | 'scheduled';
+    maxAllowed: number;
+    requested: number;
+    processed: number;
+    skippedByCooldown: number;
+    startedAt: string;
+    finishedAt: string;
+  } | null;
+}
+
+export interface ScoutAutoRunResponse {
+  trigger: 'manual' | 'scheduled';
+  maxAllowed: number;
+  requested: number;
+  processed: number;
+  skippedByCooldown: number;
+  startedAt: string;
+  finishedAt: string;
 }
 
 // ── API methods ────────────────────────────────────────────────────
@@ -356,4 +386,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  scoutAutoRun: () =>
+    req<ScoutAutoRunResponse>('/scout/auto-run', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }),
+
+  scoutAutoStatus: () => req<ScoutAutoStatusResponse>('/scout/auto-status'),
 };

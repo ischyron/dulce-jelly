@@ -410,7 +410,18 @@ export function MovieDetailDrawer({ movieId, onClose, enableScoutSearch = false 
                   <div className="text-xs text-[#8b87aa]">No releases found.</div>
                 )}
                 {scoutSearch.data && scoutSearch.data.releases.length > 0 && (
-                  <ScoutResultsTable releases={scoutSearch.data.releases} />
+                  <div className="space-y-2">
+                    <div className="rounded-lg border border-[#3a3657] bg-[#1e1e2e]/60 px-3 py-2 text-xs">
+                      <div className="text-[#8b87aa] uppercase tracking-wider mb-1">Most Efficient Path</div>
+                      <div className="text-[#d4cfff]">{scoutSearch.data.recommendation.summary}</div>
+                      {scoutSearch.data.recommendation.best && (
+                        <div className="mt-1 text-[#8b87aa]">
+                          Recommended: <span className="text-amber-400 font-semibold">{scoutSearch.data.recommendation.best.title}</span>
+                        </div>
+                      )}
+                    </div>
+                    <ScoutResultsTable releases={scoutSearch.data.releases} />
+                  </div>
                 )}
               </div>
             )}

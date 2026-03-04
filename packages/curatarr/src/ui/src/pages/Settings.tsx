@@ -244,6 +244,9 @@ export function Settings() {
         jellyfinPublicUrl: data.settings.jellyfinPublicUrl ?? '',
         jellyfinApiKey: '',           // always blank — user types a new key to replace
         jellyfinApiKeyMasked: data.settings.jellyfinApiKey ?? '',  // shows ****xxxx from server
+        prowlarrUrl: data.settings.prowlarrUrl ?? '',
+        prowlarrApiKey: '',
+        prowlarrApiKeyMasked: data.settings.prowlarrApiKey ?? '',
         libraryPath: data.settings.libraryPath ?? '',
         llmProvider: data.settings.llmProvider ?? '',
         llmApiKey: '',
@@ -251,6 +254,10 @@ export function Settings() {
         scoutMinCritic:    data.settings.scoutMinCritic    ?? '65',
         scoutMinCommunity: data.settings.scoutMinCommunity ?? '7.0',
         scoutMaxResolution: data.settings.scoutMaxResolution ?? '1080p',
+        scoutSearchBatchSize: data.settings.scoutSearchBatchSize ?? '5',
+        scoutAutoEnabled: data.settings.scoutAutoEnabled ?? 'false',
+        scoutAutoIntervalMin: data.settings.scoutAutoIntervalMin ?? '60',
+        scoutAutoCooldownMin: data.settings.scoutAutoCooldownMin ?? '240',
         jfSyncIntervalMin: data.settings.jfSyncIntervalMin ?? '30',
         jfSyncBatchSize:   data.settings.jfSyncBatchSize   ?? '10',
       });
@@ -278,6 +285,17 @@ export function Settings() {
       const prevPath = data?.settings.libraryPath ?? '';
       const newPath = variables.libraryPath ?? '';
       if (newPath && newPath !== prevPath) setShowScanPrompt(true);
+    },
+  });
+  const { data: autoStatusData, refetch: refetchAutoStatus } = useQuery({
+    queryKey: ['scout-auto-status'],
+    queryFn: api.scoutAutoStatus,
+    refetchInterval: 10_000,
+  });
+  const scoutAutoRunMutation = useMutation({
+    mutationFn: () => api.scoutAutoRun(),
+    onSuccess: () => {
+      refetchAutoStatus();
     },
   });
 
@@ -448,7 +466,7 @@ export function Settings() {
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           These defaults pre-fill the Scout Queue filters. Override per-session in Scout Queue.
         </p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3">
           <Field label="Min MC (Metacritic)" name="scoutMinCritic"
             value={form.scoutMinCritic ?? '65'}
             onChange={v => set('scoutMinCritic', v)}
@@ -470,6 +488,11 @@ export function Settings() {
               <option value="1080p">1080p</option>
             </select>
           </div>
+          <Field label="Scout Batch Size" name="scoutSearchBatchSize"
+            value={form.scoutSearchBatchSize ?? '5'}
+            onChange={v => set('scoutSearchBatchSize', v)}
+            placeholder="5"
+            hint="Hard-capped to 10 server-side to protect indexers." />
         </div>
 
         {/* AV1 scoring note */}
@@ -483,6 +506,53 @@ export function Settings() {
             Active profile: <em style={{ color: 'var(--c-text)' }}>{activeProfile.label}</em> —
             Video codec AV1: <span style={{ color: 'var(--c-text)' }}>{activeProfile.videoCodec.av1}</span>.
           </span>
+        </div>
+      </section>
+
+      <section className="rounded-xl p-5 space-y-4 border"
+        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+        <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Scout Automation</h2>
+        <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+          Automatic Scout runs process at most your Scout Batch Size (hard max 10) per run.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>Enabled</label>
+            <select
+              value={form.scoutAutoEnabled ?? 'false'}
+              onChange={e => set('scoutAutoEnabled', e.target.value)}
+              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
+              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
+            >
+              <option value="false">Disabled</option>
+              <option value="true">Enabled</option>
+            </select>
+          </div>
+          <Field label="Interval (min)" name="scoutAutoIntervalMin"
+            value={form.scoutAutoIntervalMin ?? '60'}
+            onChange={v => set('scoutAutoIntervalMin', v)}
+            placeholder="60"
+            hint="Minimum enforced at 5 min." />
+          <Field label="Cooldown (min)" name="scoutAutoCooldownMin"
+            value={form.scoutAutoCooldownMin ?? '240'}
+            onChange={v => set('scoutAutoCooldownMin', v)}
+            placeholder="240"
+            hint="Skip titles recently auto-scouted." />
+        </div>
+        <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--c-muted)' }}>
+          <span>
+            Auto status: {autoStatusData?.running ? 'running' : 'idle'}
+            {autoStatusData?.lastRun ? ` · last run ${autoStatusData.lastRun.finishedAt}` : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => scoutAutoRunMutation.mutate()}
+            disabled={scoutAutoRunMutation.isPending}
+            className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+            style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+          >
+            {scoutAutoRunMutation.isPending ? 'Running…' : 'Run Auto Scout Now'}
+          </button>
         </div>
       </section>
 
@@ -502,16 +572,21 @@ export function Settings() {
           hint="API key for the chosen LLM provider. Not needed for Ollama (local). Also read from env var: LLM_API_KEY" />
       </section>
 
-      {/* Coming soon — Prowlarr */}
-      <section className="rounded-xl p-5 space-y-4 border opacity-50 pointer-events-none"
+      {/* Prowlarr */}
+      <section className="rounded-xl p-5 space-y-4 border"
         style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <h2 className="font-semibold" style={{ color: '#d4cfff' }}>
-          Prowlarr <span className="text-xs ml-2" style={{ color: 'var(--c-muted)' }}>coming soon</span>
-        </h2>
-        <Field label="Prowlarr URL" name="prowlarrUrl" value="" onChange={() => {}}
-          placeholder="http://localhost:9696" disabled />
-        <Field label="API Key" name="prowlarrApiKey" value="" onChange={() => {}}
-          type="password" placeholder="—" disabled />
+        <h2 className="font-semibold" style={{ color: '#d4cfff' }}>Prowlarr</h2>
+        <Field label="Prowlarr URL" name="prowlarrUrl" value={form.prowlarrUrl ?? ''}
+          onChange={v => set('prowlarrUrl', v)}
+          placeholder="http://localhost:9696"
+          hint="Used by Scout release search and auto-scout. Also read from env var: PROWLARR_URL" />
+        <MaskedKeyField
+          label="API Key"
+          name="prowlarrApiKey"
+          maskedValue={form.prowlarrApiKeyMasked ?? ''}
+          value={form.prowlarrApiKey ?? ''}
+          onChange={v => set('prowlarrApiKey', v)}
+          hint="Prowlarr Settings → General → Security → API Key. Also read from env var: PROWLARR_API_KEY" />
       </section>
 
       {/* Scan prompt — shown after library path is saved */}

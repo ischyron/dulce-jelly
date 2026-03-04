@@ -23,8 +23,32 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
             <th className="px-3 py-2 font-medium">Year</th>
             <th className="px-3 py-2 font-medium">Quality</th>
             <th className="px-3 py-2 font-medium">HDR</th>
-            <th className="px-3 py-2 font-medium">Group</th>
-            <th className="px-3 py-2 font-medium text-right">MC</th>
+            <th className="px-3 py-2 font-medium">
+              <span className="inline-flex items-center gap-1">
+                Group
+                <span
+                  className="text-[10px] font-semibold normal-case tracking-normal"
+                  style={{ color: 'var(--c-border)' }}
+                  title="Torrent/Usenet release group inferred from the filename only."
+                  aria-label="Group info"
+                >
+                  [i]
+                </span>
+              </span>
+            </th>
+            <th className="px-3 py-2 font-medium text-right">
+              <span className="inline-flex items-center gap-1">
+                MC
+                <span
+                  className="text-[10px] font-semibold normal-case tracking-normal"
+                  style={{ color: 'var(--c-border)' }}
+                  title="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                  aria-label="Critic info"
+                >
+                  [i]
+                </span>
+              </span>
+            </th>
             <th className="px-3 py-2 font-medium text-right">IMDb</th>
             <th className="px-3 py-2 font-medium text-right">Size</th>
           </tr>

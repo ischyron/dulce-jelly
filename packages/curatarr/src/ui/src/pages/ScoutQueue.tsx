@@ -269,7 +269,7 @@ export function ScoutQueue() {
             <thead>
               <tr className="text-left text-xs uppercase tracking-wider sticky top-0"
                 style={{ borderBottom: '1px solid var(--c-border)', background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
-                <th className="px-3 py-2">Sel</th>
+                <th className="px-3 py-2" aria-label="Select rows" />
                 <th className="px-3 py-2"
                   title="Priority score = round((CriticRating * 0.4) + (IMDbRating * 6)). Higher means better upgrade candidate.">
                   Score
@@ -278,10 +278,34 @@ export function ScoutQueue() {
                 <th className="px-3 py-2">Year</th>
                 <th className="px-3 py-2">Quality</th>
                 <th className="px-3 py-2">HDR</th>
-                <th className="px-3 py-2">Group</th>
+                <th className="px-3 py-2">
+                  <span className="inline-flex items-center gap-1">
+                    Group
+                    <span
+                      className="text-[10px] font-semibold normal-case tracking-normal"
+                      style={{ color: 'var(--c-border)' }}
+                      title="Torrent/Usenet release group inferred from the filename only."
+                      aria-label="Group info"
+                    >
+                      [i]
+                    </span>
+                  </span>
+                </th>
                 <th className="px-3 py-2">Flags</th>
                 <th className="px-3 py-2 text-right"
-                  title="Critic score (0–100) from Jellyfin CriticRating. Red = Fresh (≥60), grey = Rotten (<60). Source depends on Jellyfin metadata plugin.">Critic</th>
+                  title="Critic score (0–100) from Jellyfin CriticRating. Red = Fresh (≥60), grey = Rotten (<60). Source depends on Jellyfin metadata plugin.">
+                  <span className="inline-flex items-center gap-1">
+                    Critic
+                    <span
+                      className="text-[10px] font-semibold normal-case tracking-normal"
+                      style={{ color: 'var(--c-border)' }}
+                      title="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                      aria-label="Critic info"
+                    >
+                      [i]
+                    </span>
+                  </span>
+                </th>
                 <th className="px-3 py-2 text-right"
                   title="IMDb community rating (0–10) from Jellyfin CommunityRating">IMDb</th>
                 <th className="px-3 py-2 text-right">Size</th>

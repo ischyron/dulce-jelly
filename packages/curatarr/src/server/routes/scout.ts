@@ -12,7 +12,46 @@ interface SearchSuccess {
   query: string;
   total: number;
   releases: ScoredRelease[];
+  recommendation: ScoutRecommendation;
 }
+
+interface ScoutRecommendation {
+  mode: 'tabulated';
+  summary: string;
+  best: ScoredRelease | null;
+}
+
+interface ScoutAutoRunResult {
+  movieId: number;
+  query?: string;
+  total?: number;
+  topTitle?: string;
+  topScore?: number;
+  error?: string;
+}
+
+export interface ScoutAutoRunSummary {
+  trigger: 'manual' | 'scheduled';
+  maxAllowed: number;
+  requested: number;
+  processed: number;
+  skippedByCooldown: number;
+  results: ScoutAutoRunResult[];
+  startedAt: string;
+  finishedAt: string;
+}
+
+export interface ScoutAutoState {
+  running: boolean;
+  lastRun: ScoutAutoRunSummary | null;
+}
+
+const autoState: ScoutAutoState = {
+  running: false,
+  lastRun: null,
+};
+
+const lastAutoSeenByMovie = new Map<number, number>();
 
 function toText(v: unknown): string {
   return typeof v === 'string' ? v : '';
@@ -62,6 +101,12 @@ function configuredBatchCap(db: CuratDb): number {
   return Math.max(1, Math.min(10, raw));
 }
 
+function recommendationSummary(top: ScoredRelease | null): string {
+  if (!top) return 'No efficient path could be computed from the available releases.';
+  const reasons = top.reasons.length > 0 ? top.reasons.join(', ') : 'balanced quality and availability';
+  return `Best path: "${top.title}" (score ${top.score}) driven by ${reasons}.`;
+}
+
 async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: number, queryOverride?: string): Promise<SearchSuccess> {
   const movie = db.getMovieById(movieId);
   if (!movie) throw new Error('movie_not_found');
@@ -71,7 +116,116 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
 
   const releases = await client.searchMovie(query);
   const scored = releases.map(scoreRelease).sort((a, b) => b.score - a.score);
-  return { movieId, query, total: scored.length, releases: scored };
+  const best = scored[0] ?? null;
+  return {
+    movieId,
+    query,
+    total: scored.length,
+    releases: scored,
+    recommendation: {
+      mode: 'tabulated',
+      summary: recommendationSummary(best),
+      best,
+    },
+  };
+}
+
+function toPriorityScore(mc: number | null, imdb: number | null): number {
+  return Math.round((mc ?? 0) * 0.4 + (imdb ?? 0) * 6);
+}
+
+function configuredCooldownMin(db: CuratDb): number {
+  const raw = parseInt(db.getSetting('scoutAutoCooldownMin') ?? '240', 10);
+  if (!Number.isFinite(raw)) return 240;
+  return Math.max(5, Math.min(24 * 60, raw));
+}
+
+function pickAutoMovieIds(db: CuratDb, cap: number): { ids: number[]; skippedByCooldown: number } {
+  const minCritic = parseFloat(db.getSetting('scoutMinCritic') ?? '65');
+  const minCommunity = parseFloat(db.getSetting('scoutMinCommunity') ?? '7.0');
+  const maxResolution = db.getSetting('scoutMaxResolution') ?? '1080p';
+  const pool = db.getUpgradeCandidates({
+    maxResolution,
+    minCriticRating: Number.isFinite(minCritic) ? minCritic : 65,
+    minCommunityRating: Number.isFinite(minCommunity) ? minCommunity : 7.0,
+    limit: 250,
+  });
+
+  const now = Date.now();
+  const cooldownMs = configuredCooldownMin(db) * 60_000;
+  const byPriority = pool
+    .map(c => ({ id: c.id, priority: toPriorityScore(c.critic_rating, c.community_rating) }))
+    .sort((a, b) => b.priority - a.priority);
+
+  let skippedByCooldown = 0;
+  const ids: number[] = [];
+  for (const row of byPriority) {
+    const seenAt = lastAutoSeenByMovie.get(row.id) ?? 0;
+    if (now - seenAt < cooldownMs) {
+      skippedByCooldown++;
+      continue;
+    }
+    ids.push(row.id);
+    if (ids.length >= cap) break;
+  }
+  return { ids, skippedByCooldown };
+}
+
+export function getScoutAutoState(): ScoutAutoState {
+  return autoState;
+}
+
+export async function runScoutAutoBatch(
+  db: CuratDb,
+  trigger: 'manual' | 'scheduled',
+): Promise<ScoutAutoRunSummary> {
+  if (autoState.running) {
+    throw new Error('auto_scout_already_running');
+  }
+  autoState.running = true;
+  const startedAt = new Date().toISOString();
+  try {
+    const cfg = resolveProwlarrConfig(db);
+    if (!cfg) throw new Error('prowlarr_not_configured');
+
+    const cap = configuredBatchCap(db);
+    const { ids, skippedByCooldown } = pickAutoMovieIds(db, cap);
+    const client = new ProwlarrClient(cfg.url, cfg.apiKey);
+    const results: ScoutAutoRunResult[] = [];
+
+    for (const movieId of ids) {
+      try {
+        const one = await searchOneMovie(db, client, movieId);
+        const top = one.releases[0];
+        results.push({
+          movieId,
+          query: one.query,
+          total: one.total,
+          topTitle: top?.title,
+          topScore: top?.score,
+        });
+      } catch (err) {
+        results.push({ movieId, error: (err as Error).message });
+      } finally {
+        lastAutoSeenByMovie.set(movieId, Date.now());
+      }
+    }
+
+    const summary: ScoutAutoRunSummary = {
+      trigger,
+      maxAllowed: cap,
+      requested: ids.length,
+      processed: results.length,
+      skippedByCooldown,
+      results,
+      startedAt,
+      finishedAt: new Date().toISOString(),
+    };
+    autoState.lastRun = summary;
+    return summary;
+  } finally {
+    autoState.running = false;
+  }
 }
 
 export function makeScoutRoutes(db: CuratDb): Hono {
@@ -135,6 +289,22 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     }
 
     return c.json({ processed, maxAllowed: cap, results });
+  });
+
+  // POST /api/scout/auto-run  {}
+  app.post('/auto-run', async (c) => {
+    try {
+      const summary = await runScoutAutoBatch(db, 'manual');
+      return c.json(summary);
+    } catch (err) {
+      const code = (err as Error).message === 'prowlarr_not_configured' ? 422 : 409;
+      return c.json({ error: (err as Error).message }, code);
+    }
+  });
+
+  // GET /api/scout/auto-status
+  app.get('/auto-status', (c) => {
+    return c.json(getScoutAutoState());
   });
 
   return app;

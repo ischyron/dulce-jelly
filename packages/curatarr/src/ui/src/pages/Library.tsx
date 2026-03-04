@@ -8,7 +8,13 @@ import { MovieDetailDrawer } from '../components/MovieDetailDrawer.js';
 
 const RESOLUTION_OPTIONS = ['2160p', '1080p', '720p', '480p', 'other'];
 const CODEC_OPTIONS = ['hevc', 'h264', 'av1', 'mpeg4'];
+const AUDIO_FORMAT_OPTIONS = ['ddp', 'truehd', 'dts', 'aac', 'ac3', 'atmos'];
+const AUDIO_LAYOUT_OPTIONS = ['stereo', '5.1', '7.1'];
 const AV1_WARN_PROFILES = new Set(['android_tv', 'fire_tv']);
+const PERSIST_FILTER_KEYS = [
+  'q', 'resolution', 'codec', 'audioFormat', 'audioLayout', 'genre', 'tags',
+  'hdr', 'dv', 'av1Compat', 'legacy', 'noJf',
+] as const;
 
 // Status dots: scan health + JF match
 function StatusDots({ m }: { m: Movie }) {
@@ -63,10 +69,10 @@ function fmtTotalSize(bytes: number): string {
 }
 
 function SortHeader({
-  field, label, current, dir, onChange, align = 'left',
+  field, label, current, dir, onChange, align = 'left', infoTitle,
 }: {
   field: SortField; label: string; current: SortField;
-  dir: 'asc' | 'desc'; onChange: (f: SortField) => void; align?: 'left' | 'right';
+  dir: 'asc' | 'desc'; onChange: (f: SortField) => void; align?: 'left' | 'right'; infoTitle?: string;
 }) {
   const active = current === field;
   return (
@@ -80,6 +86,16 @@ function SortHeader({
           ? (dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)
           : <ChevronsUpDown size={11} className="opacity-30" />)}
         {label}
+        {infoTitle && (
+          <span
+            className="text-[10px] font-semibold normal-case tracking-normal"
+            style={{ color: 'var(--c-border)' }}
+            title={infoTitle}
+            aria-label={`${label} info`}
+          >
+            [i]
+          </span>
+        )}
         {align !== 'right' && (active
           ? (dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)
           : <ChevronsUpDown size={11} className="opacity-30" />)}
@@ -117,6 +133,8 @@ export function Library() {
   const sortDir    = sp(searchParams, 'dir', 'asc') as 'asc' | 'desc';
   const resolution = sp(searchParams, 'resolution', '');
   const codec      = sp(searchParams, 'codec', '');
+  const audioFormat = sp(searchParams, 'audioFormat', '');
+  const audioLayout = sp(searchParams, 'audioLayout', '');
   const genre      = sp(searchParams, 'genre', '');
   const hdrOnly    = searchParams.get('hdr') === '1';
   const dvOnly     = searchParams.get('dv') === '1';
@@ -150,6 +168,37 @@ export function Library() {
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [tagFilterOpen]);
 
+  function persistedFilterParams(params: URLSearchParams): URLSearchParams {
+    const next = new URLSearchParams();
+    for (const key of PERSIST_FILTER_KEYS) {
+      const value = params.get(key);
+      if (value != null && value !== '') next.set(key, value);
+    }
+    return next;
+  }
+
+  // Restore last filter state on /library with no query params.
+  // Exception: /library?reset=1 forces a clean view (used by Dashboard Total Movies card).
+  useEffect(() => {
+    if (searchParams.get('reset') === '1') {
+      sessionStorage.removeItem('curatarr:libraryParams');
+      setSearchParams({}, { replace: true });
+      return;
+    }
+    if (!searchParams.toString()) {
+      const saved = sessionStorage.getItem('curatarr:libraryParams');
+      if (saved) setSearchParams(new URLSearchParams(saved), { replace: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist only filter params (not pagination/sort/movie drawer state).
+  useEffect(() => {
+    const p = persistedFilterParams(searchParams).toString();
+    if (p) sessionStorage.setItem('curatarr:libraryParams', p);
+    else sessionStorage.removeItem('curatarr:libraryParams');
+  }, [searchParams]);
+
   function patch(changes: Record<string, string | null>) {
     setSearchParams(prev => {
       const next = new URLSearchParams(prev);
@@ -179,7 +228,7 @@ export function Library() {
 
   function clearFilters() {
     patch({
-      q: null, resolution: null, codec: null, genre: null, tags: null,
+      q: null, resolution: null, codec: null, audioFormat: null, audioLayout: null, genre: null, tags: null,
       hdr: null, dv: null, av1Compat: null, legacy: null, noJf: null, page: '1',
     });
   }
@@ -207,12 +256,14 @@ export function Library() {
   });
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['movies', page, limit, search, resolution, codec, genre, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, sortBy, sortDir],
+    queryKey: ['movies', page, limit, search, resolution, codec, audioFormat, audioLayout, genre, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, sortBy, sortDir],
     queryFn: () => api.movies({
       page, limit, sortBy, sortDir,
       ...(search ? { search } : {}),
       ...(resolution ? { resolution } : {}),
       ...((av1CompatOnly ? 'av1' : codec) ? { codec: (av1CompatOnly ? 'av1' : codec) } : {}),
+      ...(audioFormat ? { audioFormat } : {}),
+      ...(audioLayout ? { audioLayout } : {}),
       ...(genre ? { genre } : {}),
       ...(selectedTags.length > 0 ? { tags: selectedTags.join(',') } : {}),
       ...(hdrOnly ? { hdr: 'true' } : {}),
@@ -224,7 +275,7 @@ export function Library() {
   });
 
   const totalPages = data ? Math.ceil(data.total / limit) : 1;
-  const hasActiveFilter = search || resolution || codec || genre || selectedTags.length > 0 || hdrOnly || dvOnly || av1CompatOnly || legacyOnly || noJf;
+  const hasActiveFilter = search || resolution || codec || audioFormat || audioLayout || genre || selectedTags.length > 0 || hdrOnly || dvOnly || av1CompatOnly || legacyOnly || noJf;
   const clientProfile = (() => { try { return localStorage.getItem('clientProfile') ?? 'android_tv'; } catch { return 'android_tv'; } })();
   const av1CompatRelevant = AV1_WARN_PROFILES.has(clientProfile);
   const pageMovieIds = data?.movies.map((m: Movie) => m.id) ?? [];
@@ -334,8 +385,7 @@ export function Library() {
         <h1 className="text-sm font-semibold shrink-0 mr-1" style={{ color: 'var(--c-text)' }}>Library</h1>
         <div className="w-px h-4 shrink-0" style={{ background: 'var(--c-border)' }} />
 
-        <div className="relative px-2 py-1 rounded-lg border"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
+        <div className="relative">
           <Search size={13} className="absolute left-4 top-1/2 -translate-y-1/2"
             style={{ color: 'var(--c-muted)' }} />
           <input
@@ -349,9 +399,10 @@ export function Library() {
           />
         </div>
 
-        {/* Resolution chips */}
-        <div className="flex items-center gap-1 px-2 py-1 rounded-lg border"
+        {/* Resolution group */}
+        <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
+          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>Resolution</span>
           {RESOLUTION_OPTIONS.map(r => (
             <button key={r}
               onClick={() => patch({ resolution: resolution === r ? null : r, page: '1' })}
@@ -364,9 +415,10 @@ export function Library() {
           ))}
         </div>
 
-        {/* Codec chips */}
-        <div className="flex items-center gap-1 px-2 py-1 rounded-lg border"
+        {/* Video codec + HDR group */}
+        <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
+          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>Video Codec / HDR</span>
           {CODEC_OPTIONS.map(c => (
             <button key={c}
               onClick={() => patch({ codec: codec === c ? null : c, page: '1' })}
@@ -377,25 +429,70 @@ export function Library() {
               {c}
             </button>
           ))}
+          <span style={{ color: 'var(--c-border)' }}>·</span>
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+            style={{ color: 'var(--c-muted)' }}>
+            <input type="checkbox" checked={hdrOnly}
+              onChange={e => patch({ hdr: e.target.checked ? '1' : null, page: '1' })}
+              className="accent-violet-600" />
+            HDR
+          </label>
+
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+            style={{ color: 'var(--c-muted)' }}>
+            <input type="checkbox" checked={dvOnly}
+              onChange={e => patch({ dv: e.target.checked ? '1' : null, page: '1' })}
+              className="accent-violet-600" />
+            DV
+          </label>
+
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+            style={{ color: av1CompatOnly ? '#fbbf24' : 'var(--c-muted)' }}
+            title="Show AV1 files that may require transcoding on current client profile">
+            <input type="checkbox" checked={av1CompatOnly}
+              onChange={e => patch({ av1Compat: e.target.checked ? '1' : null, codec: e.target.checked ? null : codec, page: '1' })}
+              className="accent-violet-600" />
+            AV1 compat
+          </label>
+
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+            style={{ color: legacyOnly ? '#fb923c' : 'var(--c-muted)' }}
+            title="Show legacy video codecs (MPEG-4 / MPEG-2 / MSMPEG)">
+            <input type="checkbox" checked={legacyOnly}
+              onChange={e => patch({ legacy: e.target.checked ? '1' : null, page: '1' })}
+              className="accent-violet-600" />
+            Legacy
+          </label>
         </div>
 
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}>
-          <span className="text-xs">Genre</span>
+          <span className="text-xs whitespace-nowrap">Audio Codec</span>
           <select
-            value={genre}
-            onChange={e => patch({ genre: e.target.value || null, page: '1' })}
+            value={audioFormat}
+            onChange={e => patch({ audioFormat: e.target.value || null, page: '1' })}
             className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: genre ? 'var(--c-accent)' : 'var(--c-muted)' }}
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: audioFormat ? 'var(--c-accent)' : 'var(--c-muted)' }}
+            title="Primary audio format filter"
           >
-            <option value="">All</option>
-            {(genresData?.genres ?? []).map(g => <option key={g} value={g}>{g}</option>)}
+            <option value="">Format</option>
+            {AUDIO_FORMAT_OPTIONS.map(f => <option key={f} value={f}>{f.toUpperCase()}</option>)}
+          </select>
+          <select
+            value={audioLayout}
+            onChange={e => patch({ audioLayout: e.target.value || null, page: '1' })}
+            className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: audioLayout ? 'var(--c-accent)' : 'var(--c-muted)' }}
+            title="Primary audio channel layout filter"
+          >
+            <option value="">Channels</option>
+            {AUDIO_LAYOUT_OPTIONS.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
 
         <div ref={tagFilterRef} className="relative flex items-center gap-2 text-xs px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}>
-          <span>Tags</span>
+          <span>Tag</span>
           <button
             onClick={() => setTagFilterOpen(v => !v)}
             className="px-2 py-1 text-xs rounded border"
@@ -442,48 +539,29 @@ export function Library() {
 
         <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
+          <span className="text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>Jellyfin</span>
           <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
-            style={{ color: 'var(--c-muted)' }}>
-            <input type="checkbox" checked={hdrOnly}
-              onChange={e => patch({ hdr: e.target.checked ? '1' : null, page: '1' })}
-              className="accent-violet-600" />
-            HDR
-          </label>
-
-          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
-            style={{ color: 'var(--c-muted)' }}>
-            <input type="checkbox" checked={dvOnly}
-              onChange={e => patch({ dv: e.target.checked ? '1' : null, page: '1' })}
-              className="accent-violet-600" />
-            DV
-          </label>
-
-          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
-            style={{ color: av1CompatOnly ? '#fbbf24' : 'var(--c-muted)' }}
-            title="Show AV1 files that may require transcoding on current client profile">
-            <input type="checkbox" checked={av1CompatOnly}
-              onChange={e => patch({ av1Compat: e.target.checked ? '1' : null, codec: e.target.checked ? null : codec, page: '1' })}
-              className="accent-violet-600" />
-            AV1 compat
-          </label>
-
-          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
-            style={{ color: legacyOnly ? '#fb923c' : 'var(--c-muted)' }}
-            title="Show legacy video codecs (MPEG-4 / MPEG-2 / MSMPEG)">
-            <input type="checkbox" checked={legacyOnly}
-              onChange={e => patch({ legacy: e.target.checked ? '1' : null, page: '1' })}
-              className="accent-violet-600" />
-            Legacy codec
-          </label>
-
-          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
-            style={{ color: 'var(--c-muted)' }}
+            style={{ color: noJf ? '#c4b5fd' : 'var(--c-muted)' }}
             title="Show movies not yet matched in Jellyfin">
             <input type="checkbox" checked={noJf}
               onChange={e => patch({ noJf: e.target.checked ? '1' : null, page: '1' })}
               className="accent-violet-600" />
-            No JF
+            Jellyfin Sync Needed
           </label>
+        </div>
+
+        <div className="flex items-center gap-2 px-2 py-1 rounded-lg border"
+          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}>
+          <span className="text-xs">Genre</span>
+          <select
+            value={genre}
+            onChange={e => patch({ genre: e.target.value || null, page: '1' })}
+            className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: genre ? 'var(--c-accent)' : 'var(--c-muted)' }}
+          >
+            <option value="">All</option>
+            {(genresData?.genres ?? []).map(g => <option key={g} value={g}>{g}</option>)}
+          </select>
         </div>
 
         {hasActiveFilter && (
@@ -608,8 +686,28 @@ export function Library() {
                 <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left"
                   style={{ color: 'var(--c-muted)' }}>HDR</th>
                 <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left"
-                  style={{ color: 'var(--c-muted)' }}>Group</th>
-                <SortHeader field="rating" label="Critic"  current={sortBy} dir={sortDir} onChange={handleSort} align="right" />
+                  style={{ color: 'var(--c-muted)' }}>
+                  <span className="inline-flex items-center gap-1">
+                    Group
+                    <span
+                      className="text-[10px] font-semibold normal-case tracking-normal"
+                      style={{ color: 'var(--c-border)' }}
+                      title="Torrent/Usenet release group inferred from the filename only."
+                      aria-label="Group info"
+                    >
+                      [i]
+                    </span>
+                  </span>
+                </th>
+                <SortHeader
+                  field="rating"
+                  label="Critic"
+                  current={sortBy}
+                  dir={sortDir}
+                  onChange={handleSort}
+                  align="right"
+                  infoTitle="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                />
                 <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-right"
                   style={{ color: 'var(--c-muted)' }}
                   title="IMDb community rating (0–10) from Jellyfin CommunityRating">IMDb</th>
@@ -620,9 +718,22 @@ export function Library() {
                   Issues
                 </th>
                 <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-center w-20"
-                  style={{ color: 'var(--c-muted)' }}
-                  title="Left dot: scan status (green=ok, orange=verify failed, red=error, yellow=pending, gray=not scanned)&#10;Right dot: Jellyfin sync (purple=matched, gray=not matched)">
-                  Status
+                  style={{ color: 'var(--c-muted)' }}>
+                  <span
+                    className="inline-flex items-center justify-center gap-1"
+                    title={`Status dot guide:
+Left dot (scan): green = ok, orange = verify failed, red = scan error, yellow = pending scan, gray = not scanned.
+Right dot (Jellyfin): purple = matched, gray = not matched.`}
+                    aria-label="Status color guide"
+                  >
+                    Status
+                    <span
+                      className="text-[10px] font-semibold normal-case tracking-normal"
+                      style={{ color: 'var(--c-border)' }}
+                    >
+                      [i]
+                    </span>
+                  </span>
                 </th>
               </tr>
             </thead>

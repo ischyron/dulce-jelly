@@ -31,6 +31,8 @@ interface ScoutScoreConfig {
   legacyPenalty: number;
   small4kPenalty: number;
   small4kMinGiB: number;
+  bitrateMinMbps: number;
+  bitrateMaxMbps: number;
   seedersDivisor: number;
   seedersBonusCap: number;
   usenetBonus: number;
@@ -118,6 +120,8 @@ const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
   legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfLegacyPenalty, 40),
   small4kPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kPenalty, 22),
   small4kMinGiB: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kMinGiB, 10),
+  bitrateMinMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMinMbps, 0),
+  bitrateMaxMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMaxMbps, 120),
   seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersDivisor, 25),
   seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersBonusCap, 10),
   usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfUsenetBonus, 10),
@@ -143,6 +147,8 @@ const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
   scoutCfLegacyPenalty: '40',
   scoutCfSmall4kPenalty: '20',
   scoutCfSmall4kMinGiB: '10',
+  scoutCfBitrateMinMbps: '0',
+  scoutCfBitrateMaxMbps: '120',
   scoutCfSeedersDivisor: '25',
   scoutCfSeedersBonusCap: '10',
   scoutCfUsenetBonus: '10',
@@ -410,6 +416,9 @@ function floatSetting(db: CuratDb, key: string, fallback: number, min: number, m
 }
 
 function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
+  const bitrateMinMbps = floatSetting(db, 'scoutCfBitrateMinMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMinMbps, 0, 200);
+  const bitrateMaxRaw = floatSetting(db, 'scoutCfBitrateMaxMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxMbps, 1, 300);
+  const bitrateMaxMbps = Math.max(bitrateMinMbps, bitrateMaxRaw);
   return {
     res2160: intSetting(db, 'scoutCfRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
     res1080: intSetting(db, 'scoutCfRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
@@ -429,6 +438,8 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
     legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
     small4kPenalty: intSetting(db, 'scoutCfSmall4kPenalty', DEFAULT_SCOUT_SCORE_CONFIG.small4kPenalty, 0, 400),
     small4kMinGiB: floatSetting(db, 'scoutCfSmall4kMinGiB', DEFAULT_SCOUT_SCORE_CONFIG.small4kMinGiB, 0.5, 60),
+    bitrateMinMbps,
+    bitrateMaxMbps,
     seedersDivisor: intSetting(db, 'scoutCfSeedersDivisor', DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor, 1, 500),
     seedersBonusCap: intSetting(db, 'scoutCfSeedersBonusCap', DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap, 0, 200),
     usenetBonus: intSetting(db, 'scoutCfUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
@@ -508,7 +519,7 @@ function codecFromTitle(title: string): 'av1' | 'hevc' | 'h264' | 'unknown' {
   return 'unknown';
 }
 
-function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null): BitrateGateResult {
+function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: ScoutScoreConfig): BitrateGateResult {
   if (runtimeSec == null || runtimeSec <= 0 || r.size == null || r.size <= 0) return { excluded: false };
   const res = resolutionFromTitle(r.title);
   if (!res) return { excluded: false };
@@ -527,12 +538,18 @@ function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null): Bitrat
   };
 
   const codec = codecFromTitle(r.title);
-  const floor = floorByResMbps[res] * codecMultiplier[codec];
+  const floor = Math.max(cfg.bitrateMinMbps, floorByResMbps[res] * codecMultiplier[codec]);
   const estimatedMbps = (r.size * 8) / runtimeSec / 1_000_000;
   if (estimatedMbps < floor) {
     return {
       excluded: true,
       reason: `excluded low bitrate for ${res}: ${estimatedMbps.toFixed(2)} Mbps < ${floor.toFixed(2)} Mbps`,
+    };
+  }
+  if (estimatedMbps > cfg.bitrateMaxMbps) {
+    return {
+      excluded: true,
+      reason: `excluded high bitrate: ${estimatedMbps.toFixed(2)} Mbps > ${cfg.bitrateMaxMbps.toFixed(2)} Mbps`,
     };
   }
   return { excluded: false };
@@ -571,7 +588,7 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
   const scored = releases
     .map(r => scoreRelease(r, scoreCfg))
     .filter((r) => {
-      const gate = bitrateGate(r, runtimeSec);
+      const gate = bitrateGate(r, runtimeSec, scoreCfg);
       if (gate.excluded) {
         if (gate.reason) excludedReasons.push(gate.reason);
         return false;

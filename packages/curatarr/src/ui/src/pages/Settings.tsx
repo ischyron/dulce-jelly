@@ -74,6 +74,8 @@ Protocol weights:
 Penalties:
   Legacy codec penalty (xvid/mpeg4)
   Small-4K penalty when size < Small 4K Min GiB
+Bitrate gate:
+  Hard exclude releases outside Min/Max bitrate window
 Availability:
   Seeder bonus = floor(seeders / divisor), capped by max bonus
 
@@ -102,6 +104,14 @@ Example:
   500 seeders -> floor(500/25)=20 -> capped to 10 points
 
 This prevents very high-seed releases from overpowering quality/source signals.`;
+
+const BITRATE_GATE_TOOLTIP = `Hard exclusion by estimated bitrate (size/duration) in Scout search results.
+
+Min bitrate: releases below this are excluded.
+Max bitrate: releases above this are excluded.
+
+Estimated bitrate is compared after resolution/codec normalization, so these
+bounds act as a global safety clamp.`;
 
 const SCOUT_OBJECTIVE_SAMPLES = [
   'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
@@ -164,6 +174,53 @@ interface ScoutRuleDraft {
   enabled: boolean;
   priority: number;
   configText: string;
+}
+
+interface OrderedScoreField {
+  key: string;
+  label: string;
+}
+
+const RESOLUTION_SCORE_FIELDS: OrderedScoreField[] = [
+  { key: 'scoutCfRes2160', label: '2160p' },
+  { key: 'scoutCfRes1080', label: '1080p' },
+  { key: 'scoutCfRes720', label: '720p' },
+];
+
+const SOURCE_SCORE_FIELDS: OrderedScoreField[] = [
+  { key: 'scoutCfSourceRemux', label: 'Remux' },
+  { key: 'scoutCfSourceBluray', label: 'BluRay' },
+  { key: 'scoutCfSourceWebdl', label: 'WEB-DL' },
+];
+
+const VIDEO_CODEC_SCORE_FIELDS: OrderedScoreField[] = [
+  { key: 'scoutCfCodecHevc', label: 'HEVC' },
+  { key: 'scoutCfCodecAv1', label: 'AV1' },
+  { key: 'scoutCfCodecH264', label: 'H264' },
+];
+
+const AUDIO_SCORE_FIELDS: OrderedScoreField[] = [
+  { key: 'scoutCfAudioAtmos', label: 'Atmos' },
+  { key: 'scoutCfAudioTruehd', label: 'TrueHD' },
+  { key: 'scoutCfAudioDts', label: 'DTS' },
+  { key: 'scoutCfAudioDdp', label: 'DD+ / EAC3' },
+  { key: 'scoutCfAudioAc3', label: 'AC3' },
+  { key: 'scoutCfAudioAac', label: 'AAC' },
+];
+
+function parseScore(value: string | undefined): number {
+  const n = Number(value ?? '');
+  return Number.isFinite(n) ? n : 0;
+}
+
+function rankByScore(order: string[], fields: OrderedScoreField[], form: Record<string, string>): string[] {
+  const allowed = new Set(fields.map(f => f.key));
+  const base = order.filter(k => allowed.has(k));
+  return [...base].sort((a, b) => {
+    const diff = parseScore(form[b]) - parseScore(form[a]);
+    if (diff !== 0) return diff;
+    return base.indexOf(a) - base.indexOf(b);
+  });
 }
 
 function AccordionSection({
@@ -251,6 +308,94 @@ function Field({
         onBlur={e => (e.target.style.borderColor = 'var(--c-border)')}
       />
       {hint && <p className="mt-1 text-xs" style={{ color: 'var(--c-muted)' }}>{hint}</p>}
+    </div>
+  );
+}
+
+function SliderField({
+  label, name, value, onChange, min, max, step = 1, tooltip = '',
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  min: number;
+  max: number;
+  step?: number;
+  tooltip?: string;
+}) {
+  const numeric = Number.isFinite(Number(value)) ? Number(value) : min;
+  const shown = step < 1 ? numeric.toFixed(1) : String(Math.round(numeric));
+  return (
+    <div>
+      <label className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
+        <span className="whitespace-nowrap">{label}</span>
+        {tooltip && <InfoHint label={`${label} info`} text={tooltip} />}
+      </label>
+      <div className="flex items-center gap-3">
+        <input
+          type="range"
+          name={name}
+          min={min}
+          max={max}
+          step={step}
+          value={numeric}
+          onChange={e => onChange(e.target.value)}
+          className="w-full"
+        />
+        <span className="text-xs font-mono min-w-[4rem] text-right" style={{ color: 'var(--c-text)' }}>
+          {shown} Mbps
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function OrderedScoreRow({
+  fields,
+  form,
+  onChange,
+}: {
+  fields: OrderedScoreField[];
+  form: Record<string, string>;
+  onChange: (key: string, value: string) => void;
+}) {
+  const [order, setOrder] = useState<string[]>(fields.map(f => f.key));
+
+  useEffect(() => {
+    setOrder(fields.map(f => f.key));
+  }, [fields]);
+
+  function commitReorder() {
+    setOrder(prev => rankByScore(prev, fields, form));
+  }
+
+  const fieldMap = new Map(fields.map(f => [f.key, f]));
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+      {order.map((key, idx) => {
+        const meta = fieldMap.get(key);
+        if (!meta) return null;
+        return (
+          <div key={key} className="flex items-center gap-2">
+            <label className="text-sm font-medium whitespace-nowrap min-w-[72px]" style={{ color: '#c4b5fd' }}>
+              {meta.label}
+            </label>
+            <input
+              type="number"
+              value={form[key] ?? ''}
+              onChange={e => onChange(key, e.target.value)}
+              onBlur={commitReorder}
+              className="w-16 px-2 py-1.5 rounded text-sm text-center focus:outline-none"
+              style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+            />
+            {idx < order.length - 1 && (
+              <span className="text-sm font-semibold px-1" style={{ color: 'var(--c-muted)' }}>{'>'}</span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -410,6 +555,8 @@ export function Settings() {
         scoutCfLegacyPenalty: data.settings.scoutCfLegacyPenalty ?? '30',
         scoutCfSmall4kPenalty: data.settings.scoutCfSmall4kPenalty ?? '15',
         scoutCfSmall4kMinGiB: data.settings.scoutCfSmall4kMinGiB ?? '8',
+        scoutCfBitrateMinMbps: data.settings.scoutCfBitrateMinMbps ?? '0',
+        scoutCfBitrateMaxMbps: data.settings.scoutCfBitrateMaxMbps ?? '120',
         scoutCfSeedersDivisor: data.settings.scoutCfSeedersDivisor ?? '20',
         scoutCfSeedersBonusCap: data.settings.scoutCfSeedersBonusCap ?? '12',
         scoutCfUsenetBonus: data.settings.scoutCfUsenetBonus ?? '10',
@@ -494,6 +641,13 @@ export function Settings() {
       setScoutRulesError((err as Error).message);
     },
   });
+  const syncedTrashSource = scoutSyncTrashMutation.data?.meta?.source ?? data?.settings?.scoutTrashSyncSource ?? '';
+  const syncedTrashRevision = scoutSyncTrashMutation.data?.meta?.revision ?? data?.settings?.scoutTrashSyncRevision ?? '';
+  const syncedTrashAt = scoutSyncTrashMutation.data?.meta?.fetchedAt ?? data?.settings?.scoutTrashSyncedAt ?? '';
+  const syncedTrashRules = scoutSyncTrashMutation.data
+    ? String(scoutSyncTrashMutation.data.syncedRules)
+    : (data?.settings?.scoutTrashSyncedRules ?? '');
+  const hasTrashSyncDetails = Boolean(syncedTrashSource || syncedTrashRevision || syncedTrashAt || syncedTrashRules);
 
   useEffect(() => {
     const rules = scoutRulesData?.rules?.scout ?? [];
@@ -591,7 +745,7 @@ export function Settings() {
       <AccordionSection title="General" defaultOpen>
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
           <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
-            <img src="/icons/jellyfin.svg" alt="Jellyfin" className="w-4 h-4" />
+            <img src="/icons/jellyfin.svg" alt="Jellyfin" className="w-4 h-4 brightness-0 invert" />
             Jellyfin Connection
           </h2>
           <Field label="Jellyfin URL" name="jellyfinUrl" value={form.jellyfinUrl ?? ''}
@@ -727,57 +881,41 @@ export function Settings() {
           Tune Scout release ranking without code changes. Higher score means a release is recommended first.
         </p>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Source of truth: <code>packages/curatarr/config/scoring.yaml</code>. Saving Settings also syncs this file.
+          Source of truth: <code>config/scoring.yaml</code>. Saving Settings also syncs this file.
         </p>
         <div className="space-y-3">
           <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
             <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
               Resolution
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="2160p" name="scoutCfRes2160"
-                value={form.scoutCfRes2160 ?? '40'}
-                onChange={v => set('scoutCfRes2160', v)} />
-              <Field label="1080p" name="scoutCfRes1080"
-                value={form.scoutCfRes1080 ?? '25'}
-                onChange={v => set('scoutCfRes1080', v)} />
-              <Field label="720p" name="scoutCfRes720"
-                value={form.scoutCfRes720 ?? '10'}
-                onChange={v => set('scoutCfRes720', v)} />
-            </div>
+            <OrderedScoreRow
+              fields={RESOLUTION_SCORE_FIELDS}
+              form={form}
+              onChange={set}
+            />
           </div>
 
           <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
             <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
               Source
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="Remux" name="scoutCfSourceRemux"
-                value={form.scoutCfSourceRemux ?? '28'}
-                onChange={v => set('scoutCfSourceRemux', v)} />
-              <Field label="BluRay" name="scoutCfSourceBluray"
-                value={form.scoutCfSourceBluray ?? '16'}
-                onChange={v => set('scoutCfSourceBluray', v)} />
-              <Field label="WEB-DL" name="scoutCfSourceWebdl"
-                value={form.scoutCfSourceWebdl ?? '12'}
-                onChange={v => set('scoutCfSourceWebdl', v)} />
-            </div>
+            <OrderedScoreRow
+              fields={SOURCE_SCORE_FIELDS}
+              form={form}
+              onChange={set}
+            />
           </div>
 
           <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
             <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
               Video
             </div>
+            <OrderedScoreRow
+              fields={VIDEO_CODEC_SCORE_FIELDS}
+              form={form}
+              onChange={set}
+            />
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="HEVC" name="scoutCfCodecHevc"
-                value={form.scoutCfCodecHevc ?? '20'}
-                onChange={v => set('scoutCfCodecHevc', v)} />
-              <Field label="AV1" name="scoutCfCodecAv1"
-                value={form.scoutCfCodecAv1 ?? '16'}
-                onChange={v => set('scoutCfCodecAv1', v)} />
-              <Field label="H264" name="scoutCfCodecH264"
-                value={form.scoutCfCodecH264 ?? '8'}
-                onChange={v => set('scoutCfCodecH264', v)} />
               <Field label="Legacy Penalty" name="scoutCfLegacyPenalty"
                 value={form.scoutCfLegacyPenalty ?? '30'}
                 onChange={v => set('scoutCfLegacyPenalty', v)}
@@ -789,32 +927,39 @@ export function Settings() {
                 value={form.scoutCfSmall4kMinGiB ?? '8'}
                 onChange={v => set('scoutCfSmall4kMinGiB', v)} />
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <SliderField
+                label="Bitrate Min"
+                name="scoutCfBitrateMinMbps"
+                value={form.scoutCfBitrateMinMbps ?? '0'}
+                onChange={v => set('scoutCfBitrateMinMbps', v)}
+                min={0}
+                max={80}
+                step={0.5}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <SliderField
+                label="Bitrate Max"
+                name="scoutCfBitrateMaxMbps"
+                value={form.scoutCfBitrateMaxMbps ?? '120'}
+                onChange={v => set('scoutCfBitrateMaxMbps', v)}
+                min={1}
+                max={200}
+                step={1}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+            </div>
           </div>
 
           <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
             <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
               Audio
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Field label="Atmos" name="scoutCfAudioAtmos"
-                value={form.scoutCfAudioAtmos ?? '10'}
-                onChange={v => set('scoutCfAudioAtmos', v)} />
-              <Field label="TrueHD" name="scoutCfAudioTruehd"
-                value={form.scoutCfAudioTruehd ?? '8'}
-                onChange={v => set('scoutCfAudioTruehd', v)} />
-              <Field label="DTS" name="scoutCfAudioDts"
-                value={form.scoutCfAudioDts ?? '6'}
-                onChange={v => set('scoutCfAudioDts', v)} />
-              <Field label="DD+ / EAC3" name="scoutCfAudioDdp"
-                value={form.scoutCfAudioDdp ?? '5'}
-                onChange={v => set('scoutCfAudioDdp', v)} />
-              <Field label="AC3" name="scoutCfAudioAc3"
-                value={form.scoutCfAudioAc3 ?? '2'}
-                onChange={v => set('scoutCfAudioAc3', v)} />
-              <Field label="AAC" name="scoutCfAudioAac"
-                value={form.scoutCfAudioAac ?? '1'}
-                onChange={v => set('scoutCfAudioAac', v)} />
-            </div>
+            <OrderedScoreRow
+              fields={AUDIO_SCORE_FIELDS}
+              form={form}
+              onChange={set}
+            />
           </div>
 
           <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
@@ -861,33 +1006,43 @@ export function Settings() {
           >
             Official TRaSH-Guides
           </a>
-          {scoutSyncTrashMutation.data?.meta && (
-            <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              Source: {scoutSyncTrashMutation.data.meta.source}
-              {scoutSyncTrashMutation.data.meta.revision ? ` @ ${scoutSyncTrashMutation.data.meta.revision}` : ''}
-            </span>
-          )}
           {scoutSyncTrashMutation.isError && (
             <span className="text-xs text-red-400">
               {(scoutSyncTrashMutation.error as Error).message}
             </span>
           )}
         </div>
-        {scoutSyncTrashMutation.data?.meta && (
-          <div className="text-xs space-y-1" style={{ color: 'var(--c-muted)' }}>
-            <div>
-              Synced at: {new Date(scoutSyncTrashMutation.data.meta.fetchedAt).toLocaleString()}
-            </div>
-            <div>
-              Stored to DB: yes (Scout CF baseline settings + {scoutSyncTrashMutation.data.syncedRules} Scout rules)
-            </div>
-            {scoutSyncTrashMutation.data.meta.warning && (
-              <div style={{ color: '#f59e0b' }}>
-                Note: {scoutSyncTrashMutation.data.meta.warning}
-              </div>
-            )}
+        <div className="rounded-lg border p-3 space-y-2 text-xs" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+          <div className="font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            TRaSH Sync Details (Read-only)
           </div>
-        )}
+          {!hasTrashSyncDetails && (
+            <div style={{ color: 'var(--c-muted)' }}>No TRaSH sync recorded yet.</div>
+          )}
+          {hasTrashSyncDetails && (
+            <>
+              <div style={{ color: 'var(--c-muted)' }}>
+                Source: <span style={{ color: 'var(--c-text)' }}>{syncedTrashSource || 'n/a'}</span>
+              </div>
+              <div style={{ color: 'var(--c-muted)' }}>
+                Revision: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRevision || 'n/a'}</span>
+              </div>
+              <div style={{ color: 'var(--c-muted)' }}>
+                Last synced: <span style={{ color: 'var(--c-text)' }}>
+                  {syncedTrashAt ? new Date(syncedTrashAt).toLocaleString() : 'n/a'}
+                </span>
+              </div>
+              <div style={{ color: 'var(--c-muted)' }}>
+                Rules synced: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRules || 'n/a'}</span>
+              </div>
+            </>
+          )}
+          {scoutSyncTrashMutation.data?.meta.warning && (
+            <div style={{ color: '#f59e0b' }}>
+              Note: {scoutSyncTrashMutation.data.meta.warning}
+            </div>
+          )}
+        </div>
 
         <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>

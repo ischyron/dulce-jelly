@@ -17,15 +17,12 @@ export function makeSyncRoutes(db: CuratDb): Hono {
     const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
     const resync = Boolean(body.resync);
 
-    // Resolve Jellyfin connection from settings or env
+    // Resolve Jellyfin connection from request override or persisted settings
     const url = (body.url as string)
       ?? db.getSetting('jellyfinUrl')
-      ?? process.env.JELLYFIN_URL
-      ?? process.env.JELLYFIN_BASE_URL
       ?? '';
     const apiKey = (body.apiKey as string)
       ?? db.getSetting('jellyfinApiKey')
-      ?? process.env.JELLYFIN_API_KEY
       ?? '';
 
     if (!url || !apiKey) {

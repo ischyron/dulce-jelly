@@ -288,7 +288,7 @@ export function MovieDetailContent({ movieId, mode, enableScoutSearch = false, o
               <span title="IMDb community rating (0-10) from Jellyfin CommunityRating">
                 IMDb rating: <span style={{ color: '#d4cfff' }}>{imdbValue}</span>
               </span>
-              <span title="Jellyfin CriticRating (0-100). Source depends on your Jellyfin metadata plugin and is not guaranteed to be Rotten Tomatoes.">
+              <span title="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin.">
                 Jellyfin critic score: <span style={{ color: '#d4cfff' }}>
                   <CriticScoreBadge score={data.critic_rating} />
                 </span>

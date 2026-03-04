@@ -34,18 +34,6 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
   app.get('/', (c) => {
     const settings = db.getAllSettings();
 
-    // Env var fallbacks for fields that may not be saved in DB yet
-    if (!settings.jellyfinUrl)
-      settings.jellyfinUrl = process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL ?? '';
-    if (!settings.jellyfinPublicUrl)
-      settings.jellyfinPublicUrl = process.env.JELLYFIN_PUBLIC_URL ?? '';
-    if (!settings.jellyfinApiKey)
-      settings.jellyfinApiKey = process.env.JELLYFIN_API_KEY ?? '';
-    if (!settings.prowlarrUrl)
-      settings.prowlarrUrl = process.env.PROWLARR_URL ?? '';
-    if (!settings.prowlarrApiKey)
-      settings.prowlarrApiKey = process.env.PROWLARR_API_KEY ?? '';
-
     // Mask API keys in response (show last 4 chars only)
     const safe: Record<string, string> = {};
     for (const [k, v] of Object.entries(settings)) {
@@ -79,17 +67,17 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
 
   // GET /api/settings/health — test Jellyfin + Prowlarr connectivity
   // Accepts optional query params to test unsaved form values.
-  // Falls back to saved DB / env vars when not provided.
+  // Falls back to saved DB settings when not provided.
   app.get('/health', async (c) => {
     const qJfUrl = c.req.query('url') ?? '';
     const qJfApiKey = c.req.query('apiKey') ?? '';
     const qProwlarrUrl = c.req.query('prowlarrUrl') ?? '';
     const qProwlarrApiKey = c.req.query('prowlarrApiKey') ?? '';
 
-    const jfUrl = qJfUrl || db.getSetting('jellyfinUrl') || process.env.JELLYFIN_URL || process.env.JELLYFIN_BASE_URL || '';
-    const jfApiKey = qJfApiKey || db.getSetting('jellyfinApiKey') || process.env.JELLYFIN_API_KEY || '';
-    const prowlarrUrl = qProwlarrUrl || db.getSetting('prowlarrUrl') || process.env.PROWLARR_URL || '';
-    const prowlarrApiKey = qProwlarrApiKey || db.getSetting('prowlarrApiKey') || process.env.PROWLARR_API_KEY || '';
+    const jfUrl = qJfUrl || db.getSetting('jellyfinUrl') || '';
+    const jfApiKey = qJfApiKey || db.getSetting('jellyfinApiKey') || '';
+    const prowlarrUrl = qProwlarrUrl || db.getSetting('prowlarrUrl') || '';
+    const prowlarrApiKey = qProwlarrApiKey || db.getSetting('prowlarrApiKey') || '';
 
     const base = {
       jellyfin: { ok: false, error: 'Not configured' } as { ok: boolean; libraries?: number; error?: string },

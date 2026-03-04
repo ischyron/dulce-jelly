@@ -14,8 +14,8 @@ export function makeProxyRoutes(db: CuratDb): Hono {
   // The client never needs to know the Jellyfin URL or API key.
   app.get('/image/:jellyfinId', async (c) => {
     const jellyfinId = c.req.param('jellyfinId');
-    const baseUrl = (db.getSetting('jellyfinUrl') ?? process.env.JELLYFIN_URL ?? '').replace(/\/$/, '');
-    const apiKey = db.getSetting('jellyfinApiKey') ?? process.env.JELLYFIN_API_KEY ?? '';
+    const baseUrl = (db.getSetting('jellyfinUrl') ?? '').replace(/\/$/, '');
+    const apiKey = db.getSetting('jellyfinApiKey') ?? '';
 
     if (!baseUrl || !apiKey) {
       return c.json({ error: 'Jellyfin not configured' }, 503);

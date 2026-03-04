@@ -1,6 +1,6 @@
 /**
  * Jellyfin read-only API client
- * Auth via JELLYFIN_URL + JELLYFIN_API_KEY env vars.
+ * Auth via explicit URL + API key from runtime config / DB settings.
  * Never writes to Jellyfin.
  */
 
@@ -55,18 +55,12 @@ export class JellyfinClient {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private cache = new Map<string, CacheEntry<any>>();
 
-  constructor(baseUrl?: string, apiKey?: string) {
-    this.baseUrl = (baseUrl ?? process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL ?? '').replace(/\/$/, '');
-    this.apiKey = apiKey ?? process.env.JELLYFIN_API_KEY ?? '';
+  constructor(baseUrl: string, apiKey: string) {
+    this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.apiKey = apiKey;
 
-    if (!this.baseUrl) throw new Error('Jellyfin URL not set. Set JELLYFIN_URL env var.');
-    if (!this.apiKey) throw new Error('Jellyfin API key not set. Set JELLYFIN_API_KEY env var.');
-  }
-
-  static isConfigured(): boolean {
-    const url = process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL ?? '';
-    const key = process.env.JELLYFIN_API_KEY ?? '';
-    return !!(url && key);
+    if (!this.baseUrl) throw new Error('Jellyfin URL not set.');
+    if (!this.apiKey) throw new Error('Jellyfin API key not set.');
   }
 
   // ──────────────────────────────────────────────────────────────────

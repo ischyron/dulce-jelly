@@ -376,9 +376,13 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const id = parseInt(c.req.param('id'), 10);
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
-    const contents = listFolderContents(movie.folder_path);
+    const folderExists = fs.existsSync(movie.folder_path) && (() => {
+      try { return fs.statSync(movie.folder_path).isDirectory(); } catch { return false; }
+    })();
+    const contents = folderExists ? listFolderContents(movie.folder_path) : [];
     const hasNonVideo = contents.some(f => !f.isVideo);
-    return c.json({ folderPath: movie.folder_path, contents, hasNonVideo });
+    const videoCount = contents.filter(f => f.isVideo).length;
+    return c.json({ folderPath: movie.folder_path, contents, hasNonVideo, folderExists, videoCount });
   });
 
   // DELETE /api/movies/:id  { mode: 'files' | 'folder' }
@@ -421,8 +425,8 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const id = parseInt(c.req.param('id'), 10);
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
-    const url = db.getSetting('jellyfinUrl') ?? process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL ?? '';
-    const apiKey = db.getSetting('jellyfinApiKey') ?? process.env.JELLYFIN_API_KEY ?? '';
+    const url = db.getSetting('jellyfinUrl') ?? '';
+    const apiKey = db.getSetting('jellyfinApiKey') ?? '';
     if (!url || !apiKey) return c.json({ error: 'jellyfin_not_configured' }, 422);
 
     try {

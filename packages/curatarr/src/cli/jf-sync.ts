@@ -5,40 +5,38 @@
 
 import { Command } from 'commander';
 import os from 'node:os';
-import path from 'node:path';
 import { CuratDb } from '../db/client.js';
 import { JellyfinClient } from '../jellyfin/client.js';
 import { syncJellyfin } from '../jellyfin/sync.js';
+import { loadRuntimeConfig } from '../shared/runtimeConfig.js';
 
 export function makeJfSyncCommand(): Command {
+  const runtimeCfg = loadRuntimeConfig();
   return new Command('jf-sync')
     .description('Enrich library DB with Jellyfin metadata (ratings, IDs, genres)')
-    .option('-d, --db <path>', 'SQLite DB path', defaultDbPath())
-    .option('--url <url>', 'Jellyfin URL (overrides JELLYFIN_URL env)')
-    .option('--api-key <key>', 'Jellyfin API key (overrides JELLYFIN_API_KEY env)')
+    .option('-d, --db <path>', 'SQLite DB path', runtimeCfg.dbPath)
+    .option('--url <url>', 'Jellyfin URL (overrides config settings)')
+    .option('--api-key <key>', 'Jellyfin API key (overrides config settings)')
     .option('--resync', 'Re-sync movies already enriched')
     .option('--show-unmatched', 'Print titles that could not be matched')
     .action(async (opts) => {
       const dbPath = opts.db.replace(/^~/, os.homedir());
 
-      // Env var setup — option overrides env
-      if (opts.url) process.env.JELLYFIN_URL = opts.url;
-      if (opts.apiKey) process.env.JELLYFIN_API_KEY = opts.apiKey;
-
-      if (!JellyfinClient.isConfigured()) {
+      const db = new CuratDb(dbPath);
+      const url = opts.url || runtimeCfg.settings.jellyfinUrl || db.getSetting('jellyfinUrl') || '';
+      const apiKey = opts.apiKey || runtimeCfg.settings.jellyfinApiKey || db.getSetting('jellyfinApiKey') || '';
+      if (!url || !apiKey) {
         console.error(
           'Jellyfin not configured.\n' +
-          'Set JELLYFIN_URL and JELLYFIN_API_KEY env vars, or pass --url / --api-key.'
+          'Set settings.jellyfinUrl and settings.jellyfinApiKey in config/config.yaml, or pass --url / --api-key.'
         );
         process.exit(1);
       }
-
-      const db = new CuratDb(dbPath);
-      const jfClient = new JellyfinClient();
+      const jfClient = new JellyfinClient(url, apiKey);
 
       console.log(`\nJF sync`);
       console.log(`  DB   : ${dbPath}`);
-      console.log(`  JF   : ${process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL}`);
+      console.log(`  JF   : ${url}`);
       console.log('');
 
       let lastPrint = 0;
@@ -78,8 +76,4 @@ export function makeJfSyncCommand(): Command {
 
       db.close();
     });
-}
-
-function defaultDbPath(): string {
-  return path.join(os.homedir(), '.curatarr', 'curatarr.db');
 }

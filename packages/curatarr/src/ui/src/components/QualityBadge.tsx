@@ -168,9 +168,7 @@ export function HdrBadge({ hdrFormats, dvProfile }: {
 }
 
 /**
- * Displays a Jellyfin CriticRating score (0–100) with a fresh/rotten indicator.
- * Jellyfin's CriticRating is sourced from whichever metadata plugin is active
- * (Metacritic via TMDb plugin, or Rotten Tomatoes via OMDb plugin).
+ * Displays a Jellyfin critic score (0–100) with a fresh/rotten indicator.
  * Convention follows Rotten Tomatoes: ≥60 = Fresh, <60 = Rotten.
  */
 export function CriticScoreBadge({
@@ -186,8 +184,8 @@ export function CriticScoreBadge({
     <span
       className="inline-flex items-center gap-1 font-mono"
       title={fresh
-        ? `${score} — Fresh (≥60). Source: Jellyfin CriticRating (Metacritic via TMDb plugin, or RT via OMDb plugin)`
-        : `${score} — Rotten (<60). Source: Jellyfin CriticRating`}
+        ? `${score} — Fresh (≥60). Jellyfin critic score (0–100).`
+        : `${score} — Rotten (<60). Jellyfin critic score (0–100).`}
     >
       {showTomatoIcon && (
         <img

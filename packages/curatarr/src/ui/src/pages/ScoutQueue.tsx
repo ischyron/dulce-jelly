@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { TrendingUp, Star, AlertTriangle, X } from 'lucide-react';
+import { Bot, Star, AlertTriangle, X } from 'lucide-react';
 import { api, type Candidate } from '../api/client.js';
 import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from '../components/QualityBadge.js';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer.js';
@@ -213,7 +213,7 @@ export function ScoutQueue() {
       <div className="px-6 py-3 border-b flex items-center gap-4 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
         <h1 className="font-semibold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
-          <TrendingUp size={17} style={{ color: 'var(--c-accent)' }} />
+          <Bot size={17} style={{ color: 'var(--c-accent)' }} />
           Scout Queue
         </h1>
 
@@ -407,12 +407,12 @@ export function ScoutQueue() {
                 </th>
                 <th className="px-3 py-2">Flags</th>
                 <th className="px-3 py-2 text-right"
-                  title="Critic score (0–100) from Jellyfin CriticRating. Red = Fresh (≥60), grey = Rotten (<60). Source depends on Jellyfin metadata plugin.">
+                  title="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin. Red = Fresh (≥60), grey = Rotten (<60).">
                   <span className="inline-flex items-center gap-1">
                     Critic
                     <InfoHint
                       label="Critic info"
-                      text="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                      text="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin."
                     />
                   </span>
                 </th>

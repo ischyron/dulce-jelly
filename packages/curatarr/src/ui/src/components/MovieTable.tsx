@@ -38,7 +38,7 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
                 MC
                 <InfoHint
                   label="Critic info"
-                  text="Critic scoring source currently configured for your library metadata (for example IMDb or your custom setup)."
+                  text="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin."
                 />
               </span>
             </th>

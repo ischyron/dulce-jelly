@@ -1,12 +1,12 @@
 import { NavLink, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Library, Search, ScanLine, Settings, ShieldCheck, GitMerge } from 'lucide-react';
+import { LayoutDashboard, Library, Bot, ScanLine, Settings, ShieldCheck, GitMerge } from 'lucide-react';
 import { api } from '../api/client.js';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/library', icon: Library, label: 'Library' },
-  { to: '/scout', icon: Search, label: 'Scout Queue' },
+  { to: '/scout', icon: Bot, label: 'Scout Queue' },
   { to: '/scan', icon: ScanLine, label: 'Scan / Sync' },
   { to: '/disambiguate', icon: GitMerge, label: 'Disambiguate', badge: true },
   { to: '/verify', icon: ShieldCheck, label: 'Verify' },

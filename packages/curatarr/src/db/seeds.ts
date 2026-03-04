@@ -302,16 +302,6 @@ export function seedDefaults(db: CuratDb): void {
     }
   }
 
-  // Seed Jellyfin connection from env vars (if not already stored in DB)
-  const envJellyfinUrl = process.env.JELLYFIN_URL ?? process.env.JELLYFIN_BASE_URL;
-  if (envJellyfinUrl && !db.getSetting('jellyfinUrl')) {
-    db.setSetting('jellyfinUrl', envJellyfinUrl);
-  }
-  const envJellyfinApiKey = process.env.JELLYFIN_API_KEY;
-  if (envJellyfinApiKey && !db.getSetting('jellyfinApiKey')) {
-    db.setSetting('jellyfinApiKey', envJellyfinApiKey);
-  }
-
   // Seed rules (skip if any rules already exist in the category)
   const existingRules = db.getRules();
   const existingCategories = new Set(existingRules.map(r => r.category));

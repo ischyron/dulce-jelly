@@ -75,7 +75,7 @@ Penalties:
   Legacy codec penalty (xvid/mpeg4)
   Small-4K penalty when size < Small 4K Min GiB
 Bitrate gate:
-  Hard exclude releases below per-resolution bitrate floors
+  Hard exclude releases outside per-resolution Min/Max bitrate bands
 Availability:
   Seeder bonus = floor(seeders / divisor), capped by max bonus
 
@@ -107,8 +107,8 @@ This prevents very high-seed releases from overpowering quality/source signals.`
 
 const BITRATE_GATE_TOOLTIP = `Hard exclusion by estimated bitrate (size/duration) in Scout search results.
 
-Each resolution has its own minimum bitrate floor.
-Codec normalization is applied (AV1 lower floor, H264 higher floor) before filtering.
+Each resolution has its own Min and Max bitrate.
+Codec normalization is applied (AV1 lower band, H264 higher band) before filtering.
 
 This avoids one global bitrate threshold across all formats.`;
 
@@ -580,10 +580,14 @@ export function Settings() {
         scoutCfLegacyPenalty: data.settings.scoutCfLegacyPenalty ?? '30',
         scoutCfSmall4kPenalty: data.settings.scoutCfSmall4kPenalty ?? '15',
         scoutCfSmall4kMinGiB: data.settings.scoutCfSmall4kMinGiB ?? '8',
-        scoutCfBitrateFloor2160Mbps: data.settings.scoutCfBitrateFloor2160Mbps ?? '14',
-        scoutCfBitrateFloor1080Mbps: data.settings.scoutCfBitrateFloor1080Mbps ?? '6',
-        scoutCfBitrateFloor720Mbps: data.settings.scoutCfBitrateFloor720Mbps ?? '3',
-        scoutCfBitrateFloorOtherMbps: data.settings.scoutCfBitrateFloorOtherMbps ?? '1',
+        scoutCfBitrateMin2160Mbps: data.settings.scoutCfBitrateMin2160Mbps ?? '14',
+        scoutCfBitrateMax2160Mbps: data.settings.scoutCfBitrateMax2160Mbps ?? '120',
+        scoutCfBitrateMin1080Mbps: data.settings.scoutCfBitrateMin1080Mbps ?? '6',
+        scoutCfBitrateMax1080Mbps: data.settings.scoutCfBitrateMax1080Mbps ?? '60',
+        scoutCfBitrateMin720Mbps: data.settings.scoutCfBitrateMin720Mbps ?? '3',
+        scoutCfBitrateMax720Mbps: data.settings.scoutCfBitrateMax720Mbps ?? '30',
+        scoutCfBitrateMinOtherMbps: data.settings.scoutCfBitrateMinOtherMbps ?? '1',
+        scoutCfBitrateMaxOtherMbps: data.settings.scoutCfBitrateMaxOtherMbps ?? '20',
         scoutCfSeedersDivisor: data.settings.scoutCfSeedersDivisor ?? '20',
         scoutCfSeedersBonusCap: data.settings.scoutCfSeedersBonusCap ?? '12',
         scoutCfUsenetBonus: data.settings.scoutCfUsenetBonus ?? '10',
@@ -963,6 +967,17 @@ export function Settings() {
               form={form}
               onChange={set}
             />
+            <div className="flex items-start gap-2 p-3 rounded-lg text-xs"
+              style={{ background: 'rgba(139,135,170,0.08)', border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}>
+              <Info size={13} className="shrink-0 mt-0.5" />
+              <span>
+                AV1 files score highest (100) for compression efficiency.
+                Scout Queue and Library will show a compatibility warning for AV1 files
+                when your selected primary client lacks hardware AV1 decode.
+                Active profile: <em style={{ color: 'var(--c-text)' }}>{activeProfile.label}</em> —
+                Video codec AV1: <span style={{ color: 'var(--c-text)' }}>{activeProfile.videoCodec.av1}</span>.
+              </span>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Legacy Penalty" name="scoutCfLegacyPenalty"
                 value={form.scoutCfLegacyPenalty ?? '30'}
@@ -982,47 +997,87 @@ export function Settings() {
               Bitrate
             </div>
             <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              Radarr-style bitrate floors by resolution (Mbps).
+              Radarr-style bitrate min/max by resolution (Mbps).
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <SliderField
                 label="2160p Min Mbps"
-                name="scoutCfBitrateFloor2160Mbps"
-                value={form.scoutCfBitrateFloor2160Mbps ?? '14'}
-                onChange={v => set('scoutCfBitrateFloor2160Mbps', v)}
+                name="scoutCfBitrateMin2160Mbps"
+                value={form.scoutCfBitrateMin2160Mbps ?? '14'}
+                onChange={v => set('scoutCfBitrateMin2160Mbps', v)}
                 min={0}
                 max={120}
                 step={0.5}
                 tooltip={BITRATE_GATE_TOOLTIP}
               />
               <SliderField
+                label="2160p Max Mbps"
+                name="scoutCfBitrateMax2160Mbps"
+                value={form.scoutCfBitrateMax2160Mbps ?? '120'}
+                onChange={v => set('scoutCfBitrateMax2160Mbps', v)}
+                min={1}
+                max={300}
+                step={1}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <SliderField
                 label="1080p Min Mbps"
-                name="scoutCfBitrateFloor1080Mbps"
-                value={form.scoutCfBitrateFloor1080Mbps ?? '6'}
-                onChange={v => set('scoutCfBitrateFloor1080Mbps', v)}
+                name="scoutCfBitrateMin1080Mbps"
+                value={form.scoutCfBitrateMin1080Mbps ?? '6'}
+                onChange={v => set('scoutCfBitrateMin1080Mbps', v)}
                 min={0}
                 max={60}
                 step={0.5}
                 tooltip={BITRATE_GATE_TOOLTIP}
               />
               <SliderField
+                label="1080p Max Mbps"
+                name="scoutCfBitrateMax1080Mbps"
+                value={form.scoutCfBitrateMax1080Mbps ?? '60'}
+                onChange={v => set('scoutCfBitrateMax1080Mbps', v)}
+                min={1}
+                max={200}
+                step={1}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <SliderField
                 label="720p Min Mbps"
-                name="scoutCfBitrateFloor720Mbps"
-                value={form.scoutCfBitrateFloor720Mbps ?? '3'}
-                onChange={v => set('scoutCfBitrateFloor720Mbps', v)}
+                name="scoutCfBitrateMin720Mbps"
+                value={form.scoutCfBitrateMin720Mbps ?? '3'}
+                onChange={v => set('scoutCfBitrateMin720Mbps', v)}
                 min={0}
                 max={40}
                 step={0.5}
                 tooltip={BITRATE_GATE_TOOLTIP}
               />
               <SliderField
+                label="720p Max Mbps"
+                name="scoutCfBitrateMax720Mbps"
+                value={form.scoutCfBitrateMax720Mbps ?? '30'}
+                onChange={v => set('scoutCfBitrateMax720Mbps', v)}
+                min={1}
+                max={150}
+                step={1}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <SliderField
                 label="Other Min Mbps"
-                name="scoutCfBitrateFloorOtherMbps"
-                value={form.scoutCfBitrateFloorOtherMbps ?? '1'}
-                onChange={v => set('scoutCfBitrateFloorOtherMbps', v)}
+                name="scoutCfBitrateMinOtherMbps"
+                value={form.scoutCfBitrateMinOtherMbps ?? '1'}
+                onChange={v => set('scoutCfBitrateMinOtherMbps', v)}
                 min={0}
                 max={20}
                 step={0.25}
+                tooltip={BITRATE_GATE_TOOLTIP}
+              />
+              <SliderField
+                label="Other Max Mbps"
+                name="scoutCfBitrateMaxOtherMbps"
+                value={form.scoutCfBitrateMaxOtherMbps ?? '20'}
+                onChange={v => set('scoutCfBitrateMaxOtherMbps', v)}
+                min={1}
+                max={120}
+                step={0.5}
                 tooltip={BITRATE_GATE_TOOLTIP}
               />
             </div>
@@ -1455,20 +1510,7 @@ export function Settings() {
             value={form.scoutSearchBatchSize ?? '5'}
             onChange={v => set('scoutSearchBatchSize', v)}
             placeholder="5"
-            hint="Hard-capped to 10 server-side to protect indexers." />
-        </div>
-
-        {/* AV1 scoring note */}
-        <div className="flex items-start gap-2 p-3 rounded-lg text-xs"
-          style={{ background: 'rgba(139,135,170,0.08)', border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}>
-          <Info size={13} className="shrink-0 mt-0.5" />
-          <span>
-            AV1 files score highest (100) for compression efficiency.
-            Scout Queue and Library will show a compatibility warning for AV1 files
-            when your selected client lacks hardware AV1 decode.
-            Active profile: <em style={{ color: 'var(--c-text)' }}>{activeProfile.label}</em> —
-            Video codec AV1: <span style={{ color: 'var(--c-text)' }}>{activeProfile.videoCodec.av1}</span>.
-          </span>
+            hint={'Default 5. Hard-capped to 10 server-side to be easy on the indexers.'} />
         </div>
       </section>
 
@@ -1480,15 +1522,17 @@ export function Settings() {
         <div className="grid grid-cols-3 gap-3">
           <div>
             <label className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>Enabled</label>
-            <select
-              value={form.scoutAutoEnabled ?? 'false'}
-              onChange={e => set('scoutAutoEnabled', e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
+            <label
+              className="w-full px-3 py-2 rounded-lg text-sm flex items-center gap-2 cursor-pointer"
+              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
             >
-              <option value="false">Disabled</option>
-              <option value="true">Enabled</option>
-            </select>
+              <input
+                type="checkbox"
+                checked={(form.scoutAutoEnabled ?? 'false') === 'true'}
+                onChange={e => set('scoutAutoEnabled', e.target.checked ? 'true' : 'false')}
+              />
+              <span>Auto Scout enabled</span>
+            </label>
           </div>
           <Field label="Interval (min)" name="scoutAutoIntervalMin"
             value={form.scoutAutoIntervalMin ?? '60'}

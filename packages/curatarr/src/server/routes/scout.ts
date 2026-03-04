@@ -31,10 +31,14 @@ interface ScoutScoreConfig {
   legacyPenalty: number;
   small4kPenalty: number;
   small4kMinGiB: number;
-  bitrateFloor2160Mbps: number;
-  bitrateFloor1080Mbps: number;
-  bitrateFloor720Mbps: number;
-  bitrateFloorOtherMbps: number;
+  bitrateMin2160Mbps: number;
+  bitrateMax2160Mbps: number;
+  bitrateMin1080Mbps: number;
+  bitrateMax1080Mbps: number;
+  bitrateMin720Mbps: number;
+  bitrateMax720Mbps: number;
+  bitrateMinOtherMbps: number;
+  bitrateMaxOtherMbps: number;
   seedersDivisor: number;
   seedersBonusCap: number;
   usenetBonus: number;
@@ -122,10 +126,14 @@ const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
   legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfLegacyPenalty, 40),
   small4kPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kPenalty, 22),
   small4kMinGiB: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfSmall4kMinGiB, 10),
-  bitrateFloor2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloor2160Mbps, 14),
-  bitrateFloor1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloor1080Mbps, 6),
-  bitrateFloor720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloor720Mbps, 3),
-  bitrateFloorOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateFloorOtherMbps, 1),
+  bitrateMin2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin2160Mbps, 14),
+  bitrateMax2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax2160Mbps, 120),
+  bitrateMin1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin1080Mbps, 6),
+  bitrateMax1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax1080Mbps, 60),
+  bitrateMin720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin720Mbps, 3),
+  bitrateMax720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax720Mbps, 30),
+  bitrateMinOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMinOtherMbps, 1),
+  bitrateMaxOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMaxOtherMbps, 20),
   seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersDivisor, 25),
   seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersBonusCap, 10),
   usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfUsenetBonus, 10),
@@ -151,10 +159,14 @@ const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
   scoutCfLegacyPenalty: '40',
   scoutCfSmall4kPenalty: '20',
   scoutCfSmall4kMinGiB: '10',
-  scoutCfBitrateFloor2160Mbps: '14',
-  scoutCfBitrateFloor1080Mbps: '6',
-  scoutCfBitrateFloor720Mbps: '3',
-  scoutCfBitrateFloorOtherMbps: '1',
+  scoutCfBitrateMin2160Mbps: '14',
+  scoutCfBitrateMax2160Mbps: '120',
+  scoutCfBitrateMin1080Mbps: '6',
+  scoutCfBitrateMax1080Mbps: '60',
+  scoutCfBitrateMin720Mbps: '3',
+  scoutCfBitrateMax720Mbps: '30',
+  scoutCfBitrateMinOtherMbps: '1',
+  scoutCfBitrateMaxOtherMbps: '20',
   scoutCfSeedersDivisor: '25',
   scoutCfSeedersBonusCap: '10',
   scoutCfUsenetBonus: '10',
@@ -572,17 +584,29 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
     legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
     small4kPenalty: intSetting(db, 'scoutCfSmall4kPenalty', DEFAULT_SCOUT_SCORE_CONFIG.small4kPenalty, 0, 400),
     small4kMinGiB: floatSetting(db, 'scoutCfSmall4kMinGiB', DEFAULT_SCOUT_SCORE_CONFIG.small4kMinGiB, 0.5, 60),
-    bitrateFloor2160Mbps: floatSetting(
-      db, 'scoutCfBitrateFloor2160Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloor2160Mbps, 0, 200,
+    bitrateMin2160Mbps: floatSetting(
+      db, 'scoutCfBitrateMin2160Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin2160Mbps, 0, 200,
     ),
-    bitrateFloor1080Mbps: floatSetting(
-      db, 'scoutCfBitrateFloor1080Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloor1080Mbps, 0, 120,
+    bitrateMax2160Mbps: floatSetting(
+      db, 'scoutCfBitrateMax2160Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax2160Mbps, 1, 300,
     ),
-    bitrateFloor720Mbps: floatSetting(
-      db, 'scoutCfBitrateFloor720Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloor720Mbps, 0, 80,
+    bitrateMin1080Mbps: floatSetting(
+      db, 'scoutCfBitrateMin1080Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin1080Mbps, 0, 120,
     ),
-    bitrateFloorOtherMbps: floatSetting(
-      db, 'scoutCfBitrateFloorOtherMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateFloorOtherMbps, 0, 60,
+    bitrateMax1080Mbps: floatSetting(
+      db, 'scoutCfBitrateMax1080Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax1080Mbps, 1, 200,
+    ),
+    bitrateMin720Mbps: floatSetting(
+      db, 'scoutCfBitrateMin720Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin720Mbps, 0, 80,
+    ),
+    bitrateMax720Mbps: floatSetting(
+      db, 'scoutCfBitrateMax720Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax720Mbps, 1, 150,
+    ),
+    bitrateMinOtherMbps: floatSetting(
+      db, 'scoutCfBitrateMinOtherMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMinOtherMbps, 0, 60,
+    ),
+    bitrateMaxOtherMbps: floatSetting(
+      db, 'scoutCfBitrateMaxOtherMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxOtherMbps, 1, 120,
     ),
     seedersDivisor: intSetting(db, 'scoutCfSeedersDivisor', DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor, 1, 500),
     seedersBonusCap: intSetting(db, 'scoutCfSeedersBonusCap', DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap, 0, 200),
@@ -668,11 +692,17 @@ function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: Sc
   const res = resolutionFromTitle(r.title);
   if (!res) return { excluded: false };
 
-  const floorByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
-    '2160p': cfg.bitrateFloor2160Mbps,
-    '1080p': cfg.bitrateFloor1080Mbps,
-    '720p': cfg.bitrateFloor720Mbps,
-    'other': cfg.bitrateFloorOtherMbps,
+  const minByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
+    '2160p': cfg.bitrateMin2160Mbps,
+    '1080p': cfg.bitrateMin1080Mbps,
+    '720p': cfg.bitrateMin720Mbps,
+    'other': cfg.bitrateMinOtherMbps,
+  };
+  const maxByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
+    '2160p': Math.max(cfg.bitrateMin2160Mbps, cfg.bitrateMax2160Mbps),
+    '1080p': Math.max(cfg.bitrateMin1080Mbps, cfg.bitrateMax1080Mbps),
+    '720p': Math.max(cfg.bitrateMin720Mbps, cfg.bitrateMax720Mbps),
+    'other': Math.max(cfg.bitrateMinOtherMbps, cfg.bitrateMaxOtherMbps),
   };
   const codecMultiplier: Record<'av1' | 'hevc' | 'h264' | 'unknown', number> = {
     av1: 0.8,
@@ -682,12 +712,19 @@ function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: Sc
   };
 
   const codec = codecFromTitle(r.title);
-  const floor = Math.max(0, floorByResMbps[res] * codecMultiplier[codec]);
+  const floor = Math.max(0, minByResMbps[res] * codecMultiplier[codec]);
+  const ceil = Math.max(floor, maxByResMbps[res] * codecMultiplier[codec]);
   const estimatedMbps = (r.size * 8) / runtimeSec / 1_000_000;
   if (estimatedMbps < floor) {
     return {
       excluded: true,
       reason: `excluded low bitrate for ${res}: ${estimatedMbps.toFixed(2)} Mbps < ${floor.toFixed(2)} Mbps`,
+    };
+  }
+  if (estimatedMbps > ceil) {
+    return {
+      excluded: true,
+      reason: `excluded high bitrate for ${res}: ${estimatedMbps.toFixed(2)} Mbps > ${ceil.toFixed(2)} Mbps`,
     };
   }
   return { excluded: false };

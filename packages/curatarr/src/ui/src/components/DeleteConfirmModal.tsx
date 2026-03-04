@@ -4,9 +4,11 @@ import { Trash2, AlertTriangle, FolderOpen, File, Loader2, X } from 'lucide-reac
 import { api } from '../api/client.js';
 
 function fmtSize(bytes: number): string {
-  if (!bytes) return '';
-  const mb = bytes / 1e6;
-  return mb >= 1000 ? `${(bytes / 1e9).toFixed(1)} GB` : `${mb.toFixed(0)} MB`;
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
+  if (bytes < 1e3) return `${Math.round(bytes)} B`;
+  if (bytes < 1e6) return `${(bytes / 1e3).toFixed(1)} KB`;
+  if (bytes < 1e9) return `${(bytes / 1e6).toFixed(1)} MB`;
+  return `${(bytes / 1e9).toFixed(1)} GB`;
 }
 
 interface Props {

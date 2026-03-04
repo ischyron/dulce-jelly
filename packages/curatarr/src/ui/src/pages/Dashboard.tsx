@@ -186,7 +186,7 @@ export function Dashboard() {
             <div className="flex items-center gap-2 mb-2 text-sm text-[#a78bfa]">
               <Film size={16} />
               <span>Movies</span>
-              <span className="ml-auto pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+              <span className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
                 <InfoHint
                   label="Movies info"
                   text="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."

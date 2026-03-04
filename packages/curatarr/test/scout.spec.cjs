@@ -50,6 +50,12 @@ test.describe('Scout feature checks', () => {
     const settingsRes = await request.get('/api/settings');
     const settings = (await settingsRes.json()).settings ?? {};
     expect(settings.scoutCfRes2160).toBe(body.applied.scoutCfRes2160);
+    expect(settings.scoutTrashSyncSource).toBe('TRaSH-Guides');
+    expect(Object.prototype.hasOwnProperty.call(settings, 'scoutTrashSyncRevision')).toBeTruthy();
+    expect(settings.scoutTrashSyncedAt).toBeTruthy();
+    if (Object.prototype.hasOwnProperty.call(settings, 'scoutTrashSyncedRules')) {
+      expect(settings.scoutTrashSyncedRules).toBe(String(body.syncedRules));
+    }
   });
 
   test('scout refinement draft endpoint returns prompt + suggestions', async ({ request }) => {

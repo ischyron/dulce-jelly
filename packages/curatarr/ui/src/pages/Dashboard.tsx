@@ -6,6 +6,17 @@ import { api } from '../api/client.js';
 import { ResolutionPieChart, CodecBarChart } from '../components/Charts.js';
 import { ScanProgressModal } from '../components/ScanProgressModal.js';
 
+function fmtSyncDate(value: string): string {
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return value;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mmm = d.toLocaleString('en-US', { month: 'short' });
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
+}
+
 function StatCard({
   icon: Icon,
   label,
@@ -16,7 +27,7 @@ function StatCard({
   icon: React.ElementType;
   label: string;
   value: string | number;
-  sub?: string;
+  sub?: React.ReactNode;
   color?: string;
 }) {
   return (
@@ -124,7 +135,15 @@ export function Dashboard() {
           icon={Film}
           label="Jellyfin Synced"
           value={`${jfPct}%`}
-          sub={`${data.jfEnriched} matched · ${data.totalMovies - data.jfEnriched} unmatched`}
+          sub={
+            <>
+              <span className="text-[#d4cfff] font-semibold">{data.jfEnriched}</span>
+              <span className="text-[#6b6888]"> matched</span>
+              <span className="text-[#6b6888]"> · </span>
+              <span className="text-amber-400 font-semibold">{data.totalMovies - data.jfEnriched}</span>
+              <span className="text-[#6b6888]"> unmatched</span>
+            </>
+          }
           color="text-purple-400"
         />
         <StatCard
@@ -174,10 +193,17 @@ export function Dashboard() {
           )}
         </div>
         {lastScan && (
-          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-xs text-[#8b87aa]">
-            Last scan: {String(lastScan.started_at ?? '—')} &nbsp;·&nbsp;
-            {String(lastScan.scanned_ok ?? 0)} ok / {String(lastScan.scan_errors ?? 0)} errors &nbsp;·&nbsp;
-            {lastScan.duration_sec ? `${Number(lastScan.duration_sec).toFixed(0)}s` : ''}
+          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
+            <div className="text-xs text-[#8b87aa] mb-1">
+              Last scan: <span className="text-[#d4cfff] font-semibold">{fmtSyncDate(String(lastScan.started_at ?? '—'))}</span>
+              {lastScan.duration_sec ? <><span className="text-[#26263a] mx-2">·</span>{Number(lastScan.duration_sec).toFixed(0)}s</> : null}
+            </div>
+            <div className="text-sm">
+              <span className="text-emerald-400 font-semibold text-base">{String(lastScan.scanned_ok ?? 0)}</span>
+              <span className="text-[#6b6888] ml-1 mr-3">ok</span>
+              <span className="text-red-400 font-semibold text-base">{String(lastScan.scan_errors ?? 0)}</span>
+              <span className="text-[#6b6888] ml-1">errors</span>
+            </div>
           </div>
         )}
       </div>

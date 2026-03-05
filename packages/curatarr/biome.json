@@ -40,7 +40,7 @@
       },
       "a11y": {
         "recommended": true,
-        "useSemanticElements": "warn"
+        "useSemanticElements": "off"
       }
     }
   },

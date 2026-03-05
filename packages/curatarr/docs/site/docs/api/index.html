@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Curatarr API Reference</title>
+    <meta name="description" content="OpenAPI reference for Curatarr server endpoints." />
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <style>
+      body {
+        margin: 0;
+        background: #0f1115;
+        color: #e6edf3;
+        font-family: "IBM Plex Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      header {
+        padding: 1rem 1.25rem;
+        border-bottom: 1px solid #273041;
+        background: linear-gradient(90deg, #101720, #12161d);
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+
+      header p {
+        margin: 0.25rem 0 0;
+        color: #93a1b6;
+        font-size: 0.9rem;
+      }
+
+      .swagger-ui .topbar {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Curatarr API</h1>
+      <p>
+        OpenAPI 3.1 reference for Curatarr endpoints. Spec file:
+        <a href="./openapi.yaml">openapi.yaml</a>
+      </p>
+    </header>
+    <div id="swagger-ui"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      window.ui = SwaggerUIBundle({
+        url: "./openapi.yaml",
+        dom_id: "#swagger-ui",
+        deepLinking: true,
+        docExpansion: "none",
+        defaultModelsExpandDepth: -1,
+      });
+    </script>
+  </body>
+</html>

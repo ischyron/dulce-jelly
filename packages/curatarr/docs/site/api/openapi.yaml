@@ -1,0 +1,584 @@
+openapi: 3.0.3
+info:
+  title: Curatarr API
+  version: 0.2.0
+  description: |
+    HTTP API for Curatarr server (`/api/*`).
+    This is an initial reference for currently exposed endpoints.
+servers:
+  - url: http://localhost:7474
+    description: Local dev default
+  - url: https://<your-github-pages-domain>
+    description: GitHub Pages docs host (docs only)
+tags:
+  - name: stats
+  - name: movies
+  - name: scan
+  - name: jf-sync
+  - name: candidates
+  - name: rules
+  - name: settings
+  - name: disambiguate
+  - name: verify
+  - name: proxy
+  - name: scout
+  - name: fs
+paths:
+  /api/stats:
+    get:
+      tags: [stats]
+      summary: Get dashboard stats summary
+      responses:
+        '200':
+          description: Stats payload
+
+  /api/movies:
+    get:
+      tags: [movies]
+      summary: List movies with filters/pagination
+      responses:
+        '200':
+          description: Movie list
+
+  /api/movies/genres:
+    get:
+      tags: [movies]
+      summary: List known genres
+      responses:
+        '200':
+          description: Genres list
+
+  /api/movies/tags:
+    get:
+      tags: [movies]
+      summary: List known movie tags
+      responses:
+        '200':
+          description: Tags list
+
+  /api/movies/tags/batch:
+    patch:
+      tags: [movies]
+      summary: Batch update tags on multiple movies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Batch update result
+
+  /api/movies/{id}:
+    get:
+      tags: [movies]
+      summary: Get single movie by ID
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '200':
+          description: Movie details
+        '404':
+          description: Not found
+    patch:
+      tags: [movies]
+      summary: Patch a movie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Update result
+    delete:
+      tags: [movies]
+      summary: Delete a movie entry
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '200':
+          description: Delete result
+
+  /api/movies/remove-index:
+    post:
+      tags: [movies]
+      summary: Mark/remove index for selected movie items
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Remove-index result
+
+  /api/movies/{id}/folder-contents:
+    get:
+      tags: [movies]
+      summary: Browse folder contents for a movie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '200':
+          description: Folder listing
+
+  /api/movies/{id}/jf-refresh:
+    post:
+      tags: [movies]
+      summary: Trigger Jellyfin metadata refresh for a movie
+      parameters:
+        - $ref: '#/components/parameters/MovieId'
+      responses:
+        '200':
+          description: Refresh accepted/result
+
+  /api/scan:
+    post:
+      tags: [scan]
+      summary: Start library scan
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Scan started/result
+
+  /api/scan/cancel:
+    post:
+      tags: [scan]
+      summary: Cancel active scan
+      responses:
+        '200':
+          description: Cancel result
+
+  /api/scan/status:
+    get:
+      tags: [scan]
+      summary: Get current scan status
+      responses:
+        '200':
+          description: Scan status
+
+  /api/scan/events:
+    get:
+      tags: [scan]
+      summary: Subscribe to scan progress events (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/scan/history:
+    get:
+      tags: [scan]
+      summary: Get scan history
+      responses:
+        '200':
+          description: History payload
+
+  /api/jf-sync:
+    post:
+      tags: [jf-sync]
+      summary: Start Jellyfin sync
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Sync started/result
+
+  /api/jf-sync/cancel:
+    post:
+      tags: [jf-sync]
+      summary: Cancel active Jellyfin sync
+      responses:
+        '200':
+          description: Cancel result
+
+  /api/jf-sync/status:
+    get:
+      tags: [jf-sync]
+      summary: Get sync status
+      responses:
+        '200':
+          description: Sync status
+
+  /api/jf-sync/events:
+    get:
+      tags: [jf-sync]
+      summary: Subscribe to sync events (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/candidates:
+    get:
+      tags: [candidates]
+      summary: List candidate upgrades/search results
+      responses:
+        '200':
+          description: Candidate list
+
+  /api/rules:
+    get:
+      tags: [rules]
+      summary: List scoring/filter rules
+      responses:
+        '200':
+          description: Rules list
+    put:
+      tags: [rules]
+      summary: Replace/update rules set
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Update result
+
+  /api/rules/{id}:
+    delete:
+      tags: [rules]
+      summary: Delete one rule
+      parameters:
+        - $ref: '#/components/parameters/RuleId'
+      responses:
+        '200':
+          description: Delete result
+
+  /api/rules/reorder:
+    post:
+      tags: [rules]
+      summary: Reorder rule priority
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Reorder result
+
+  /api/settings:
+    get:
+      tags: [settings]
+      summary: Get active settings
+      responses:
+        '200':
+          description: Settings payload
+    put:
+      tags: [settings]
+      summary: Update settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Updated settings
+
+  /api/settings/health:
+    get:
+      tags: [settings]
+      summary: Run settings/service health checks
+      responses:
+        '200':
+          description: Health result
+
+  /api/disambiguate/batch:
+    post:
+      tags: [disambiguate]
+      summary: Run batch disambiguation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Batch processing result
+
+  /api/disambiguate/events:
+    get:
+      tags: [disambiguate]
+      summary: Subscribe to disambiguation events (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/disambiguate/pending:
+    get:
+      tags: [disambiguate]
+      summary: List pending disambiguation items
+      responses:
+        '200':
+          description: Pending queue
+
+  /api/disambiguate/{id}/review:
+    post:
+      tags: [disambiguate]
+      summary: Submit review/decision for one disambiguation item
+      parameters:
+        - $ref: '#/components/parameters/DisambiguateId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Review accepted/result
+
+  /api/verify/start:
+    post:
+      tags: [verify]
+      summary: Start verify workflow
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Verify started/result
+
+  /api/verify/cancel:
+    post:
+      tags: [verify]
+      summary: Cancel active verify run
+      responses:
+        '200':
+          description: Cancel result
+
+  /api/verify/events:
+    get:
+      tags: [verify]
+      summary: Subscribe to verify events (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/verify/status:
+    get:
+      tags: [verify]
+      summary: Get verify status
+      responses:
+        '200':
+          description: Verify status
+
+  /api/verify/failures:
+    get:
+      tags: [verify]
+      summary: List verification failures
+      responses:
+        '200':
+          description: Failure list
+
+  /api/proxy/image/{jellyfinId}:
+    get:
+      tags: [proxy]
+      summary: Proxy Jellyfin image by item ID
+      parameters:
+        - in: path
+          name: jellyfinId
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Image bytes
+          content:
+            image/*:
+              schema:
+                type: string
+                format: binary
+
+  /api/scout/sync-trash-scores:
+    post:
+      tags: [scout]
+      summary: Sync TRaSH score definitions
+      responses:
+        '200':
+          description: Sync result
+
+  /api/scout/trash-sync-details:
+    get:
+      tags: [scout]
+      summary: Get TRaSH sync metadata/details
+      responses:
+        '200':
+          description: Sync details
+
+  /api/scout/trash-parity:
+    get:
+      tags: [scout]
+      summary: Compare local scoring parity vs TRaSH baseline
+      responses:
+        '200':
+          description: Parity report
+
+  /api/scout/custom-cf/preview:
+    post:
+      tags: [scout]
+      summary: Preview custom CF effects/scoring
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Preview payload
+
+  /api/scout/rules/refine-draft:
+    post:
+      tags: [scout]
+      summary: Generate/refine scout rule draft
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Draft result
+
+  /api/scout/search-one:
+    post:
+      tags: [scout]
+      summary: Scout search for one movie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Search results
+
+  /api/scout/search-batch:
+    post:
+      tags: [scout]
+      summary: Scout search in batch mode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Batch search results
+
+  /api/scout/auto-run:
+    post:
+      tags: [scout]
+      summary: Trigger scout auto-run
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: Auto-run result
+
+  /api/scout/auto-status:
+    get:
+      tags: [scout]
+      summary: Get scout scheduler/auto-run status
+      responses:
+        '200':
+          description: Auto status
+
+  /api/fs/roots:
+    get:
+      tags: [fs]
+      summary: List configured filesystem roots
+      responses:
+        '200':
+          description: Root list
+
+  /api/fs/browse:
+    get:
+      tags: [fs]
+      summary: Browse folders/files under allowed roots
+      responses:
+        '200':
+          description: Directory listing
+
+components:
+  parameters:
+    MovieId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    RuleId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    DisambiguateId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+        minimum: 1

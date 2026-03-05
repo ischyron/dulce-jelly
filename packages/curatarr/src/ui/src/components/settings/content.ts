@@ -165,6 +165,8 @@ export const BITRATE_BIAS_PROFILES: Array<{
   },
 ];
 
+export type BitrateProfileSpec = (typeof BITRATE_BIAS_PROFILES)[number];
+
 export const SCOUT_OBJECTIVE_SAMPLES = [
   'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
   'Prioritize playback compatibility for Android TV and Chromecast devices.',

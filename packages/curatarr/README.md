@@ -14,6 +14,8 @@ Curatarr is a Node/TypeScript app with a Hono API + React UI that focuses on lib
 - Repo structure: [docs/technical/repo.md](docs/technical/repo.md)
 - Scout scoring details: [docs/scout-approach.md](docs/scout-approach.md)
 - Scoring YAML reference: [docs/scoring-yaml.md](docs/scoring-yaml.md)
+- OpenAPI reference source: [docs/api/](docs/api/)
+- GitHub page source: [docs/site/](docs/site/)
 
 ## Quick Start
 
@@ -41,6 +43,7 @@ curatarr report [path]              # Print quality/report output
 npm run dev         # tsc watch + API + UI
 npm run dev:server  # tsc watch + API
 npm run dev:ui      # UI only
+npm run docs:api:build
 npm run test
 npm run test:e2e
 ```

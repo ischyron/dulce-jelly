@@ -1,0 +1,981 @@
+openapi: 3.1.0
+info:
+  title: Curatarr API
+  version: 0.2.0
+  description: |
+    Curatarr HTTP API reference.
+
+    Notes:
+    - This spec reflects endpoints currently mounted in `src/server/app.ts`.
+    - Several response payloads are intentionally flexible (`additionalProperties: true`) while the project is in active MVP iteration.
+servers:
+  - url: https://curatarr.video
+    description: Production
+  - url: http://localhost:7474
+    description: Local
+
+tags:
+  - name: Stats
+  - name: Movies
+  - name: Scan
+  - name: Jellyfin Sync
+  - name: Candidates
+  - name: Rules
+  - name: Settings
+  - name: Disambiguation
+  - name: Verify
+  - name: Scout
+  - name: Filesystem
+  - name: Proxy
+
+paths:
+  /api/stats:
+    get:
+      tags: [Stats]
+      summary: Get aggregate Curatarr stats
+      responses:
+        '200':
+          description: Stats payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnyObject'
+
+  /api/movies:
+    get:
+      tags: [Movies]
+      summary: List movies with filters and pagination
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: search
+          in: query
+          schema: { type: string }
+        - name: resolution
+          in: query
+          schema: { type: string }
+        - name: codec
+          in: query
+          schema: { type: string }
+        - name: sortBy
+          in: query
+          schema: { type: string }
+        - name: sortDir
+          in: query
+          schema: { type: string, enum: [asc, desc] }
+      responses:
+        '200':
+          description: Movie list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  page: { type: integer }
+                  limit: { type: integer }
+                  movies:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AnyObject'
+
+  /api/movies/genres:
+    get:
+      tags: [Movies]
+      summary: List distinct genres
+      responses:
+        '200':
+          description: Genres
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  genres:
+                    type: array
+                    items: { type: string }
+
+  /api/movies/tags:
+    get:
+      tags: [Movies]
+      summary: List distinct tags
+      responses:
+        '200':
+          description: Tags
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tags:
+                    type: array
+                    items: { type: string }
+
+  /api/movies/tags/batch:
+    patch:
+      tags: [Movies]
+      summary: Batch add/remove tags for movies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+                addTags:
+                  type: array
+                  items: { type: string }
+                removeTags:
+                  type: array
+                  items: { type: string }
+      responses:
+        '200':
+          description: Batch tag update result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+
+  /api/movies/remove-index:
+    post:
+      tags: [Movies]
+      summary: Remove indexed movie rows from Curatarr DB only
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        '200':
+          description: Remove-index result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+
+  /api/movies/{id}:
+    parameters:
+      - $ref: '#/components/parameters/IdPath'
+    get:
+      tags: [Movies]
+      summary: Get single movie and related file metadata
+      responses:
+        '200':
+          description: Movie detail
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '404': { $ref: '#/components/responses/Error404' }
+    patch:
+      tags: [Movies]
+      summary: Update movie metadata (tags/notes)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tags:
+                  type: array
+                  items: { type: string }
+                notes: { type: string }
+      responses:
+        '200':
+          description: Update result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '404': { $ref: '#/components/responses/Error404' }
+    delete:
+      tags: [Movies]
+      summary: Delete movie files/folder and remove DB row
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                mode:
+                  type: string
+                  enum: [files, folder]
+      responses:
+        '200':
+          description: Delete result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '404': { $ref: '#/components/responses/Error404' }
+
+  /api/movies/{id}/folder-contents:
+    get:
+      tags: [Movies]
+      summary: List folder contents for a movie
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Folder listing
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '404': { $ref: '#/components/responses/Error404' }
+
+  /api/movies/{id}/jf-refresh:
+    post:
+      tags: [Movies]
+      summary: Refresh one movie from Jellyfin by stored match
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Refresh result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '404': { $ref: '#/components/responses/Error404' }
+        '409':
+          description: Disambiguation required
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Error422' }
+
+  /api/scan:
+    post:
+      tags: [Scan]
+      summary: Start a scan job
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path: { type: string }
+                jobs: { type: integer }
+                rescan: { type: boolean }
+      responses:
+        '200':
+          description: Scan started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+        '409':
+          description: Scan already running
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/scan/cancel:
+    post:
+      tags: [Scan]
+      summary: Cancel running scan
+      responses:
+        '200':
+          description: Cancellation status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/scan/status:
+    get:
+      tags: [Scan]
+      summary: Get scan running status
+      responses:
+        '200':
+          description: Scan status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/scan/history:
+    get:
+      tags: [Scan]
+      summary: List recent scan runs
+      responses:
+        '200':
+          description: Scan history
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/scan/events:
+    get:
+      tags: [Scan]
+      summary: Scan event stream (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/jf-sync:
+    post:
+      tags: [Jellyfin Sync]
+      summary: Start Jellyfin sync
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                url: { type: string }
+                apiKey: { type: string }
+                resync: { type: boolean }
+      responses:
+        '200':
+          description: Sync started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+        '409':
+          description: Sync already running
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/jf-sync/cancel:
+    post:
+      tags: [Jellyfin Sync]
+      summary: Cancel running Jellyfin sync
+      responses:
+        '200':
+          description: Cancellation status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/jf-sync/status:
+    get:
+      tags: [Jellyfin Sync]
+      summary: Get Jellyfin sync status
+      responses:
+        '200':
+          description: Sync status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/jf-sync/events:
+    get:
+      tags: [Jellyfin Sync]
+      summary: Jellyfin sync event stream (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /api/candidates:
+    get:
+      tags: [Candidates]
+      summary: List scout upgrade candidates
+      parameters:
+        - name: minCritic
+          in: query
+          schema: { type: number }
+        - name: minCommunity
+          in: query
+          schema: { type: number }
+        - name: maxResolution
+          in: query
+          schema: { type: string }
+        - name: releaseGroups
+          in: query
+          schema: { type: string, description: Comma-separated list }
+        - name: genre
+          in: query
+          schema: { type: string, description: Comma-separated list }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 100 }
+      responses:
+        '200':
+          description: Candidate list
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/rules:
+    get:
+      tags: [Rules]
+      summary: List rules grouped by category
+      parameters:
+        - name: category
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Rules
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+    put:
+      tags: [Rules]
+      summary: Upsert one or more rules
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rules]
+              properties:
+                rules:
+                  type: array
+                  items: { $ref: '#/components/schemas/AnyObject' }
+      responses:
+        '200':
+          description: Saved IDs
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+
+  /api/rules/reorder:
+    post:
+      tags: [Rules]
+      summary: Reorder rules within a category
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [category, ids]
+              properties:
+                category: { type: string }
+                ids:
+                  type: array
+                  items: { type: integer }
+      responses:
+        '200':
+          description: Reorder result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+
+  /api/rules/{id}:
+    delete:
+      tags: [Rules]
+      summary: Delete one rule
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      responses:
+        '200':
+          description: Rule deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '404': { $ref: '#/components/responses/Error404' }
+
+  /api/settings:
+    get:
+      tags: [Settings]
+      summary: Get settings (API keys masked)
+      responses:
+        '200':
+          description: Settings map
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+    put:
+      tags: [Settings]
+      summary: Save settings values
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: string
+      responses:
+        '200':
+          description: Save result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+
+  /api/settings/health:
+    get:
+      tags: [Settings]
+      summary: Test Jellyfin and Prowlarr connectivity
+      parameters:
+        - name: url
+          in: query
+          schema: { type: string }
+        - name: apiKey
+          in: query
+          schema: { type: string }
+        - name: prowlarrUrl
+          in: query
+          schema: { type: string }
+        - name: prowlarrApiKey
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Health checks
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/disambiguate/batch:
+    post:
+      tags: [Disambiguation]
+      summary: Start a disambiguation job batch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items: { $ref: '#/components/schemas/AnyObject' }
+      responses:
+        '200':
+          description: Job queued
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+        '409':
+          description: Disambiguation already running
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/disambiguate/events:
+    get:
+      tags: [Disambiguation]
+      summary: Disambiguation event stream (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /api/disambiguate/pending:
+    get:
+      tags: [Disambiguation]
+      summary: List pending disambiguation review items
+      responses:
+        '200':
+          description: Pending disambiguation state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/disambiguate/{id}/review:
+    post:
+      tags: [Disambiguation]
+      summary: Review one disambiguation item
+      parameters:
+        - $ref: '#/components/parameters/IdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision:
+                  type: string
+                  enum: [confirm, reject]
+      responses:
+        '200':
+          description: Review result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+
+  /api/verify/start:
+    post:
+      tags: [Verify]
+      summary: Start deep verify queue
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                concurrency: { type: integer, minimum: 1, maximum: 8 }
+                fileIds:
+                  type: array
+                  items: { type: integer }
+                rescan: { type: boolean }
+      responses:
+        '200':
+          description: Verify started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '409':
+          description: Verify already running
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/verify/cancel:
+    post:
+      tags: [Verify]
+      summary: Cancel verify queue
+      responses:
+        '200':
+          description: Cancellation status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/verify/status:
+    get:
+      tags: [Verify]
+      summary: Get verify status
+      responses:
+        '200':
+          description: Verify status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/verify/failures:
+    get:
+      tags: [Verify]
+      summary: List verify failures
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Verify failures
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/verify/events:
+    get:
+      tags: [Verify]
+      summary: Verify event stream (SSE)
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }
+
+  /api/proxy/image/{jellyfinId}:
+    get:
+      tags: [Proxy]
+      summary: Proxy Jellyfin poster image
+      parameters:
+        - name: jellyfinId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Image bytes
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '502':
+          description: Upstream image fetch error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '503':
+          description: Jellyfin not configured
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/scout/sync-trash-scores:
+    post:
+      tags: [Scout]
+      summary: Sync TRaSH score baselines into scout settings and rules
+      responses:
+        '200':
+          description: Sync result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/scout/trash-sync-details:
+    get:
+      tags: [Scout]
+      summary: Get details of latest TRaSH sync
+      responses:
+        '200':
+          description: TRaSH sync details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/scout/trash-parity:
+    get:
+      tags: [Scout]
+      summary: Compare current scout settings against baseline
+      parameters:
+        - name: refresh
+          in: query
+          schema:
+            oneOf:
+              - type: string
+                enum: ['0', '1', 'true', 'false']
+              - type: boolean
+      responses:
+        '200':
+          description: Parity status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/scout/custom-cf/preview:
+    post:
+      tags: [Scout]
+      summary: Preview scout custom CF scoring against one release title
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string }
+      responses:
+        '200':
+          description: Custom CF preview result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+
+  /api/scout/rules/refine-draft:
+    post:
+      tags: [Scout]
+      summary: Build draft refinements from objective text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                objective: { type: string }
+      responses:
+        '200':
+          description: Refinement draft
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/scout/search-one:
+    post:
+      tags: [Scout]
+      summary: Search and score releases for a single movie
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [movieId]
+              properties:
+                movieId: { type: integer }
+                query: { type: string }
+      responses:
+        '200':
+          description: Search result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+        '404': { $ref: '#/components/responses/Error404' }
+        '422': { $ref: '#/components/responses/Error422' }
+        '502':
+          description: Upstream Prowlarr error
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /api/scout/search-batch:
+    post:
+      tags: [Scout]
+      summary: Search and score releases for up to 10 movies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [movieIds]
+              properties:
+                movieIds:
+                  type: array
+                  items: { type: integer }
+                batchSize: { type: integer }
+      responses:
+        '200':
+          description: Batch search result
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+        '422': { $ref: '#/components/responses/Error422' }
+
+  /api/scout/auto-run:
+    post:
+      tags: [Scout]
+      summary: Run automatic scout batch
+      responses:
+        '200':
+          description: Auto-run summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '409':
+          description: Auto-run already in progress
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '422': { $ref: '#/components/responses/Error422' }
+
+  /api/scout/auto-status:
+    get:
+      tags: [Scout]
+      summary: Get current auto-run state
+      responses:
+        '200':
+          description: Auto status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/fs/roots:
+    get:
+      tags: [Filesystem]
+      summary: List allowed browse roots and mode
+      responses:
+        '200':
+          description: Root info
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+
+  /api/fs/browse:
+    get:
+      tags: [Filesystem]
+      summary: Browse directories under allowed roots
+      parameters:
+        - name: path
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Directory listing
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/AnyObject' }
+        '400': { $ref: '#/components/responses/Error400' }
+        '403':
+          description: Path outside allowed roots
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+components:
+  parameters:
+    IdPath:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 200
+        default: 50
+
+  schemas:
+    AnyObject:
+      type: object
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+        detail:
+          oneOf:
+            - type: string
+            - type: object
+              additionalProperties: true
+      additionalProperties: true
+
+  responses:
+    Error400:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error404:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Error422:
+      description: Unprocessable request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'

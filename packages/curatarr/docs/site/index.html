@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Curatarr</title>
+    <meta
+      name="description"
+      content="Curatarr is an LLM-assisted media library manager for Jellyfin with scan, verify, and scout workflows."
+    />
+    <link rel="icon" type="image/svg+xml" href="./assets/logo.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+    <main class="shell">
+      <header class="hero">
+        <div class="wordmark">
+          <img src="./assets/logo.svg" alt="Curatarr logo" width="26" height="26" />
+          <span>CURATARR</span>
+        </div>
+        <h1>Intelligent media curation for Jellyfin.</h1>
+        <p>
+          Curatarr combines scanning, metadata sync, disambiguation, verify, and scout workflows in one modern tool.
+        </p>
+        <div class="actions">
+          <a class="btn primary" href="#capabilities">See Capabilities</a>
+          <a class="btn ghost" href="#start">Get Started</a>
+          <a class="btn ghost" href="./docs/api/">API Docs</a>
+        </div>
+      </header>
+
+      <section class="grid" id="capabilities" aria-label="Core capabilities">
+        <article class="card">
+          <h2>Scan</h2>
+          <p>Run ffprobe-backed library scans and track file-level quality coverage.</p>
+        </article>
+        <article class="card">
+          <h2>Verify</h2>
+          <p>Catch metadata mismatches and reduce false upgrades before they happen.</p>
+        </article>
+        <article class="card">
+          <h2>Scout</h2>
+          <p>Use Prowlarr-integrated candidate discovery with configurable scoring rules.</p>
+        </article>
+      </section>
+
+      <section class="card start" id="start" aria-label="Quick start">
+        <h2>Quick start</h2>
+        <p>Install dependencies, build, and start Curatarr on your local machine.</p>
+        <pre><code>npm install
+cp config/config.example.yaml config/config.yaml
+npm run build
+npm run serve</code></pre>
+      </section>
+
+      <footer class="foot">
+        <span>Curatarr</span>
+        <span>v0.2.0</span>
+      </footer>
+    </main>
+  </body>
+</html>

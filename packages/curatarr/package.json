@@ -13,6 +13,8 @@
   },
   "scripts": {
     "build:ui": "cd src/ui && npm run build",
+    "docs:api:build": "node scripts/build-openapi-docs.mjs",
+    "docs:api:validate": "node scripts/build-openapi-docs.mjs --validate-only",
     "build": "npm run build:ui && tsc -p .",
     "build:server": "tsc -p .",
     "lint": "biome lint .",

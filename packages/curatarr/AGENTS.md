@@ -4,7 +4,8 @@ This file is the canonical workflow policy for agent execution in `packages/cura
 If `CLAUDE.md` and this file conflict, this file wins.
 
 ## Project Status
-- Curatarr is a privately developed media curation tool, pending open-source release, currently being tested as one package in a parent monorepo.
+- Curatarr is a privately developed media curation tool, pending open-source release.
+- All implementation and documentation decisions must be portable for broader community/self-hosted usage.
 
 ## Scope
 - Applies to all work that changes Curatarr code, config, tests, docs, or deployment under `packages/curatarr`.
@@ -57,8 +58,7 @@ A task can be marked `DONE` only after all gates below pass.
 
 6. Deploy Gate
 - Build and deploy Curatarr service.
-- Docker Compose commands must be run from project root relative to `packages/curatarr`: `../../`.
-- Minimum required gate:
+- Curatarr currently uses the parent-stack Docker Compose file. So invoke Docker deployments from parent repo.
   - `cd ../../ && docker compose build curatarr`
   - `cd ../../ && docker compose up -d curatarr`
 - Restart/update shortcut (allowed): `cd ../../ && docker compose up -d --build curatarr`

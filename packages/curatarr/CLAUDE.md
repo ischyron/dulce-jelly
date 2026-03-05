@@ -16,13 +16,17 @@ For task completion rules and feature gating, follow `packages/curatarr/AGENTS.m
 - E2E: `npm run test:e2e`
 - Manual verification: Chrome MCP for UI/user-visible API behavior changes
 - MCP preflight: `codex mcp list` (must include enabled `playwright` and `chrome`)
-- Docker deploy/restart commands must run from project root relative to `packages/curatarr`: `../../`
-- Deploy: `cd ../../ && docker compose build curatarr && docker compose up -d curatarr`
-- Restart/update shortcut: `cd ../../ && docker compose up -d --build curatarr`
+- Deploy Gate:
+  - Build and deploy Curatarr service.
+  - Curatarr currently uses the parent-stack Docker Compose file. So invoke Docker deployments from parent repo.
+    - `cd ../../ && docker compose build curatarr`
+    - `cd ../../ && docker compose up -d curatarr`
+  - Restart/update shortcut: `cd ../../ && docker compose up -d --build curatarr`
+  - Failed or skipped deploy blocks `DONE`.
 
 ## Project Overview
 
-Curatarr is a privately developed media curation tool, pending open-source release, currently being tested as one package in a parent monorepo.
+Curatarr is a privately developed media curation tool, pending open-source release.
 It focuses on movie library quality workflows and integrates with Jellyfin and Prowlarr.
 
 ## Current Reality (Code-First)

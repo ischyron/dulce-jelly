@@ -36,7 +36,6 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   /** Scout defaults (used as query params on /api/candidates) */
   scoutMinCritic: '65',          // Metacritic ≥ 65
   scoutMinCommunity: '7.0',      // IMDb ≥ 7.0
-  scoutMaxResolution: '1080p',   // currently ≤ 1080p → candidate for 4K upgrade
   scoutSearchBatchSize: '5',     // hard-clamped to 10 in API/server
   scoutAutoEnabled: 'false',     // scheduled scout disabled by default
   scoutAutoIntervalMin: '60',    // auto scout schedule (minutes)

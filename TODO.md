@@ -17,13 +17,12 @@
 
 ### Curatarr Backlog
 
+- [TODO] Integrate TrashGuide as a dedicated section for Custom Format Scores, syncing directly from the TrashGuide. Users should not edit these scores for now. Investigate how Radarr handles edits to Recyclarr-synced Custom Format scores—specifically, what occurs if a user modifies a TrashGuide-synced Custom Format in Radarr. Ensure our implementation matches this behavior for consistency.
 
-**CF scoring, Rules, Scout**
+- [TODO] Implement a Custom Format Scores UI that allows users to add a string label and a numeric score. Filenames should be matched using either a provided regular expression or a string pattern. Example regex: \bDD[P+](?!A)|\b(e[-_. ]?ac-?3)\b. Ensure the UI supports entry and editing of pattern/score pairs, and that matching logic works for both regex and simple string inputs.
 
+- [TODO] Redesign the Rules Config assistant. The current implementation is incorrect. This UI should allow users to input natural language rules as plain sentences and arrange them in order of priority (1 to N). It is not a pre-configuration tool as previously implemented. Clarify that this functionality is meant for advanced use cases—specifically, for handling tie-breakers or extending logic beyond deterministic scoring when additional edge cases must be covered without relying solely on custom scores.
 
-** Disambigation **
-**Quality tests**
-- [DONE] ~~Scout functional test using a dummy response api mock. get one relaistic for a movie using current prowlar integation I have.~~ (added mock Prowlarr API integration test with realistic movie payload)
 
 ### Other Todo Items/Issues 
 - [BLOCKED] qBittorrent lockout of IP from accessing.

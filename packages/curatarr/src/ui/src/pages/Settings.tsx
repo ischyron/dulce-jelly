@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown, Link2, Bot, Library as LibraryIcon, Plus, Minus, FolderOpen } from 'lucide-react';
 import { api } from '../api/client.js';
 import { InfoHint } from '../components/InfoHint.js';
@@ -47,16 +47,10 @@ const CLIENT_PROFILES = [
 
 // ── Scoring tooltip content ────────────────────────────────────────────
 
-const CODEC_SCORING_TOOLTIP = `Video codec quality scores (compression efficiency):
-  AV1   = 100 — best compression; hardware support varies by client
-  HEVC (H.265) = 90  — preferred for 4K/HDR; near-universal TV support
-  H264  = 70  — universally compatible
-  MPEG4 = 40  — legacy; replacement recommended
-  MPEG2 = 20  — very old; avoid
+const SCOUT_MIN_QUALIFIERS_TOOLTIP = `Minimum qualifiers gate the Scout listing view.
 
-⚠ Scout Queue and Library show a compatibility warning
-  when an AV1 file is paired with a client that lacks
-  hardware AV1 decode (software transcode = CPU load).`;
+Only titles meeting these thresholds appear in Scout Queue.
+These are not release ranking scores and do not replace CF scoring.`;
 
 const SCOUT_CF_SCORING_TOOLTIP = `Scout release scoring (CF-style) is additive:
   Score = Resolution + Source + Codec + Protocol + Seeder bonus - Penalties
@@ -768,7 +762,6 @@ export function Settings() {
         llmApiKeyMasked: data.settings.llmApiKey ?? '',
         scoutMinCritic:    data.settings.scoutMinCritic    ?? '65',
         scoutMinCommunity: data.settings.scoutMinCommunity ?? '7.0',
-        scoutMaxResolution: data.settings.scoutMaxResolution ?? '1080p',
         scoutSearchBatchSize: data.settings.scoutSearchBatchSize ?? '5',
         scoutAutoEnabled: data.settings.scoutAutoEnabled ?? 'false',
         scoutAutoIntervalMin: data.settings.scoutAutoIntervalMin ?? '60',
@@ -1269,6 +1262,34 @@ export function Settings() {
         </section>
 
         <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
+          <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
+            Scout Minimum Qualifiers
+            <InfoHint label="Scout minimum qualifiers info" text={SCOUT_MIN_QUALIFIERS_TOOLTIP} />
+          </h2>
+          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+            Minimum requirements for Scout to work on. This determines your Scout listing view in{' '}
+            <Link to="/scout" className="underline" style={{ color: '#c4b5fd' }}>
+              Scout Queue
+            </Link>.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Min MC (Metacritic)" name="scoutMinCritic"
+              value={form.scoutMinCritic ?? '65'}
+              onChange={v => set('scoutMinCritic', v)}
+              placeholder="65" />
+            <Field label="Min IMDb" name="scoutMinCommunity"
+              value={form.scoutMinCommunity ?? '7.0'}
+              onChange={v => set('scoutMinCommunity', v)}
+              placeholder="7.0" />
+            <Field label="Scout Batch Size" name="scoutSearchBatchSize"
+              value={form.scoutSearchBatchSize ?? '5'}
+              onChange={v => set('scoutSearchBatchSize', v)}
+              placeholder="5"
+              hint={'Default 5. Hard-capped to 10 server-side to be easy on the indexers.'} />
+          </div>
+        </section>
+
+        <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
         <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
           CF Scoring, Rules, Scout
           <InfoHint label="CF scoring info" text={SCOUT_CF_SCORING_TOOLTIP} />
@@ -1276,6 +1297,14 @@ export function Settings() {
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Tune Scout release ranking without code changes. Higher score means a release is recommended first.
         </p>
+        <div className="rounded-lg border p-3 space-y-1 text-xs" style={{ borderColor: 'var(--c-border)', background: 'rgba(139,135,170,0.08)', color: 'var(--c-muted)' }}>
+          <div className="font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>Target pipeline</div>
+          <div>0. Scout Minimum Qualifiers</div>
+          <div>1. TRaSH Guide CF scoring</div>
+          <div>2. Your Custom CF Scores / Overrides + Release Blockers (feature-flagged: coming soon)</div>
+          <div>3. Final LLM Rule set (drops weak candidates + tie-break scoring on close results)</div>
+          <div>4. Final choice</div>
+        </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Source of truth: <code>config/scoring.yaml</code>. Saving Settings also syncs this file.
         </p>
@@ -1740,10 +1769,13 @@ export function Settings() {
 
         <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Rule Refinement Assistant
+            Extended release filter LLM ruleset
           </div>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-            This action is currently local heuristic logic and prompt generation. No direct LLM API call is executed here.
+            This is over and above deterministic CF scoring. It builds a final LLM ruleset prompt for dropping weak releases and tie-break scoring.
+          </p>
+          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+            Result intent: Scout output includes stronger finalists, while weaker candidates are expected to move to a dropped-releases section.
           </p>
           <div className="space-y-1">
             <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>Opinionated Samples</div>
@@ -1794,7 +1826,7 @@ export function Settings() {
               className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
-              {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate Draft (Heuristic)'}
+              {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate LLM Ruleset Draft'}
             </button>
             {scoutRefineDraftMutation.data && (
               <button
@@ -1821,46 +1853,6 @@ export function Settings() {
               style={{ background: 'rgba(30,30,46,0.7)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
             />
           )}
-        </div>
-      </section>
-
-      {/* Scout Defaults */}
-      <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
-        <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
-          Scout Defaults
-          <InfoHint label="Scout defaults info" text={CODEC_SCORING_TOOLTIP} />
-        </h2>
-        <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          These defaults pre-fill the Scout Queue filters. Override per-session in Scout Queue.
-        </p>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Min MC (Metacritic)" name="scoutMinCritic"
-            value={form.scoutMinCritic ?? '65'}
-            onChange={v => set('scoutMinCritic', v)}
-            placeholder="65" />
-          <Field label="Min IMDb" name="scoutMinCommunity"
-            value={form.scoutMinCommunity ?? '7.0'}
-            onChange={v => set('scoutMinCommunity', v)}
-            placeholder="7.0" />
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>Max Resolution</label>
-            <select
-              value={form.scoutMaxResolution ?? '1080p'}
-              onChange={e => set('scoutMaxResolution', e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
-              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
-            >
-              <option value="2160p">2160p</option>
-              <option value="480p">480p</option>
-              <option value="720p">720p</option>
-              <option value="1080p">1080p</option>
-            </select>
-          </div>
-          <Field label="Scout Batch Size" name="scoutSearchBatchSize"
-            value={form.scoutSearchBatchSize ?? '5'}
-            onChange={v => set('scoutSearchBatchSize', v)}
-            placeholder="5"
-            hint={'Default 5. Hard-capped to 10 server-side to be easy on the indexers.'} />
         </div>
       </section>
 

@@ -61,7 +61,6 @@ export function ScoutQueue() {
   const settings = settingsData?.settings ?? {};
   const seedMinCritic = parseFloat(settings.scoutMinCritic ?? '65');
   const seedMinComm = parseFloat(settings.scoutMinCommunity ?? '7.0');
-  const seedMaxRes = settings.scoutMaxResolution ?? '1080p';
   const seedGenre = '';
   const maxBatch = clampBatchSize(settings.scoutSearchBatchSize);
 
@@ -73,13 +72,11 @@ export function ScoutQueue() {
 
   const qMinCritic = searchParams.get('minCritic');
   const qMinCommunity = searchParams.get('minCommunity');
-  const qMaxRes = searchParams.get('maxRes');
   const qGenre = searchParams.get('genre');
 
   // Resolved values (URL overrides seeded defaults)
   const effMinCritic = qMinCritic != null ? Number(qMinCritic) : seedMinCritic;
   const effMinComm = qMinCommunity != null ? Number(qMinCommunity) : seedMinComm;
-  const effMaxRes = qMaxRes ?? seedMaxRes;
   const effGenre = qGenre ?? seedGenre;
   const selectedGenres = effGenre ? effGenre.split(',').map(g => g.trim()).filter(Boolean) : [];
   const genreRef = useRef<HTMLDivElement | null>(null);
@@ -113,11 +110,10 @@ export function ScoutQueue() {
 
   const genreKey = selectedGenres.join(',');
   const { data, isLoading } = useQuery({
-    queryKey: ['candidates', effMinCritic, effMinComm, effMaxRes, genreKey],
+    queryKey: ['candidates', effMinCritic, effMinComm, genreKey],
     queryFn: () => api.candidates({
       minCritic: effMinCritic,
       minCommunity: effMinComm,
-      maxResolution: effMaxRes,
       ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
       limit: 200,
     }),
@@ -300,30 +296,10 @@ export function ScoutQueue() {
           />
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
-          <label
-            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
-            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-          >
-            Max Res
-          </label>
-          <select
-            value={effMaxRes}
-            onChange={e => patch({ maxRes: e.target.value })}
-            className="px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
-          >
-            <option value="2160p">2160p</option>
-            <option value="480p">480p</option>
-            <option value="720p">720p</option>
-            <option value="1080p">1080p</option>
-          </select>
-        </div>
-
         {/* Reset to seeded defaults */}
-        {(qMinCritic !== null || qMinCommunity !== null || qMaxRes !== null || qGenre !== null) && (
+        {(qMinCritic !== null || qMinCommunity !== null || qGenre !== null) && (
           <button
-            onClick={() => patch({ minCritic: null, minCommunity: null, maxRes: null, genre: null })}
+            onClick={() => patch({ minCritic: null, minCommunity: null, genre: null })}
             className="text-xs px-2 py-1 rounded border font-semibold"
             style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
           >

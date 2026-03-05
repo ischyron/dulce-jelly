@@ -10,7 +10,7 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
   app.get('/', (c) => {
     const minCritic = c.req.query('minCritic') ? parseFloat(c.req.query('minCritic')!) : undefined;
     const minCommunity = c.req.query('minCommunity') ? parseFloat(c.req.query('minCommunity')!) : undefined;
-    const maxResolution = c.req.query('maxResolution') ?? '1080p';
+    const maxResolution = c.req.query('maxResolution') ?? undefined;
     const limit = parseInt(c.req.query('limit') ?? '100', 10);
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
     const genre = c.req.query('genre') ?? undefined;

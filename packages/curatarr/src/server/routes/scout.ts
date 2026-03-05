@@ -790,9 +790,8 @@ function configuredCooldownMin(db: CuratDb): number {
 function pickAutoMovieIds(db: CuratDb, cap: number): { ids: number[]; skippedByCooldown: number } {
   const minCritic = parseFloat(db.getSetting('scoutMinCritic') ?? '65');
   const minCommunity = parseFloat(db.getSetting('scoutMinCommunity') ?? '7.0');
-  const maxResolution = db.getSetting('scoutMaxResolution') ?? '1080p';
   const pool = db.getUpgradeCandidates({
-    maxResolution,
+    maxResolution: '2160p',
     minCriticRating: Number.isFinite(minCritic) ? minCritic : 65,
     minCommunityRating: Number.isFinite(minCommunity) ? minCommunity : 7.0,
     limit: 250,

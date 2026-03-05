@@ -34,7 +34,6 @@ test.describe('Scout feature checks', () => {
 
     expect(settings).toHaveProperty('scoutMinCritic');
     expect(settings).toHaveProperty('scoutMinCommunity');
-    expect(settings).toHaveProperty('scoutMaxResolution');
     expect(settings).toHaveProperty('scoutSearchBatchSize');
     expect(settings).toHaveProperty('scoutAutoEnabled');
   });

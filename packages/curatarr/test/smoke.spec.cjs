@@ -197,6 +197,10 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     await page.goto('/settings');
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
     await expect(page.getByText('Jellyfin Connection')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Scout Minimum Qualifiers' })).toBeVisible();
+    await expect(page.getByText('Target pipeline')).toBeVisible();
+    await expect(page.getByText('Extended release filter LLM ruleset')).toBeVisible();
+    await expect(page.getByText('Max Resolution')).toHaveCount(0);
   });
 
   test('scan page jellyfin sync tooltip renders rich content', async ({ page }) => {

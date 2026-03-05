@@ -26,7 +26,7 @@
   - Unit/interaction: `npm run test` -> pass
   - E2E: `npm run test:e2e` -> pass (43 passed)
   - Chrome MCP: `/settings/scout` verified vertical connected Quality Funnel 1→6 and manual custom CF flow create/save->disable/save->delete/save -> pass
-  - Git: `<pending>`, push `<pending>`
+  - Git: `05fb2d5`, push ok
   - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
   - Date: 2026-03-05
 
@@ -37,7 +37,7 @@
   - Unit/interaction: `npm run test` -> pass
   - E2E: `npm run test:e2e` -> pass (43 passed)
   - Chrome MCP: `/settings/scout` advanced sync metadata visibility verified through updated read-only sync details payload/UI rendering path -> pass
-  - Git: `<pending>`, push `<pending>`
+  - Git: `05fb2d5`, push ok
   - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
   - Date: 2026-03-05
 
@@ -48,7 +48,7 @@
   - Unit/interaction: `npm run test` -> pass
   - E2E: `npm run test:e2e` -> pass (43 passed)
   - Chrome MCP: `/settings/scout` manual exploratory flow confirmed custom CF create/save success badge, toggle enabled/disabled, and delete cleanup -> pass
-  - Git: `<pending>`, push `<pending>`
+  - Git: `05fb2d5`, push ok
   - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
   - Date: 2026-03-05
 

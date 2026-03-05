@@ -1,4 +1,5 @@
 import { AlertCircle, CheckCircle, Loader2 } from 'lucide-react';
+import { ProwlarrIcon } from '../../../shared/icons';
 import { Field } from '../../shared/Field';
 import { MaskedKeyField } from '../../shared/MaskedKeyField';
 import type { ProwlarrSectionProps } from '../../types';
@@ -12,8 +13,9 @@ export function Prowlarr({
 }: ProwlarrSectionProps) {
   return (
     <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
-      <h2 className="font-semibold" style={{ color: '#d4cfff' }}>
-        Prowlarr
+      <h2 className="flex items-center gap-2 font-semibold" style={{ color: '#d4cfff' }}>
+        <ProwlarrIcon size={16} />
+        <span>Prowlarr</span>
       </h2>
       <Field
         label="Prowlarr URL"

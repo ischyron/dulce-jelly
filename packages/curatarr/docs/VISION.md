@@ -1,26 +1,31 @@
-# Curatarr — Intelligent Media Library Management
+# Curatarr — Open Source Media Library Curation
 
-> **Status**: Vision Document (Draft)
-> **Branch**: `feat/nzb-search-module`
-> **Working name**: Curatarr (open to alternatives)
+
+## Vision
+
+Curatarr is an open source movie library management tool focused on empowering home media communities to achieve intelligent, safe, and easily reproducible quality upgrades and curation.
+
+Support for TV series is planned, but the current focus is movies.
+
+Curatarr is not a metadata presentation suite; it stores only the metadata crucial for curation and quality decisions. Jellyfin continues as the source of truth and frontend for browsing and playback.
 
 ## Core Values (2026 refresh)
 
-- **Authenticity over claims** — trust ffprobe metrics, size-to-quality sanity, and release provenance before labels.
-- **Human-in-the-loop safety** — default to user-confirmed grabs and explainability for every automatic action.
-- **Open-source alignment** — embrace Jellyfin/Prowlarr/SABnzbd/qBittorrent patterns; no closed dependencies or opaque heuristics.
-- **Resilience for self-hosters** — deterministic configs, portable paths, safe deletes, and observable long-running jobs (SSE + logs).
-- **Enthusiast UX** — bookmarkable filters, parity between API and UI counts, and compatibility guidance (AV1/DV/HDR) surfaced up front.
+- **Authenticity over claims** — prioritize real ffprobe metrics, sensible size-to-quality checks, and traceable release origins above self-reported labels.
+- **Human-in-the-loop safety** — always prefer explicit user confirmation for actions, and provide clear explanations for every decision.
+- **Open-source alignment** — compatible with Jellyfin/Prowlarr/SABnzbd/qBittorrent; no closed dependencies or black-box logic.
+- **Resilience for self-hosters** — deterministic configuration, portable paths, cautious deletes, and observable tasks (e.g., SSE and logs).
+- **Enthusiast UX** — advanced filtering, consistent API/UI stats, compatibility info (AV1/DV/HDR) surfaced up front.
 
-## Executive Summary
+## Summary
 
-**Curatarr** is an LLM-backed media acquisition and library management system focused on replacing Radarr/Recyclarr decision logic with a single intelligent system while retaining Prowlarr as the indexer manager.
+**Curatarr** unifies fragmented *arr-based media workflows into a single curation layer with modern quality intelligence. Prowlarr remains the indexer manager; Curatarr introduces robust, transparent scoring and optional LLM-based tie-breaking for edge cases where near-equivalent releases require judgment.
 
-**Core insight**: Current decision logic is rule-only and brittle. An LLM-backed system can make smarter decisions about content identity, quality authenticity, and upgrade worthiness — preventing wrong-content replacements while simplifying movie automation.
+**Core insight:** Deterministic scoring can reach ties and ambiguous picks. Curatarr applies explainable LLM evaluation only as a tiebreaker, preserving predictability and user trust.
 
 ---
 
-## The Problem
+## Why Curatarr?
 
 ### Current Stack Complexity
 
@@ -37,28 +42,35 @@
               4 systems making decisions
 ```
 
-### Real-World Failures
+### Where Existing Tools Fall Short
+
+- TRaSH overrides and custom format tweaks require duplication across multiple tools.
+- Similar scores result in unreliable automation or tedious manual review of near-identical releases.
+- Decision logic diverges between tools, creating maintenance drift and effort.
+- Automated upgrades can make mistaken choices between equally-appearing releases.
+
+### Real-World Failure Cases
 
 **UC-1: The F1 Incident**
-> Radarr auto-upgraded "F1" (2025 Brad Pitt movie) and replaced it with an F1 Abu Dhabi Grand Prix race broadcast. Completely wrong content.
+> Radarr upgraded "F1" (2025 Brad Pitt movie) but actually replaced it with a Formula 1 Abu Dhabi Grand Prix race. Completely different and wrong content.
 
-**Root cause**: Radarr's title matching is string-based. "F1" matches both the movie and any Formula 1 race recording. No semantic understanding.
+**Root cause:** Radarr relies on simple string title matching; it cannot distinguish semantic intent. "F1" mapped to multiple unrelated releases.
 
 **UC-2: Fake Quality Claims**
-> A "4K HDR Remux" from an unknown group at 2GB — obviously fake, but passed CF scoring because it had the right keywords.
+> A "4K HDR Remux" from an unknown group at 2GB passed quality scoring just because it had the right keywords, while the file was obviously a fake.
 
-**Root cause**: Custom Format scoring is additive. A release claiming all the right keywords scores high even if physically impossible.
+**Root cause:** Additive scoring methods can be gamed by keyword stuffing, ignoring physical implausibility.
 
 **UC-3: Suboptimal Upgrades**
-> Upgraded from AMZN WEB-DL to an unknown WEB with slightly higher CF score. Actual quality was worse (encode-of-encode).
+> Automatic upgrade replaced an AMZN WEB-DL with a slightly higher-scoring WEB from an unknown source, but the actual quality was worse (encode-of-encode).
 
-**Root cause**: Score-only decisions don't consider source lineage or encode quality.
+**Root cause:** Scoring logic did not consider source lineage or real encode quality, only matching criteria.
 
 ---
 
-## What Radarr Actually Does (Corrected)
+## What Radarr Actually Does
 
-Research into Radarr's source code revealed:
+Research into Radarr’s source code yields:
 
 | Capability | How It Works |
 |------------|--------------|
@@ -68,50 +80,49 @@ Research into Radarr's source code revealed:
 | **Quality augmentation** | 5 augmenters: filename, folder, download client, MediaInfo (highest confidence), release name |
 
 **What Radarr does NOT do:**
-- Bitrate-based quality decisions (feature request marked "Won't Fix")
+- Bitrate-based quality selection (feature request marked "Won't Fix")
 - LLM-backed content verification
-- Semantic understanding of release content
+- Release content type understanding
 - Size-to-quality sanity checks beyond filename parsing
 
-**Key insight**: Radarr is technically capable but makes naive decisions. The decision logic is the problem, not the file analysis.
+**Key insight:** The analysis pipeline is decent; the decision logic and scoring model are the core limitation.
 
 ---
 
-## The Solution: Curatarr
+## The Curatarr Proposal
 
-### Value Proposition
+### How Curatarr Differs
 
 | Traditional stack | Curatarr |
 |------------------|----------|
-| Multiple decision/config systems | Unified movie decision layer |
-| Rule-based decisions | LLM-backed intelligence |
-| Filename-based content matching | Semantic content verification |
-| Additive CF scoring | Size-to-quality sanity checks |
-| Prowlarr as indexer manager | Prowlarr retained and integrated |
-| Complex configuration | Quality profiles baked in |
+| Multiple config and scoring systems | Unified decision layer |
+| Hard rule-based tie-breaks | Deterministic logic, optional LLM explainable tie-break |
+| Filename-only content match | Semantic, metadata-based verification |
+| Additive scoring only | TRaSH + user-defined + metadata-informed scoring |
+| Prowlarr manages indexers | Prowlarr still integrated |
+| Complex setup | Quality profiles and rules built-in |
 
-### Core Differentiators
+### What Sets Curatarr Apart
 
 1. **LLM Content Verification**
-   - Prevents wrong-content replacements (F1 incident)
-   - Understands movie vs documentary vs sports broadcast
-   - Catches sequel/remake confusion
+   - Prevents wrong-content replacements (e.g., F1 confusion)
+   - Understands movie vs TV vs broadcast
+   - Detects sequel/remake errors
 
 2. **Quality Authenticity Checks**
-   - Size-to-quality ratio validation
-   - Release group reputation awareness
-   - Fake quality claim detection
+   - Validates claimed size vs plausible bitrate for reported resolution
+   - Leverages known group reputations
+   - Flags obviously inauthentic releases
 
-3. **Actual File Quality Metrics**
-   - FFprobe analysis of existing library
-   - Bitrate-aware upgrade decisions
-   - Beyond resolution: evaluate actual encode quality
+3. **Real File Quality Assessment**
+   - Full ffprobe of all local files for accurate evaluation
+   - Bitrate-aware decisions, not just resolution
+   - Upgrade logic prioritizes true improvements
 
-4. **Simplified Architecture**
-   - Single system replaces Radarr + Recyclarr movie decision logic
-   - Prowlarr remains the indexer manager
-   - Jellyfin remains the library manager and player
-   - SABnzbd/qBittorrent remain download clients
+4. **Simple, Single-Source Logic**
+   - No need for Radarr or Recyclarr: one system replaces both
+   - Prowlarr for indexers; Jellyfin for library state
+   - Downloaders like SABnzbd/qBittorrent still supported
 
 ---
 
@@ -119,14 +130,14 @@ Research into Radarr's source code revealed:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                             CURATARR                                      │
+│                             CURATARR                                    │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │                        LLM EVALUATOR                             │    │
-│  │  • Content identity verification                                 │    │
-│  │  • Quality authenticity assessment                               │    │
-│  │  • Upgrade worthiness analysis                                   │    │
+│  │                        LLM EVALUATOR                           │    │
+│  │  • Content identity verification                               │    │
+│  │  • Quality authenticity assessment                             │    │
+│  │  • Upgrade worthiness analysis                                 │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │         │              │               │               │                 │
 │         ▼              ▼               ▼               ▼                 │
@@ -137,13 +148,13 @@ Research into Radarr's source code revealed:
 │  └───────────┘  └───────────┘  └───────────┘  └───────────┘            │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │                      QUALITY ENGINE                              │    │
-│  │  • TRaSH rules (baked in)         • Release group reputation    │    │
-│  │  • Profile definitions            • Size/bitrate validation     │    │
+│  │                      QUALITY ENGINE                            │    │
+│  │  • TRaSH rules (integrated)   • Release group reputation       │    │
+│  │  • Profile definitions        • Size/bitrate validation        │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 │                                                                          │
 │  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │                         WEB UI                                   │    │
+│  │                         WEB UI                                 │    │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐           │    │
 │  │  │ Library  │ │ Quality  │ │ Activity │ │ Settings │           │    │
 │  │  │ Overview │ │ Analysis │ │   Feed   │ │          │           │    │
@@ -166,7 +177,7 @@ Research into Radarr's source code revealed:
 
 ### 1. Library Quality Audit
 
-Scan existing library and evaluate actual file quality.
+Scan your existing library and evaluate actual file quality.
 
 ```
 Scan /media/movies/
@@ -195,7 +206,7 @@ curatarr scan --report  # generate quality report
 
 ### 2. Intelligent Search & Verification
 
-Search indexer with LLM-backed verification.
+Query the indexer, then apply Curatarr’s verification and ranking.
 
 ```
 User: curatarr search "F1 2025" --profile Efficient-4K
@@ -227,12 +238,12 @@ Results:
 
 ### 3. User-Confirmed Grab
 
-Download with explicit user confirmation (legally compliant).
+Download only after your explicit confirmation.
 
 ```
-User reviews search results
+Review proposed results
     ↓
-User: curatarr grab <guid> --confirm
+curatarr grab <guid> --confirm
     ↓
 Send NZB to SABnzbd
     ↓
@@ -243,7 +254,7 @@ Return job ID
 
 ### 4. Post-Download Import
 
-Handle completed downloads.
+Handle and verify completed downloads.
 
 ```
 SABnzbd completes download
@@ -262,24 +273,24 @@ Log import with quality metrics
 
 ### 5. Upgrade Polling (Background)
 
-Periodically check library for upgrade opportunities.
+Periodically check for possible upgrades.
 
 ```
 Scheduled: curatarr poll --batch 10
     ↓
 For each movie in library:
-  ├─ Current quality metrics (from ffprobe)
-  ├─ Target quality (from profile)
+  ├─ Gather actual metrics (ffprobe)
+  ├─ Compare to profile target
   │
-  ├─ If below target:
+  ├─ If upgrade is possible:
   │   ├─ Search indexer for candidates
   │   ├─ LLM verification on each
   │   ├─ Compare candidate vs current
   │   │   • Same source? Better encode?
-  │   │   • Worth the size increase?
-  │   └─ Queue for user review (or auto-approve if high confidence)
+  │   │   • Worth file size change?
+  │   └─ Propose upgrade for review, or auto-approve with high confidence
   │
-  └─ Log decision
+  └─ Log the decision
 ```
 
 ---
@@ -318,17 +329,17 @@ interface LibraryItem {
 
 ### Search Engine (`search/`)
 
-- Prowlarr-backed Newznab/Torznab integration
+- Prowlarr-based Newznab/Torznab queries
 - SQLite cache for search results
-- Title parsing with TRaSH patterns
-- Release group reputation scoring
+- Title parsing (TRaSH patterns)
+- Release group reputation factors
 
 ### LLM Evaluator (`evaluator/`)
 
 ```typescript
 interface LLMEvaluation {
   contentMatch: {
-    confidence: number;        // 0-100
+    confidence: number;        // 0–100
     reasoning: string;
     flags: string[];           // ['sequel_confusion', 'different_content_type']
   };
@@ -343,7 +354,7 @@ interface LLMEvaluation {
 }
 ```
 
-**LLM Prompt Strategy:**
+**LLM Prompt Outline:**
 
 ```
 You are evaluating a Usenet release for a media library.
@@ -368,73 +379,73 @@ CURRENT FILE (if upgrade):
 
 EVALUATE:
 1. Content match: Is this release the correct movie?
-2. Quality authenticity: Does size match claimed quality?
-3. Upgrade value: (if applicable) Is this better than current?
+2. Quality authenticity: Is the size appropriate for its quality claim?
+3. Upgrade value: (if applicable) Is this file an actual improvement?
 
 Return JSON with confidence scores and reasoning.
 ```
 
 ### Quality Engine (`quality/`)
 
-- TRaSH quality definitions (baked in, not external Recyclarr)
-- Profile definitions: HD, Efficient-4K, HighQuality-4K
-- Size-to-quality validation tables
-- Release group reputation tiers
+- Integrated TRaSH rules (no separate Recyclarr)
+- Built-in profiles: HD, Efficient-4K, HighQuality-4K
+- Bitrate/size validation tables
+- Group reputation tiers
 
 ### Download Manager (`download/`)
 
-- SABnzbd API integration
-- qBittorrent API integration (for torrents)
-- Grab logging and audit trail
-- Webhook handler for completion
+- SABnzbd API support
+- qBittorrent API support
+- Grab audit logging
+- Webhook for completed downloads
 
 ### Import Handler (`import/`)
 
-- TMDB metadata fetcher
-- Folder naming: `{Title} ({Year}) {imdb-{ImdbId}}`
-- File move/copy with verification
-- Jellyfin API: trigger library rescan
+- TMDB metadata lookup
+- Folder names: `{Title} ({Year}) {imdb-{ImdbId}}`
+- File move/copy & verify
+- Jellyfin API for rescanning
 
 ### Web UI (`web/`)
 
 | View | Purpose |
 |------|---------|
-| **Library** | Browse library with quality metrics overlay |
-| **Quality Analysis** | See upgrade candidates, quality distribution |
-| **Activity Feed** | All actions logged with reasoning |
-| **Search** | Search interface with verification display |
-| **Settings** | Profiles, indexer config, LLM settings |
+| **Library** | Browse with quality overlays |
+| **Quality Analysis** | See candidates/upgrades, distribution |
+| **Activity Feed** | Every decision logged |
+| **Search** | Semantic search and verification display |
+| **Settings** | Profiles, indexers, LLM setup |
 
 ---
 
 ## Stack Comparison
 
-### Before (Traditional)
+### Before (Typical Self-Host Stack)
 
 | Service | Purpose | Status |
 |---------|---------|--------|
 | Jellyfin | Library + Player | Keep |
-| Jellyseerr | Requests | Keep (optional) |
-| Radarr | Movie management | **Replace** |
-| Sonarr | TV management | **Replace** |
-| Prowlarr | Indexer management | Keep |
-| Recyclarr | Quality rules sync | **Replace** |
-| SABnzbd | Usenet downloads | Keep |
-| qBittorrent | Torrent downloads | Keep |
+| Jellyseerr | Requests | Optional; Keep if used |
+| Radarr | Movies | **Replace** |
+| Sonarr | TV Shows | **Replace** |
+| Prowlarr | Indexer manager | Keep |
+| Recyclarr | Rule sync | **Replace** |
+| SABnzbd | Usenet | Keep |
+| qBittorrent | Torrents | Keep |
 | Caddy | Reverse proxy | Keep |
 
-### After (Curatarr)
+### After (Curatarr stack)
 
 | Service | Purpose |
 |---------|---------|
 | Jellyfin | Library + Player |
-| Curatarr | Everything else |
-| Prowlarr | Indexer management |
+| Curatarr | Curation, search, import, upgrade logic |
+| Prowlarr | Indexer manager |
 | SABnzbd | Usenet downloads |
-| qBittorrent | Torrent downloads |
+| qBittorrent | Torrents |
 | Caddy | Reverse proxy |
 
-**Container count**: 9 → 6
+_Fewer containers and a simpler, maintainable stack._
 
 ---
 
@@ -442,149 +453,101 @@ Return JSON with confidence scores and reasoning.
 
 ### Option A: Jellyfin Plugin
 
-Build a Jellyfin plugin that:
-- Adds "Quality" badge to library items
-- Shows upgrade availability
-- "Send to Curatarr" button for acquisitions
-- Replaces Jellyseerr for requests
+- Add "Quality" badges to library entries
+- Show upgrade opportunities
+- "Send to Curatarr" button for new grabs
+- (Possible) replace Jellyseerr for requests
 
 ### Option B: API Integration
 
-Curatarr polls Jellyfin library:
-- Uses Jellyfin as source of truth for "what I have"
-- Triggers Jellyfin rescan after imports
-- Jellyseerr continues to work (optional)
+- Curatarr polls Jellyfin for the current library state
+- Triggers Jellyfin rescan after importing new media
+- Jellyseerr can remain for requests (if desired)
 
-**Recommendation**: Start with Option B (simpler), add plugin later.
+**Start with Option B — lightweight and bridges easily. Add plugin support later.**
 
 ---
 
-## Design Decisions
+## Design Principles
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| Sync strategy | On-demand | User runs `curatarr sync`; no scheduled sync |
-| Indexer | Single for MVP | Prowlarr integration first; direct adapters optional later |
-| REST API | Not MVP | CLI-first; API later for UI |
-| Download trigger | User-confirmed | `--confirm` flag required; legally compliant |
-| Content scope | Movies first | TV is more complex; post-MVP |
-| Prowlarr | Retain | Use as indexer manager and API adapter |
-| Radarr/Sonarr | Eliminate | Curatarr handles search + import |
-| Recyclarr | Eliminate | Rules baked into Curatarr |
+| Decision | Approach | Reasoning |
+|----------|----------|-----------|
+| Sync | On-demand only | Users run `curatarr sync` as needed; not backgrounded automatically |
+| Indexer | Just Prowlarr for MVP | Direct Newznab adapters later, as needed |
+| REST API | Not for MVP | CLI-first; API arrives with Web UI |
+| Downloads | Always user-confirmed | `--confirm` required for legal safety and user control |
+| Scope | Movies First | Series/TV add later, due to added complexity |
+| Prowlarr | Retained | Still acts as consolidated indexer manager |
+| *arr logic | Radarr/Sonarr/Recyclarr replaced | All curation now handled by Curatarr |
 
 ---
 
 ## Implementation Phases
 
 ### Phase 1: Core CLI (MVP)
-- [ ] Library scanner with FFprobe metrics
-- [ ] Indexer client (Prowlarr API)
-- [ ] Title parser (TRaSH patterns)
-- [ ] SQLite cache
+- [ ] Library scanning (ffprobe metrics)
+- [ ] Indexer support (Prowlarr API)
+- [ ] Title parsing (TRaSH style)
+- [ ] SQLite-based cache
 - [ ] CLI: `scan`, `search`, `cache-stats`
 
-### Phase 2: Quality Intelligence (MVP)
-- [ ] Quality profile definitions
-- [ ] Size-to-quality validation
-- [ ] Release group reputation tiers
-- [ ] TRaSH CF scoring (simplified)
+### Phase 2: Quality Intelligence
+- [ ] Quality profiles
+- [ ] Bitrate/size validation
+- [ ] Group reputation
+- [ ] Simplified TRaSH scoring
 
-### Phase 3: LLM Verification (MVP)
+### Phase 3: LLM Verification
 - [ ] TMDB client
-- [ ] Content verification prompts
+- [ ] Structured prompt templates
 - [ ] Quality authenticity checks
-- [ ] Confidence scoring
+- [ ] Confidence reporting
 
-### Phase 4: Grab & Import (MVP)
+### Phase 4: Grab & Import
 - [ ] SABnzbd client
 - [ ] CLI: `grab <guid> --confirm`
-- [ ] Import handler (webhook)
-- [ ] Folder naming + move
-- [ ] Jellyfin rescan trigger
+- [ ] Import webhook handler
+- [ ] Naming/organizing imports
+- [ ] Jellyfin rescan support
 
 ### Phase 5: Upgrade Polling
-- [ ] Background poll workflow
-- [ ] Current vs candidate comparison
-- [ ] Auto-approve thresholds
-- [ ] Notification system
+- [ ] Background polling workflow
+- [ ] Old/new comparison for upgrades
+- [ ] Auto-approval with high confidence, else user review
+- [ ] Notifications
 
 ### Phase 6: Web UI
 - [ ] Activity feed
-- [ ] Library view with quality overlay
+- [ ] Library view with quality overlays
 - [ ] Search interface
 - [ ] Settings management
 
 ### Phase 7: TV Support
-- [ ] Series/season/episode parsing
+- [ ] Series/episode parsing
 - [ ] TVDB integration
-- [ ] Season pack handling
+- [ ] Season pack detection
 
 ### Phase 8: Jellyfin Plugin
-- [ ] Quality badges
-- [ ] Request integration
-- [ ] Upgrade notifications
+- [ ] Quality badges in UI
+- [ ] Request workflow
+- [ ] Upgrade notices
 
 ---
 
-## Project Structure
+## Recommended Project Structure
 
 ```
-curatarr/                      # or packages/curatarr/ if staying in monorepo
+curatarr/
 ├── src/
-│   ├── cli/                   # CLI entry points
-│   │   ├── index.ts
-│   │   ├── scan.ts
-│   │   ├── search.ts
-│   │   ├── grab.ts
-│   │   └── poll.ts
-│   │
-│   ├── scanner/               # Library scanner
-│   │   ├── index.ts
-│   │   ├── ffprobe.ts
-│   │   └── types.ts
-│   │
-│   ├── search/                # Indexer + cache
-│   │   ├── index.ts
-│   │   ├── indexerClient.ts   # Prowlarr-backed Newznab/Torznab
-│   │   ├── cache.ts           # SQLite
-│   │   ├── titleParser.ts
-│   │   └── types.ts
-│   │
-│   ├── evaluator/             # LLM evaluation
-│   │   ├── index.ts
-│   │   ├── contentVerifier.ts
-│   │   ├── qualityChecker.ts
-│   │   ├── prompts.ts
-│   │   └── types.ts
-│   │
-│   ├── quality/               # Quality rules
-│   │   ├── index.ts
-│   │   ├── profiles.ts
-│   │   ├── sizeValidation.ts
-│   │   ├── groupReputation.ts
-│   │   └── types.ts
-│   │
-│   ├── download/              # Download clients
-│   │   ├── index.ts
-│   │   ├── sabnzbdClient.ts
-│   │   ├── qbittorrentClient.ts
-│   │   └── types.ts
-│   │
-│   ├── import/                # Post-download
-│   │   ├── index.ts
-│   │   ├── tmdbClient.ts
-│   │   ├── folderNaming.ts
-│   │   ├── jellyfinClient.ts
-│   │   └── types.ts
-│   │
-│   ├── web/                   # Web UI (Phase 6)
-│   │   └── ...
-│   │
-│   └── shared/                # Shared utilities
-│       ├── config.ts
-│       ├── logger.ts
-│       └── db.ts
-│
+│   ├── cli/
+│   ├── scanner/
+│   ├── search/
+│   ├── evaluator/
+│   ├── quality/
+│   ├── download/
+│   ├── import/
+│   ├── web/
+│   └── shared/
 ├── test/
 ├── docs/
 ├── docker/
@@ -595,44 +558,9 @@ curatarr/                      # or packages/curatarr/ if staying in monorepo
 
 ---
 
-## Naming Options
+## What Success Looks Like
 
-| Name | Rationale |
-|------|-----------|
-| **Curatarr** | Raw downloads → refined library; clear metaphor |
-| **Curate** | Curated media collection |
-| **Criterion** | Reference to quality standard |
-| **Arbiter** | Makes quality judgments |
-| **Qualitarr** | Stays in *arr family, familiar to community |
-
-**Current working name**: Curatarr
-
----
-
-## Open Questions
-
-1. **Standalone repo or monorepo?**
-   - Standalone: cleaner for open source
-   - Monorepo: easier for DulceJelly integration
-
-2. **Tech stack for UI?**
-   - Svelte (lightweight)
-   - React (more familiar)
-   - htmx (minimal JS)
-
-3. **Jellyseerr replacement?**
-   - Build request management into Curatarr
-   - Or keep Jellyseerr, integrate via API
-
-4. **Torrent support in MVP?**
-   - Currently focused on Usenet
-   - qBittorrent integration can share patterns
-
----
-
-## Success Metrics
-
-1. **F1 incident prevention**: Zero wrong-content replacements
-2. **Quality accuracy**: Actual bitrate matches expected for quality tier
-3. **Stack simplification**: 4 containers eliminated
-4. **User confidence**: High-confidence recommendations need no manual review
+1. **Fewer content replacement mistakes:** verification and matching avoid wrong-title or wrong-version swaps.
+2. **Better accuracy:** actual bitrates and quality metrics align with stated tiers and release claims.
+3. **Simplicity:** fewer containers and services (e.g. Radarr/Recyclarr replaced by one system).
+4. **Trustworthy recommendations:** suggestions backed by deterministic rules plus optional LLM rulesets so users can rely on Curatarr without always manually reviewing.

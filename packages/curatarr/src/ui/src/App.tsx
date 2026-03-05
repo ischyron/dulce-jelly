@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { Disambiguate } from './pages/Disambiguate';
@@ -23,7 +23,8 @@ export default function App() {
             <Route path="/disambiguate" element={<Disambiguate />} />
             <Route path="/verify" element={<Verify />} />
             <Route path="/movies/:id" element={<Movie />} />
-            <Route path="/settings" element={<Settings />} />
+            <Route path="/settings" element={<Navigate to="/settings/general" replace />} />
+            <Route path="/settings/:section" element={<Settings />} />
             <Route
               path="*"
               element={

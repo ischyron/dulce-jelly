@@ -732,7 +732,7 @@ async function fetchTrashGuidesRevision(): Promise<{
   const fetchedAt = new Date().toISOString();
   try {
     const res = await fetch(
-      'https://api.github.com/repos/TRaSH-Guides/Guides/commits?path=docs/json/radarr/custom-formats&per_page=1',
+      'https://api.github.com/repos/TRaSH-Guides/Guides/commits?path=docs/json/radarr/cf-groups&per_page=1',
       { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'curatarr-scout-sync' } },
     );
     if (!res.ok) {
@@ -760,7 +760,7 @@ async function fetchTrashGuidesRevision(): Promise<{
 }
 
 async function fetchTrashGuidesSnapshot(): Promise<{ snapshot: TrashUpstreamSnapshot | null; warning?: string }> {
-  const path = 'docs/json/radarr/custom-formats';
+  const path = 'docs/json/radarr/cf-groups';
   const maxFiles = 10;
   const maxBytes = 180_000;
   try {

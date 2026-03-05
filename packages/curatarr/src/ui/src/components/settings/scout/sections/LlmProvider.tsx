@@ -13,6 +13,7 @@ export function LlmProvider({ form, set }: LlmProviderSectionProps) {
         </label>
         <input
           id="llm-provider-display"
+          name="llmProviderDisplay"
           value="openai"
           disabled
           className="w-full px-3 py-2 rounded-lg text-sm opacity-85 cursor-not-allowed"

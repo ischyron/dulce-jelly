@@ -1,0 +1,30 @@
+{
+  "title": "Settings",
+  "section": {
+    "general": "General",
+    "scout": "Scout"
+  },
+  "save": {
+    "label": "Save",
+    "saving": "Saving…",
+    "saved": "Saved",
+    "failed": "Save failed"
+  },
+  "scanPrompt": {
+    "title": "Library root folders updated - start a scan?",
+    "body": "An initial scan reads every file with ffprobe to extract resolution, codec, HDR, audio, and size metadata. It runs in batches and may take a few minutes depending on library size.",
+    "goToScan": "Go to Scan",
+    "dismiss": "Dismiss"
+  },
+  "browseModal": {
+    "title": "Browse Folder",
+    "restricted": "Browsing limited to mounted volumes in Docker mode.",
+    "local": "Local mode: full-disk browsing enabled.",
+    "mode": "Mode",
+    "current": "Current",
+    "parent": "Parent",
+    "empty": "No subfolders found.",
+    "cancel": "Cancel",
+    "useFolder": "Use This Folder"
+  }
+}

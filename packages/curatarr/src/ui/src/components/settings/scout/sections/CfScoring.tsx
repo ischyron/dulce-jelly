@@ -1,4 +1,4 @@
-import { Info } from 'lucide-react';
+import { ArrowDown, Info } from 'lucide-react';
 import { InfoHint } from '../../../InfoHint';
 import {
   AUDIO_SCORE_FIELDS,
@@ -19,6 +19,7 @@ import { BitrateBandField } from '../../shared/BitrateBandField';
 import { Field } from '../../shared/Field';
 import { OrderedScoreRow } from '../../shared/OrderedScoreRow';
 import type { CfScoringSectionProps } from '../../types';
+import { MinimumQualifiersFields } from './MinimumQualifiers';
 
 export function CfScoring({
   form,
@@ -31,38 +32,119 @@ export function CfScoring({
   selectedBitrateProfile,
   detectedBitrateProfile,
 }: CfScoringSectionProps) {
+  const pipelineSteps = [
+    {
+      step: 0,
+      title: 'Scout Minimum Qualifiers',
+      detail: 'Gate the candidate pool with MC/IMDb thresholds and batch size.',
+      tone: 'rgba(99,102,241,0.28)',
+    },
+    {
+      step: 1,
+      title: 'TRaSH Guide CF scoring',
+      detail: 'Apply baseline deterministic scoring from TRaSH-aligned rules.',
+      tone: 'rgba(59,130,246,0.28)',
+    },
+    {
+      step: 2,
+      title: 'Custom CF + blockers',
+      detail: 'Apply your overrides and release blockers (feature-flagged path).',
+      tone: 'rgba(16,185,129,0.28)',
+    },
+    {
+      step: 3,
+      title: 'Final LLM rule set',
+      detail: 'Drop weak candidates and break close-score ties.',
+      tone: 'rgba(245,158,11,0.28)',
+    },
+    {
+      step: 4,
+      title: 'Final choice',
+      detail: 'Surface the strongest final recommendation for action.',
+      tone: 'rgba(236,72,153,0.28)',
+    },
+  ] as const;
+
+  const stepPill = (step: number, tone: string) => (
+    <span
+      className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
+      style={{ background: tone, border: '1px solid rgba(196,181,253,0.5)', color: '#f5f3ff' }}
+    >
+      {step}
+    </span>
+  );
+
   return (
     <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
       <h2 className="font-semibold flex items-center gap-2" style={{ color: '#d4cfff' }}>
-        CF Scoring, Rules, Scout
+        Scout pipeline
         <InfoHint label="CF scoring info" text={SCOUT_CF_SCORING_TOOLTIP} />
       </h2>
       <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-        Tune Scout release ranking without code changes. Higher score means a release is recommended first.
+        Curatarr runs this pipeline from top to bottom. Higher score means releases with those attributes are more
+        likely to be selected.
       </p>
       <div
-        className="rounded-lg border p-3 space-y-1 text-xs"
-        style={{ borderColor: 'var(--c-border)', background: 'rgba(139,135,170,0.08)', color: 'var(--c-muted)' }}
+        className="rounded-xl border p-4 text-xs"
+        style={{
+          borderColor: 'rgba(124,58,237,0.35)',
+          background: 'linear-gradient(180deg, rgba(124,58,237,0.14), rgba(17,24,39,0.28))',
+          color: 'var(--c-muted)',
+        }}
       >
-        <div className="font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-          Target pipeline
+        <div className="space-y-2">
+          {pipelineSteps.map((step, idx) => (
+            <div key={step.step} className="space-y-2">
+              <div
+                className="rounded-lg border p-3"
+                style={{ borderColor: 'rgba(196,181,253,0.3)', background: 'rgba(15,23,42,0.58)' }}
+              >
+                <div className="flex items-center gap-2">
+                  {stepPill(step.step, step.tone)}
+                  <span className="font-semibold" style={{ color: '#e9d5ff' }}>
+                    {step.title}
+                  </span>
+                </div>
+                <div className="text-[11px] mt-1.5 pl-8" style={{ color: '#c4b5fd' }}>
+                  {step.detail}
+                </div>
+              </div>
+              {idx < pipelineSteps.length - 1 && (
+                <div className="flex justify-center" style={{ color: '#a78bfa' }}>
+                  <ArrowDown size={14} />
+                </div>
+              )}
+            </div>
+          ))}
         </div>
-        <div>0. Scout Minimum Qualifiers</div>
-        <div>1. TRaSH Guide CF scoring</div>
-        <div>2. Your Custom CF Scores / Overrides + Release Blockers (feature-flagged: coming soon)</div>
-        <div>3. Final LLM Rule set (drops weak candidates + tie-break scoring on close results)</div>
-        <div>4. Final choice</div>
+      </div>
+      <div
+        className="rounded-xl border p-4 space-y-3"
+        style={{ borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.05)' }}
+      >
+        <div
+          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+          style={{ color: '#c4b5fd' }}
+        >
+          {stepPill(0, 'rgba(99,102,241,0.28)')}
+          Scout Minimum Qualifiers
+        </div>
+        <MinimumQualifiersFields form={form} set={set} />
       </div>
       <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-        Source of truth: <code>config/scoring.yaml</code>. Saving Settings also syncs this file.
+        Source of truth: <code>config/scoring.yaml</code>. Saving settings also syncs this file.
       </p>
       <div className="space-y-3">
         <div
           className="rounded-lg border p-3 space-y-3"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
         >
-          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Resolution
+          <div
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+            style={{ color: '#8b87aa' }}
+          >
+            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            TRaSH Guide CF scoring · Resolution
           </div>
           <OrderedScoreRow fields={RESOLUTION_SCORE_FIELDS} form={form} onChange={set} />
         </div>
@@ -71,8 +153,12 @@ export function CfScoring({
           className="rounded-lg border p-3 space-y-3"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
         >
-          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Source
+          <div
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+            style={{ color: '#8b87aa' }}
+          >
+            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            TRaSH Guide CF scoring · Source
           </div>
           <OrderedScoreRow fields={SOURCE_SCORE_FIELDS} form={form} onChange={set} />
         </div>
@@ -81,8 +167,12 @@ export function CfScoring({
           className="rounded-lg border p-3 space-y-3"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
         >
-          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Video
+          <div
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+            style={{ color: '#8b87aa' }}
+          >
+            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            TRaSH Guide CF scoring · Video
           </div>
           <OrderedScoreRow fields={VIDEO_CODEC_SCORE_FIELDS} form={form} onChange={set} />
           <div
@@ -116,8 +206,12 @@ export function CfScoring({
           className="rounded-lg border p-3 space-y-3"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
         >
-          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Audio
+          <div
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+            style={{ color: '#8b87aa' }}
+          >
+            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            TRaSH Guide CF scoring · Audio
           </div>
           <OrderedScoreRow fields={AUDIO_SCORE_FIELDS} form={form} onChange={set} />
         </div>
@@ -126,8 +220,12 @@ export function CfScoring({
           className="rounded-lg border p-3 space-y-3"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
         >
-          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Curatarr Recommended Bitrate Profiles
+          <div
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+            style={{ color: '#8b87aa' }}
+          >
+            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            TRaSH Guide CF scoring · Curatarr Recommended Bitrate Profiles
           </div>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
             {BITRATE_PROFILE_DESCRIPTION}
@@ -143,6 +241,7 @@ export function CfScoring({
               </label>
               <select
                 id="bitrate-profile-select"
+                name="bitrateProfileSelect"
                 value={bitrateProfileId}
                 onChange={(e) => setBitrateProfileId(e.target.value as typeof bitrateProfileId)}
                 className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"
@@ -195,8 +294,12 @@ export function CfScoring({
           className="rounded-lg border p-3 space-y-3"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
         >
-          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Bitrate Gates (Adjust below)
+          <div
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+            style={{ color: '#8b87aa' }}
+          >
+            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            TRaSH Guide CF scoring · Bitrate Gates (Adjust below)
           </div>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
             Bitrate includes video + audio streams. Curatarr tuning is focused on 720p, 1080p, and 2160p.
@@ -257,8 +360,12 @@ export function CfScoring({
           className="rounded-lg border p-3 space-y-3"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
         >
-          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Protocol & Availability
+          <div
+            className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+            style={{ color: '#8b87aa' }}
+          >
+            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            TRaSH Guide CF scoring · Protocol & Availability
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
             <Field

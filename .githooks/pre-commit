@@ -26,7 +26,7 @@ done
 echo "[pre-commit] curatarr biome check (staged files)"
 (
   cd "$REPO_ROOT/packages/curatarr"
-  npx biome check "${REL_CURATARR_FILES[@]}"
+  npx biome check --files-ignore-unknown=true --no-errors-on-unmatched "${REL_CURATARR_FILES[@]}"
 )
 
 echo "[pre-commit] curatarr typecheck"

@@ -21,7 +21,16 @@ export function CustomOverrides({
         className="rounded-lg border p-3 space-y-3"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
-        <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+        <div
+          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+          style={{ color: '#8b87aa' }}
+        >
+          <span
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
+            style={{ background: 'rgba(124,58,237,0.28)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.4)' }}
+          >
+            3
+          </span>
           Custom Format Scores (Overrides)
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
@@ -47,99 +56,122 @@ export function CustomOverrides({
           , then set your preferred score.
         </div>
         <div className="space-y-2">
-          {customCfDraft.map((row, idx) => (
-            <div
-              key={`${row.id ?? 'new'}-${idx}`}
-              className="rounded border p-2 grid grid-cols-1 sm:grid-cols-12 gap-2"
-              style={{ borderColor: 'var(--c-border)' }}
-            >
-              <div className="sm:col-span-2">
-                <input
-                  value={row.name}
-                  onChange={(e) => updateCustomCfRule(idx, { name: e.target.value })}
-                  className="w-full px-2 py-1 rounded text-xs"
-                  style={{
-                    background: 'var(--c-surface)',
-                    border: '1px solid var(--c-border)',
-                    color: 'var(--c-text)',
-                  }}
-                  placeholder="Rule name"
-                />
-              </div>
-              <div className="sm:col-span-2">
-                <select
-                  value={row.matchType}
-                  onChange={(e) => updateCustomCfRule(idx, { matchType: e.target.value as 'regex' | 'string' })}
-                  className="w-full px-2 py-1 rounded text-xs"
-                  style={{
-                    background: 'var(--c-surface)',
-                    border: '1px solid var(--c-border)',
-                    color: 'var(--c-text)',
-                  }}
+          {customCfDraft.map((row, idx) =>
+            (() => {
+              const rowId = `${row.id ?? 'new'}-${idx}`;
+              const nameId = `custom-cf-name-${rowId}`;
+              const matchTypeId = `custom-cf-match-type-${rowId}`;
+              const patternId = `custom-cf-pattern-${rowId}`;
+              const scoreId = `custom-cf-score-${rowId}`;
+              const flagsId = `custom-cf-flags-${rowId}`;
+              const enabledId = `custom-cf-enabled-${rowId}`;
+              return (
+                <div
+                  key={`${row.id ?? 'new'}-${idx}`}
+                  className="rounded border p-2 grid grid-cols-1 sm:grid-cols-12 gap-2"
+                  style={{ borderColor: 'var(--c-border)' }}
                 >
-                  <option value="regex">Regex</option>
-                  <option value="string">String</option>
-                </select>
-              </div>
-              <div className="sm:col-span-4">
-                <input
-                  value={row.pattern}
-                  onChange={(e) => updateCustomCfRule(idx, { pattern: e.target.value })}
-                  className="w-full px-2 py-1 rounded text-xs font-mono"
-                  style={{
-                    background: 'var(--c-surface)',
-                    border: '1px solid var(--c-border)',
-                    color: 'var(--c-text)',
-                  }}
-                  placeholder={row.matchType === 'regex' ? '\\bframestor\\b' : 'framestor'}
-                />
-              </div>
-              <div className="sm:col-span-1">
-                <input
-                  value={row.score}
-                  onChange={(e) => updateCustomCfRule(idx, { score: e.target.value })}
-                  className="w-full px-2 py-1 rounded text-xs"
-                  style={{
-                    background: 'var(--c-surface)',
-                    border: '1px solid var(--c-border)',
-                    color: 'var(--c-text)',
-                  }}
-                  placeholder="score"
-                />
-              </div>
-              <div className="sm:col-span-1">
-                <input
-                  value={row.flags}
-                  onChange={(e) => updateCustomCfRule(idx, { flags: e.target.value })}
-                  className="w-full px-2 py-1 rounded text-xs"
-                  style={{
-                    background: 'var(--c-surface)',
-                    border: '1px solid var(--c-border)',
-                    color: 'var(--c-text)',
-                  }}
-                  placeholder="i"
-                  title="Regex flags"
-                  disabled={row.matchType !== 'regex'}
-                />
-              </div>
-              <div className="sm:col-span-1 flex items-center justify-end gap-2">
-                <input
-                  type="checkbox"
-                  checked={row.enabled}
-                  onChange={(e) => updateCustomCfRule(idx, { enabled: e.target.checked })}
-                  title="Enabled"
-                />
-                <button
-                  type="button"
-                  onClick={() => removeCustomCfRule(idx)}
-                  className="text-xs px-2 py-1 rounded border"
-                  style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}
-                >
-                  Remove
-                </button>
-              </div>
-            </div>
-          ))}
+                  <div className="sm:col-span-2">
+                    <input
+                      id={nameId}
+                      name={nameId}
+                      value={row.name}
+                      onChange={(e) => updateCustomCfRule(idx, { name: e.target.value })}
+                      className="w-full px-2 py-1 rounded text-xs"
+                      style={{
+                        background: 'var(--c-surface)',
+                        border: '1px solid var(--c-border)',
+                        color: 'var(--c-text)',
+                      }}
+                      placeholder="Rule name"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <select
+                      id={matchTypeId}
+                      name={matchTypeId}
+                      value={row.matchType}
+                      onChange={(e) => updateCustomCfRule(idx, { matchType: e.target.value as 'regex' | 'string' })}
+                      className="w-full px-2 py-1 rounded text-xs"
+                      style={{
+                        background: 'var(--c-surface)',
+                        border: '1px solid var(--c-border)',
+                        color: 'var(--c-text)',
+                      }}
+                    >
+                      <option value="regex">Regex</option>
+                      <option value="string">String</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-4">
+                    <input
+                      id={patternId}
+                      name={patternId}
+                      value={row.pattern}
+                      onChange={(e) => updateCustomCfRule(idx, { pattern: e.target.value })}
+                      className="w-full px-2 py-1 rounded text-xs font-mono"
+                      style={{
+                        background: 'var(--c-surface)',
+                        border: '1px solid var(--c-border)',
+                        color: 'var(--c-text)',
+                      }}
+                      placeholder={row.matchType === 'regex' ? '\\bframestor\\b' : 'framestor'}
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <input
+                      id={scoreId}
+                      name={scoreId}
+                      value={row.score}
+                      onChange={(e) => updateCustomCfRule(idx, { score: e.target.value })}
+                      className="w-full px-2 py-1 rounded text-xs"
+                      style={{
+                        background: 'var(--c-surface)',
+                        border: '1px solid var(--c-border)',
+                        color: 'var(--c-text)',
+                      }}
+                      placeholder="score"
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <input
+                      id={flagsId}
+                      name={flagsId}
+                      value={row.flags}
+                      onChange={(e) => updateCustomCfRule(idx, { flags: e.target.value })}
+                      className="w-full px-2 py-1 rounded text-xs"
+                      style={{
+                        background: 'var(--c-surface)',
+                        border: '1px solid var(--c-border)',
+                        color: 'var(--c-text)',
+                      }}
+                      placeholder="i"
+                      title="Regex flags"
+                      disabled={row.matchType !== 'regex'}
+                    />
+                  </div>
+                  <div className="sm:col-span-1 flex items-center justify-end gap-2">
+                    <input
+                      id={enabledId}
+                      name={enabledId}
+                      type="checkbox"
+                      checked={row.enabled}
+                      onChange={(e) => updateCustomCfRule(idx, { enabled: e.target.checked })}
+                      title="Enabled"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeCustomCfRule(idx)}
+                      className="text-xs px-2 py-1 rounded border"
+                      style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })(),
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"
@@ -171,6 +203,8 @@ export function CustomOverrides({
           </div>
           <div className="flex items-center gap-2">
             <input
+              id="custom-cf-preview-title"
+              name="customCfPreviewTitle"
               value={customCfPreviewTitle}
               onChange={(e) => setCustomCfPreviewTitle(e.target.value)}
               placeholder="Release title to test..."

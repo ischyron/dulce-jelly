@@ -1,0 +1,36 @@
+{
+  "title": "Scan & Sync",
+  "scanSection": {
+    "title": "Library Scan",
+    "description": "Scan movie folders and video files (uses ffprobe on video files to refresh quality metadata). By default, already scanned files are skipped. Enable \"Force rescan all files\" below to re-scan all files.",
+    "libraryPathLabel": "Library Path (leave blank to use saved Movies roots)",
+    "workersLabel": "Workers",
+    "forceRescan": "Force rescan all files",
+    "rescanChecked": "Checked: full rescan (slower, runs ffprobe again on all video files).",
+    "rescanUnchecked": "Unchecked: incremental scan (faster, skips already scanned files).",
+    "startScan": "Start Incremental Scan",
+    "startRescan": "Start Full Rescan",
+    "scanning": "Scanning…"
+  },
+  "syncSection": {
+    "title": "Jellyfin Sync",
+    "description": "Fetch curation metadata from Jellyfin (ratings, genres, IDs) and enrich the local database. Curatarr does not mirror full metadata fields like overview because Jellyfin remains the source of truth.",
+    "cta": "Sync from Jellyfin",
+    "syncing": "Syncing…",
+    "hintLabel": "How Jellyfin sync works",
+    "guide": "Jellyfin Sync - how it works\n\n1. Fetches your entire movie library from Jellyfin in pages (100 items per batch).\n\n2. For each Jellyfin item, tries to find the matching local folder using 5 strategies (in order):\n   - Exact folder path match   -> confidence 1.0\n   - IMDb ID match             -> confidence 1.0\n   - Normalised title + year   -> confidence 0.95\n   - Normalised title only     -> confidence 0.75 (flags year diff)\n   - Fuzzy title (>= 85% sim)  -> confidence proportional\n\n3. Matched movies are enriched with curation metadata needed for Curatarr decisions:\n   ratings, genres, IMDb/TMDb IDs.\n   Full metadata (including overview and long-form descriptions) remains in Jellyfin.\n\n4. Ambiguous matches (year mismatch, fuzzy title) are flagged\n   and visible on the Disambiguate page for manual review.\n\n5. Results stream live over SSE - progress is visible in the\n   modal that opens when you click \"Sync from Jellyfin\".\n\nA full sync of 1 000+ movies typically takes 20-60 seconds,\ndepending on Jellyfin's response time."
+  },
+  "history": {
+    "title": "Scan History",
+    "started": "Started",
+    "folders": "Folders",
+    "files": "Files",
+    "ok": "OK",
+    "errors": "Errors",
+    "duration": "Duration",
+    "result": "Result",
+    "completed": "Completed",
+    "inProgress": "In progress",
+    "noChanges": "No changes detected - all files already scanned"
+  }
+}

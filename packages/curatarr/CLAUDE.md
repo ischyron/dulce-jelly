@@ -14,6 +14,11 @@
 
 **Status**: MVP in progress — CLI scaffold done, core modules pending.
 
+### Metadata and library path guardrails
+
+- Curatarr is a curation system, not a full metadata viewer. Keep only decision-critical metadata in Curatarr; rich metadata presentation remains in Jellyfin.
+- Library roots must be real paths, not symlinks. This prevents container path escapes, NAS path resolution mismatches, and unsafe delete/scan behavior.
+
 ## Key Documents
 
 - [docs/SPEC.md](docs/SPEC.md) — Full specification, architecture, and phased implementation plan

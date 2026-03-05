@@ -220,12 +220,14 @@ export const SCOUT_PRESET_SAMPLES: Array<{
 
 export const LLM_RULESET_SAMPLES: Array<{ name: string; sentence: string }> = [
   {
-    name: 'Prefer usenet in close ties',
-    sentence: 'Prefer usenet in close ties.',
+    name: 'Flag exceptional titles for Remux review',
+    sentence:
+      'When deterministic scores are close, flag true cultural-landmark titles where Remux is justified and ask for explicit confirmation before selecting it.',
   },
   {
-    name: 'Avoid uncertain AV1 compatibility',
-    sentence: 'Avoid AV1 when compatibility is uncertain.',
+    name: 'Prefer original-language audio in close ties',
+    sentence:
+      'For non-English originals, prefer releases that include the original language audio track, and rank dub-only releases lower when tie-break decisions are needed.',
   },
 ];
 

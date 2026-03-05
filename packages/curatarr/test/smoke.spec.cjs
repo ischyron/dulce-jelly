@@ -199,12 +199,22 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
   });
 
   test('settings loads', async ({ page }) => {
-    await page.goto('/settings');
+    await page.goto('/settings/general');
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
     await expect(page.getByText('Jellyfin Connection')).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Scout Minimum Qualifiers' })).toBeVisible();
-    await expect(page.getByText('Target pipeline')).toBeVisible();
-    await expect(page.getByText('Extended release filter LLM ruleset')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
+  });
+
+  test('scout settings loads', async ({ page }) => {
+    await page.goto('/settings/scout');
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Scout pipeline/i })).toBeVisible();
+    await expect(page.getByText(/Final LLM ruleset/i).first()).toBeVisible();
+    await expect(page.getByText(/New installs start with 2 disabled examples/i)).toBeVisible();
+    await expect(
+      page.getByText('Higher score means releases with those attributes are more likely to be selected.'),
+    ).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
     await expect(page.getByText('Max Resolution')).toHaveCount(0);
   });
 
@@ -212,7 +222,7 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     await page.goto('/scan');
     const hint = page.getByRole('button', { name: 'How Jellyfin sync works' }).first();
     await hint.click();
-    await expect(page.getByText('Jellyfin Sync — how it works')).toBeVisible();
+    await expect(page.getByText('Jellyfin Sync - how it works')).toBeVisible();
     await expect(page.getByText('Fetches your entire movie library from Jellyfin')).toBeVisible();
   });
 

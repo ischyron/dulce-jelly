@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, CheckCircle, Link2, ScanLine, Settings2, X } from 'lucide-react';
+import { CheckCircle, ScanLine, Settings2, X } from 'lucide-react';
 import { type DragEvent, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import {
   BITRATE_BIAS_PROFILES,
@@ -12,7 +13,6 @@ import {
 } from '../components/settings/content';
 import { GeneralPanel } from '../components/settings/general/GeneralPanel';
 import { ScoutPanel } from '../components/settings/scout/ScoutPanel';
-import { Accordion } from '../components/settings/shared/Accordion';
 import type {
   LibraryRootEntry,
   ScoutCustomCfDraft,
@@ -23,8 +23,22 @@ import type {
 import { normalizeRootPath, parseLibraryRoots, toLibraryRootsJson } from '../components/settings/utils/libraryRoots';
 import { parseCustomCfRule, parseLlmRule } from '../components/settings/utils/rules';
 import { detectBitrateProfileFromSettings } from '../components/settings/utils/scoring';
+import { SETTINGS_DEFAULTS, type SettingsDefaultKey } from '../config/defaultSettings';
+
+const GENERAL_SETTING_KEYS = new Set([
+  'jellyfinUrl',
+  'jellyfinPublicUrl',
+  'jellyfinApiKey',
+  'jfSyncIntervalMin',
+  'jfSyncBatchSize',
+]);
+
+const SCOUT_SETTING_EXACT_KEYS = new Set(['prowlarrUrl', 'prowlarrApiKey', 'llmProvider', 'llmApiKey']);
 
 export function Settings() {
+  const { t } = useTranslation('settings');
+  const { section } = useParams();
+  const sectionMode: 'general' | 'scout' = section === 'scout' ? 'scout' : 'general';
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { data, isLoading } = useQuery({
@@ -63,6 +77,7 @@ export function Settings() {
 
   useEffect(() => {
     if (data?.settings) {
+      const withDefault = (key: SettingsDefaultKey): string => data.settings[key] ?? SETTINGS_DEFAULTS[key];
       setForm({
         jellyfinUrl: data.settings.jellyfinUrl ?? '',
         jellyfinPublicUrl: data.settings.jellyfinPublicUrl ?? '',
@@ -72,39 +87,45 @@ export function Settings() {
         prowlarrApiKey: '',
         prowlarrApiKeyMasked: data.settings.prowlarrApiKey ?? '',
         libraryRoots: data.settings.libraryRoots ?? '',
-        llmProvider: 'openai',
+        llmProvider: withDefault('llmProvider'),
         llmApiKey: '',
         llmApiKeyMasked: data.settings.llmApiKey ?? '',
-        scoutMinCritic: data.settings.scoutMinCritic ?? '65',
-        scoutMinCommunity: data.settings.scoutMinCommunity ?? '7.0',
-        scoutSearchBatchSize: data.settings.scoutSearchBatchSize ?? '5',
-        scoutAutoEnabled: data.settings.scoutAutoEnabled ?? 'false',
-        scoutAutoIntervalMin: data.settings.scoutAutoIntervalMin ?? '60',
-        scoutAutoCooldownMin: data.settings.scoutAutoCooldownMin ?? '240',
-        scoutCfRes2160: data.settings.scoutCfRes2160 ?? '40',
-        scoutCfRes1080: data.settings.scoutCfRes1080 ?? '25',
-        scoutCfRes720: data.settings.scoutCfRes720 ?? '10',
-        scoutCfSourceRemux: data.settings.scoutCfSourceRemux ?? '28',
-        scoutCfSourceBluray: data.settings.scoutCfSourceBluray ?? '16',
-        scoutCfSourceWebdl: data.settings.scoutCfSourceWebdl ?? '12',
-        scoutCfCodecHevc: data.settings.scoutCfCodecHevc ?? '20',
-        scoutCfCodecAv1: data.settings.scoutCfCodecAv1 ?? '16',
-        scoutCfCodecH264: data.settings.scoutCfCodecH264 ?? '8',
-        scoutCfLegacyPenalty: data.settings.scoutCfLegacyPenalty ?? '30',
-        scoutCfBitrateMin2160Mbps: data.settings.scoutCfBitrateMin2160Mbps ?? '10',
-        scoutCfBitrateMax2160Mbps: data.settings.scoutCfBitrateMax2160Mbps ?? '35',
-        scoutCfBitrateMin1080Mbps: data.settings.scoutCfBitrateMin1080Mbps ?? '4',
-        scoutCfBitrateMax1080Mbps: data.settings.scoutCfBitrateMax1080Mbps ?? '15',
-        scoutCfBitrateMin720Mbps: data.settings.scoutCfBitrateMin720Mbps ?? '2.5',
-        scoutCfBitrateMax720Mbps: data.settings.scoutCfBitrateMax720Mbps ?? '8',
-        scoutCfBitrateMinOtherMbps: data.settings.scoutCfBitrateMinOtherMbps ?? '1',
-        scoutCfBitrateMaxOtherMbps: data.settings.scoutCfBitrateMaxOtherMbps ?? '12',
-        scoutCfSeedersDivisor: data.settings.scoutCfSeedersDivisor ?? '20',
-        scoutCfSeedersBonusCap: data.settings.scoutCfSeedersBonusCap ?? '12',
-        scoutCfUsenetBonus: data.settings.scoutCfUsenetBonus ?? '10',
-        scoutCfTorrentBonus: data.settings.scoutCfTorrentBonus ?? '0',
-        jfSyncIntervalMin: data.settings.jfSyncIntervalMin ?? '30',
-        jfSyncBatchSize: data.settings.jfSyncBatchSize ?? '10',
+        scoutMinCritic: withDefault('scoutMinCritic'),
+        scoutMinCommunity: withDefault('scoutMinCommunity'),
+        scoutSearchBatchSize: withDefault('scoutSearchBatchSize'),
+        scoutAutoEnabled: withDefault('scoutAutoEnabled'),
+        scoutAutoIntervalMin: withDefault('scoutAutoIntervalMin'),
+        scoutAutoCooldownMin: withDefault('scoutAutoCooldownMin'),
+        scoutCfRes2160: withDefault('scoutCfRes2160'),
+        scoutCfRes1080: withDefault('scoutCfRes1080'),
+        scoutCfRes720: withDefault('scoutCfRes720'),
+        scoutCfSourceRemux: withDefault('scoutCfSourceRemux'),
+        scoutCfSourceBluray: withDefault('scoutCfSourceBluray'),
+        scoutCfSourceWebdl: withDefault('scoutCfSourceWebdl'),
+        scoutCfCodecHevc: withDefault('scoutCfCodecHevc'),
+        scoutCfCodecAv1: withDefault('scoutCfCodecAv1'),
+        scoutCfCodecH264: withDefault('scoutCfCodecH264'),
+        scoutCfAudioAtmos: withDefault('scoutCfAudioAtmos'),
+        scoutCfAudioTruehd: withDefault('scoutCfAudioTruehd'),
+        scoutCfAudioDts: withDefault('scoutCfAudioDts'),
+        scoutCfAudioDdp: withDefault('scoutCfAudioDdp'),
+        scoutCfAudioAc3: withDefault('scoutCfAudioAc3'),
+        scoutCfAudioAac: withDefault('scoutCfAudioAac'),
+        scoutCfLegacyPenalty: withDefault('scoutCfLegacyPenalty'),
+        scoutCfBitrateMin2160Mbps: withDefault('scoutCfBitrateMin2160Mbps'),
+        scoutCfBitrateMax2160Mbps: withDefault('scoutCfBitrateMax2160Mbps'),
+        scoutCfBitrateMin1080Mbps: withDefault('scoutCfBitrateMin1080Mbps'),
+        scoutCfBitrateMax1080Mbps: withDefault('scoutCfBitrateMax1080Mbps'),
+        scoutCfBitrateMin720Mbps: withDefault('scoutCfBitrateMin720Mbps'),
+        scoutCfBitrateMax720Mbps: withDefault('scoutCfBitrateMax720Mbps'),
+        scoutCfBitrateMinOtherMbps: withDefault('scoutCfBitrateMinOtherMbps'),
+        scoutCfBitrateMaxOtherMbps: withDefault('scoutCfBitrateMaxOtherMbps'),
+        scoutCfSeedersDivisor: withDefault('scoutCfSeedersDivisor'),
+        scoutCfSeedersBonusCap: withDefault('scoutCfSeedersBonusCap'),
+        scoutCfUsenetBonus: withDefault('scoutCfUsenetBonus'),
+        scoutCfTorrentBonus: withDefault('scoutCfTorrentBonus'),
+        jfSyncIntervalMin: withDefault('jfSyncIntervalMin'),
+        jfSyncBatchSize: withDefault('jfSyncBatchSize'),
       });
 
       const parsedRoots = parseLibraryRoots(data.settings.libraryRoots);
@@ -133,34 +154,52 @@ export function Settings() {
   }, [form]);
 
   const saveMutation = useMutation({
-    mutationFn: (settings: Record<string, string>) => {
+    mutationFn: ({ settings, scope }: { settings: Record<string, string>; scope: 'general' | 'scout' }) => {
       const payload: Record<string, string> = {};
       for (const [k, v] of Object.entries(settings)) {
         if (k.endsWith('Masked')) continue;
-        if (v !== '') payload[k] = v;
+        if (v === '') continue;
+        if (scope === 'general' && GENERAL_SETTING_KEYS.has(k)) {
+          payload[k] = v;
+        }
+        if (scope === 'scout' && (k.startsWith('scout') || SCOUT_SETTING_EXACT_KEYS.has(k))) {
+          payload[k] = v;
+        }
       }
-      const rootsPayload: LibraryRootEntry[] = [
-        ...movieRoots
-          .map((p) => normalizeRootPath(p))
-          .filter((p) => p.length > 0)
-          .map((p) => ({ type: 'movies' as const, path: p })),
-        ...seriesRoots
-          .map((p) => normalizeRootPath(p))
-          .filter((p) => p.length > 0)
-          .map((p) => ({ type: 'series' as const, path: p })),
-      ];
-      payload.libraryRoots = toLibraryRootsJson(rootsPayload);
-      delete payload.libraryPath;
-      payload.llmProvider = 'openai';
+      if (scope === 'general') {
+        const rootsPayload: LibraryRootEntry[] = [
+          ...movieRoots
+            .map((p) => normalizeRootPath(p))
+            .filter((p) => p.length > 0)
+            .map((p) => ({ type: 'movies' as const, path: p })),
+          ...seriesRoots
+            .map((p) => normalizeRootPath(p))
+            .filter((p) => p.length > 0)
+            .map((p) => ({ type: 'series' as const, path: p })),
+        ];
+        payload.libraryRoots = toLibraryRootsJson(rootsPayload);
+        delete payload.libraryPath;
+        payload.clientProfile = clientProfile;
+      }
+      if (scope === 'scout') {
+        payload.llmProvider = 'openai';
+      }
       return api.saveSettings(payload);
     },
     onSuccess: (_result, variables) => {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
       queryClient.invalidateQueries({ queryKey: ['settings'] });
-      const prevRoots = data?.settings.libraryRoots ?? '';
-      const newRoots = variables.libraryRoots ?? '';
-      if (newRoots && newRoots !== prevRoots) setShowScanPrompt(true);
+      if (variables.scope === 'general') {
+        const prevRoots = data?.settings.libraryRoots ?? '';
+        const newRoots = toLibraryRootsJson(
+          movieRoots
+            .map((p) => normalizeRootPath(p))
+            .filter((p) => p.length > 0)
+            .map((p) => ({ type: 'movies' as const, path: p })),
+        );
+        if (newRoots && newRoots !== prevRoots) setShowScanPrompt(true);
+      }
     },
   });
 
@@ -321,7 +360,18 @@ export function Settings() {
     const llmMapped = (scoutRulesData?.rules?.scout_llm_ruleset ?? [])
       .map(parseLlmRule)
       .sort((a, b) => a.priority - b.priority || (a.id ?? 0) - (b.id ?? 0));
-    setLlmRulesDraft(llmMapped);
+    if (llmMapped.length > 0) {
+      setLlmRulesDraft(llmMapped);
+      return;
+    }
+    setLlmRulesDraft(
+      LLM_RULESET_SAMPLES.map((sample, idx) => ({
+        name: sample.name,
+        sentence: sample.sentence,
+        enabled: false,
+        priority: idx + 1,
+      })),
+    );
   }, [scoutRulesData]);
 
   const [jellyfinHealth, setJellyfinHealth] = useState<{ ok: boolean; libraries?: number; error?: string } | null>(
@@ -409,8 +459,8 @@ export function Settings() {
     setBrowseForIndex(null);
   }
 
-  function handleSave() {
-    saveMutation.mutate({ ...form, clientProfile });
+  function handleSave(scope: 'general' | 'scout') {
+    saveMutation.mutate({ settings: form, scope });
     try {
       localStorage.setItem('clientProfile', clientProfile);
     } catch {
@@ -537,124 +587,129 @@ export function Settings() {
     <div className="p-6 space-y-6 max-w-2xl">
       <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
         <Settings2 size={20} style={{ color: 'var(--c-accent)' }} />
-        Settings
+        {t('title')}
       </h1>
+      <div className="text-sm" style={{ color: 'var(--c-muted)' }}>
+        {sectionMode === 'general' ? t('section.general') : t('section.scout')}
+      </div>
 
-      <Accordion title="General" defaultOpen variant="general" icon={<Link2 size={15} />}>
-        <GeneralPanel
-          form={form}
-          set={set}
-          checkJellyfinHealth={checkJellyfinHealth}
-          checkingJellyfinHealth={checkingJellyfinHealth}
-          jellyfinHealth={jellyfinHealth}
-          movieRoots={movieRoots}
-          updateMovieRoot={updateMovieRoot}
-          openBrowse={openBrowse}
-          removeMovieRoot={removeMovieRoot}
-          addMovieRoot={addMovieRoot}
-          clientProfile={clientProfile}
-          setClientProfile={setClientProfile}
-        />
-      </Accordion>
-
-      <Accordion title="Scout" defaultOpen variant="scout" icon={<Bot size={15} />}>
-        <ScoutPanel
-          prowlarr={{
-            form,
-            set,
-            checkProwlarrHealth,
-            checkingProwlarrHealth,
-            prowlarrHealth,
-          }}
-          llmProvider={{ form, set }}
-          minimumQualifiers={{ form, set }}
-          cfScoring={{
-            form,
-            set,
-            activeProfileLabel: activeProfile.label,
-            activeProfileAv1: activeProfile.videoCodec.av1,
-            bitrateProfileId,
-            setBitrateProfileId,
-            applyBitrateProfile,
-            selectedBitrateProfile,
-            detectedBitrateProfile,
-          }}
-          trashSyncDetails={{
-            onSyncTrash: () => scoutSyncTrashMutation.mutate(),
-            syncingTrash: scoutSyncTrashMutation.isPending,
-            syncTrashError: scoutSyncTrashMutation.isError
-              ? (scoutSyncTrashMutation.error as Error).message
-              : undefined,
-            hasTrashSyncDetails,
-            syncedTrashSource,
-            syncedTrashRevision,
-            syncedTrashAt,
-            syncedTrashRules,
-            syncedTrashWarning,
-            appliedSettingsEntries,
-            appliedRules,
-            upstreamSnapshot,
-          }}
-          trashBaseline={{
-            trashParityData,
-            onRefreshBaseline: () => {
-              void refetchTrashParity();
-              void api.scoutTrashParity(true).then(() => refetchTrashParity());
-            },
-          }}
-          customOverrides={{
-            customCfDraft,
-            updateCustomCfRule,
-            removeCustomCfRule,
-            addCustomCfRule,
-            saveCustomCf: () => saveCustomCfMutation.mutate(customCfDraft),
-            savePending: saveCustomCfMutation.isPending,
-            customCfSaved,
-            customCfError,
-            customCfPreviewTitle,
-            setCustomCfPreviewTitle,
-            runCustomCfPreview: () => customCfPreviewMutation.mutate(customCfPreviewTitle),
-            customCfPreviewPending: customCfPreviewMutation.isPending,
-            customCfPreviewData: customCfPreviewMutation.data,
-          }}
-          rules={{
-            scoutRulesDraft,
-            updateScoutRule,
-            saveScoutRules: () => saveScoutRulesMutation.mutate(scoutRulesDraft),
-            savePending: saveScoutRulesMutation.isPending,
-            scoutRulesSaved,
-            scoutRulesError,
-          }}
-          extendedLlmRuleset={{
-            llmRulesDraft,
-            llmDragIndex,
-            onLlmDragStart,
-            onLlmDragOver,
-            onLlmDrop,
-            onLlmDragEnd,
-            updateLlmRule,
-            removeLlmRule,
-            addLlmRule,
-            addLlmSampleRules,
-            saveLlmRules: () => saveLlmRulesMutation.mutate(llmRulesDraft),
-            savePending: saveLlmRulesMutation.isPending,
-            llmRulesSaved,
-            llmRulesError,
-            refineObjective,
-            setRefineObjective,
-            generateDraft: () => scoutRefineDraftMutation.mutate(refineObjective),
-            draftPending: scoutRefineDraftMutation.isPending,
-            draftData: scoutRefineDraftMutation.data,
-          }}
-          automation={{
-            form,
-            set,
-            autoStatusData,
-            runAutoScout: () => scoutAutoRunMutation.mutate(),
-            runPending: scoutAutoRunMutation.isPending,
-          }}
-        />
-      </Accordion>
+      {sectionMode === 'general' ? (
+        <section aria-label={t('section.general')}>
+          <GeneralPanel
+            form={form}
+            set={set}
+            checkJellyfinHealth={checkJellyfinHealth}
+            checkingJellyfinHealth={checkingJellyfinHealth}
+            jellyfinHealth={jellyfinHealth}
+            movieRoots={movieRoots}
+            updateMovieRoot={updateMovieRoot}
+            openBrowse={openBrowse}
+            removeMovieRoot={removeMovieRoot}
+            addMovieRoot={addMovieRoot}
+            clientProfile={clientProfile}
+            setClientProfile={setClientProfile}
+          />
+        </section>
+      ) : (
+        <section aria-label={t('section.scout')}>
+          <ScoutPanel
+            prowlarr={{
+              form,
+              set,
+              checkProwlarrHealth,
+              checkingProwlarrHealth,
+              prowlarrHealth,
+            }}
+            llmProvider={{ form, set }}
+            minimumQualifiers={{ form, set }}
+            cfScoring={{
+              form,
+              set,
+              activeProfileLabel: activeProfile.label,
+              activeProfileAv1: activeProfile.videoCodec.av1,
+              bitrateProfileId,
+              setBitrateProfileId,
+              applyBitrateProfile,
+              selectedBitrateProfile,
+              detectedBitrateProfile,
+            }}
+            trashSyncDetails={{
+              onSyncTrash: () => scoutSyncTrashMutation.mutate(),
+              syncingTrash: scoutSyncTrashMutation.isPending,
+              syncTrashError: scoutSyncTrashMutation.isError
+                ? (scoutSyncTrashMutation.error as Error).message
+                : undefined,
+              hasTrashSyncDetails,
+              syncedTrashSource,
+              syncedTrashRevision,
+              syncedTrashAt,
+              syncedTrashRules,
+              syncedTrashWarning,
+              appliedSettingsEntries,
+              appliedRules,
+              upstreamSnapshot,
+            }}
+            trashBaseline={{
+              trashParityData,
+              onRefreshBaseline: () => {
+                void refetchTrashParity();
+                void api.scoutTrashParity(true).then(() => refetchTrashParity());
+              },
+            }}
+            customOverrides={{
+              customCfDraft,
+              updateCustomCfRule,
+              removeCustomCfRule,
+              addCustomCfRule,
+              saveCustomCf: () => saveCustomCfMutation.mutate(customCfDraft),
+              savePending: saveCustomCfMutation.isPending,
+              customCfSaved,
+              customCfError,
+              customCfPreviewTitle,
+              setCustomCfPreviewTitle,
+              runCustomCfPreview: () => customCfPreviewMutation.mutate(customCfPreviewTitle),
+              customCfPreviewPending: customCfPreviewMutation.isPending,
+              customCfPreviewData: customCfPreviewMutation.data,
+            }}
+            rules={{
+              scoutRulesDraft,
+              updateScoutRule,
+              saveScoutRules: () => saveScoutRulesMutation.mutate(scoutRulesDraft),
+              savePending: saveScoutRulesMutation.isPending,
+              scoutRulesSaved,
+              scoutRulesError,
+            }}
+            extendedLlmRuleset={{
+              llmRulesDraft,
+              llmDragIndex,
+              onLlmDragStart,
+              onLlmDragOver,
+              onLlmDrop,
+              onLlmDragEnd,
+              updateLlmRule,
+              removeLlmRule,
+              addLlmRule,
+              addLlmSampleRules,
+              saveLlmRules: () => saveLlmRulesMutation.mutate(llmRulesDraft),
+              savePending: saveLlmRulesMutation.isPending,
+              llmRulesSaved,
+              llmRulesError,
+              refineObjective,
+              setRefineObjective,
+              generateDraft: () => scoutRefineDraftMutation.mutate(refineObjective),
+              draftPending: scoutRefineDraftMutation.isPending,
+              draftData: scoutRefineDraftMutation.data,
+            }}
+            automation={{
+              form,
+              set,
+              autoStatusData,
+              runAutoScout: () => scoutAutoRunMutation.mutate(),
+              runPending: scoutAutoRunMutation.isPending,
+            }}
+          />
+        </section>
+      )}
 
       {showScanPrompt && (
         <div
@@ -664,11 +719,10 @@ export function Settings() {
           <ScanLine size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--c-accent)' }} />
           <div className="flex-1 space-y-2">
             <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>
-              Library root folders updated — start a scan?
+              {t('scanPrompt.title')}
             </div>
             <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              An initial scan reads every file with ffprobe to extract resolution, codec, HDR, audio, and size metadata.
-              It runs in batches and may take a few minutes depending on library size.
+              {t('scanPrompt.body')}
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -680,7 +734,7 @@ export function Settings() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
                 style={{ background: 'var(--c-accent)' }}
               >
-                <ScanLine size={12} /> Go to Scan
+                <ScanLine size={12} /> {t('scanPrompt.goToScan')}
               </button>
               <button
                 type="button"
@@ -688,7 +742,7 @@ export function Settings() {
                 className="text-xs underline"
                 style={{ color: 'var(--c-muted)' }}
               >
-                Dismiss
+                {t('scanPrompt.dismiss')}
               </button>
             </div>
           </div>
@@ -704,12 +758,10 @@ export function Settings() {
             <div className="flex items-center justify-between">
               <div>
                 <div className="font-semibold" style={{ color: '#d4cfff' }}>
-                  Browse Folder
+                  {t('browseModal.title')}
                 </div>
                 <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                  {browseRestricted
-                    ? 'Browsing limited to mounted volumes in Docker mode.'
-                    : 'Local mode: full-disk browsing enabled.'}
+                  {browseRestricted ? t('browseModal.restricted') : t('browseModal.local')}
                 </div>
               </div>
               <button
@@ -726,8 +778,9 @@ export function Settings() {
             </div>
 
             <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              Mode: <span style={{ color: 'var(--c-text)' }}>{browseMode}</span>
-              {' · '}Current: <span style={{ color: '#c4b5fd' }}>{browsePath}</span>
+              {t('browseModal.mode')}: <span style={{ color: 'var(--c-text)' }}>{browseMode}</span>
+              {' · '}
+              {t('browseModal.current')}: <span style={{ color: '#c4b5fd' }}>{browsePath}</span>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
@@ -753,7 +806,7 @@ export function Settings() {
                   className="px-2 py-1 rounded text-xs"
                   style={{ border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
                 >
-                  Parent
+                  {t('browseModal.parent')}
                 </button>
               )}
             </div>
@@ -763,7 +816,7 @@ export function Settings() {
                 <div className="p-3 text-sm text-red-400">{browseError}</div>
               ) : browseEntries.length === 0 ? (
                 <div className="p-3 text-sm" style={{ color: 'var(--c-muted)' }}>
-                  No subfolders found.
+                  {t('browseModal.empty')}
                 </div>
               ) : (
                 <div className="divide-y" style={{ borderColor: 'var(--c-border)' }}>
@@ -794,7 +847,7 @@ export function Settings() {
                 className="px-3 py-1.5 rounded text-sm"
                 style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
               >
-                Cancel
+                {t('browseModal.cancel')}
               </button>
               <button
                 type="button"
@@ -802,7 +855,7 @@ export function Settings() {
                 className="px-3 py-1.5 rounded text-sm text-white"
                 style={{ background: 'var(--c-accent)' }}
               >
-                Use This Folder
+                {t('browseModal.useFolder')}
               </button>
             </div>
           </div>
@@ -812,19 +865,19 @@ export function Settings() {
       <div className="flex items-center gap-3">
         <button
           type="button"
-          onClick={handleSave}
+          onClick={() => handleSave(sectionMode)}
           disabled={saveMutation.isPending}
           className="px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-60"
           style={{ background: 'var(--c-accent)' }}
         >
-          {saveMutation.isPending ? 'Saving…' : 'Save Settings'}
+          {saveMutation.isPending ? t('save.saving') : t('save.label')}
         </button>
         {saved && (
           <span className="flex items-center gap-1 text-sm text-green-400">
-            <CheckCircle size={14} /> Saved
+            <CheckCircle size={14} /> {t('save.saved')}
           </span>
         )}
-        {saveMutation.isError && <span className="text-sm text-red-400">Save failed</span>}
+        {saveMutation.isError && <span className="text-sm text-red-400">{t('save.failed')}</span>}
       </div>
     </div>
   );

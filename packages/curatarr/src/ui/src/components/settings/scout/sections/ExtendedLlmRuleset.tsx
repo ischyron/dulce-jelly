@@ -28,12 +28,25 @@ export function ExtendedLlmRuleset({
         className="rounded-lg border p-3 space-y-2"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
-        <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-          Extended release filter LLM ruleset
+        <div
+          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+          style={{ color: '#8b87aa' }}
+        >
+          <span
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
+            style={{ background: 'rgba(124,58,237,0.28)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.4)' }}
+          >
+            4
+          </span>
+          Final LLM ruleset
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           This is over and above deterministic CF scoring. It builds a final LLM ruleset prompt for dropping weak
           releases and tie-break scoring.
+        </p>
+        <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+          New installs start with 2 disabled examples: exceptional-title Remux review and original-language tie-break
+          preference.
         </p>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Result intent: Scout output includes stronger finalists, while weaker candidates are expected to move to a
@@ -58,50 +71,74 @@ export function ExtendedLlmRuleset({
               onDrop={() => onLlmDrop(idx)}
               onDragEnd={onLlmDragEnd}
             >
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-flex items-center gap-1.5 text-xs font-mono min-w-[5rem]"
-                  style={{ color: '#c4b5fd', cursor: llmDragIndex === idx ? 'grabbing' : 'grab' }}
-                  title="Drag to reorder"
-                >
-                  <GripVertical size={14} />P{idx + 1}
-                </span>
-                <input
-                  value={rule.name}
-                  onChange={(e) => updateLlmRule(idx, { name: e.target.value })}
-                  className="w-52 px-2 py-1 rounded text-xs"
-                  style={{
-                    background: 'var(--c-surface)',
-                    border: '1px solid var(--c-border)',
-                    color: 'var(--c-text)',
-                  }}
-                  placeholder="Rule label"
-                />
-                <label className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--c-muted)' }}>
-                  <input
-                    type="checkbox"
-                    checked={rule.enabled}
-                    onChange={(e) => updateLlmRule(idx, { enabled: e.target.checked })}
-                  />
-                  Enabled
-                </label>
-                <button
-                  type="button"
-                  onClick={() => removeLlmRule(idx)}
-                  className="px-2 py-1 rounded border text-xs"
-                  style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}
-                >
-                  Remove
-                </button>
-              </div>
-              <textarea
-                rows={2}
-                value={rule.sentence}
-                onChange={(e) => updateLlmRule(idx, { sentence: e.target.value })}
-                placeholder="Natural rule sentence..."
-                className="w-full px-3 py-2 rounded text-sm focus:outline-none"
-                style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-              />
+              {(() => {
+                const ruleId = `${rule.id ?? 'new'}-${idx}`;
+                const nameId = `llm-rule-name-${ruleId}`;
+                const enabledId = `llm-rule-enabled-${ruleId}`;
+                const sentenceId = `llm-rule-sentence-${ruleId}`;
+                return (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-flex items-center gap-1.5 text-xs font-mono min-w-[5rem]"
+                        style={{ color: '#c4b5fd', cursor: llmDragIndex === idx ? 'grabbing' : 'grab' }}
+                        title="Drag to reorder"
+                      >
+                        <GripVertical size={14} />P{idx + 1}
+                      </span>
+                      <input
+                        id={nameId}
+                        name={nameId}
+                        value={rule.name}
+                        onChange={(e) => updateLlmRule(idx, { name: e.target.value })}
+                        className="w-52 px-2 py-1 rounded text-xs"
+                        style={{
+                          background: 'var(--c-surface)',
+                          border: '1px solid var(--c-border)',
+                          color: 'var(--c-text)',
+                        }}
+                        placeholder="Rule label"
+                      />
+                      <label
+                        htmlFor={enabledId}
+                        className="inline-flex items-center gap-1 text-xs"
+                        style={{ color: 'var(--c-muted)' }}
+                      >
+                        <input
+                          id={enabledId}
+                          name={enabledId}
+                          type="checkbox"
+                          checked={rule.enabled}
+                          onChange={(e) => updateLlmRule(idx, { enabled: e.target.checked })}
+                        />
+                        Enabled
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => removeLlmRule(idx)}
+                        className="px-2 py-1 rounded border text-xs"
+                        style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                    <textarea
+                      id={sentenceId}
+                      name={sentenceId}
+                      rows={2}
+                      value={rule.sentence}
+                      onChange={(e) => updateLlmRule(idx, { sentence: e.target.value })}
+                      placeholder="Natural rule sentence..."
+                      className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+                      style={{
+                        background: 'var(--c-surface)',
+                        border: '1px solid var(--c-border)',
+                        color: 'var(--c-text)',
+                      }}
+                    />
+                  </>
+                );
+              })()}
             </div>
           ))}
           <div className="flex items-center gap-2">
@@ -119,7 +156,7 @@ export function ExtendedLlmRuleset({
               className="px-3 py-1.5 rounded border text-xs"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
-              Add Disabled Examples
+              Add Disabled Examples (2)
             </button>
             <button
               type="button"
@@ -135,6 +172,8 @@ export function ExtendedLlmRuleset({
           </div>
         </div>
         <textarea
+          id="llm-refine-objective"
+          name="llmRefineObjective"
           rows={2}
           value={refineObjective}
           onChange={(e) => setRefineObjective(e.target.value)}
@@ -155,6 +194,8 @@ export function ExtendedLlmRuleset({
         </div>
         {draftData && (
           <textarea
+            id="llm-draft-output"
+            name="llmDraftOutput"
             rows={8}
             readOnly
             value={draftData.prompt}

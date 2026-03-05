@@ -11,7 +11,6 @@ export function TrashSyncDetails({
   syncedTrashAt,
   syncedTrashRules,
   syncedTrashWarning,
-  appliedSettingsEntries,
   appliedRules,
   upstreamSnapshot,
 }: TrashSyncDetailsSectionProps) {
@@ -81,51 +80,13 @@ export function TrashSyncDetails({
               style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
             >
               <div className="font-semibold" style={{ color: '#d4cfff' }}>
-                Imported Into Curatarr
+                Imported Into Curatarr (Rules)
               </div>
               <div className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
-                Exact settings and scout rules applied by the most recent TRaSH sync.
+                Scout rules applied by the most recent TRaSH sync.
               </div>
-              {appliedSettingsEntries.length === 0 && appliedRules.length === 0 && (
+              {appliedRules.length === 0 && (
                 <div style={{ color: 'var(--c-muted)' }}>No applied snapshot available yet.</div>
-              )}
-              {appliedSettingsEntries.length > 0 && (
-                <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
-                  <table className="w-full text-[11px]">
-                    <thead style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
-                      <tr>
-                        <th className="px-2 py-1 text-left">Setting</th>
-                        <th className="px-2 py-1 text-left">Value</th>
-                        <th className="px-2 py-1 text-left">JSON</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appliedSettingsEntries.map(([key, value]) => (
-                        <tr key={key} style={{ borderTop: '1px solid var(--c-border)' }}>
-                          <td className="px-2 py-1 font-mono" style={{ color: '#c4b5fd' }}>
-                            {key}
-                          </td>
-                          <td className="px-2 py-1" style={{ color: 'var(--c-text)' }}>
-                            {value}
-                          </td>
-                          <td className="px-2 py-1">
-                            <details>
-                              <summary className="cursor-pointer" style={{ color: '#c4b5fd' }}>
-                                View JSON
-                              </summary>
-                              <pre
-                                className="mt-1 p-2 rounded overflow-auto"
-                                style={{ background: 'var(--c-bg)', color: '#d4cfff' }}
-                              >
-                                {toPrettyJson({ [key]: value })}
-                              </pre>
-                            </details>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
               )}
               {appliedRules.length > 0 && (
                 <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
@@ -176,12 +137,10 @@ export function TrashSyncDetails({
               style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
             >
               <div className="font-semibold" style={{ color: '#d4cfff' }}>
-                Upstream TRaSH Snapshot
+                TRaSH Guide Snapshot
               </div>
               {!upstreamSnapshot && (
-                <div style={{ color: 'var(--c-muted)' }}>
-                  Upstream snapshot unavailable. Curatarr-applied snapshot is still recorded.
-                </div>
+                <div style={{ color: '#f59e0b' }}>TRaSH guide snapshot unavailable from upstream.</div>
               )}
               {upstreamSnapshot && (
                 <>

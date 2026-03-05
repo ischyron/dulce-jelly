@@ -1,30 +1,51 @@
 # Curatarr
 
-LLM-assisted media curation for Jellyfin libraries.
+Curatarr is a movie management tool for self-hosters who want better release scouting and automated quality upgrades without juggling multiple scoring systems. It depends on **Jellyfin** for library metadata and **Prowlarr** for indexer management. Curatarr can send download triggers to **SABnzbd** (NZB) and **qBittorrent**, and replaces release selection scoring logic that is typically split across Radarr/Recyclarr workflows.
 
-Curatarr is a Node/TypeScript app with a Hono API + React UI that focuses on library scanning, metadata sync, disambiguation, verification, and scout workflows. It keeps Prowlarr as the indexer integration layer.
+Curatarr currently supports only movies. Support for series will be added in the future.
 
-## Vision & Values
+## Who Curatarr is for
 
-- **Quality authenticity first**: judge files by ffprobe metrics, bitrate sanity, and release provenance instead of filenames alone.
-- **Transparent automation**: every decision is inspectable (SSE progress, audit logs, deterministic config) with user-confirmed grabs as the default.
-- **Self-host reliability**: *arr-compatible defaults, portable paths, no OS-specific assumptions, and Docker-first deployment.
-- **Open media ecosystem alignment**: interop with Jellyfin/Prowlarr/SABnzbd/qBittorrent; avoid bespoke lock-in.
-- **Enthusiast-friendly UX**: bookmarkable filters, parity between API and UI, and clarity around warnings (AV1/DV compatibility, HDR correctness).
+Curatarr is for operators who want one ruleset for movie curation and optional LLM tie-breaking when deterministic scores are too close to automate confidently.
+
+It is not intended as a full metadata browser. Curatarr stores only curation-critical metadata (scores, IDs, quality facts). Full rich metadata remains in Jellyfin.
+
+## How Curatarr differs from Radarr/Recyclarr workflows
+
+- Curatarr combines deterministic scoring (TRaSH + user CF rules + metadata signals) with optional LLM review when candidates tie.
+- Curatarr avoids repeated score duplication across separate tools and profiles.
+- Curatarr evaluates actual media quality with ffprobe and bitrate gates instead of filename-only assumptions.
+- Curatarr keeps user control for high-impact actions and exposes auditability in UI/API flows.
+
+## Important library path rule
+
+Library roots must be real filesystem paths, not symlinks.
+
+Why this is enforced:
+- Symlinked roots can escape Docker mount boundaries and point Curatarr to paths the container cannot safely access.
+- NAS symlink targets can resolve differently across host/container paths, causing false missing-file reports and risky delete decisions.
+- Real paths make scan, sync, and delete behavior deterministic and auditable across environments.
+
+If you run in Docker or on NAS, mount the actual target folder and configure that exact mounted path in Settings.
+
+## ⚖️ Legal Notice
+
+> Curatarr provides curation workflows, scoring logic, and automation guidance for
+> self-hosted media libraries, including media you own or have rights to use.
+> It does not include media content, content sources, or preconfigured acquisition
+> mechanisms, and it does not endorse or facilitate infringement.
+> Users are responsible for ensuring their use of Curatarr and third-party software
+> complies with applicable laws.
 
 ## Docs
 
 - Vision: [docs/VISION.md](docs/VISION.md)
 - Product spec: [docs/SPEC.md](docs/SPEC.md)
-- Project progress (source of truth): [docs/progress.md](docs/progress.md)
-- Architecture overview: [docs/technical/architecture.md](docs/technical/architecture.md)
-- Frontend structure: [docs/technical/frontend.md](docs/technical/frontend.md)
-- Repo structure: [docs/technical/repo.md](docs/technical/repo.md)
+- Progress tracker: [docs/progress.md](docs/progress.md)
 - Scout scoring details: [docs/scout-approach.md](docs/scout-approach.md)
-- Scout rules & LLM filtering: [docs/scout-rules.md](docs/scout-rules.md)
-- Scoring YAML reference: [docs/scoring-yaml.md](docs/scoring-yaml.md)
-- OpenAPI reference source: [docs/api/](docs/api/)
-- GitHub page source: [docs/site/](docs/site/)
+- Scout rules and LLM filtering: [docs/scout-rules.md](docs/scout-rules.md)
+- Technical architecture: [docs/technical/architecture.md](docs/technical/architecture.md)
+- OpenAPI reference: [docs/api/](docs/api/)
 
 ## Quick Start
 
@@ -35,24 +56,23 @@ npm run build
 npm run serve
 ```
 
-Open the server URL printed by `serve` (default `http://localhost:7474`).
+Open `http://localhost:7474` unless you changed the port.
 
-## CLI Commands
+## Main commands
 
 ```bash
-curatarr serve                      # Start API + UI server
-curatarr scan <path>                # Scan library files with ffprobe
-curatarr jf-sync                    # Sync Jellyfin library metadata to DB
-curatarr report [path]              # Print quality/report output
+curatarr serve
+curatarr scan <path>
+curatarr jf-sync
+curatarr report [path]
 ```
 
 ## Development
 
 ```bash
-npm run dev         # tsc watch + API + UI
-npm run dev:server  # tsc watch + API
-npm run dev:ui      # UI only
-npm run docs:api:build
+npm run dev
+npm run dev:server
+npm run dev:ui
 npm run test
 npm run test:e2e
 ```

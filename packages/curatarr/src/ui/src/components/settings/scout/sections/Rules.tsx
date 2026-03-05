@@ -15,8 +15,17 @@ export function Rules({
         className="rounded-lg border p-3 space-y-3"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
-        <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-          Scout Rules
+        <div
+          className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
+          style={{ color: '#8b87aa' }}
+        >
+          <span
+            className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
+            style={{ background: 'rgba(124,58,237,0.28)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.4)' }}
+          >
+            3
+          </span>
+          Scout Rules / Blockers
         </div>
         {scoutRulesDraft.length === 0 && (
           <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
@@ -30,8 +39,14 @@ export function Rules({
                 <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>
                   {rule.name}
                 </div>
-                <label className="inline-flex items-center gap-1.5 text-xs" style={{ color: 'var(--c-muted)' }}>
+                <label
+                  htmlFor={`scout-rule-enabled-${rule.id}`}
+                  className="inline-flex items-center gap-1.5 text-xs"
+                  style={{ color: 'var(--c-muted)' }}
+                >
                   <input
+                    id={`scout-rule-enabled-${rule.id}`}
+                    name={`scout-rule-enabled-${rule.id}`}
                     type="checkbox"
                     checked={rule.enabled}
                     onChange={(e) => updateScoutRule(rule.id, { enabled: e.target.checked })}
@@ -49,6 +64,7 @@ export function Rules({
                 </label>
                 <input
                   id={`scout-rule-priority-${rule.id}`}
+                  name={`scout-rule-priority-${rule.id}`}
                   type="number"
                   value={String(rule.priority)}
                   onChange={(e) => updateScoutRule(rule.id, { priority: Number(e.target.value || 0) })}
@@ -70,6 +86,7 @@ export function Rules({
                 </label>
                 <input
                   id={`scout-rule-intent-${rule.id}`}
+                  name={`scout-rule-intent-${rule.id}`}
                   type="text"
                   value={extractRuleDescription(rule.configText)}
                   onChange={(e) =>
@@ -89,6 +106,8 @@ export function Rules({
                   Advanced JSON
                 </summary>
                 <textarea
+                  id={`scout-rule-config-${rule.id}`}
+                  name={`scout-rule-config-${rule.id}`}
                   rows={5}
                   value={rule.configText}
                   onChange={(e) => updateScoutRule(rule.id, { configText: e.target.value })}
@@ -110,6 +129,7 @@ export function Rules({
                 </label>
                 <input
                   id={`scout-rule-name-${rule.id}`}
+                  name={`scout-rule-name-${rule.id}`}
                   type="text"
                   value={rule.name}
                   onChange={(e) => updateScoutRule(rule.id, { name: e.target.value })}

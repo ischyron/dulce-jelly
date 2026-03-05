@@ -24,6 +24,8 @@ export function LibraryRoots({
         {movieRoots.map((value, idx) => (
           <div key={`movie-root-${value || 'empty'}-${idx}`} className="flex items-center gap-2">
             <input
+              id={`movie-root-${idx}`}
+              name={`movieRoot-${idx}`}
               value={value}
               onChange={(e) => updateMovieRoot(idx, e.target.value)}
               placeholder="/media/Movies"

@@ -1,36 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw, ScanLine } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type ScanHistoryRun, api } from '../api/client';
 import { InfoHint } from '../components/InfoHint';
 import { ScanProgressModal } from '../components/shared/modals';
 
-const JF_SYNC_HOW_IT_WORKS = `Jellyfin Sync — how it works
-
-1. Fetches your entire movie library from Jellyfin in pages (100 items per batch).
-
-2. For each Jellyfin item, tries to find the matching local folder using 5 strategies (in order):
-   • Exact folder path match   → confidence 1.0
-   • IMDb ID match             → confidence 1.0
-   • Normalised title + year   → confidence 0.95
-   • Normalised title only     → confidence 0.75 (flags year diff)
-   • Fuzzy title (≥ 85% sim)  → confidence proportional
-
-3. Matched movies are enriched with Jellyfin metadata:
-   ratings, genres, IMDb/TMDb IDs, overview.
-
-4. Ambiguous matches (year mismatch, fuzzy title) are flagged
-   and visible on the Disambiguate page for manual review.
-
-5. Results stream live over SSE — progress is visible in the
-   modal that opens when you click "Sync from Jellyfin".
-
-A full sync of 1 000+ movies typically takes 20–60 seconds,
-depending on Jellyfin's response time.`;
-
 type ModalMode = 'scan' | 'sync' | null;
 
 export function Scan() {
+  const { t } = useTranslation('scan');
   const [modal, setModal] = useState<ModalMode>(null);
   const [scanPath, setScanPath] = useState('');
   const [jobs, setJobs] = useState(4);
@@ -83,36 +62,33 @@ export function Scan() {
     const note = (run.notes ?? '').trim();
     if (note) {
       if (note.toLowerCase().includes('all files already scanned')) {
-        return note.replace(/all files already scanned/i, 'No changes detected — all files already scanned');
+        return note.replace(/all files already scanned/i, t('history.noChanges'));
       }
       return note;
     }
-    if (run.finished_at) return 'Completed';
-    return 'In progress';
+    if (run.finished_at) return t('history.completed');
+    return t('history.inProgress');
   }
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
         <ScanLine size={20} style={{ color: 'var(--c-accent)' }} />
-        Scan &amp; Sync
+        {t('title')}
       </h1>
 
       {/* Scan section */}
       <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-5 space-y-4">
         <h2 className="font-semibold text-[#d4cfff] flex items-center gap-2">
           <ScanLine size={16} className="text-[#a78bfa]" />
-          Library Scan
+          {t('scanSection.title')}
         </h2>
-        <p className="text-sm text-[#8b87aa]">
-          Scan movie folders and video files (uses ffprobe on video files to refresh quality metadata). By default,
-          already scanned files are skipped. Enable "Force rescan all files" below to re-scan all files.
-        </p>
+        <p className="text-sm text-[#8b87aa]">{t('scanSection.description')}</p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2">
             <label htmlFor="scan-library-path" className="text-xs text-[#6b6888] block mb-1">
-              Library Path (leave blank to use saved Movies roots)
+              {t('scanSection.libraryPathLabel')}
             </label>
             <input
               id="scan-library-path"
@@ -125,7 +101,7 @@ export function Scan() {
           </div>
           <div>
             <label htmlFor="scan-workers" className="text-xs text-[#6b6888] block mb-1">
-              Workers
+              {t('scanSection.workersLabel')}
             </label>
             <input
               id="scan-workers"
@@ -146,12 +122,10 @@ export function Scan() {
             onChange={(e) => setRescan(e.target.checked)}
             className="accent-violet-600"
           />
-          Force rescan all files
+          {t('scanSection.forceRescan')}
         </label>
         <p className="text-xs -mt-2" style={{ color: 'var(--c-muted)' }}>
-          {rescan
-            ? 'Checked: full rescan (slower, runs ffprobe again on all video files).'
-            : 'Unchecked: incremental scan (faster, skips already scanned files).'}
+          {rescan ? t('scanSection.rescanChecked') : t('scanSection.rescanUnchecked')}
         </p>
 
         <button
@@ -161,7 +135,7 @@ export function Scan() {
           className="flex items-center gap-2 px-5 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ScanLine size={15} />
-          {scanRunning ? 'Scanning…' : rescan ? 'Start Full Rescan' : 'Start Incremental Scan'}
+          {scanRunning ? t('scanSection.scanning') : rescan ? t('scanSection.startRescan') : t('scanSection.startScan')}
         </button>
         {scanError && <p className="text-sm text-red-400 mt-1">{scanError}</p>}
       </div>
@@ -170,13 +144,18 @@ export function Scan() {
       <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-5 space-y-4">
         <h2 className="font-semibold text-[#d4cfff] flex items-center gap-2">
           <RefreshCw size={16} className="text-purple-400" />
-          Jellyfin Sync
-          <InfoHint label="How Jellyfin sync works" text={JF_SYNC_HOW_IT_WORKS} />
+          {t('syncSection.title')}
+          <InfoHint label={t('syncSection.hintLabel')} text={t('syncSection.guide')} />
         </h2>
-        <p className="text-sm text-[#8b87aa]">
-          Fetch movie metadata from Jellyfin (ratings, genres, IDs) and enrich the local database. Requires Jellyfin URL
-          and API key configured in Settings.
-        </p>
+        <div
+          className="rounded-xl border p-3 text-sm space-y-2"
+          style={{ borderColor: 'rgba(124,58,237,0.45)', background: 'linear-gradient(135deg, #191730, #111625)' }}
+        >
+          <p className="text-[#cdc3ff] font-medium">{t('syncSection.description')}</p>
+          <p className="text-[#8b87aa] text-xs">
+            Curatarr only stores decision-critical fields and always defers full metadata presentation to Jellyfin.
+          </p>
+        </div>
         <button
           type="button"
           onClick={triggerSync}
@@ -184,7 +163,7 @@ export function Scan() {
           className="flex items-center gap-2 px-5 py-2 bg-purple-700 hover:bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <RefreshCw size={15} />
-          {syncRunning ? 'Syncing…' : 'Sync from Jellyfin'}
+          {syncRunning ? t('syncSection.syncing') : t('syncSection.cta')}
         </button>
         {syncError && <p className="text-sm text-red-400 mt-1">{syncError}</p>}
       </div>
@@ -192,18 +171,18 @@ export function Scan() {
       {/* Scan history */}
       {histData?.runs && histData.runs.length > 0 && (
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-5">
-          <h2 className="font-semibold text-[#d4cfff] mb-3">Scan History</h2>
+          <h2 className="font-semibold text-[#d4cfff] mb-3">{t('history.title')}</h2>
           <div className="overflow-auto max-h-[26rem]">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-[#6b6888] border-b border-[#26263a]">
-                  <th className="pb-2 pr-4">Started</th>
-                  <th className="pb-2 pr-4">Folders</th>
-                  <th className="pb-2 pr-4">Files</th>
-                  <th className="pb-2 pr-4">OK</th>
-                  <th className="pb-2 pr-4">Errors</th>
-                  <th className="pb-2 pr-4">Duration</th>
-                  <th className="pb-2">Result</th>
+                  <th className="pb-2 pr-4">{t('history.started')}</th>
+                  <th className="pb-2 pr-4">{t('history.folders')}</th>
+                  <th className="pb-2 pr-4">{t('history.files')}</th>
+                  <th className="pb-2 pr-4">{t('history.ok')}</th>
+                  <th className="pb-2 pr-4">{t('history.errors')}</th>
+                  <th className="pb-2 pr-4">{t('history.duration')}</th>
+                  <th className="pb-2">{t('history.result')}</th>
                 </tr>
               </thead>
               <tbody>

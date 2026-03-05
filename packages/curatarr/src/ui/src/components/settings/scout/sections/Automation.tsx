@@ -16,10 +16,13 @@ export function Automation({ form, set, autoStatusData, runAutoScout, runPending
             Enabled
           </span>
           <label
+            htmlFor="scout-auto-enabled"
             className="w-full px-3 py-2 rounded-lg text-sm flex items-center gap-2 cursor-pointer"
             style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           >
             <input
+              id="scout-auto-enabled"
+              name="scoutAutoEnabled"
               type="checkbox"
               checked={(form.scoutAutoEnabled ?? 'false') === 'true'}
               onChange={(e) => set('scoutAutoEnabled', e.target.checked ? 'true' : 'false')}

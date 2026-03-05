@@ -1,0 +1,17 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "library": "Library",
+    "scoutQueue": "Scout Queue",
+    "scanSync": "Scan / Sync",
+    "disambiguate": "Disambiguate",
+    "verify": "Verify",
+    "settings": "Settings",
+    "general": "General",
+    "scout": "Scout"
+  },
+  "brand": {
+    "name": "CURATARR",
+    "logoAlt": "Curatarr logo"
+  }
+}

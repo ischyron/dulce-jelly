@@ -211,6 +211,7 @@ export function Disambiguate() {
                     <td className="px-4 py-2.5">
                       <div className="flex gap-2">
                         <button
+                          type="button"
                           onClick={() => reviewMut.mutate({ id: row.id, decision: 'confirm' })}
                           className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                           style={{ background: 'rgba(74,222,128,0.15)', color: '#4ade80' }}
@@ -219,6 +220,7 @@ export function Disambiguate() {
                           <Check size={12} /> Confirm
                         </button>
                         <button
+                          type="button"
                           onClick={() => reviewMut.mutate({ id: row.id, decision: 'reject' })}
                           className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium transition-colors"
                           style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171' }}
@@ -294,6 +296,7 @@ export function Disambiguate() {
                       <div className="flex flex-col items-start gap-1">
                         <div className="flex items-center gap-2">
                           <button
+                            type="button"
                             onClick={() => refreshUnmatched(m.id)}
                             disabled={refreshingMovieId === m.id}
                             className="inline-flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium border"

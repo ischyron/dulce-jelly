@@ -22,10 +22,15 @@ export function OrderedScoreRow({ fields, form, onChange }: OrderedScoreRowProps
         if (!meta) return null;
         return (
           <div key={key} className="flex items-center gap-2">
-            <label className="text-sm font-medium whitespace-nowrap min-w-[72px]" style={{ color: '#c4b5fd' }}>
+            <label
+              htmlFor={`ordered-score-${key}`}
+              className="text-sm font-medium whitespace-nowrap min-w-[72px]"
+              style={{ color: '#c4b5fd' }}
+            >
               {meta.label}
             </label>
             <input
+              id={`ordered-score-${key}`}
               type="number"
               value={form[key] ?? ''}
               onChange={(e) => onChange(key, e.target.value)}

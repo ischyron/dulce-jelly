@@ -40,10 +40,15 @@ export function Rules({
                 </label>
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#8b87aa' }}>
+                <label
+                  htmlFor={`scout-rule-priority-${rule.id}`}
+                  className="block text-xs mb-1"
+                  style={{ color: '#8b87aa' }}
+                >
                   Priority
                 </label>
                 <input
+                  id={`scout-rule-priority-${rule.id}`}
                   type="number"
                   value={String(rule.priority)}
                   onChange={(e) => updateScoutRule(rule.id, { priority: Number(e.target.value || 0) })}
@@ -56,10 +61,15 @@ export function Rules({
                 />
               </div>
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#8b87aa' }}>
+                <label
+                  htmlFor={`scout-rule-intent-${rule.id}`}
+                  className="block text-xs mb-1"
+                  style={{ color: '#8b87aa' }}
+                >
                   Rule Intent (Natural Text)
                 </label>
                 <input
+                  id={`scout-rule-intent-${rule.id}`}
                   type="text"
                   value={extractRuleDescription(rule.configText)}
                   onChange={(e) =>
@@ -91,10 +101,15 @@ export function Rules({
                 />
               </details>
               <div>
-                <label className="block text-xs mb-1" style={{ color: '#8b87aa' }}>
+                <label
+                  htmlFor={`scout-rule-name-${rule.id}`}
+                  className="block text-xs mb-1"
+                  style={{ color: '#8b87aa' }}
+                >
                   Rule Name
                 </label>
                 <input
+                  id={`scout-rule-name-${rule.id}`}
                   type="text"
                   value={rule.name}
                   onChange={(e) => updateScoutRule(rule.id, { name: e.target.value })}

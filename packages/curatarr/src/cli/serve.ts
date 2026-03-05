@@ -26,7 +26,7 @@ export function makeServeCommand(): Command {
     .option('-d, --db <path>', 'SQLite DB path', runtimeCfg.dbPath)
     .option('--host <host>', 'Bind host', runtimeCfg.host)
     .action(async (opts) => {
-      const port = parseInt(opts.port, 10);
+      const port = Number.parseInt(opts.port, 10);
       const dbPath = opts.db.replace(/^~/, os.homedir());
       const host = opts.host;
       ensureRuntimePaths(runtimeCfg);
@@ -38,7 +38,7 @@ export function makeServeCommand(): Command {
       const appRoot = path.resolve(__dirname, '../../../..');
       const distUiPath = path.resolve(appRoot, 'src/ui/dist');
 
-      console.log(`\nCuratarr Web UI`);
+      console.log('\nCuratarr Web UI');
       console.log(`  DB    : ${dbPath}`);
       console.log(`  UI    : ${distUiPath}`);
       console.log(`  Port  : ${port}`);
@@ -81,7 +81,7 @@ export function makeServeCommand(): Command {
 }
 
 function startJfSyncScheduler(db: CuratDb): void {
-  const intervalMin = parseInt(db.getSetting('jfSyncIntervalMin') ?? '30', 10);
+  const intervalMin = Number.parseInt(db.getSetting('jfSyncIntervalMin') ?? '30', 10);
   if (Number.isNaN(intervalMin) || intervalMin <= 0) {
     console.log('  JF Sync : Auto-sync disabled (interval = 0)');
     return;
@@ -97,7 +97,7 @@ function startJfSyncScheduler(db: CuratDb): void {
     const apiKey = db.getSetting('jellyfinApiKey') ?? '';
     if (!url || !apiKey) return; // JF not configured yet
 
-    const batchSize = parseInt(db.getSetting('jfSyncBatchSize') ?? '10', 10);
+    const batchSize = Number.parseInt(db.getSetting('jfSyncBatchSize') ?? '10', 10);
     console.log(`  [JF Sync] Scheduled sync (batch: ${batchSize})`);
 
     const signal = syncEmitter.start();
@@ -140,7 +140,7 @@ function startScoutScheduler(db: CuratDb): void {
     return;
   }
 
-  const intervalRaw = parseInt(db.getSetting('scoutAutoIntervalMin') ?? '60', 10);
+  const intervalRaw = Number.parseInt(db.getSetting('scoutAutoIntervalMin') ?? '60', 10);
   const intervalMin = Number.isFinite(intervalRaw) ? Math.max(5, Math.min(24 * 60, intervalRaw)) : 60;
   const intervalMs = intervalMin * 60 * 1000;
   console.log(`  Scout   : Auto-scout every ${intervalMin} min`);

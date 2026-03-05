@@ -15,7 +15,7 @@ function formatSize(bytes: number | null): string {
 }
 
 function clampBatchSize(raw: string | undefined): number {
-  const n = parseInt(raw ?? '10', 10);
+  const n = Number.parseInt(raw ?? '10', 10);
   if (!Number.isFinite(n)) return 10;
   return Math.max(1, Math.min(10, n));
 }
@@ -31,8 +31,8 @@ export function ScoutQueue() {
   });
 
   const settings = settingsData?.settings ?? {};
-  const seedMinCritic = parseFloat(settings.scoutMinCritic ?? '65');
-  const seedMinComm = parseFloat(settings.scoutMinCommunity ?? '7.0');
+  const seedMinCritic = Number.parseFloat(settings.scoutMinCritic ?? '65');
+  const seedMinComm = Number.parseFloat(settings.scoutMinCommunity ?? '7.0');
   const seedGenre = '';
   const maxBatch = clampBatchSize(settings.scoutSearchBatchSize);
 
@@ -197,13 +197,14 @@ export function ScoutQueue() {
         </h1>
 
         <div ref={genreRef} className="relative flex items-center gap-2 text-sm ml-4">
-          <label
+          <span
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
           >
             Genre
-          </label>
+          </span>
           <button
+            type="button"
             onClick={() => setGenreOpen((v) => !v)}
             className="px-2 py-1 rounded text-sm focus:outline-none"
             style={{
@@ -246,6 +247,7 @@ export function ScoutQueue() {
               {selectedGenres.map((g) => (
                 <button
                   key={g}
+                  type="button"
                   onClick={() => removeGenreFilter(g)}
                   className="px-2 py-0.5 rounded-full text-xs border"
                   style={{
@@ -264,12 +266,14 @@ export function ScoutQueue() {
 
         <div className="flex items-center gap-2 ml-4 text-sm">
           <label
+            htmlFor="scout-min-mc"
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
           >
             Min MC
           </label>
           <input
+            id="scout-min-mc"
             type="number"
             min={0}
             max={100}
@@ -282,12 +286,14 @@ export function ScoutQueue() {
 
         <div className="flex items-center gap-2 text-sm">
           <label
+            htmlFor="scout-min-imdb"
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
           >
             Min IMDb
           </label>
           <input
+            id="scout-min-imdb"
             type="number"
             min={0}
             max={10}
@@ -302,6 +308,7 @@ export function ScoutQueue() {
         {/* Reset to seeded defaults */}
         {(qMinCritic !== null || qMinCommunity !== null || qGenre !== null) && (
           <button
+            type="button"
             onClick={() => patch({ minCritic: null, minCommunity: null, genre: null })}
             className="text-xs px-2 py-1 rounded border font-semibold"
             style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
@@ -312,6 +319,7 @@ export function ScoutQueue() {
 
         {selectedBatch.length > 0 && (
           <button
+            type="button"
             onClick={openBatchModal}
             className="text-xs px-3 py-1 rounded font-medium"
             style={{ background: 'var(--c-accent)', color: 'white' }}
@@ -422,7 +430,11 @@ export function ScoutQueue() {
                     background: selectedId === c.id ? 'rgba(124,58,237,0.12)' : undefined,
                   }}
                 >
-                  <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                  <td
+                    className="px-2 py-2 text-center"
+                    onClick={(e) => e.stopPropagation()}
+                    onKeyDown={(e) => e.stopPropagation()}
+                  >
                     <label
                       className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
                       style={{ minWidth: 28, minHeight: 28 }}

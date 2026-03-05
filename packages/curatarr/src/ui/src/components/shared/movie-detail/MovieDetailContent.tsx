@@ -433,6 +433,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
 
             <div className="flex flex-wrap items-center gap-2 w-full" data-testid="movie-actions-row">
               <button
+                type="button"
                 onClick={triggerScoutAndJump}
                 disabled={scoutSearch.isPending}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-60"
@@ -443,6 +444,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 Scout Releases
               </button>
               <button
+                type="button"
                 onClick={() => jfRefreshMutation.mutate()}
                 disabled={jfRefreshMutation.isPending}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-50"
@@ -452,6 +454,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 Sync from Jellyfin
               </button>
               <button
+                type="button"
                 onClick={() => setShowDelete(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border"
                 style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#f87171', background: 'rgba(239,68,68,0.1)' }}
@@ -481,6 +484,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             </div>
             <div className="mt-2 flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => jfRefreshMutation.mutate()}
                 className="px-2 py-1 rounded text-[11px] border"
                 style={{ borderColor: 'rgba(248,113,113,0.45)', color: '#fecaca' }}
@@ -536,7 +540,11 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 }}
               >
                 {t}
-                <button onClick={() => removeTag(t)} className="opacity-70 hover:opacity-100 leading-none">
+                <button
+                  type="button"
+                  onClick={() => removeTag(t)}
+                  className="opacity-70 hover:opacity-100 leading-none"
+                >
                   ×
                 </button>
               </span>
@@ -562,6 +570,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               ))}
             </select>
             <button
+              type="button"
               onClick={addExistingTag}
               disabled={!selectedTag || patchMutation.isPending}
               className="px-2 py-1 rounded text-xs border disabled:opacity-50"
@@ -580,6 +589,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
             />
             <button
+              type="button"
               onClick={addNewTag}
               disabled={!addableTag || patchMutation.isPending}
               className="px-2 py-1 rounded text-xs border disabled:opacity-50"
@@ -606,6 +616,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             />
             <div className="mt-2 flex items-center gap-3">
               <button
+                type="button"
                 onClick={saveNotes}
                 disabled={patchMutation.isPending}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-60"
@@ -633,6 +644,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               Scout Releases
             </h3>
             <button
+              type="button"
               onClick={() => scoutSearch.mutate()}
               disabled={scoutSearch.isPending}
               className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50"

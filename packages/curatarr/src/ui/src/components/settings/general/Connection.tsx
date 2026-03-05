@@ -66,6 +66,7 @@ export function Connection({
       </div>
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={checkJellyfinHealth}
           disabled={checkingJellyfinHealth}
           className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm"

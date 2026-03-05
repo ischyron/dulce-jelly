@@ -14,11 +14,12 @@ export function Field({
 }: FieldProps) {
   return (
     <div>
-      <label className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
+      <label htmlFor={name} className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
         <span className="whitespace-nowrap">{label}</span>
         {tooltip && <InfoHint label={`${label} info`} text={tooltip} />}
       </label>
       <input
+        id={name}
         type={type}
         name={name}
         value={value}

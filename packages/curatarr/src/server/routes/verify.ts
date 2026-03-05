@@ -23,7 +23,7 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
     }
 
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
-    const concurrency = Math.max(1, Math.min(8, parseInt(String(body.concurrency ?? 3), 10)));
+    const concurrency = Math.max(1, Math.min(8, Number.parseInt(String(body.concurrency ?? 3), 10)));
     const fileIds = Array.isArray(body.fileIds) ? (body.fileIds as number[]) : undefined;
     const rescan = Boolean(body.rescan);
 
@@ -96,8 +96,8 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
 
   // GET /api/verify/failures?page=1&limit=50
   app.get('/failures', (c) => {
-    const page = Math.max(1, parseInt(c.req.query('page') ?? '1', 10));
-    const limit = Math.min(200, Math.max(1, parseInt(c.req.query('limit') ?? '50', 10)));
+    const page = Math.max(1, Number.parseInt(c.req.query('page') ?? '1', 10));
+    const limit = Math.min(200, Math.max(1, Number.parseInt(c.req.query('limit') ?? '50', 10)));
     const offset = (page - 1) * limit;
     const failures = db.getFailedVerifyFiles(limit, offset);
     const total = db.getFailedVerifyCount();

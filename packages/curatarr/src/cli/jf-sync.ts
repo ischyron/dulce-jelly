@@ -34,7 +34,7 @@ export function makeJfSyncCommand(): Command {
       }
       const jfClient = new JellyfinClient(url, apiKey);
 
-      console.log(`\nJF sync`);
+      console.log('\nJF sync');
       console.log(`  DB   : ${dbPath}`);
       console.log(`  JF   : ${url}`);
       console.log('');

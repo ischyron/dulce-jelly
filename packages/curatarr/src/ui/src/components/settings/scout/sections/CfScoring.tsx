@@ -134,10 +134,15 @@ export function CfScoring({
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-3 items-end">
             <div>
-              <label className="text-sm font-medium mb-1 block" style={{ color: '#c4b5fd' }}>
+              <label
+                htmlFor="bitrate-profile-select"
+                className="text-sm font-medium mb-1 block"
+                style={{ color: '#c4b5fd' }}
+              >
                 Profile
               </label>
               <select
+                id="bitrate-profile-select"
                 value={bitrateProfileId}
                 onChange={(e) => setBitrateProfileId(e.target.value as typeof bitrateProfileId)}
                 className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none"

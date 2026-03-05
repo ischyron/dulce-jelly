@@ -179,6 +179,7 @@ export function Verify() {
 
           {!running ? (
             <button
+              type="button"
               onClick={startVerify}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white"
               style={{ background: 'var(--c-accent)' }}
@@ -188,6 +189,7 @@ export function Verify() {
             </button>
           ) : (
             <button
+              type="button"
               onClick={cancelVerify}
               className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border"
               style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', borderColor: 'rgba(248,113,113,0.3)' }}
@@ -346,6 +348,7 @@ export function Verify() {
               </span>
               <div className="flex gap-2">
                 <button
+                  type="button"
                   onClick={() => setFailPage((p) => Math.max(1, p - 1))}
                   disabled={failPage === 1}
                   className="px-2 py-1 rounded disabled:opacity-40"
@@ -354,6 +357,7 @@ export function Verify() {
                   Prev
                 </button>
                 <button
+                  type="button"
                   onClick={() => setFailPage((p) => p + 1)}
                   disabled={failPage >= Math.ceil(failData.total / failData.limit)}
                   className="px-2 py-1 rounded disabled:opacity-40"

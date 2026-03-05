@@ -91,7 +91,7 @@ function getClientProfile(): string {
 
 export function ResolutionBadge({ resolution }: { resolution?: string | null }) {
   if (!resolution) return null;
-  const cls = resColors[resolution] ?? resColors['other'];
+  const cls = resColors[resolution] ?? resColors.other;
   return <span className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${cls}`}>{resolution}</span>;
 }
 
@@ -341,6 +341,7 @@ export function QualityFlagsBadge({
             border: '1px solid var(--c-border)',
           }}
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
         >
           {/* Header */}
           <div

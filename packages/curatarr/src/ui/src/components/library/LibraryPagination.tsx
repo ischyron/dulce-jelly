@@ -18,6 +18,7 @@ export function LibraryPagination({ page, totalPages, limit, total, onChangePage
     >
       <div className="flex items-center gap-2.5">
         <button
+          type="button"
           onClick={() => onChangePage(Math.max(1, page - 1))}
           disabled={page <= 1}
           className="flex items-center gap-1 px-3 py-1.5 rounded text-sm disabled:opacity-40"
@@ -38,6 +39,7 @@ export function LibraryPagination({ page, totalPages, limit, total, onChangePage
         </div>
 
         <button
+          type="button"
           onClick={() => onChangePage(Math.min(totalPages, page + 1))}
           disabled={page >= totalPages}
           className="flex items-center gap-1 px-3 py-1.5 rounded text-sm disabled:opacity-40"

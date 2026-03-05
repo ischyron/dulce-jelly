@@ -80,7 +80,7 @@ export const api = {
 
   movies: (params?: Record<string, string | number | boolean>) => {
     const qs = params
-      ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))
+      ? `?${new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))}`
       : '';
     return req<MoviesResponse>(`/movies${qs}`);
   },
@@ -116,7 +116,7 @@ export const api = {
 
   candidates: (params?: Record<string, string | number>) => {
     const qs = params
-      ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))
+      ? `?${new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))}`
       : '';
     return req<CandidatesResponse>(`/candidates${qs}`);
   },
@@ -164,14 +164,13 @@ export const api = {
 
   health: (params?: { url?: string; apiKey?: string; prowlarrUrl?: string; prowlarrApiKey?: string }) => {
     const qs = params
-      ? '?' +
-        new URLSearchParams(
+      ? `?${new URLSearchParams(
           Object.fromEntries(
             Object.entries(params)
               .filter(([, v]) => v)
-              .map(([k, v]) => [k, v!]),
+              .map(([k, v]) => [k, v as string]),
           ),
-        )
+        )}`
       : '';
     return req<{
       jellyfin: { ok: boolean; libraries?: number; error?: string };
@@ -220,7 +219,7 @@ export const api = {
 
   verifyFailures: (params?: { page?: number; limit?: number }) => {
     const qs = params
-      ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))
+      ? `?${new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))}`
       : '';
     return req<VerifyFailuresResponse>(`/verify/failures${qs}`);
   },

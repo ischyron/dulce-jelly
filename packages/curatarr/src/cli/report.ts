@@ -33,9 +33,9 @@ export function makeReportCommand(): Command {
       const db = new CuratDb(dbPath);
 
       const showAll = Boolean(opts.all);
-      const minMc = parseFloat(opts.minMc);
-      const minImdb = parseFloat(opts.minImdb);
-      const limit = parseInt(opts.limit, 10);
+      const minMc = Number.parseFloat(opts.minMc);
+      const minImdb = Number.parseFloat(opts.minImdb);
+      const limit = Number.parseInt(opts.limit, 10);
 
       // Always show status
       printStatus(db);

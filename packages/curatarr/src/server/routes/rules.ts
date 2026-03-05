@@ -6,7 +6,7 @@ function validateRuleConfig(category: string, config: unknown): string | null {
     const c = (config ?? {}) as Record<string, unknown>;
     const matchType = c.matchType === 'regex' ? 'regex' : c.matchType === 'string' ? 'string' : '';
     const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
-    const score = Number(c.score ?? NaN);
+    const score = Number(c.score ?? Number.NaN);
     if (!matchType) return 'scout_custom_cf requires matchType: regex|string';
     if (!pattern) return 'scout_custom_cf requires a non-empty pattern';
     if (!Number.isFinite(score)) return 'scout_custom_cf requires numeric score';
@@ -78,7 +78,7 @@ export function makeRulesRoutes(db: CuratDb): Hono {
 
   // DELETE /api/rules/:id
   app.delete('/:id', (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+    const id = Number.parseInt(c.req.param('id'), 10);
     const deleted = db.deleteRule(id);
     return deleted ? c.json({ deleted: true }) : c.json({ error: 'not found' }, 404);
   });

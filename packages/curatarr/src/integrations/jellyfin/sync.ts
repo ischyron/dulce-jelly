@@ -77,7 +77,7 @@ function disResultToMatchResult(
   jf: JfMovie,
 ): MatchResult | undefined {
   if (!result.match) return undefined;
-  const movie = dbMovies.find((m) => m.id === result.match!.movieId);
+  const movie = dbMovies.find((m) => m.id === result.match?.movieId);
   if (!movie) return undefined;
 
   let ambiguous: AmbiguousMatch | undefined;
@@ -177,9 +177,7 @@ export async function syncJellyfin(jfClient: JellyfinClient, db: CuratDb, opts: 
       const amb = matchResult.ambiguous;
       const filePart = amb.jfFilePath ? path.basename(amb.jfFilePath) : '';
       result.errors.push(
-        `[${amb.reason}] folder: "${amb.dbFolderName}" (year:${amb.dbParsedYear ?? '?'})` +
-          ` | jellyfin: "${amb.jfTitle}" (year:${amb.jfYear ?? '?'})` +
-          (filePart ? ` | file: "${filePart}"` : ''),
+        `[${amb.reason}] folder: "${amb.dbFolderName}" (year:${amb.dbParsedYear ?? '?'}) | jellyfin: "${amb.jfTitle}" (year:${amb.jfYear ?? '?'})${filePart ? ` | file: "${filePart}"` : ''}`,
       );
     }
 

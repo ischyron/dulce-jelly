@@ -4,6 +4,14 @@ LLM-assisted media curation for Jellyfin libraries.
 
 Curatarr is a Node/TypeScript app with a Hono API + React UI that focuses on library scanning, metadata sync, disambiguation, verification, and scout workflows. It keeps Prowlarr as the indexer integration layer.
 
+## Vision & Values
+
+- **Quality authenticity first**: judge files by ffprobe metrics, bitrate sanity, and release provenance instead of filenames alone.
+- **Transparent automation**: every decision is inspectable (SSE progress, audit logs, deterministic config) with user-confirmed grabs as the default.
+- **Self-host reliability**: *arr-compatible defaults, portable paths, no OS-specific assumptions, and Docker-first deployment.
+- **Open media ecosystem alignment**: interop with Jellyfin/Prowlarr/SABnzbd/qBittorrent; avoid bespoke lock-in.
+- **Enthusiast-friendly UX**: bookmarkable filters, parity between API and UI, and clarity around warnings (AV1/DV compatibility, HDR correctness).
+
 ## Docs
 
 - Vision: [docs/VISION.md](docs/VISION.md)

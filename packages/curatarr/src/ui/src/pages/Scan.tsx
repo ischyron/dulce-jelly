@@ -111,10 +111,11 @@ export function Scan() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2">
-            <label className="text-xs text-[#6b6888] block mb-1">
+            <label htmlFor="scan-library-path" className="text-xs text-[#6b6888] block mb-1">
               Library Path (leave blank to use saved Movies roots)
             </label>
             <input
+              id="scan-library-path"
               type="text"
               placeholder="e.g. /media/Movies"
               value={scanPath}
@@ -123,8 +124,11 @@ export function Scan() {
             />
           </div>
           <div>
-            <label className="text-xs text-[#6b6888] block mb-1">Workers</label>
+            <label htmlFor="scan-workers" className="text-xs text-[#6b6888] block mb-1">
+              Workers
+            </label>
             <input
+              id="scan-workers"
               type="number"
               min={1}
               max={16}
@@ -151,6 +155,7 @@ export function Scan() {
         </p>
 
         <button
+          type="button"
           onClick={triggerScan}
           disabled={scanRunning}
           className="flex items-center gap-2 px-5 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
@@ -173,6 +178,7 @@ export function Scan() {
           and API key configured in Settings.
         </p>
         <button
+          type="button"
           onClick={triggerSync}
           disabled={syncRunning}
           className="flex items-center gap-2 px-5 py-2 bg-purple-700 hover:bg-purple-600 text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"

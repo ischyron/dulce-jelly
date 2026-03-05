@@ -21,7 +21,7 @@ export function makeScanCommand(): Command {
     .action(async (rawPath: string, opts) => {
       const libraryPath = path.resolve(rawPath.replace(/^~/, os.homedir()));
       const dbPath = opts.db.replace(/^~/, os.homedir());
-      const jobs = parseInt(opts.jobs, 10);
+      const jobs = Number.parseInt(opts.jobs, 10);
       const rescan = Boolean(opts.rescan);
       const dryRun = Boolean(opts.dryRun);
 
@@ -55,10 +55,7 @@ export function makeScanCommand(): Command {
           const eta = p.currentRate > 0 ? Math.round((p.foldersTotal - p.foldersDone) / p.currentRate) : null;
 
           process.stdout.write(
-            `\r  [${String(p.filesProcessed).padStart(5)}] ` +
-              `${p.currentRate.toFixed(1)} f/s  ` +
-              `ok=${p.filesOk}  err=${p.filesErrored}  ` +
-              `${eta != null ? `ETA ~${eta}s` : ''}   `.padEnd(20),
+            `\r  [${String(p.filesProcessed).padStart(5)}] ${p.currentRate.toFixed(1)} f/s  ok=${p.filesOk}  err=${p.filesErrored}  ${`${eta != null ? `ETA ~${eta}s` : ''}   `.padEnd(20)}`,
           );
         },
       });

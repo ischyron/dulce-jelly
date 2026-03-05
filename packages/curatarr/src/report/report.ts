@@ -32,7 +32,7 @@ export function printStatus(db: CuratDb): void {
   );
 
   if (lastRun) {
-    console.log(`\n── Last Scan ──────────────────────────────────────────────`);
+    console.log('\n── Last Scan ──────────────────────────────────────────────');
     console.log(`  Root         : ${lastRun.root_path}`);
     console.log(`  Started      : ${lastRun.started_at}`);
     console.log(`  Duration     : ${lastRun.duration_sec != null ? `${lastRun.duration_sec.toFixed(0)}s` : 'running'}`);
@@ -90,16 +90,9 @@ export function printUpgradeCandidates(
   console.log('  (LQ release groups + community rating ≥ 7.0, resolution ≤ 1080p)');
   console.log('');
   console.log(
-    '  ' +
-      'Title'.padEnd(42) +
-      'Year'.padEnd(6) +
-      'Res'.padEnd(8) +
-      'Codec'.padEnd(8) +
-      'Group'.padEnd(14) +
-      'MC'.padEnd(6) +
-      'IMDb',
+    `  ${'Title'.padEnd(42)}${'Year'.padEnd(6)}${'Res'.padEnd(8)}${'Codec'.padEnd(8)}${'Group'.padEnd(14)}${'MC'.padEnd(6)}IMDb`,
   );
-  console.log('  ' + '─'.repeat(100));
+  console.log(`  ${'─'.repeat(100)}`);
 
   for (const row of candidates) {
     const title = (row.jellyfin_title ?? row.parsed_title ?? row.folder_name).slice(0, 40);
@@ -181,8 +174,8 @@ export function printSuspiciousFiles(db: CuratDb, limit = 30): void {
 
   console.log(`\n── Suspicious Files (low MB/min for claimed resolution) ──── top ${rows.length}`);
   console.log('');
-  console.log('  ' + 'Movie'.padEnd(42) + 'Res'.padEnd(8) + 'MB/min'.padEnd(10) + 'Expected'.padEnd(12) + 'Codec');
-  console.log('  ' + '─'.repeat(90));
+  console.log(`  ${'Movie'.padEnd(42)}${'Res'.padEnd(8)}${'MB/min'.padEnd(10)}${'Expected'.padEnd(12)}Codec`);
+  console.log(`  ${'─'.repeat(90)}`);
 
   for (const row of rows) {
     const movie = (row.movie_folder ?? '?').slice(0, 40).padEnd(42);

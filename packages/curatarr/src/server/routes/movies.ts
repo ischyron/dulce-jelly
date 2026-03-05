@@ -85,9 +85,9 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
 
   // GET /api/movies?page=1&limit=50&resolution=1080p&codec=h264&search=title
   app.get('/', (c) => {
-    const page = Math.max(1, parseInt(c.req.query('page') ?? '1', 10));
+    const page = Math.max(1, Number.parseInt(c.req.query('page') ?? '1', 10));
     const showAll = c.req.query('showAll') === 'true' || c.req.query('all') === '1';
-    const limit = showAll ? 100000 : Math.min(200, Math.max(1, parseInt(c.req.query('limit') ?? '50', 10)));
+    const limit = showAll ? 100000 : Math.min(200, Math.max(1, Number.parseInt(c.req.query('limit') ?? '50', 10)));
     const offset = showAll ? 0 : (page - 1) * limit;
     const resolution = c.req.query('resolution');
     const codec = c.req.query('codec');
@@ -241,7 +241,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
           ELSE 5
         END ASC,
         LENGTH(${titleExpr}) ASC,
-        ${orderMap[sortBy] ?? orderMap['quality']}`;
+        ${orderMap[sortBy] ?? orderMap.quality}`;
       bindings.push(
         searchNorm,
         `% ${searchNorm} %`,
@@ -251,7 +251,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
         `%${searchNorm}%`,
       );
     } else {
-      sql += ` ORDER BY ${orderMap[sortBy] ?? orderMap['quality']}`;
+      sql += ` ORDER BY ${orderMap[sortBy] ?? orderMap.quality}`;
     }
     sql += ' LIMIT ? OFFSET ?';
     bindings.push(limit, offset);
@@ -334,7 +334,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
 
   // GET /api/movies/:id
   app.get('/:id', (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+    const id = Number.parseInt(c.req.param('id'), 10);
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
     const files = db.getFilesForMovie(id);
@@ -364,7 +364,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
 
   // PATCH /api/movies/:id  { tags?: string[]; notes?: string }
   app.patch('/:id', async (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+    const id = Number.parseInt(c.req.param('id'), 10);
     const body = (await c.req.json()) as { tags?: unknown; notes?: unknown };
 
     const tags = Array.isArray(body.tags) ? (body.tags as string[]).filter((t) => typeof t === 'string') : undefined;
@@ -390,7 +390,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
 
   // GET /api/movies/:id/folder-contents — list files on disk (for delete confirm)
   app.get('/:id/folder-contents', (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+    const id = Number.parseInt(c.req.param('id'), 10);
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
     const folderExists =
@@ -411,7 +411,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
   // DELETE /api/movies/:id  { mode: 'files' | 'folder' }
   // Deletes video files (or entire folder) from disk, then removes the DB record.
   app.delete('/:id', async (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+    const id = Number.parseInt(c.req.param('id'), 10);
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
 
@@ -450,7 +450,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
 
   // POST /api/movies/:id/jf-refresh — re-fetch from Jellyfin using stored jellyfin_id
   app.post('/:id/jf-refresh', async (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+    const id = Number.parseInt(c.req.param('id'), 10);
     const movie = db.getMovieById(id);
     if (!movie) return c.json({ error: 'not found' }, 404);
     const url = db.getSetting('jellyfinUrl') ?? '';
@@ -530,7 +530,8 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
         overview: jf.Overview,
         jellyfinPath: jf.Path,
       });
-      const updated = db.getMovieById(id)!;
+      const updated = db.getMovieById(id);
+      if (!updated) return c.json({ error: 'not_found' }, 404);
       return c.json({ updated: true, movie: updated });
     } catch (err) {
       return c.json({ error: 'jellyfin_error', detail: (err as Error).message }, 502);

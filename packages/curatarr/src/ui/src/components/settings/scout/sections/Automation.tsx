@@ -12,9 +12,9 @@ export function Automation({ form, set, autoStatusData, runAutoScout, runPending
       </p>
       <div className="grid grid-cols-3 gap-3">
         <div>
-          <label className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>
+          <span className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>
             Enabled
-          </label>
+          </span>
           <label
             className="w-full px-3 py-2 rounded-lg text-sm flex items-center gap-2 cursor-pointer"
             style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}

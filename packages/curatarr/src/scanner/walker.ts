@@ -39,7 +39,7 @@ export interface MovieFolder {
 export function parseFolderName(folderName: string): { title: string; year: number | undefined } {
   const match = folderName.match(/^(.+?)\s*\((\d{4})\)\s*$/);
   if (match) {
-    return { title: match[1].trim(), year: parseInt(match[2], 10) };
+    return { title: match[1].trim(), year: Number.parseInt(match[2], 10) };
   }
   return { title: folderName, year: undefined };
 }

@@ -174,6 +174,7 @@ export function LibraryFilterBar({
           Genre
         </span>
         <button
+          type="button"
           onClick={() => setGenreFilterOpen((v) => !v)}
           className="px-2 py-1 text-xs rounded border"
           style={{ borderColor: 'var(--c-border)', color: selectedGenres.length ? '#c4b5fd' : 'var(--c-muted)' }}
@@ -212,6 +213,7 @@ export function LibraryFilterBar({
             {selectedGenres.map((genre) => (
               <button
                 key={genre}
+                type="button"
                 onClick={() => onRemoveGenreFilter(genre)}
                 className="px-2 py-0.5 rounded-full text-xs border"
                 style={{ color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }}
@@ -237,6 +239,7 @@ export function LibraryFilterBar({
         {RESOLUTION_OPTIONS.map((item) => (
           <button
             key={item}
+            type="button"
             onClick={() => onToggleResolution(item)}
             className="px-2 py-1 text-xs rounded border transition-colors"
             style={
@@ -263,6 +266,7 @@ export function LibraryFilterBar({
         {CODEC_OPTIONS.map((item) => (
           <button
             key={item}
+            type="button"
             onClick={() => onToggleCodec(item)}
             className="px-2 py-1 text-xs rounded border transition-colors"
             style={
@@ -402,6 +406,7 @@ export function LibraryFilterBar({
           Tag
         </span>
         <button
+          type="button"
           onClick={() => setTagFilterOpen((v) => !v)}
           className="px-2 py-1 text-xs rounded border"
           style={{ borderColor: 'var(--c-border)', color: selectedTags.length ? '#c4b5fd' : 'var(--c-muted)' }}
@@ -440,6 +445,7 @@ export function LibraryFilterBar({
             {selectedTags.map((tag) => (
               <button
                 key={tag}
+                type="button"
                 onClick={() => onRemoveFilterTag(tag)}
                 className="px-2 py-0.5 rounded-full text-xs border"
                 style={{ color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }}
@@ -499,6 +505,7 @@ export function LibraryFilterBar({
 
       {hasNonDefaultView && (
         <button
+          type="button"
           onClick={onResetView}
           className="text-xs px-2 py-1 rounded border font-semibold"
           style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
@@ -524,6 +531,7 @@ export function LibraryFilterBar({
         {selectedCount > 0 && (
           <>
             <button
+              type="button"
               onClick={onOpenAddTagsModal}
               className="px-2 py-1 rounded border text-xs"
               style={{ borderColor: 'var(--c-border)', color: '#a7f3d0', background: 'rgba(16,185,129,0.12)' }}
@@ -532,6 +540,7 @@ export function LibraryFilterBar({
               Tags + ({selectedCount})
             </button>
             <button
+              type="button"
               onClick={onOpenRemoveTagsModal}
               className="px-2 py-1 rounded border text-xs"
               style={{ borderColor: 'var(--c-border)', color: '#fca5a5', background: 'rgba(239,68,68,0.1)' }}
@@ -540,6 +549,7 @@ export function LibraryFilterBar({
               Tags -
             </button>
             <button
+              type="button"
               onClick={onRemoveSelectedFromIndex}
               disabled={removePending}
               className="px-2 py-1 rounded border text-xs disabled:opacity-60"

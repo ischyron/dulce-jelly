@@ -170,18 +170,18 @@ export function applySchema(db: Database.Database): void {
     db.exec(`ALTER TABLE movies ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'`);
   }
   if (!moviesCols.includes('notes')) {
-    db.exec(`ALTER TABLE movies ADD COLUMN notes TEXT`);
+    db.exec('ALTER TABLE movies ADD COLUMN notes TEXT');
   }
 
   const filesCols = (db.pragma('table_info(files)') as { name: string }[]).map((c) => c.name);
   if (!filesCols.includes('verify_status')) {
-    db.exec(`ALTER TABLE files ADD COLUMN verify_status TEXT`);
+    db.exec('ALTER TABLE files ADD COLUMN verify_status TEXT');
   }
   if (!filesCols.includes('verify_errors')) {
-    db.exec(`ALTER TABLE files ADD COLUMN verify_errors TEXT`);
+    db.exec('ALTER TABLE files ADD COLUMN verify_errors TEXT');
   }
   if (!filesCols.includes('verified_at')) {
-    db.exec(`ALTER TABLE files ADD COLUMN verified_at TEXT`);
+    db.exec('ALTER TABLE files ADD COLUMN verified_at TEXT');
   }
 
   // v8: quality analytics flags per file

@@ -11,7 +11,19 @@ export function RemoveIndexModal({ open, selectedCount, pending, onClose, onConf
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60"
+        role="button"
+        tabIndex={0}
+        aria-label="Close"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+      />
       <div
         role="dialog"
         aria-modal="true"
@@ -30,6 +42,7 @@ export function RemoveIndexModal({ open, selectedCount, pending, onClose, onConf
         </div>
         <div className="flex justify-end gap-2 pt-1">
           <button
+            type="button"
             onClick={onClose}
             className="px-3 py-1.5 rounded text-xs border"
             style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
@@ -37,6 +50,7 @@ export function RemoveIndexModal({ open, selectedCount, pending, onClose, onConf
             Cancel
           </button>
           <button
+            type="button"
             onClick={onConfirm}
             disabled={pending}
             className="px-3 py-1.5 rounded text-xs border disabled:opacity-40"

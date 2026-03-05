@@ -29,7 +29,7 @@ export function ExtendedLlmRuleset({
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
         <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-          Extended release filter (LLM ruleset)
+          Extended release filter LLM ruleset
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           This is over and above deterministic CF scoring. It builds a final LLM ruleset prompt for dropping weak

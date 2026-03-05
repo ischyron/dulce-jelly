@@ -40,7 +40,19 @@ export function DeleteConfirmModal({ movieId, movieTitle, onDeleted, onClose }: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60"
+        role="button"
+        tabIndex={0}
+        aria-label="Close"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+      />
 
       <div
         className="relative w-full max-w-lg rounded-xl border shadow-2xl"
@@ -55,7 +67,7 @@ export function DeleteConfirmModal({ movieId, movieTitle, onDeleted, onClose }: 
             <Trash2 size={16} />
             Delete Movie
           </div>
-          <button onClick={onClose} style={{ color: 'var(--c-muted)' }}>
+          <button type="button" onClick={onClose} style={{ color: 'var(--c-muted)' }}>
             <X size={18} />
           </button>
         </div>
@@ -191,6 +203,7 @@ export function DeleteConfirmModal({ movieId, movieTitle, onDeleted, onClose }: 
           style={{ borderColor: 'var(--c-border)' }}
         >
           <button
+            type="button"
             onClick={onClose}
             className="px-4 py-2 rounded-lg text-sm"
             style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
@@ -198,6 +211,7 @@ export function DeleteConfirmModal({ movieId, movieTitle, onDeleted, onClose }: 
             Cancel
           </button>
           <button
+            type="button"
             onClick={() => deleteMutation.mutate()}
             disabled={deleteMutation.isPending || isLoading}
             className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"

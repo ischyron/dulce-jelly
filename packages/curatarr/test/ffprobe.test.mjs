@@ -217,7 +217,7 @@ test('probes a real file (integration)', { skip: !existsSync(REAL_FILE) }, async
   // YTS 2160p files are typically 6-20 MB/min — check sanity
   assert.ok(result.mbPerMinute < 100, `mbPerMinute=${result.mbPerMinute} seems too high`);
 
-  console.log(`  Real file probe:`);
+  console.log('  Real file probe:');
   console.log(`    Resolution : ${result.resolution} (${result.resolutionCat})`);
   console.log(`    Codec      : ${result.videoCodec} ${result.bitDepth}bit`);
   console.log(`    HDR        : ${result.hdrFormats.join(', ') || 'none'}`);

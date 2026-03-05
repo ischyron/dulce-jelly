@@ -101,12 +101,12 @@ function toText(v: unknown): string {
 }
 
 function toInt(raw: string | undefined, fallback: number): number {
-  const v = parseInt(raw ?? '', 10);
+  const v = Number.parseInt(raw ?? '', 10);
   return Number.isFinite(v) ? v : fallback;
 }
 
 function toFloat(raw: string | undefined, fallback: number): number {
-  const v = parseFloat(raw ?? '');
+  const v = Number.parseFloat(raw ?? '');
   return Number.isFinite(v) ? v : fallback;
 }
 
@@ -414,7 +414,7 @@ async function fetchRadarrCustomFormatScores(url: string, apiKey: string): Promi
   const scoreByName = new Map<string, number>();
   for (const profile of profiles) {
     for (const item of profile.formatItems ?? []) {
-      const id = typeof item.format === 'number' ? item.format : NaN;
+      const id = typeof item.format === 'number' ? item.format : Number.NaN;
       const name = nameById.get(id);
       if (!name) continue;
       const score = Number(item.score ?? 0);
@@ -839,7 +839,7 @@ function getTrashSyncDetails(db: CuratDb): TrashSyncDetailsResponse {
   const source = db.getSetting('scoutTrashSyncSource') ?? '';
   const revisionRaw = db.getSetting('scoutTrashSyncRevision') ?? '';
   const syncedAtRaw = db.getSetting('scoutTrashSyncedAt') ?? '';
-  const rulesSyncedRaw = parseInt(db.getSetting('scoutTrashSyncedRules') ?? '0', 10);
+  const rulesSyncedRaw = Number.parseInt(db.getSetting('scoutTrashSyncedRules') ?? '0', 10);
   const warning = db.getSetting('scoutTrashSyncWarning') ?? '';
   return {
     meta: {
@@ -924,13 +924,13 @@ function buildScoutRefinementDraft(
 }
 
 function intSetting(db: CuratDb, key: string, fallback: number, min: number, max: number): number {
-  const raw = parseInt(db.getSetting(key) ?? '', 10);
+  const raw = Number.parseInt(db.getSetting(key) ?? '', 10);
   if (!Number.isFinite(raw)) return fallback;
   return Math.max(min, Math.min(max, raw));
 }
 
 function floatSetting(db: CuratDb, key: string, fallback: number, min: number, max: number): number {
-  const raw = parseFloat(db.getSetting(key) ?? '');
+  const raw = Number.parseFloat(db.getSetting(key) ?? '');
   if (!Number.isFinite(raw)) return fallback;
   return Math.max(min, Math.min(max, raw));
 }
@@ -1173,7 +1173,7 @@ function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | n
 }
 
 function configuredBatchCap(db: CuratDb): number {
-  const raw = parseInt(db.getSetting('scoutSearchBatchSize') ?? '10', 10);
+  const raw = Number.parseInt(db.getSetting('scoutSearchBatchSize') ?? '10', 10);
   if (!Number.isFinite(raw)) return 10;
   return Math.max(1, Math.min(10, raw));
 }
@@ -1239,14 +1239,14 @@ function toPriorityScore(mc: number | null, imdb: number | null): number {
 }
 
 function configuredCooldownMin(db: CuratDb): number {
-  const raw = parseInt(db.getSetting('scoutAutoCooldownMin') ?? '240', 10);
+  const raw = Number.parseInt(db.getSetting('scoutAutoCooldownMin') ?? '240', 10);
   if (!Number.isFinite(raw)) return 240;
   return Math.max(5, Math.min(24 * 60, raw));
 }
 
 function pickAutoMovieIds(db: CuratDb, cap: number): { ids: number[]; skippedByCooldown: number } {
-  const minCritic = parseFloat(db.getSetting('scoutMinCritic') ?? '65');
-  const minCommunity = parseFloat(db.getSetting('scoutMinCommunity') ?? '7.0');
+  const minCritic = Number.parseFloat(db.getSetting('scoutMinCritic') ?? '65');
+  const minCommunity = Number.parseFloat(db.getSetting('scoutMinCommunity') ?? '7.0');
   const pool = db.getUpgradeCandidates({
     maxResolution: '2160p',
     minCriticRating: Number.isFinite(minCritic) ? minCritic : 65,

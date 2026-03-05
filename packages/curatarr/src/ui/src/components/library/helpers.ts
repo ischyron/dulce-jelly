@@ -27,7 +27,7 @@ export function getSearchParam(params: URLSearchParams, key: string, fallback: s
 
 export function getSearchParamInteger(params: URLSearchParams, key: string, fallback: number): number {
   const v = params.get(key);
-  const n = v ? parseInt(v, 10) : Number.NaN;
+  const n = v ? Number.parseInt(v, 10) : Number.NaN;
   return Number.isNaN(n) ? fallback : n;
 }
 

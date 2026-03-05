@@ -8,10 +8,12 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
 
   // GET /api/candidates?minCritic=60&minCommunity=6&maxResolution=1080p&limit=100
   app.get('/', (c) => {
-    const minCritic = c.req.query('minCritic') ? parseFloat(c.req.query('minCritic')!) : undefined;
-    const minCommunity = c.req.query('minCommunity') ? parseFloat(c.req.query('minCommunity')!) : undefined;
+    const minCriticRaw = c.req.query('minCritic');
+    const minCommunityRaw = c.req.query('minCommunity');
+    const minCritic = minCriticRaw ? Number.parseFloat(minCriticRaw) : undefined;
+    const minCommunity = minCommunityRaw ? Number.parseFloat(minCommunityRaw) : undefined;
     const maxResolution = c.req.query('maxResolution') ?? undefined;
-    const limit = parseInt(c.req.query('limit') ?? '100', 10);
+    const limit = Number.parseInt(c.req.query('limit') ?? '100', 10);
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
     const genre = c.req.query('genre') ?? undefined;
     const genres = (genre ?? '')

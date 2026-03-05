@@ -52,7 +52,19 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <div className="flex-1 bg-black/50" onClick={onClose} />
+      <div
+        className="flex-1 bg-black/50"
+        role="button"
+        tabIndex={0}
+        aria-label="Close"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+      />
       <aside
         ref={asideRef}
         role="dialog"
@@ -83,6 +95,7 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
               <ExternalLink size={13} />
             </Link>
             <button
+              type="button"
               ref={closeBtnRef}
               aria-label="Close movie detail drawer"
               data-testid="movie-drawer-close"

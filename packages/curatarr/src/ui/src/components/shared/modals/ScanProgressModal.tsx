@@ -142,7 +142,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
             {mode === 'scan' ? 'Library Scan' : 'Jellyfin Sync'}
             {cancelled && <span className="text-amber-400 text-sm font-normal ml-2">— cancelled</span>}
           </h2>
-          <button onClick={onClose} className="text-[#8b87aa] hover:text-[#f0eeff]">
+          <button type="button" onClick={onClose} className="text-[#8b87aa] hover:text-[#f0eeff]">
             <X size={18} />
           </button>
         </div>
@@ -247,6 +247,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
         <div className="p-4 border-t border-[#26263a] flex items-center justify-between shrink-0">
           {!done && hasCancelSupport && (
             <button
+              type="button"
               onClick={stopScan}
               disabled={stopping}
               className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-800 text-red-300 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
@@ -264,6 +265,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
           )}
           {done && (
             <button
+              type="button"
               onClick={onClose}
               className="ml-auto px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium"
             >

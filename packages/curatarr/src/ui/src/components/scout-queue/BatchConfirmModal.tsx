@@ -29,7 +29,7 @@ export function BatchConfirmModal({ open, selectedRows, maxBatch, isPending, onC
           <h2 className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>
             Scout Batch Confirmation
           </h2>
-          <button onClick={onClose} style={{ color: 'var(--c-muted)' }}>
+          <button type="button" onClick={onClose} style={{ color: 'var(--c-muted)' }}>
             <X size={16} />
           </button>
         </div>
@@ -72,6 +72,7 @@ export function BatchConfirmModal({ open, selectedRows, maxBatch, isPending, onC
           </span>
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={onClose}
               className="px-3 py-1.5 rounded text-xs"
               style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
@@ -79,6 +80,7 @@ export function BatchConfirmModal({ open, selectedRows, maxBatch, isPending, onC
               Cancel
             </button>
             <button
+              type="button"
               onClick={onConfirm}
               disabled={isPending}
               className="px-3 py-1.5 rounded text-xs font-medium text-white disabled:opacity-60"

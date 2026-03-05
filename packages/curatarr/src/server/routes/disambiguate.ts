@@ -91,7 +91,7 @@ export function makeDisambiguateRoutes(db: CuratDb): Hono {
 
   // POST /api/disambiguate/:id/review  { decision: 'confirm' | 'reject' }
   app.post('/:id/review', async (c) => {
-    const id = parseInt(c.req.param('id'), 10);
+    const id = Number.parseInt(c.req.param('id'), 10);
     if (Number.isNaN(id)) return c.json({ error: 'Invalid id' }, 400);
 
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;

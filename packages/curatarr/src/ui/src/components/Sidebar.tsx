@@ -51,7 +51,7 @@ export function Sidebar() {
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative ` + (isActive ? 'border-r-2' : '')
+              `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative ${isActive ? 'border-r-2' : ''}`
             }
             style={({ isActive }) =>
               isActive

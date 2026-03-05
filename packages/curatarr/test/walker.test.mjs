@@ -97,7 +97,7 @@ test(
     console.log(`  Walked ${folderCount} folders (first 20)`);
     console.log(`  Total video files: ${totalVideoFiles}`);
     console.log(`  Folders with parsed year: ${foldersWithYear}`);
-    console.log(`  Sample folders:`);
+    console.log('  Sample folders:');
     for (const f of sampleFolders) {
       console.log(`    "${f.folderName}" → title="${f.parsedTitle}" year=${f.parsedYear} files=${f.videoFiles.length}`);
     }

@@ -5,13 +5,18 @@ import { MovieDetailContent } from '../components/shared/movie-detail';
 export function Movie() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const movieId = parseInt(id ?? '0', 10);
+  const movieId = Number.parseInt(id ?? '0', 10);
 
   if (!movieId) {
     return (
       <div className="p-8">
         <div className="text-red-400 mb-4">Movie not found.</div>
-        <button onClick={() => navigate(-1)} className="text-sm underline" style={{ color: 'var(--c-muted)' }}>
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="text-sm underline"
+          style={{ color: 'var(--c-muted)' }}
+        >
           ← Back
         </button>
       </div>

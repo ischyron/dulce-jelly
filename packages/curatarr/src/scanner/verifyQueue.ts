@@ -22,7 +22,7 @@ export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): P
   let files: FileRow[];
   if (opts.fileIds && opts.fileIds.length > 0) {
     const all = db.getAllFiles();
-    files = all.filter((f) => opts.fileIds!.includes(f.id));
+    files = all.filter((f) => opts.fileIds?.includes(f.id));
     if (!opts.rescan) {
       files = files.filter((f) => f.verify_status == null || f.verify_status === 'pending');
     }

@@ -21,7 +21,7 @@ export function MaskedKeyField({ label, name, maskedValue, value, onChange, hint
 
   return (
     <div>
-      <label className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>
+      <label htmlFor={name} className="block text-sm font-medium mb-1" style={{ color: '#c4b5fd' }}>
         {label}
       </label>
 
@@ -60,12 +60,12 @@ export function MaskedKeyField({ label, name, maskedValue, value, onChange, hint
         <div className="flex items-center gap-2">
           <div className="relative flex-1">
             <input
+              id={name}
               type={revealed ? 'text' : 'password'}
               name={name}
               value={value}
               onChange={(e) => onChange(e.target.value)}
               placeholder={hasKey ? 'Type new key to replace…' : 'Paste API key…'}
-              autoFocus={editing}
               className="w-full px-3 py-2 rounded-lg text-sm focus:outline-none pr-9"
               style={inputStyle}
               onFocus={(e) => {

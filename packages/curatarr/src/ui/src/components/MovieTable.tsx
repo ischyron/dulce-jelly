@@ -1,4 +1,4 @@
-import { type Movie } from '../api/client';
+import type { Movie } from '../api/client';
 import { InfoHint } from './InfoHint';
 import { CodecBadge, HdrBadge, ResolutionBadge } from './QualityBadge';
 
@@ -47,11 +47,16 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
           {movies.map((m) => (
             <tr
               key={m.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(m.id)}
-              className={
-                `border-b border-[#26263a]/60 cursor-pointer transition-colors hover:bg-[#1e1e2e]/40 ` +
-                (selectedId === m.id ? 'bg-indigo-900/20' : '')
-              }
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onSelect(m.id);
+                }
+              }}
+              className={`border-b border-[#26263a]/60 cursor-pointer transition-colors hover:bg-[#1e1e2e]/40 ${selectedId === m.id ? 'bg-indigo-900/20' : ''}`}
             >
               <td className="px-3 py-2 max-w-xs">
                 <span className="truncate block font-medium text-[#f0eeff]">

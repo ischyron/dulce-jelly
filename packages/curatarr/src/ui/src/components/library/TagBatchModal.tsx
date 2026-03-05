@@ -39,7 +39,19 @@ export function TagBatchModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60"
+        role="button"
+        tabIndex={0}
+        aria-label="Close"
+        onClick={onClose}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onClose();
+          }
+        }}
+      />
       <div
         className="relative w-[560px] max-w-[92vw] rounded-xl border p-4 space-y-3"
         style={{ background: 'var(--c-bg)', borderColor: 'var(--c-border)' }}
@@ -72,6 +84,7 @@ export function TagBatchModal({
           </select>
 
           <button
+            type="button"
             onClick={onAddPicked}
             disabled={!tagPick}
             className="px-2 py-1 text-xs rounded border disabled:opacity-40"
@@ -93,6 +106,7 @@ export function TagBatchModal({
                 style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
               />
               <button
+                type="button"
                 onClick={onAddInput}
                 disabled={!tagInput.trim()}
                 className="px-2 py-1 text-xs rounded border disabled:opacity-40"
@@ -108,6 +122,7 @@ export function TagBatchModal({
           {batchTags.map((tag) => (
             <button
               key={tag}
+              type="button"
               onClick={() => onRemoveBatchTag(tag)}
               className="px-2 py-0.5 rounded-full text-xs border"
               style={
@@ -128,6 +143,7 @@ export function TagBatchModal({
 
         <div className="flex justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
             className="px-3 py-1.5 rounded text-xs border"
             style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
@@ -135,6 +151,7 @@ export function TagBatchModal({
             Cancel
           </button>
           <button
+            type="button"
             onClick={onApply}
             disabled={batchTags.length === 0 || pending}
             className="px-3 py-1.5 rounded text-xs border disabled:opacity-40"

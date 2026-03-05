@@ -8,10 +8,11 @@ export function LlmProvider({ form, set }: LlmProviderSectionProps) {
         LLM Provider (Optional)
       </h2>
       <div className="space-y-1">
-        <label className="text-sm font-medium" style={{ color: '#c4b5fd' }}>
+        <label htmlFor="llm-provider-display" className="text-sm font-medium" style={{ color: '#c4b5fd' }}>
           Provider
         </label>
         <input
+          id="llm-provider-display"
           value="openai"
           disabled
           className="w-full px-3 py-2 rounded-lg text-sm opacity-85 cursor-not-allowed"

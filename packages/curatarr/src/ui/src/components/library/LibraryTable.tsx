@@ -240,6 +240,7 @@ export function LibraryTable({
                 className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
                 style={{ minWidth: 28, minHeight: 28 }}
                 onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
               >
                 <input
                   type="checkbox"

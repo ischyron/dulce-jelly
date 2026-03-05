@@ -44,8 +44,8 @@ const DTS_DISORDER = /non monoton|DTS .{0,60}, next:.{0,60}invalid|out of order 
 function parseDtsMagnitude(line: string): number | null {
   const m = line.match(/DTS\s+([-\d.]+),\s*next:([-\d.]+)/i);
   if (!m) return null;
-  const cur = parseFloat(m[1]);
-  const nxt = parseFloat(m[2]);
+  const cur = Number.parseFloat(m[1]);
+  const nxt = Number.parseFloat(m[2]);
   return Number.isNaN(cur) || Number.isNaN(nxt) ? null : Math.abs(nxt - cur);
 }
 
@@ -106,7 +106,7 @@ async function analyzeGop(filePath: string): Promise<QualityFlag[]> {
         const parts = line.trim().split(',');
         if (parts.length < 2) continue;
         const packetFlags = parts[0];
-        const ptsTime = parseFloat(parts[1]);
+        const ptsTime = Number.parseFloat(parts[1]);
         if (packetFlags.startsWith('K') && !Number.isNaN(ptsTime)) {
           keyframeTimes.push(ptsTime);
         }

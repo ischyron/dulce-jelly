@@ -4,6 +4,14 @@
 > **Branch**: `feat/nzb-search-module`
 > **Working name**: Curatarr (open to alternatives)
 
+## Core Values (2026 refresh)
+
+- **Authenticity over claims** — trust ffprobe metrics, size-to-quality sanity, and release provenance before labels.
+- **Human-in-the-loop safety** — default to user-confirmed grabs and explainability for every automatic action.
+- **Open-source alignment** — embrace Jellyfin/Prowlarr/SABnzbd/qBittorrent patterns; no closed dependencies or opaque heuristics.
+- **Resilience for self-hosters** — deterministic configs, portable paths, safe deletes, and observable long-running jobs (SSE + logs).
+- **Enthusiast UX** — bookmarkable filters, parity between API and UI counts, and compatibility guidance (AV1/DV/HDR) surfaced up front.
+
 ## Executive Summary
 
 **Curatarr** is an LLM-backed media acquisition and library management system focused on replacing Radarr/Recyclarr decision logic with a single intelligent system while retaining Prowlarr as the indexer manager.

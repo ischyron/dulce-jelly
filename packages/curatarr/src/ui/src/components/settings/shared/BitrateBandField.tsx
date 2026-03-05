@@ -38,7 +38,11 @@ export function BitrateBandField({
 
   return (
     <div>
-      <label className="text-sm font-medium mb-1 flex items-center gap-1.5" style={{ color: '#c4b5fd' }}>
+      <label
+        htmlFor={minName}
+        className="text-sm font-medium mb-1 flex items-center gap-1.5"
+        style={{ color: '#c4b5fd' }}
+      >
         <span className="whitespace-nowrap">{label}</span>
         {tooltip && <InfoHint label={`${label} info`} text={tooltip} />}
       </label>
@@ -49,6 +53,7 @@ export function BitrateBandField({
           </div>
           <div className="flex items-center gap-3">
             <input
+              id={minName}
               type="range"
               name={minName}
               min={minLimit}

@@ -33,6 +33,7 @@ export function Prowlarr({
       />
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={checkProwlarrHealth}
           disabled={checkingProwlarrHealth}
           className="flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm"

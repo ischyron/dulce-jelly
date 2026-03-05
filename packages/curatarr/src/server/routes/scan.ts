@@ -19,7 +19,7 @@ export function makeScanRoutes(db: CuratDb): Hono {
 
     const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const requestedPath = typeof body.path === 'string' ? body.path : '';
-    const jobs = Math.max(1, parseInt(String(body.jobs ?? Math.floor(os.cpus().length / 2)), 10));
+    const jobs = Math.max(1, Number.parseInt(String(body.jobs ?? Math.floor(os.cpus().length / 2)), 10));
     const rescan = Boolean(body.rescan);
 
     const configuredRoots = parseLibraryRootsJson(db.getSetting('libraryRoots'));

@@ -151,7 +151,7 @@ function detectHdrFormats(videoStream: FfStream): string[] {
 function detectBitDepth(stream: FfStream): number {
   // bits_per_raw_sample is most reliable
   if (stream.bits_per_raw_sample) {
-    const n = parseInt(stream.bits_per_raw_sample, 10);
+    const n = Number.parseInt(stream.bits_per_raw_sample, 10);
     if (!Number.isNaN(n)) return n;
   }
   // Fall back to pix_fmt
@@ -184,8 +184,8 @@ function parseFrameRate(s?: string): number | undefined {
   if (!s || s === '0/0') return undefined;
   const parts = s.split('/');
   if (parts.length !== 2) return undefined;
-  const num = parseFloat(parts[0]);
-  const den = parseFloat(parts[1]);
+  const num = Number.parseFloat(parts[0]);
+  const den = Number.parseFloat(parts[1]);
   if (!den) return undefined;
   return Math.round((num / den) * 1000) / 1000;
 }
@@ -219,8 +219,8 @@ export function parseProbeOutput(raw: string): ProbeResult {
   // ── Format level ──────────────────────────────────────────────
   const fmt = data.format;
   result.container = normaliseContainer(fmt.format_name);
-  result.fileSize = fmt.size ? parseInt(fmt.size, 10) : undefined;
-  result.duration = fmt.duration ? parseFloat(fmt.duration) : undefined;
+  result.fileSize = fmt.size ? Number.parseInt(fmt.size, 10) : undefined;
+  result.duration = fmt.duration ? Number.parseFloat(fmt.duration) : undefined;
 
   // ── Video stream ──────────────────────────────────────────────
   const videoStream = data.streams.find((s) => s.codec_type === 'video' && s.codec_name !== 'mjpeg');
@@ -243,8 +243,8 @@ export function parseProbeOutput(raw: string): ProbeResult {
     }
 
     // Bitrate: prefer stream bit_rate, fall back to format bit_rate
-    const streamBr = videoStream.bit_rate ? parseInt(videoStream.bit_rate, 10) : NaN;
-    const fmtBr = fmt.bit_rate ? parseInt(fmt.bit_rate, 10) : NaN;
+    const streamBr = videoStream.bit_rate ? Number.parseInt(videoStream.bit_rate, 10) : Number.NaN;
+    const fmtBr = fmt.bit_rate ? Number.parseInt(fmt.bit_rate, 10) : Number.NaN;
     const br = !Number.isNaN(streamBr) && streamBr > 0 ? streamBr : fmtBr;
     if (!Number.isNaN(br) && br > 0) result.videoBitrate = Math.round(br / 1000); // → kbps
   }
@@ -260,7 +260,7 @@ export function parseProbeOutput(raw: string): ProbeResult {
     result.audioProfile = primaryAudio.profile ?? undefined;
     result.audioChannels = primaryAudio.channels;
     result.audioLayout = primaryAudio.channel_layout;
-    const abr = primaryAudio.bit_rate ? parseInt(primaryAudio.bit_rate, 10) : 0;
+    const abr = primaryAudio.bit_rate ? Number.parseInt(primaryAudio.bit_rate, 10) : 0;
     result.audioBitrate = Number.isNaN(abr) ? 0 : Math.round(abr / 1000);
   }
 
@@ -272,7 +272,7 @@ export function parseProbeOutput(raw: string): ProbeResult {
     channelLayout: s.channel_layout ?? '',
     language: s.tags?.language ?? s.tags?.LANGUAGE ?? 'und',
     isDefault: s.disposition?.default === 1,
-    bitrate: s.bit_rate ? Math.round(parseInt(s.bit_rate, 10) / 1000) : 0,
+    bitrate: s.bit_rate ? Math.round(Number.parseInt(s.bit_rate, 10) / 1000) : 0,
   }));
 
   // ── Subtitle streams ──────────────────────────────────────────

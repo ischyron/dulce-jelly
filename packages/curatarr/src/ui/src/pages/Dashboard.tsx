@@ -87,6 +87,7 @@ export function Dashboard() {
         </h1>
         <div className="flex flex-col items-end gap-1">
           <button
+            type="button"
             onClick={triggerDashboardScan}
             disabled={scanLaunching}
             className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-60 text-white rounded-lg text-sm font-medium"
@@ -148,7 +149,12 @@ export function Dashboard() {
             <div className="flex items-center gap-2 mb-2 text-sm text-[#a78bfa]">
               <Film size={16} />
               <span>Movies</span>
-              <span className="pointer-events-auto" onClick={(e) => e.stopPropagation()}>
+              <span
+                className="pointer-events-auto"
+                role="presentation"
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+              >
                 <InfoHint
                   label="Movies info"
                   text="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."
@@ -226,7 +232,7 @@ export function Dashboard() {
               <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
               <span className="text-[#8b87aa]">Dolby Vision</span>
             </Link>
-            {(data.codecDist['av1'] ?? 0) > 0 && (
+            {(data.codecDist.av1 ?? 0) > 0 && (
               <>
                 <span className="text-[#26263a]">·</span>
                 <Link
@@ -234,13 +240,13 @@ export function Dashboard() {
                   className="hover:underline inline-flex items-center gap-1"
                   title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library"
                 >
-                  <span className="text-emerald-400 font-semibold">{data.codecDist['av1']}</span>
+                  <span className="text-emerald-400 font-semibold">{data.codecDist.av1}</span>
                   <span className="text-[#8b87aa]">AV1</span>
                   <span className="text-amber-400 text-xs">⚠ compat</span>
                 </Link>
               </>
             )}
-            {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0) > 0 && (
+            {(data.codecDist.mpeg4 ?? 0) + (data.codecDist.mpeg2video ?? 0) > 0 && (
               <>
                 <span className="text-[#26263a]">·</span>
                 <Link
@@ -249,7 +255,7 @@ export function Dashboard() {
                   title="Legacy codec — click to filter in Library"
                 >
                   <span className="text-orange-400 font-semibold">
-                    {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)}
+                    {(data.codecDist.mpeg4 ?? 0) + (data.codecDist.mpeg2video ?? 0)}
                   </span>
                   <span className="text-[#8b87aa]">legacy codec</span>
                 </Link>

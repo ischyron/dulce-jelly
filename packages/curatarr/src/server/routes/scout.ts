@@ -2,6 +2,11 @@ import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { ProwlarrClient, type ProwlarrSearchResult } from '../../integrations/prowlarr/client.js';
 import { getScoutDefaultSettings } from '../../shared/scoutDefaults.js';
+import {
+  TRASH_DECLARATIVE_MODEL_VERSION,
+  buildTrashDeclarativeMappingSnapshot,
+  buildTrashDeclarativeSettings,
+} from '../scout/trashDeclarativeModel.js';
 
 interface ScoredRelease extends ProwlarrSearchResult {
   score: number;
@@ -139,58 +144,33 @@ const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
   llmWeakDropDelta: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineLlmWeakDropDelta, 40),
 };
 
-const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
-  scoutPipelineBasicResolutionScore: '6',
-  scoutPipelineBasicVideoScore: '5',
-  scoutPipelineBasicAudioScore: '4',
-  scoutPipelineBitrateTargetMbps: '18',
-  scoutPipelineBitrateTolerancePct: '40',
-  scoutPipelineBitrateMaxScore: '12',
-  scoutPipelineTrashRes2160: '46',
-  scoutPipelineTrashRes1080: '24',
-  scoutPipelineTrashRes720: '8',
-  scoutPipelineTrashSourceRemux: '34',
-  scoutPipelineTrashSourceBluray: '22',
-  scoutPipelineTrashSourceWebdl: '14',
-  scoutPipelineTrashCodecHevc: '22',
-  scoutPipelineTrashCodecAv1: '12',
-  scoutPipelineTrashCodecH264: '6',
-  scoutPipelineTrashAudioAtmos: '10',
-  scoutPipelineTrashAudioTruehd: '8',
-  scoutPipelineTrashAudioDts: '6',
-  scoutPipelineTrashAudioDdp: '5',
-  scoutPipelineTrashAudioAc3: '2',
-  scoutPipelineTrashAudioAac: '1',
-  scoutPipelineTrashLegacyPenalty: '40',
-  scoutPipelineTrashSeedersDivisor: '25',
-  scoutPipelineTrashSeedersBonusCap: '10',
-  scoutPipelineTrashUsenetBonus: '10',
-  scoutPipelineTrashTorrentBonus: '0',
-  scoutPipelineLlmTieDelta: '10',
-  scoutPipelineLlmWeakDropDelta: '40',
-};
+const TRASH_SCOUT_BASELINE_SETTINGS = buildTrashDeclarativeSettings();
 
 interface ScoutRuleSeed {
   name: string;
   priority: number;
   config: Record<string, unknown>;
+  enabled?: boolean;
 }
 
 const SCOUT_LLM_RULESET_BASELINE: ScoutRuleSeed[] = [
   {
-    name: 'Drop CAM/TS releases',
+    name: 'Flag exceptional titles for Remux review',
     priority: 1,
-    config: { sentence: 'Drop CAM, TS, and telesync releases.' },
+    enabled: false,
+    config: {
+      sentence:
+        'When deterministic scores are close, flag true cultural-landmark titles where Remux is justified and ask for explicit confirmation before selecting it.',
+    },
   },
   {
-    name: 'Prefer usenet for close ties',
+    name: 'Prefer original-language audio in close ties',
     priority: 2,
-    config: { sentence: 'Prefer usenet in close ties.' },
-  },
-  {
-    name: 'Avoid AV1 on weak client profiles',
-    priority: 3,
-    config: { sentence: 'Avoid AV1 when compatibility is uncertain.' },
+    enabled: false,
+    config: {
+      sentence:
+        'For non-English originals, prefer releases that include the original language audio track, and rank dub-only releases lower when tie-break decisions are needed.',
+    },
   },
 ];
 
@@ -221,12 +201,17 @@ interface TrashSyncDetailsResponse {
   meta: {
     source: string;
     revision: string | null;
+    modelVersion: string;
+    mappingRevision: string;
     syncedAt: string | null;
     rulesSynced: number;
+    appliedCount: number;
     warning?: string;
   };
   applied: {
     settings: Record<string, string>;
+    mappings: Array<{ key: string; trashLabel: string; value: string }>;
+    changes: Array<{ key: string; before: string | null; after: string }>;
     rules: TrashAppliedRuleSnapshot[];
   };
   upstream: TrashUpstreamSnapshot | null;
@@ -290,69 +275,16 @@ const SCOUT_RULE_BASELINE: ScoutRuleSeed[] = [
     },
   },
   {
-    name: 'Prefer verified groups in close-score ties',
-    priority: 12,
-    config: {
-      kind: 'tiebreaker',
-      thresholdDelta: 250,
-      prefer: 'verified_group',
-      over: 'unknown_group',
-      reason: 'Reduces fake-quality and mislabeled encodes.',
-    },
-  },
-  {
-    name: 'Prefer lower playback-risk in close-score ties',
-    priority: 13,
-    config: {
-      kind: 'tiebreaker',
-      thresholdDelta: 200,
-      prefer: 'lower_playback_risk',
-      reason: 'Avoid high transcode load and weak client compatibility.',
-    },
-  },
-  {
-    name: 'Prefer DD+/EAC3 over DTS-HD MA in close-score ties',
-    priority: 14,
-    config: {
-      kind: 'tiebreaker',
-      thresholdDelta: 200,
-      prefer: ['dd+', 'eac3'],
-      over: ['dts-hd-ma'],
-      reason: 'Better passthrough compatibility on common TV clients.',
-    },
-  },
-  {
-    name: 'Prefer Dolby Vision in close-score ties',
-    priority: 15,
-    config: {
-      kind: 'tiebreaker',
-      thresholdDelta: 300,
-      prefer: 'dolby_vision',
-      guard: 'skip_if_non_high_repute_remux',
-      reason: 'DV is meaningful when source integrity is reliable.',
-    },
-  },
-  {
     name: 'Prefer original-language releases over dub-only',
-    priority: 16,
+    priority: 12,
     config: {
       kind: 'hard_filter',
       description: 'Drop releases that do not include original-language audio when original-language options exist.',
     },
   },
   {
-    name: 'De-prioritize AV1 for weak client support',
-    priority: 17,
-    config: {
-      kind: 'tiebreaker',
-      condition: 'client_profile_without_av1_hw_decode',
-      penaltyHint: 'codec_av1',
-      reason: 'Avoid avoidable transcode load.',
-    },
-  },
-  {
     name: 'Usenet-first within comparable quality bands',
-    priority: 18,
+    priority: 13,
     config: {
       kind: 'tiebreaker',
       thresholdDelta: 200,
@@ -361,14 +293,19 @@ const SCOUT_RULE_BASELINE: ScoutRuleSeed[] = [
       reason: 'Improves reliability in typical stacks.',
     },
   },
+];
+
+const SCOUT_CUSTOM_CF_BASELINE: ScoutRuleSeed[] = [
   {
-    name: 'Escalate exceptional titles for remux review',
-    priority: 19,
+    name: 'Trusted Remux group boost',
+    priority: 1,
+    enabled: false,
     config: {
-      kind: 'escalation',
-      trigger: 'mc>=85_and_high_repute_remux_available',
-      action: 'manual_confirm',
-      reason: 'Landmark titles can justify remux despite storage cost.',
+      matchType: 'regex',
+      pattern: '\\b(framestor|cinephiles)\\b',
+      score: 8,
+      flags: 'i',
+      appliesTo: 'title',
     },
   },
 ];
@@ -748,17 +685,17 @@ function applySettings(db: CuratDb, values: Record<string, string>): void {
   }
 }
 
-function ensureScoutRuleBaseline(db: CuratDb): number[] {
-  const existing = db.getRules('scout');
+function upsertRuleSeedCategory(db: CuratDb, category: string, seeds: ScoutRuleSeed[]): number[] {
+  const existing = db.getRules(category);
   const existingByName = new Map(existing.map((r) => [r.name, r]));
   const saved: number[] = [];
-  for (const seed of SCOUT_RULE_BASELINE) {
+  for (const seed of seeds) {
     const prev = existingByName.get(seed.name);
     const id = db.upsertRule({
       id: prev?.id,
-      category: 'scout',
+      category,
       name: seed.name,
-      enabled: prev ? prev.enabled !== 0 : true,
+      enabled: prev ? prev.enabled !== 0 : (seed.enabled ?? true),
       priority: prev?.priority ?? seed.priority,
       config: prev ? (safeParseJson(prev.config) as object) : seed.config,
     });
@@ -767,23 +704,28 @@ function ensureScoutRuleBaseline(db: CuratDb): number[] {
   return saved;
 }
 
+function ensureScoutRuleBaseline(db: CuratDb): number[] {
+  return upsertRuleSeedCategory(db, 'scout', SCOUT_RULE_BASELINE);
+}
+
 function ensureScoutLlmRulesetBaseline(db: CuratDb): number[] {
-  const existing = db.getRules('scout_llm_ruleset');
-  const existingByName = new Map(existing.map((r) => [r.name, r]));
-  const saved: number[] = [];
-  for (const seed of SCOUT_LLM_RULESET_BASELINE) {
-    const prev = existingByName.get(seed.name);
-    const id = db.upsertRule({
-      id: prev?.id,
-      category: 'scout_llm_ruleset',
-      name: seed.name,
-      enabled: prev ? prev.enabled !== 0 : true,
-      priority: prev?.priority ?? seed.priority,
-      config: prev ? (safeParseJson(prev.config) as object) : seed.config,
-    });
-    saved.push(id);
+  return upsertRuleSeedCategory(db, 'scout_llm_ruleset', SCOUT_LLM_RULESET_BASELINE);
+}
+
+function ensureScoutCustomCfBaseline(db: CuratDb): number[] {
+  return upsertRuleSeedCategory(db, 'scout_custom_cf', SCOUT_CUSTOM_CF_BASELINE);
+}
+
+function seedScoutExampleRulesOnce(db: CuratDb): void {
+  if (db.getSetting('scout_examples_v1_seeded') === '1') return;
+
+  if (db.getRules('scout_llm_ruleset').length === 0) {
+    ensureScoutLlmRulesetBaseline(db);
   }
-  return saved;
+  if (db.getRules('scout_custom_cf').length === 0) {
+    ensureScoutCustomCfBaseline(db);
+  }
+  db.setSetting('scout_examples_v1_seeded', '1');
 }
 
 async function fetchTrashGuidesRevision(): Promise<{
@@ -898,22 +840,52 @@ function parseJsonSetting<T>(db: CuratDb, key: string, fallback: T): T {
   }
 }
 
+function buildSettingChanges(
+  db: CuratDb,
+  nextValues: Record<string, string>,
+): Array<{ key: string; before: string | null; after: string }> {
+  const changes: Array<{ key: string; before: string | null; after: string }> = [];
+  for (const [key, after] of Object.entries(nextValues)) {
+    const before = db.getSetting(key);
+    if (before !== after) {
+      changes.push({ key, before: before ?? null, after });
+    }
+  }
+  return changes.sort((a, b) => a.key.localeCompare(b.key));
+}
+
 function getTrashSyncDetails(db: CuratDb): TrashSyncDetailsResponse {
   const source = db.getSetting('scoutTrashSyncSource') ?? '';
   const revisionRaw = db.getSetting('scoutTrashSyncRevision') ?? '';
+  const modelVersion = db.getSetting('scoutTrashSyncModelVersion') ?? TRASH_DECLARATIVE_MODEL_VERSION;
+  const mappingRevision = db.getSetting('scoutTrashMappingRevision') ?? TRASH_DECLARATIVE_MODEL_VERSION;
   const syncedAtRaw = db.getSetting('scoutTrashSyncedAt') ?? '';
   const rulesSyncedRaw = Number.parseInt(db.getSetting('scoutTrashSyncedRules') ?? '0', 10);
+  const appliedCountRaw = Number.parseInt(db.getSetting('scoutTrashAppliedCount') ?? '0', 10);
   const warning = db.getSetting('scoutTrashSyncWarning') ?? '';
   return {
     meta: {
       source: source || 'TRaSH-Guides',
       revision: revisionRaw || null,
+      modelVersion,
+      mappingRevision,
       syncedAt: syncedAtRaw || null,
       rulesSynced: Number.isFinite(rulesSyncedRaw) ? rulesSyncedRaw : 0,
+      appliedCount: Number.isFinite(appliedCountRaw) ? appliedCountRaw : 0,
       warning: warning || undefined,
     },
     applied: {
       settings: parseJsonSetting<Record<string, string>>(db, 'scoutTrashAppliedSettingsJson', {}),
+      mappings: parseJsonSetting<Array<{ key: string; trashLabel: string; value: string }>>(
+        db,
+        'scoutTrashAppliedMappingsJson',
+        [],
+      ),
+      changes: parseJsonSetting<Array<{ key: string; before: string | null; after: string }>>(
+        db,
+        'scoutTrashAppliedChangesJson',
+        [],
+      ),
       rules: parseJsonSetting<TrashAppliedRuleSnapshot[]>(db, 'scoutTrashAppliedRulesJson', []),
     },
     upstream: parseJsonSetting<TrashUpstreamSnapshot | null>(db, 'scoutTrashUpstreamSnapshotJson', null),
@@ -1373,15 +1345,17 @@ export async function runScoutAutoBatch(db: CuratDb, trigger: 'manual' | 'schedu
 
 export function makeScoutRoutes(db: CuratDb): Hono {
   const app = new Hono();
-  ensureScoutLlmRulesetBaseline(db);
+  seedScoutExampleRulesOnce(db);
 
   // POST /api/scout/sync-trash-scores
   app.post('/sync-trash-scores', async (c) => {
+    const settingChanges = buildSettingChanges(db, TRASH_SCOUT_BASELINE_SETTINGS);
     applySettings(db, TRASH_SCOUT_BASELINE_SETTINGS);
     const savedRuleIds = ensureScoutRuleBaseline(db);
-    ensureScoutLlmRulesetBaseline(db);
     const meta = await fetchTrashGuidesRevision();
     const upstream = await fetchTrashGuidesSnapshot();
+    const mappingSnapshot = buildTrashDeclarativeMappingSnapshot();
+    const mappingRevision = TRASH_DECLARATIVE_MODEL_VERSION;
     const appliedRules = db
       .getRules('scout')
       .filter((r) => savedRuleIds.includes(r.id))
@@ -1405,9 +1379,14 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     applySettings(db, {
       scoutTrashSyncSource: meta.source,
       scoutTrashSyncRevision: meta.revision ?? '',
+      scoutTrashSyncModelVersion: TRASH_DECLARATIVE_MODEL_VERSION,
+      scoutTrashMappingRevision: mappingRevision,
       scoutTrashSyncedAt: meta.fetchedAt,
       scoutTrashSyncedRules: String(savedRuleIds.length),
+      scoutTrashAppliedCount: String(settingChanges.length),
       scoutTrashAppliedSettingsJson: JSON.stringify(TRASH_SCOUT_BASELINE_SETTINGS),
+      scoutTrashAppliedMappingsJson: JSON.stringify(mappingSnapshot),
+      scoutTrashAppliedChangesJson: JSON.stringify(settingChanges),
       scoutTrashAppliedRulesJson: JSON.stringify(appliedRules),
       scoutTrashUpstreamSnapshotJson: JSON.stringify(upstream.snapshot),
       scoutTrashSyncWarning: warningCombined,
@@ -1418,6 +1397,10 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     return c.json({
       applied: TRASH_SCOUT_BASELINE_SETTINGS,
       syncedRules: savedRuleIds.length,
+      appliedCount: settingChanges.length,
+      changes: settingChanges,
+      syncModelVersion: TRASH_DECLARATIVE_MODEL_VERSION,
+      mappingRevision,
       meta: { ...meta, warning: warningCombined || meta.warning },
       details,
     });

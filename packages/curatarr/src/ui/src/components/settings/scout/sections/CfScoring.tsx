@@ -41,6 +41,31 @@ function StepBadge({ value, tone }: { value: string; tone: string }) {
   );
 }
 
+const PIPELINE_STEPS = [
+  {
+    n: '1',
+    label: 'Minimum Qualifiers',
+    tone: 'linear-gradient(135deg, rgba(99,102,241,0.55), rgba(129,140,248,0.35))',
+  },
+  { n: '2', label: 'Basic Format Score', tone: 'linear-gradient(135deg, rgba(34,197,94,0.55), rgba(74,222,128,0.35))' },
+  { n: '3', label: 'TRaSH CF Score', tone: 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))' },
+  {
+    n: '4',
+    label: 'Custom CF + Blockers',
+    tone: 'linear-gradient(135deg, rgba(124,58,237,0.55), rgba(167,139,250,0.35))',
+  },
+  {
+    n: '5',
+    label: 'Final LLM Ruleset',
+    tone: 'linear-gradient(135deg, rgba(251,146,60,0.55), rgba(253,186,116,0.35))',
+  },
+  {
+    n: '6',
+    label: 'Decision Manual/Auto',
+    tone: 'linear-gradient(135deg, rgba(244,63,94,0.55), rgba(251,113,133,0.35))',
+  },
+];
+
 export function CfScoring({ form, set }: CfScoringSectionProps) {
   return (
     <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
@@ -51,6 +76,40 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
           text="Curatarr runs this pipeline top-to-bottom: minimum qualifiers, basic format scoring, TRaSH CF scoring, custom overrides/blockers, final LLM ruleset, then manual/auto decision."
         />
       </h2>
+
+      <div
+        className="rounded-lg border p-3"
+        style={{
+          borderColor: 'var(--c-border)',
+          background: 'linear-gradient(180deg, rgba(124,58,237,0.08), rgba(15,23,42,0.35))',
+        }}
+      >
+        <div className="text-[11px] uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
+          Quality Funnel
+        </div>
+        <div className="space-y-0">
+          {PIPELINE_STEPS.map((step, idx) => (
+            <div key={step.n} className="relative pl-8 pb-3">
+              {idx < PIPELINE_STEPS.length - 1 && (
+                <span
+                  aria-hidden
+                  className="absolute left-[11px] top-6 w-[2px] h-[calc(100%-8px)]"
+                  style={{ background: 'linear-gradient(180deg, rgba(196,181,253,0.65), rgba(196,181,253,0.2))' }}
+                />
+              )}
+              <div className="absolute left-0 top-0">
+                <StepBadge value={step.n} tone={step.tone} />
+              </div>
+              <div
+                className="rounded border px-2 py-1.5 text-xs font-semibold"
+                style={{ borderColor: 'var(--c-border)', color: '#d4cfff', background: 'var(--c-surface)' }}
+              >
+                {step.label}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div
         className="rounded-lg border p-3 space-y-3"

@@ -849,6 +849,11 @@ export class CuratDb {
     return result.changes > 0;
   }
 
+  deleteRulesByCategory(category: string): number {
+    const result = this.db.prepare('DELETE FROM quality_rules WHERE category = ?').run(category);
+    return result.changes;
+  }
+
   reorderRules(category: string, ids: number[]): void {
     const update = this.db.prepare(
       "UPDATE quality_rules SET priority = ?, updated_at = datetime('now') WHERE id = ? AND category = ?",

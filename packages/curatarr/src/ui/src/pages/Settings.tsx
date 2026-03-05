@@ -261,7 +261,6 @@ export function Settings() {
   const saveCustomCfMutation = useMutation({
     mutationFn: (rules: ScoutCustomCfDraft[]) => {
       const payload = rules.map((r, idx) => ({
-        id: r.id,
         category: 'scout_custom_cf',
         name: r.name.trim() || `Custom CF ${idx + 1}`,
         enabled: r.enabled ? 1 : 0,
@@ -274,7 +273,7 @@ export function Settings() {
           appliesTo: r.appliesTo,
         },
       }));
-      return api.saveRules(payload);
+      return api.replaceRulesCategory('scout_custom_cf', payload);
     },
     onSuccess: () => {
       setCustomCfSaved(true);
@@ -290,7 +289,6 @@ export function Settings() {
   const saveBlockersMutation = useMutation({
     mutationFn: (rules: ScoutBlockerDraft[]) => {
       const payload = rules.map((r, idx) => ({
-        id: r.id,
         category: 'scout_release_blockers',
         name: r.name.trim() || `Blocker ${idx + 1}`,
         enabled: r.enabled ? 1 : 0,
@@ -303,7 +301,7 @@ export function Settings() {
           reason: r.reason || 'Blocked by custom rule',
         },
       }));
-      return api.saveRules(payload);
+      return api.replaceRulesCategory('scout_release_blockers', payload);
     },
     onSuccess: () => {
       setBlockersSaved(true);
@@ -319,14 +317,13 @@ export function Settings() {
   const saveLlmRulesMutation = useMutation({
     mutationFn: (rules: ScoutLlmRuleDraft[]) => {
       const payload = rules.map((r, idx) => ({
-        id: r.id,
         category: 'scout_llm_ruleset',
         name: r.name.trim() || `LLM Rule ${idx + 1}`,
         enabled: r.enabled ? 1 : 0,
         priority: idx + 1,
         config: { sentence: r.sentence },
       }));
-      return api.saveRules(payload);
+      return api.replaceRulesCategory('scout_llm_ruleset', payload);
     },
     onSuccess: () => {
       setLlmRulesSaved(true);
@@ -346,11 +343,19 @@ export function Settings() {
   const syncDetails = scoutSyncTrashMutation.data?.details ?? trashSyncDetailsData;
   const syncedTrashSource = syncDetails?.meta.source ?? data?.settings?.scoutTrashSyncSource ?? '';
   const syncedTrashRevision = syncDetails?.meta.revision ?? data?.settings?.scoutTrashSyncRevision ?? '';
+  const syncedTrashModelVersion =
+    syncDetails?.meta.modelVersion ?? data?.settings?.scoutTrashSyncModelVersion ?? 'unknown';
+  const syncedTrashMappingRevision =
+    syncDetails?.meta.mappingRevision ?? data?.settings?.scoutTrashMappingRevision ?? 'unknown';
   const syncedTrashAt = syncDetails?.meta.syncedAt ?? data?.settings?.scoutTrashSyncedAt ?? '';
   const syncedTrashRules =
     syncDetails?.meta.rulesSynced != null
       ? String(syncDetails.meta.rulesSynced)
       : (data?.settings?.scoutTrashSyncedRules ?? '');
+  const syncedTrashAppliedCount =
+    syncDetails?.meta.appliedCount != null
+      ? String(syncDetails.meta.appliedCount)
+      : (data?.settings?.scoutTrashAppliedCount ?? '0');
   const syncedTrashWarning = syncDetails?.meta.warning ?? scoutSyncTrashMutation.data?.meta.warning ?? '';
   const hasTrashSyncDetails = Boolean(
     syncedTrashSource ||
@@ -363,6 +368,8 @@ export function Settings() {
   const appliedSettingsEntries = Object.entries(syncDetails?.applied.settings ?? {}).sort(([a], [b]) =>
     a.localeCompare(b),
   );
+  const appliedMappings = syncDetails?.applied.mappings ?? [];
+  const appliedChanges = syncDetails?.applied.changes ?? [];
   const appliedRules = syncDetails?.applied.rules ?? [];
   const upstreamSnapshot = syncDetails?.upstream ?? null;
 
@@ -497,17 +504,20 @@ export function Settings() {
 
   function addCustomCfRule() {
     setCustomCfDraft((prev) => [
-      ...prev,
-      {
-        name: `Custom CF ${prev.length + 1}`,
-        enabled: true,
-        priority: prev.length + 1,
-        matchType: 'regex',
-        pattern: '',
-        score: '0',
-        flags: 'i',
-        appliesTo: 'title',
-      },
+      ...(prev.length >= 1
+        ? prev
+        : [
+            {
+              name: 'Custom CF 1',
+              enabled: true,
+              priority: 1,
+              matchType: 'regex' as const,
+              pattern: '',
+              score: '0',
+              flags: 'i',
+              appliesTo: 'title' as const,
+            },
+          ]),
     ]);
   }
 
@@ -660,10 +670,15 @@ export function Settings() {
               hasTrashSyncDetails,
               syncedTrashSource,
               syncedTrashRevision,
+              syncedTrashModelVersion,
+              syncedTrashMappingRevision,
               syncedTrashAt,
               syncedTrashRules,
+              syncedTrashAppliedCount,
               syncedTrashWarning,
               appliedSettingsEntries,
+              appliedMappings,
+              appliedChanges,
               appliedRules,
               upstreamSnapshot,
             }}

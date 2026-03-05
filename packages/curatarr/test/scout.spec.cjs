@@ -45,6 +45,10 @@ test.describe('Scout feature checks', () => {
     expect(body.applied).toBeTruthy();
     expect(body.applied.scoutPipelineTrashRes2160).toBeTruthy();
     expect(body.meta?.source).toBe('TRaSH-Guides');
+    expect(typeof body.syncModelVersion).toBe('string');
+    expect(typeof body.mappingRevision).toBe('string');
+    expect(typeof body.appliedCount).toBe('number');
+    expect(Array.isArray(body.changes)).toBeTruthy();
 
     const settingsRes = await request.get('/api/settings');
     const settings = (await settingsRes.json()).settings ?? {};
@@ -83,7 +87,9 @@ test.describe('Scout feature checks', () => {
     expect(body.proposedSettings.scoutPipelineTrashCodecH264).toBe('14');
   });
 
-  test('custom CF preview and validation', async ({ request }) => {
+  test('custom CF preview + create/disable/delete lifecycle', async ({ request }) => {
+    const ruleName = `DDP Boost ${Date.now()}`;
+
     const badSave = await request.put('/api/rules', {
       data: {
         rules: [
@@ -99,66 +105,132 @@ test.describe('Scout feature checks', () => {
     });
     expect(badSave.status()).toBe(400);
 
-    const save = await request.put('/api/rules', {
-      data: {
-        rules: [
-          {
-            category: 'scout_custom_cf',
-            name: 'DDP Boost',
-            enabled: true,
-            priority: 1,
-            config: {
-              matchType: 'regex',
-              pattern: '\\bDD[P+](?!A)|\\b(e[-_. ]?ac-?3)\\b',
-              score: 7,
-              flags: 'i',
-              appliesTo: 'title',
+    try {
+      const save = await request.put('/api/rules/replace-category', {
+        data: {
+          category: 'scout_custom_cf',
+          rules: [
+            {
+              name: ruleName,
+              enabled: true,
+              priority: 1,
+              config: {
+                matchType: 'regex',
+                pattern: '\\bDD[P+](?!A)|\\b(e[-_. ]?ac-?3)\\b',
+                score: 7,
+                flags: 'i',
+                appliesTo: 'title',
+              },
             },
-          },
-        ],
-      },
-    });
-    expect(save.ok()).toBeTruthy();
+          ],
+        },
+      });
+      expect(save.ok()).toBeTruthy();
 
-    const preview = await request.post('/api/scout/custom-cf/preview', {
-      data: { title: 'Some.Movie.2025.2160p.WEB-DL.DDP5.1.x265' },
-    });
-    expect(preview.ok()).toBeTruthy();
-    const body = await preview.json();
-    expect(body.delta).toBeGreaterThanOrEqual(7);
-    expect(Array.isArray(body.reasons)).toBeTruthy();
+      const preview = await request.post('/api/scout/custom-cf/preview', {
+        data: { title: 'Some.Movie.2025.2160p.WEB-DL.DDP5.1.x265' },
+      });
+      expect(preview.ok()).toBeTruthy();
+      const body = await preview.json();
+      expect(body.delta).toBeGreaterThanOrEqual(7);
+      expect(Array.isArray(body.reasons)).toBeTruthy();
+
+      const disable = await request.put('/api/rules/replace-category', {
+        data: {
+          category: 'scout_custom_cf',
+          rules: [
+            {
+              name: ruleName,
+              enabled: false,
+              priority: 1,
+              config: {
+                matchType: 'regex',
+                pattern: '\\bDD[P+](?!A)|\\b(e[-_. ]?ac-?3)\\b',
+                score: 7,
+                flags: 'i',
+                appliesTo: 'title',
+              },
+            },
+          ],
+        },
+      });
+      expect(disable.ok()).toBeTruthy();
+
+      const disabledPreview = await request.post('/api/scout/custom-cf/preview', {
+        data: { title: 'Some.Movie.2025.2160p.WEB-DL.DDP5.1.x265' },
+      });
+      expect(disabledPreview.ok()).toBeTruthy();
+      const disabledBody = await disabledPreview.json();
+      expect(disabledBody.delta).toBe(0);
+    } finally {
+      const cleanup = await request.put('/api/rules/replace-category', {
+        data: { category: 'scout_custom_cf', rules: [] },
+      });
+      expect(cleanup.ok()).toBeTruthy();
+      const list = await request.get('/api/rules?category=scout_custom_cf');
+      const listBody = await list.json();
+      const rows = listBody?.rules?.scout_custom_cf ?? [];
+      expect(rows).toHaveLength(0);
+    }
   });
 
-  test('llm ruleset persists ordered natural rules', async ({ request }) => {
-    const save = await request.put('/api/rules', {
-      data: {
-        rules: [
-          {
-            category: 'scout_llm_ruleset',
-            name: 'Rule B',
-            enabled: true,
-            priority: 2,
-            config: { sentence: 'Prefer usenet in close ties.' },
-          },
-          {
-            category: 'scout_llm_ruleset',
-            name: 'Rule A',
-            enabled: true,
-            priority: 1,
-            config: { sentence: 'Drop CAM releases.' },
-          },
-        ],
-      },
-    });
-    expect(save.ok()).toBeTruthy();
+  test('llm ruleset create/disable/delete lifecycle', async ({ request }) => {
+    const ruleName = `Rule ${Date.now()}`;
 
-    const list = await request.get('/api/rules?category=scout_llm_ruleset');
-    expect(list.ok()).toBeTruthy();
-    const body = await list.json();
-    const rows = body?.rules?.scout_llm_ruleset ?? [];
-    expect(rows.length).toBeGreaterThan(0);
-    expect(rows[0].priority).toBeLessThanOrEqual(rows[rows.length - 1].priority);
-    expect(typeof rows[0].config?.sentence).toBe('string');
+    try {
+      const save = await request.put('/api/rules/replace-category', {
+        data: {
+          category: 'scout_llm_ruleset',
+          rules: [
+            {
+              name: ruleName,
+              enabled: true,
+              priority: 1,
+              config: { sentence: 'Prefer usenet in close ties.' },
+            },
+          ],
+        },
+      });
+      expect(save.ok()).toBeTruthy();
+
+      const list = await request.get('/api/rules?category=scout_llm_ruleset');
+      expect(list.ok()).toBeTruthy();
+      const body = await list.json();
+      const rows = body?.rules?.scout_llm_ruleset ?? [];
+      expect(rows.length).toBe(1);
+      expect(rows[0].enabled).toBe(1);
+      expect(rows[0].name).toBe(ruleName);
+
+      const disable = await request.put('/api/rules/replace-category', {
+        data: {
+          category: 'scout_llm_ruleset',
+          rules: [
+            {
+              name: ruleName,
+              enabled: false,
+              priority: 1,
+              config: { sentence: 'Prefer usenet in close ties.' },
+            },
+          ],
+        },
+      });
+      expect(disable.ok()).toBeTruthy();
+
+      const disabledList = await request.get('/api/rules?category=scout_llm_ruleset');
+      const disabledBody = await disabledList.json();
+      const disabledRows = disabledBody?.rules?.scout_llm_ruleset ?? [];
+      expect(disabledRows.length).toBe(1);
+      expect(disabledRows[0].enabled).toBe(0);
+    } finally {
+      const cleanup = await request.put('/api/rules/replace-category', {
+        data: { category: 'scout_llm_ruleset', rules: [] },
+      });
+      expect(cleanup.ok()).toBeTruthy();
+      const list = await request.get('/api/rules?category=scout_llm_ruleset');
+      const body = await list.json();
+      const rows = body?.rules?.scout_llm_ruleset ?? [];
+      expect(rows).toHaveLength(0);
+    }
   });
 
   test('movies endpoint supports multi-version filter', async ({ request }) => {

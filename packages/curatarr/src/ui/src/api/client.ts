@@ -149,6 +149,12 @@ export const api = {
   saveRules: (rules: Partial<QualityRule>[]) =>
     req<{ saved: number[] }>('/rules', { method: 'PUT', body: JSON.stringify({ rules }) }),
 
+  replaceRulesCategory: (category: string, rules: Partial<QualityRule>[]) =>
+    req<{ saved: number[] }>('/rules/replace-category', {
+      method: 'PUT',
+      body: JSON.stringify({ category, rules }),
+    }),
+
   deleteRule: (id: number) => req<{ deleted: boolean }>(`/rules/${id}`, { method: 'DELETE' }),
 
   reorderRules: (category: string, ids: number[]) =>

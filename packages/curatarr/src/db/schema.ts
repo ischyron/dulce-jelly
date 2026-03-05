@@ -6,7 +6,7 @@
 
 import type Database from 'better-sqlite3';
 
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 export function applySchema(db: Database.Database): void {
   db.pragma('journal_mode = WAL');
@@ -187,6 +187,22 @@ export function applySchema(db: Database.Database): void {
   // v8: quality analytics flags per file
   if (!filesCols.includes('quality_flags')) {
     db.exec(`ALTER TABLE files ADD COLUMN quality_flags TEXT NOT NULL DEFAULT '[]'`);
+  }
+
+  // v9: Scout baseline reset for LLM/custom rules.
+  // Existing environments may have duplicated/generated rows; replace with curated baseline seeds.
+  const scoutReset = db.prepare("SELECT value FROM settings WHERE key = 'scout_rules_v9_reset'").get();
+  if (!scoutReset) {
+    db.exec(`
+      DELETE FROM quality_rules
+      WHERE category IN ('scout_llm_ruleset', 'scout_custom_cf')
+    `);
+    db.prepare(
+      "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('scout_examples_v1_seeded', '0', datetime('now'))",
+    ).run();
+    db.prepare(
+      "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('scout_rules_v9_reset', '1', datetime('now'))",
+    ).run();
   }
 
   // v7: reclassify resolution_cat using corrected widescreen thresholds.

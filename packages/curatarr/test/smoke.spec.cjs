@@ -215,6 +215,36 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     await expect(page.getByText('Max Resolution')).toHaveCount(0);
   });
 
+  test('scout settings custom CF save shows success', async ({ page, request }) => {
+    test.setTimeout(90_000);
+    const ruleName = `UI E2E CF ${Date.now()}`;
+    await page.goto('/settings/scout');
+
+    const customSection = page.locator('section').filter({ hasText: 'Custom CF + blockers' }).first();
+    if ((await customSection.locator('input[placeholder="Rule name"]').count()) === 0) {
+      await customSection.getByRole('button', { name: 'Add Rule' }).first().click();
+    }
+    await customSection.locator('input[placeholder="Rule name"]').first().fill(ruleName);
+    await customSection.locator('input[placeholder="\\\\bframestor\\\\b"]').first().fill('\\bUIE2ETEST\\b');
+    await customSection.locator('input[placeholder="score"]').first().fill('9');
+
+    await customSection.getByRole('button', { name: 'Save Custom CF Rules' }).click();
+    await expect(customSection.getByText('Saved')).toBeVisible();
+
+    const list = await request.get('/api/rules?category=scout_custom_cf');
+    const body = await list.json();
+    const rows = body?.rules?.scout_custom_cf ?? [];
+    const created = rows.find((r) => r.name === ruleName);
+    expect(Boolean(created)).toBeTruthy();
+    expect(created.enabled).toBe(1);
+
+    // Cleanup created sample rule from this UI test.
+    const cleanup = await request.put('/api/rules/replace-category', {
+      data: { category: 'scout_custom_cf', rules: [] },
+    });
+    expect(cleanup.ok()).toBeTruthy();
+  });
+
   test('scan page jellyfin sync tooltip renders rich content', async ({ page }) => {
     await page.goto('/scan');
     const hint = page.getByRole('button', { name: 'How Jellyfin sync works' }).first();

@@ -8,9 +8,14 @@ export function TrashSyncDetails({
   hasTrashSyncDetails,
   syncedTrashSource,
   syncedTrashRevision,
+  syncedTrashModelVersion,
+  syncedTrashMappingRevision,
   syncedTrashAt,
   syncedTrashRules,
+  syncedTrashAppliedCount,
   syncedTrashWarning,
+  appliedMappings,
+  appliedChanges,
   appliedRules,
   upstreamSnapshot,
 }: TrashSyncDetailsSectionProps) {
@@ -64,6 +69,12 @@ export function TrashSyncDetails({
                 Revision: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRevision || 'n/a'}</span>
               </div>
               <div style={{ color: 'var(--c-muted)' }}>
+                Sync model: <span style={{ color: 'var(--c-text)' }}>{syncedTrashModelVersion || 'n/a'}</span>
+              </div>
+              <div style={{ color: 'var(--c-muted)' }}>
+                Mapping revision: <span style={{ color: 'var(--c-text)' }}>{syncedTrashMappingRevision || 'n/a'}</span>
+              </div>
+              <div style={{ color: 'var(--c-muted)' }}>
                 Last synced:{' '}
                 <span style={{ color: 'var(--c-text)' }}>
                   {syncedTrashAt ? new Date(syncedTrashAt).toLocaleString() : 'n/a'}
@@ -72,7 +83,55 @@ export function TrashSyncDetails({
               <div style={{ color: 'var(--c-muted)' }}>
                 Rules synced: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRules || 'n/a'}</span>
               </div>
+              <div style={{ color: 'var(--c-muted)' }}>
+                Settings changed: <span style={{ color: 'var(--c-text)' }}>{syncedTrashAppliedCount || '0'}</span>
+              </div>
               {syncedTrashWarning && <div style={{ color: '#f59e0b' }}>Note: {syncedTrashWarning}</div>}
+            </div>
+
+            <div
+              className="rounded border p-2 space-y-2"
+              style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
+            >
+              <div className="font-semibold" style={{ color: '#d4cfff' }}>
+                Declarative Mapping Set
+              </div>
+              {appliedMappings.length === 0 && (
+                <div style={{ color: 'var(--c-muted)' }}>No mapping snapshot available.</div>
+              )}
+              {appliedMappings.length > 0 && (
+                <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
+                  <table className="w-full text-[11px]">
+                    <thead style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
+                      <tr>
+                        <th className="px-2 py-1 text-left">Setting</th>
+                        <th className="px-2 py-1 text-left">TRaSH label</th>
+                        <th className="px-2 py-1 text-right">Value</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {appliedMappings.map((row) => (
+                        <tr key={`${row.key}-${row.trashLabel}`} style={{ borderTop: '1px solid var(--c-border)' }}>
+                          <td className="px-2 py-1 font-mono" style={{ color: 'var(--c-text)' }}>
+                            {row.key}
+                          </td>
+                          <td className="px-2 py-1" style={{ color: 'var(--c-muted)' }}>
+                            {row.trashLabel}
+                          </td>
+                          <td className="px-2 py-1 text-right" style={{ color: '#c4b5fd' }}>
+                            {row.value}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {appliedChanges.length > 0 && (
+                <div className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
+                  Changed keys: {appliedChanges.map((c) => c.key).join(', ')}
+                </div>
+              )}
             </div>
 
             <div

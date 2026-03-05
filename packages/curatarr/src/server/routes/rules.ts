@@ -111,6 +111,47 @@ export function makeRulesRoutes(db: CuratDb): Hono {
     return c.json({ reordered: true });
   });
 
+  // PUT /api/rules/replace-category — replace entire category atomically from caller perspective
+  app.put('/replace-category', async (c) => {
+    const body = (await c.req.json()) as { category?: unknown; rules?: unknown[] };
+    const category = typeof body.category === 'string' ? body.category.trim() : '';
+    const incoming = Array.isArray(body.rules) ? body.rules : null;
+    if (!category || incoming == null) {
+      return c.json({ error: 'Expected { category, rules: [...] }' }, 400);
+    }
+    if (category === 'scout_custom_cf' && incoming.length > 1) {
+      return c.json({ error: 'scout_custom_cf supports exactly one override rule' }, 400);
+    }
+
+    const normalized: Array<{ name: string; enabled: boolean; priority: number; config: Record<string, unknown> }> = [];
+    for (const [idx, rule] of incoming.entries()) {
+      const r = (rule ?? {}) as Record<string, unknown>;
+      const name = typeof r.name === 'string' && r.name.trim() ? r.name.trim() : `${category} ${idx + 1}`;
+      const config = (r.config ?? {}) as Record<string, unknown>;
+      const priorityRaw = Number(r.priority ?? idx + 1);
+      const priority = Number.isFinite(priorityRaw) ? Math.max(0, Math.floor(priorityRaw)) : idx + 1;
+      const enabled = r.enabled !== false && r.enabled !== 0;
+      const configError = validateRuleConfig(category, config);
+      if (configError) return c.json({ error: configError }, 400);
+      normalized.push({ name, enabled, priority, config });
+    }
+
+    db.deleteRulesByCategory(category);
+    const ids: number[] = [];
+    for (const row of normalized) {
+      ids.push(
+        db.upsertRule({
+          category,
+          name: row.name,
+          enabled: row.enabled,
+          priority: row.priority,
+          config: row.config,
+        }),
+      );
+    }
+    return c.json({ saved: ids });
+  });
+
   return app;
 }
 

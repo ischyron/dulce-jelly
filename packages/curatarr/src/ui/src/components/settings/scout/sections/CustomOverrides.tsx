@@ -199,8 +199,13 @@ export function CustomOverrides({
             <button
               type="button"
               onClick={addCustomCfRule}
+              disabled={customCfDraft.length >= 1}
               className="px-3 py-1.5 rounded border text-xs"
-              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              style={{
+                borderColor: 'var(--c-border)',
+                color: customCfDraft.length >= 1 ? 'var(--c-muted)' : '#c4b5fd',
+                opacity: customCfDraft.length >= 1 ? 0.65 : 1,
+              }}
             >
               Add Rule
             </button>

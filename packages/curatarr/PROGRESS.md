@@ -19,6 +19,39 @@
 
 ## TODO Items
 
+- [DONE] ~~Rebuild Scout rule baselines and migration reset (delete duplicated LLM/custom rows and replace with curated examples).~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: Added schema v9 one-time reset for `scout_llm_ruleset` + `scout_custom_cf`, replaced LLM baseline with 2 curated disabled examples from release-scout skill intent, seeded single custom CF baseline, reduced Scout deterministic baseline set, preserved vertical numbered step visuals.
+  - Unit/interaction: `npm run test` -> pass
+  - E2E: `npm run test:e2e` -> pass (43 passed)
+  - Chrome MCP: `/settings/scout` verified vertical connected Quality Funnel 1→6 and manual custom CF flow create/save->disable/save->delete/save -> pass
+  - Git: `<pending>`, push `<pending>`
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
+  - Date: 2026-03-05
+
+- [DONE] ~~Implement Curatarr-native declarative TRaSH CF sync (Recyclarr-style mapping model, Radarr only parity reference).~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: Added declarative TRaSH model module (`trashDeclarativeModel.ts`), rewired Scout sync to apply declarative mappings/settings, persisted model metadata (`modelVersion`, `mappingRevision`, `appliedCount`, setting changes, mapping snapshot), kept Radarr parity optional/reference.
+  - Unit/interaction: `npm run test` -> pass
+  - E2E: `npm run test:e2e` -> pass (43 passed)
+  - Chrome MCP: `/settings/scout` advanced sync metadata visibility verified through updated read-only sync details payload/UI rendering path -> pass
+  - Git: `<pending>`, push `<pending>`
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
+  - Date: 2026-03-05
+
+- [DONE] ~~Fix Scout custom/LLM rule save idempotency and extend e2e + Chrome MCP validation with create/toggle/delete cleanup flows.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: Added `/api/rules/replace-category` and category delete helper, switched Scout custom/blocker/LLM saves to replace-category idempotent writes, enforced single custom CF override, updated e2e lifecycle coverage for create/disable/delete with cleanup and UI save-success assertion.
+  - Unit/interaction: `npm run test` -> pass
+  - E2E: `npm run test:e2e` -> pass (43 passed)
+  - Chrome MCP: `/settings/scout` manual exploratory flow confirmed custom CF create/save success badge, toggle enabled/disabled, and delete cleanup -> pass
+  - Git: `<pending>`, push `<pending>`
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
+  - Date: 2026-03-05
+
 - [DONE] ~~Rewrite Scout feature into Scout Quality Pipeline (full UI + backend rewrite).~~
   Evidence:
   - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled

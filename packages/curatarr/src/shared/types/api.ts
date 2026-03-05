@@ -245,12 +245,25 @@ export interface ScoutTrashSyncDetailsResponse {
   meta: {
     source: string;
     revision: string | null;
+    modelVersion: string;
+    mappingRevision: string;
     syncedAt: string | null;
     rulesSynced: number;
+    appliedCount: number;
     warning?: string;
   };
   applied: {
     settings: Record<string, string>;
+    mappings: Array<{
+      key: string;
+      trashLabel: string;
+      value: string;
+    }>;
+    changes: Array<{
+      key: string;
+      before: string | null;
+      after: string;
+    }>;
     rules: Array<{
       id: number;
       name: string;
@@ -276,6 +289,14 @@ export interface ScoutTrashSyncDetailsResponse {
 export interface ScoutTrashSyncResponse {
   applied: Record<string, string>;
   syncedRules: number;
+  appliedCount: number;
+  changes: Array<{
+    key: string;
+    before: string | null;
+    after: string;
+  }>;
+  syncModelVersion: string;
+  mappingRevision: string;
   meta: {
     source: string;
     revision: string | null;

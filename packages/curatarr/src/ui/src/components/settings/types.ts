@@ -125,10 +125,15 @@ export interface TrashSyncDetailsSectionProps {
   hasTrashSyncDetails: boolean;
   syncedTrashSource: string;
   syncedTrashRevision: string;
+  syncedTrashModelVersion: string;
+  syncedTrashMappingRevision: string;
   syncedTrashAt: string;
   syncedTrashRules: string;
+  syncedTrashAppliedCount: string;
   syncedTrashWarning: string;
   appliedSettingsEntries: Array<[string, string]>;
+  appliedMappings: ScoutTrashSyncDetailsResponse['applied']['mappings'];
+  appliedChanges: ScoutTrashSyncDetailsResponse['applied']['changes'];
   appliedRules: ScoutTrashSyncDetailsResponse['applied']['rules'];
   upstreamSnapshot: ScoutTrashSyncDetailsResponse['upstream'] | null;
 }

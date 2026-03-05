@@ -4,12 +4,13 @@
  * All detection from actual stream data — no filename parsing.
  */
 
-import { execFile } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { promisify } from 'node:util';
 import type { FileUpsert } from '../db/client.js';
 
 const execFileAsync = promisify(execFile);
 const FFPROBE_TIMEOUT_MS = 60_000; // 1 min — some large files are slow to probe
+let ffprobeChecked = false;
 
 // ──────────────────────────────────────────────────────────────────
 // Raw ffprobe JSON types
@@ -104,6 +105,21 @@ export interface AudioTrack {
   language: string;
   isDefault: boolean;
   bitrate: number; // kbps; 0 for lossless
+}
+
+// ──────────────────────────────────────────────────────────────────
+// ffprobe availability check (cached)
+// ──────────────────────────────────────────────────────────────────
+
+export function ensureFfprobeAvailable(): void {
+  if (ffprobeChecked) return;
+  const probe = spawnSync('ffprobe', ['-version'], { stdio: 'ignore' });
+  if (probe.error || probe.status !== 0) {
+    throw new Error(
+      'ffprobe is not available on PATH. Install ffmpeg/ffprobe in the container or host and re-run the scan.',
+    );
+  }
+  ffprobeChecked = true;
 }
 
 // ──────────────────────────────────────────────────────────────────

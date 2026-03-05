@@ -1,5 +1,13 @@
 # Curatarr — Agent Instructions
 
+## Agent Guide (Curatarr Snapshot)
+
+- This CLAUDE.md is the source of truth for Curatarr agent rules; when the repo gains its own `AGENTS.md`, treat it as the canonical entry point and keep the two in sync.
+- Always work from an isolated git worktree/feature branch and avoid touching the main tree until changes are validated.
+- Keep temporary notes and scratch output under `temp/`; production docs belong beside the feature code.
+- Prefer *arr-aligned, self-host-friendly decisions: portability (no macOS-only paths), reproducible automation, conservative deletes, and explicit path handling.
+- When in doubt, ship with defaults that match Jellyfin/Prowlarr/SABnzbd/qBittorrent-friendly settings and emphasize auditability (logs, SSE progress, dry-run/safe modes).
+
 ## Project Overview
 
 **Curatarr** is an LLM-backed media library management system that replaces Radarr (and potentially Sonarr in a future phase) and Recyclarr with a single intelligent system. **Prowlarr is consulted as the indexer manager** (retained, not replaced). **SABnzbd and qBittorrent** are the first-class download clients.

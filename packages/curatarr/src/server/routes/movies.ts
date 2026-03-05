@@ -3,6 +3,7 @@ import path from 'node:path';
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { JellyfinClient, type JfMovie } from '../../integrations/jellyfin/client.js';
+import { movieLibraryPaths, parseLibraryRootsJson } from '../../shared/libraryRoots.js';
 
 const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.m4v', '.ts', '.m2ts', '.webm']);
 
@@ -421,18 +422,66 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const deleted: string[] = [];
     const errors: string[] = [];
 
+    const roots = parseLibraryRootsJson(db.getSetting('libraryRoots'));
+    const allowlist = movieLibraryPaths(roots)
+      .map((p) => {
+        try {
+          return fs.realpathSync(p);
+        } catch {
+          return path.resolve(p);
+        }
+      })
+      .filter(Boolean);
+
+    const folderReal = (() => {
+      try {
+        return fs.realpathSync(movie.folder_path);
+      } catch {
+        return path.resolve(movie.folder_path);
+      }
+    })();
+
+    if (
+      allowlist.length > 0 &&
+      !allowlist.some((root) => folderReal === root || folderReal.startsWith(`${root}${path.sep}`))
+    ) {
+      return c.json({ error: 'forbidden_path', detail: 'Folder is outside configured library roots.' }, 400);
+    }
+
+    try {
+      const stat = fs.lstatSync(folderReal);
+      if (stat.isSymbolicLink()) {
+        return c.json({ error: 'forbidden_path', detail: 'Folder is a symlink; deletion aborted.' }, 400);
+      }
+    } catch {
+      /* allow deletion attempt to surface below */
+    }
+
     try {
       if (mode === 'folder') {
-        fs.rmSync(movie.folder_path, { recursive: true, force: true });
-        deleted.push(movie.folder_path);
+        await fs.promises.rm(folderReal, { recursive: true, force: true });
+        deleted.push(folderReal);
       } else {
         // Delete only video files in the folder
         const contents = listFolderContents(movie.folder_path);
         for (const f of contents.filter((f) => f.isVideo)) {
           const full = path.join(movie.folder_path, f.name);
           try {
-            fs.rmSync(full);
-            deleted.push(full);
+            const realFile = fs.realpathSync(full);
+            if (
+              allowlist.length > 0 &&
+              !allowlist.some((root) => realFile === root || realFile.startsWith(`${root}${path.sep}`))
+            ) {
+              errors.push(`${f.name}: outside configured library roots`);
+              continue;
+            }
+            const stat = fs.lstatSync(realFile);
+            if (stat.isSymbolicLink()) {
+              errors.push(`${f.name}: refusing to delete symlink`);
+              continue;
+            }
+            await fs.promises.rm(realFile, { force: true });
+            deleted.push(realFile);
           } catch (e) {
             errors.push(`${f.name}: ${(e as Error).message}`);
           }

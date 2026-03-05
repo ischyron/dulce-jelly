@@ -24,6 +24,8 @@ const VIDEO_EXTENSIONS = new Set([
   '.xvid',
 ]);
 
+const SKIP_SUBDIR_NAMES = new Set(['extras', 'featurettes', 'subtitles', 'subs', 'sample', 'samples']);
+
 export interface MovieFolder {
   folderPath: string;
   folderName: string;
@@ -92,6 +94,20 @@ export function* walkLibrary(rootPath: string): Generator<MovieFolder> {
     const videoFiles = fileEntries
       .filter((f) => f.isFile() && isMainVideoFile(f.name))
       .map((f) => path.join(folderPath, f.name));
+
+    // Also look one level down for video files (BDMV/STREAM, disc rips, etc.)
+    for (const sub of fileEntries.filter((f) => f.isDirectory())) {
+      if (SKIP_SUBDIR_NAMES.has(sub.name.toLowerCase())) continue;
+      const subPath = path.join(folderPath, sub.name);
+      try {
+        const nested = fs.readdirSync(subPath, { withFileTypes: true });
+        for (const f of nested.filter((n) => n.isFile() && isMainVideoFile(n.name))) {
+          videoFiles.push(path.join(subPath, f.name));
+        }
+      } catch {
+        /* ignore unreadable subdirs */
+      }
+    }
 
     // A movie folder should have at least one video file
     // (skip pure metadata-only folders)

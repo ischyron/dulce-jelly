@@ -7,7 +7,7 @@
 import os from 'node:os';
 import path from 'node:path';
 import type { CuratDb } from '../db/client.js';
-import { probeFile, probeToUpsert } from './ffprobe.js';
+import { ensureFfprobeAvailable, probeFile, probeToUpsert } from './ffprobe.js';
 import { walkLibrary } from './walker.js';
 
 export interface ScanOptions {
@@ -55,16 +55,25 @@ export interface ScanResult {
 async function runPool<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
   const results: T[] = [];
   let idx = 0;
+  let stop = false;
+  let firstError: unknown;
 
   async function worker(): Promise<void> {
-    while (idx < tasks.length) {
+    while (!stop && idx < tasks.length) {
       const myIdx = idx++;
-      results[myIdx] = await tasks[myIdx]();
+      try {
+        results[myIdx] = await tasks[myIdx]();
+      } catch (err) {
+        firstError = err;
+        stop = true;
+        break;
+      }
     }
   }
 
   const workers = Array.from({ length: Math.min(concurrency, tasks.length) }, worker);
   await Promise.all(workers);
+  if (firstError) throw firstError;
   return results;
 }
 
@@ -73,6 +82,7 @@ async function runPool<T>(tasks: (() => Promise<T>)[], concurrency: number): Pro
 // ──────────────────────────────────────────────────────────────────
 
 export async function scanLibrary(rootPath: string, db: CuratDb, opts: ScanOptions = {}): Promise<ScanResult> {
+  ensureFfprobeAvailable();
   const concurrency = opts.concurrency ?? Math.max(1, Math.floor(os.cpus().length / 2));
   const rescan = opts.rescan ?? false;
 
@@ -118,13 +128,14 @@ export async function scanLibrary(rootPath: string, db: CuratDb, opts: ScanOptio
       parsedYear: folder.parsedYear,
     });
 
+    const existingFiles = db.getFilesForMovie(movieId);
+
     for (const filePath of folder.videoFiles) {
       result.totalFiles++;
       presentFilePaths.add(filePath);
       const filename = path.basename(filePath);
 
       // Check if already scanned
-      const existingFiles = db.getFilesForMovie(movieId);
       const existing = existingFiles.find((f) => f.file_path === filePath);
       const alreadyScanned = !!(existing?.scanned_at && !rescan);
 

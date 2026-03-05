@@ -82,6 +82,24 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
         return c.json({ error: validationError }, 400);
       }
     }
+
+    const numericBounds: Record<string, { min: number; max: number }> = {
+      jfSyncIntervalMin: { min: 0, max: 24 * 60 },
+      jfSyncBatchSize: { min: 1, max: 500 },
+      scoutAutoIntervalMin: { min: 5, max: 24 * 60 },
+      scoutAutoCooldownMin: { min: 5, max: 7 * 24 * 60 },
+      scoutSearchBatchSize: { min: 1, max: 10 },
+    };
+
+    for (const [key, bounds] of Object.entries(numericBounds)) {
+      if (key in body) {
+        const num = Number.parseInt(body[key], 10);
+        if (!Number.isFinite(num) || num < bounds.min || num > bounds.max) {
+          return c.json({ error: `${key} must be between ${bounds.min} and ${bounds.max}` }, 400);
+        }
+      }
+    }
+
     for (const [k, v] of Object.entries(body)) {
       if (typeof v === 'string') {
         db.setSetting(k, v);

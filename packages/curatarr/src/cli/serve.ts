@@ -81,8 +81,9 @@ export function makeServeCommand(): Command {
 }
 
 function startJfSyncScheduler(db: CuratDb): void {
-  const intervalMin = Number.parseInt(db.getSetting('jfSyncIntervalMin') ?? '30', 10);
-  if (Number.isNaN(intervalMin) || intervalMin <= 0) {
+  const raw = Number.parseInt(db.getSetting('jfSyncIntervalMin') ?? '30', 10);
+  const intervalMin = Number.isFinite(raw) ? Math.max(5, Math.min(24 * 60, raw)) : 30;
+  if (intervalMin <= 0) {
     console.log('  JF Sync : Auto-sync disabled (interval = 0)');
     return;
   }
@@ -97,7 +98,8 @@ function startJfSyncScheduler(db: CuratDb): void {
     const apiKey = db.getSetting('jellyfinApiKey') ?? '';
     if (!url || !apiKey) return; // JF not configured yet
 
-    const batchSize = Number.parseInt(db.getSetting('jfSyncBatchSize') ?? '10', 10);
+    const batchRaw = Number.parseInt(db.getSetting('jfSyncBatchSize') ?? '10', 10);
+    const batchSize = Number.isFinite(batchRaw) ? Math.max(1, Math.min(500, batchRaw)) : 10;
     console.log(`  [JF Sync] Scheduled sync (batch: ${batchSize})`);
 
     const signal = syncEmitter.start();

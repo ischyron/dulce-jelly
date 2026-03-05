@@ -9,6 +9,7 @@ export interface SseEvent {
 }
 
 type Subscriber = (event: SseEvent) => void;
+const MAX_SUBSCRIBERS = 100;
 
 export class SseEmitter {
   private subscribers = new Set<Subscriber>();
@@ -48,6 +49,11 @@ export class SseEmitter {
    * (e.g. EventSource that connects after a fast scan) don't miss events.
    */
   subscribe(fn: Subscriber): () => void {
+    if (this.subscribers.size >= MAX_SUBSCRIBERS) {
+      // Drop oldest subscriber to avoid unbounded growth
+      const [oldest] = this.subscribers;
+      if (oldest) this.subscribers.delete(oldest);
+    }
     // Replay buffered events to new subscriber first
     for (const ev of this.recentEvents) {
       try {
@@ -68,7 +74,8 @@ export class SseEmitter {
       try {
         fn(ev);
       } catch {
-        /* subscriber gone */
+        // Drop dead subscribers proactively
+        this.subscribers.delete(fn);
       }
     }
   }

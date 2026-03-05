@@ -24,9 +24,19 @@ export function makeScanRoutes(db: CuratDb): Hono {
 
     const configuredRoots = parseLibraryRootsJson(db.getSetting('libraryRoots'));
     const configuredMoviePaths = movieLibraryPaths(configuredRoots);
-    const libraryPaths = requestedPath
-      ? [path.resolve(requestedPath.replace(/^~/, os.homedir()))]
-      : configuredMoviePaths;
+
+    const allowlist = configuredMoviePaths
+      .map((p) => {
+        try {
+          return fs.realpathSync(p);
+        } catch {
+          return path.resolve(p);
+        }
+      })
+      .filter((p) => !!p);
+
+    const requested = requestedPath ? path.resolve(requestedPath.replace(/^~/, os.homedir())) : undefined;
+    const libraryPaths = requested ? [requested] : configuredMoviePaths;
 
     if (libraryPaths.length === 0) {
       return c.json(
@@ -40,6 +50,27 @@ export function makeScanRoutes(db: CuratDb): Hono {
     for (const p of libraryPaths) {
       if (!fs.existsSync(p)) {
         return c.json({ error: `Library path does not exist: ${p}` }, 400);
+      }
+      const real = (() => {
+        try {
+          return fs.realpathSync(p);
+        } catch {
+          return path.resolve(p);
+        }
+      })();
+
+      // Disallow scanning paths outside configured roots (when roots are configured)
+      if (allowlist.length > 0 && !allowlist.some((root) => real === root || real.startsWith(`${root}${path.sep}`))) {
+        return c.json({ error: `Requested path is outside configured library roots: ${p}` }, 400);
+      }
+
+      try {
+        const stat = fs.lstatSync(real);
+        if (stat.isSymbolicLink()) {
+          return c.json({ error: `Library path must not be a symlink: ${p}` }, 400);
+        }
+      } catch {
+        /* ignore */
       }
     }
 

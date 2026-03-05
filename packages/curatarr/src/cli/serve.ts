@@ -31,11 +31,12 @@ export function makeServeCommand(): Command {
       const host = opts.host;
       ensureRuntimePaths(runtimeCfg);
 
-      // dist-ui is next to dist/ — both are siblings of src/
+      // UI build output lives under src/ui/dist.
       const __filename = fileURLToPath(import.meta.url);
       const __dirname = path.dirname(__filename);
-      // __dirname = packages/curatarr/dist/cli/
-      const distUiPath = path.resolve(__dirname, '../../dist-ui');
+      // Resolve from repo/app root to avoid coupling to backend outDir location.
+      const appRoot = path.resolve(__dirname, '../../../..');
+      const distUiPath = path.resolve(appRoot, 'src/ui/dist');
 
       console.log(`\nCuratarr Web UI`);
       console.log(`  DB    : ${dbPath}`);

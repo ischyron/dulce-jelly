@@ -1,9 +1,9 @@
-import type { Movie } from '../../../api/client.js';
-import { ResolutionBadge, CodecBadge, HdrBadge, QualityFlagsBadge, CriticScoreBadge } from '../../../components/QualityBadge.js';
-import { InfoHint } from '../../../components/InfoHint.js';
-import type { SortField } from '../types.js';
-import { SortHeader } from './SortHeader.js';
-import { StatusDots } from './StatusDots.js';
+import type { Movie } from '../../api/client';
+import { ResolutionBadge, CodecBadge, HdrBadge, QualityFlagsBadge, CriticScoreBadge } from '../QualityBadge';
+import { InfoHint } from '../InfoHint';
+import type { SortField } from './types';
+import { SortHeader } from './SortHeader';
+import { StatusDots } from './StatusDots';
 
 interface Props {
   isLoading: boolean;

@@ -33,7 +33,7 @@ import type {
   VerifyFailure,
   VerifyFailuresResponse,
   DisambiguationLogRow,
-} from '../../../shared/types/api.js';
+} from '../../../shared/types/api';
 
 const BASE = '/api';
 

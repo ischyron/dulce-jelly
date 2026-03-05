@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ScanLine, RefreshCw } from 'lucide-react';
-import { api, type ScanHistoryRun } from '../api/client.js';
-import { ScanProgressModal } from '../components/ScanProgressModal.js';
-import { InfoHint } from '../components/InfoHint.js';
+import { api, type ScanHistoryRun } from '../api/client';
+import { ScanProgressModal } from '../components/ScanProgressModal';
+import { InfoHint } from '../components/InfoHint';
 
 const JF_SYNC_HOW_IT_WORKS = `Jellyfin Sync — how it works
 

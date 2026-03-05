@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { Search, Library as LibraryIcon } from 'lucide-react';
-import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS, CODEC_OPTIONS, AUDIO_FORMAT_OPTIONS, AUDIO_LAYOUT_OPTIONS } from '../types.js';
-import { formatTotalSize } from '../helpers.js';
+import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS, CODEC_OPTIONS, AUDIO_FORMAT_OPTIONS, AUDIO_LAYOUT_OPTIONS } from './types';
+import { formatTotalSize } from './helpers';
 
 interface Props {
   isFetching: boolean;

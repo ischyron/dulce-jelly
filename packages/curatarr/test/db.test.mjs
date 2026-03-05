@@ -8,7 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
 
-const { CuratDb } = await import('../dist/db/client.js');
+const { CuratDb } = await import('../src/server/dist/db/client.js');
 
 const TMP_DB = path.join(os.tmpdir(), `curatarr-test-${Date.now()}.db`);
 

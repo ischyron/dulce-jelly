@@ -8,7 +8,7 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-const { parseFolderName, walkLibrary, countMovieFolders } = await import('../dist/scanner/walker.js');
+const { parseFolderName, walkLibrary, countMovieFolders } = await import('../src/server/dist/scanner/walker.js');
 
 // ──────────────────────────────────────────────────────────────────
 // parseFolderName — unit tests

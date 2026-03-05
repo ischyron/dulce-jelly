@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { ShieldCheck, Square, Loader2, CheckCircle2, XCircle, AlertCircle } from 'lucide-react';
-import { api, type VerifyFailure } from '../api/client.js';
+import { api, type VerifyFailure } from '../api/client';
 
 interface VerifyProgress {
   total?: number;

@@ -2,239 +2,30 @@ import { useState, useEffect, type DragEvent, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown, Link2, Bot, Library as LibraryIcon, Plus, Minus, FolderOpen, GripVertical } from 'lucide-react';
-import { api } from '../api/client.js';
-import { InfoHint } from '../components/InfoHint.js';
-
-// ── Client profile definitions ────────────────────────────────────────
-
-const CLIENT_PROFILES = [
-  {
-    id: 'android_tv',
-    label: 'Android TV / Google TV (default)',
-    videoCodec: { av1: 'No hardware decode', hevc: 'Full', h264: 'Full' },
-    dv: 'App-level via Jellyfin (Profile 5, Profile 8)',
-    hint: 'Chromecast HD, older Android TV sticks. AV1 will be software-transcoded — use H264/HEVC files for best performance.',
-  },
-  {
-    id: 'chromecast_4k',
-    label: 'Chromecast with Google TV 4K (2022+)',
-    videoCodec: { av1: 'Full hardware', hevc: 'Full', h264: 'Full' },
-    dv: 'Dolby Vision (DV) Profile 5, Profile 8',
-    hint: 'Full AV1 hardware decode. Dolby Vision Profile 5 and Profile 8 supported.',
-  },
-  {
-    id: 'apple_tv',
-    label: 'Apple TV 4K (3rd gen)',
-    videoCodec: { av1: 'Full hardware', hevc: 'Full', h264: 'Full' },
-    dv: 'Dolby Vision (DV) Profile 5, Profile 8 · No HDR10+',
-    hint: 'Full AV1 hardware decode. Dolby Vision Profile 5/8 only — HDR10+ not supported.',
-  },
-  {
-    id: 'shield',
-    label: 'NVIDIA SHIELD',
-    videoCodec: { av1: 'Full hardware', hevc: 'Full', h264: 'Full' },
-    dv: 'Dolby Vision (DV) Profile 5, Profile 7, Profile 8',
-    hint: 'Most capable TV client. Full AV1 hardware decode. Dolby Vision including Profile 7 (FEL) supported.',
-  },
-  {
-    id: 'fire_tv',
-    label: 'Fire TV Stick 4K Max',
-    videoCodec: { av1: 'Software only', hevc: 'Full', h264: 'Full' },
-    dv: 'Dolby Vision (DV) Profile 8 via Dolby MAL',
-    hint: 'AV1 is software-decoded on most models — HEVC is preferred. Dolby Vision Profile 8 via MAL.',
-  },
-];
-
-// ── Scoring tooltip content ────────────────────────────────────────────
-
-const SCOUT_MIN_QUALIFIERS_TOOLTIP = `Minimum qualifiers gate the Scout listing view.
-
-Only titles meeting these thresholds appear in Scout Queue.
-These are not release ranking scores and do not replace CF scoring.`;
-
-const SCOUT_CF_SCORING_TOOLTIP = `Scout release scoring (CF-style) is additive:
-  Score = Resolution + Source + Codec + Protocol + Seeder bonus - Penalties
-
-Resolution weights:
-  2160p, 1080p, 720p
-Source weights:
-  Remux, BluRay, WEB-DL
-Codec weights:
-  HEVC, AV1, H264
-Audio weights:
-  Atmos, TrueHD, DTS, DD+/EAC3, AC3, AAC
-Protocol weights:
-  Usenet bonus, Torrent bonus
-Penalties:
-  Legacy codec penalty (xvid/mpeg4)
-Bitrate gate:
-  Hard exclude releases outside per-resolution Min/Max bitrate bands
-Availability:
-  Seeder bonus = floor(seeders / divisor), capped by max bonus
-
-These settings affect Scout release ranking (search results), not the Library candidate priority score.`;
-
-const LEGACY_PENALTY_TOOLTIP = `Subtracts points from releases that use legacy codecs (xvid/mpeg4/mpeg2).
-
-Higher value = stronger penalty (legacy files drop lower in Scout ranking).
-Lower value = legacy files are penalized less.`;
-
-const SEEDER_DIVISOR_TOOLTIP = `Seeder bonus uses this formula:
-  bonus = floor(seeders / divisor), then capped by "Seeder Max Bonus".
-
-Lower divisor boosts seed-heavy torrents more aggressively.
-Higher divisor makes seeders matter less in final score.`;
-
-const SEEDER_MAX_BONUS_TOOLTIP = `Caps how many points seeders can add to score.
-
-Formula:
-  seederBonus = floor(seeders / Seeder Divisor)
-  finalSeederBonus = min(seederBonus, Seeder Max Bonus)
-
-Example:
-  divisor = 25, max bonus = 10
-  80 seeders -> floor(80/25)=3 points
-  500 seeders -> floor(500/25)=20 -> capped to 10 points
-
-This prevents very high-seed releases from overpowering quality/source signals.`;
-
-const BITRATE_GATE_TOOLTIP = `Hard exclusion by estimated bitrate (size/duration) in Scout search results.
-
-Each resolution has its own Min and Max bitrate.
-Codec normalization is applied (AV1 lower band, H264 higher band) before filtering.
-
-This avoids one global bitrate threshold across all formats.`;
-
-const BITRATE_PROFILE_DESCRIPTION = 'Choose a bias profile to prefill recommended bitrate Min/Max gates by resolution. By default, WEB-DL bias is selected for storage efficiency.';
-
-const BITRATE_PREVIEW_MINUTES = 110;
-type BitrateProfileId = 'webdl' | 'bluray' | 'remux';
-
-type BitrateBandPreset = {
-  min2160: string;
-  max2160: string;
-  min1080: string;
-  max1080: string;
-  min720: string;
-  max720: string;
-  minOther: string;
-  maxOther: string;
-};
-
-const BITRATE_BIAS_PROFILES: Array<{
-  id: BitrateProfileId;
-  label: string;
-  summary: string;
-  values: BitrateBandPreset;
-}> = [
-  {
-    id: 'webdl',
-    label: 'WEB-DL biased',
-    summary: 'Balanced quality with storage efficiency.',
-    values: {
-      min2160: '10',
-      max2160: '35',
-      min1080: '4',
-      max1080: '15',
-      min720: '2.5',
-      max720: '8',
-      minOther: '1',
-      maxOther: '12',
-    },
-  },
-  {
-    id: 'bluray',
-    label: 'BluRay biased',
-    summary: 'Higher quality headroom with larger files.',
-    values: {
-      min2160: '18',
-      max2160: '70',
-      min1080: '8',
-      max1080: '35',
-      min720: '4',
-      max720: '16',
-      minOther: '1',
-      maxOther: '12',
-    },
-  },
-  {
-    id: 'remux',
-    label: 'Remux biased',
-    summary: 'Maximum quality targets and largest files.',
-    values: {
-      min2160: '35',
-      max2160: '120',
-      min1080: '18',
-      max1080: '70',
-      min720: '8',
-      max720: '30',
-      minOther: '1',
-      maxOther: '12',
-    },
-  },
-];
-
-const SCOUT_OBJECTIVE_SAMPLES = [
-  'Keep 4K quality high, but avoid fake quality claims from unknown groups.',
-  'Prioritize playback compatibility for Android TV and Chromecast devices.',
-  'Prefer WEB-DL over WEBRip and reduce transcode-heavy picks.',
-  'Storage-efficient upgrades: avoid oversized remux unless title is exceptional.',
-  'Usenet-first policy with safe torrent fallback only when needed.',
-];
-
-const SCOUT_PRESET_SAMPLES: Array<{
-  id: string;
-  title: string;
-  summary: string;
-  objective: string;
-  settingsPatch: Record<string, string>;
-}> = [
-  {
-    id: 'balanced',
-    title: 'Balanced 4K',
-    summary: 'Quality-first, keeps strong penalties for legacy/suspicious releases.',
-    objective: 'Balance 4K quality, authenticity, and compatibility.',
-    settingsPatch: {
-      scoutCfRes2160: '46',
-      scoutCfSourceRemux: '34',
-      scoutCfSourceBluray: '22',
-      scoutCfSourceWebdl: '14',
-      scoutCfLegacyPenalty: '40',
-    },
-  },
-  {
-    id: 'compat',
-    title: 'Compatibility First',
-    summary: 'De-prioritize AV1 and transcode-heavy outcomes for TV clients.',
-    objective: 'Prioritize compatibility on Android TV / Google TV clients.',
-    settingsPatch: {
-      scoutCfCodecAv1: '6',
-      scoutCfCodecH264: '14',
-      scoutCfCodecHevc: '20',
-    },
-  },
-  {
-    id: 'storage',
-    title: 'Storage Saver',
-    summary: 'Reduce oversized upgrades while still targeting meaningful quality gains.',
-    objective: 'Optimize for storage efficiency and practical upgrades.',
-    settingsPatch: {
-      scoutCfSourceRemux: '22',
-      scoutCfSeedersBonusCap: '8',
-    },
-  },
-];
-
-const LLM_RULESET_SAMPLES: Array<Pick<ScoutLlmRuleDraft, 'name' | 'sentence'>> = [
-  {
-    name: 'Tie-break: prefer -AsRequested',
-    sentence: 'When deterministic scores are tied or near-equal, prefer releases suffixed with -AsRequested.',
-  },
-  {
-    name: 'Tie-break: prefer Atmos',
-    sentence: 'When deterministic scores are close, prefer Atmos audio over non-Atmos releases at the same quality tier.',
-  },
-];
+import { api } from '../api/client';
+import { InfoHint } from '../components/InfoHint';
+import {
+  AUDIO_SCORE_FIELDS,
+  BITRATE_BIAS_PROFILES,
+  BITRATE_GATE_TOOLTIP,
+  BITRATE_KEYS,
+  BITRATE_PREVIEW_MINUTES,
+  BITRATE_PROFILE_DESCRIPTION,
+  CLIENT_PROFILES,
+  LEGACY_PENALTY_TOOLTIP,
+  LLM_RULESET_SAMPLES,
+  RESOLUTION_SCORE_FIELDS,
+  SCOUT_CF_SCORING_TOOLTIP,
+  SCOUT_MIN_QUALIFIERS_TOOLTIP,
+  SCOUT_OBJECTIVE_SAMPLES,
+  SCOUT_PRESET_SAMPLES,
+  SEEDER_DIVISOR_TOOLTIP,
+  SEEDER_MAX_BONUS_TOOLTIP,
+  SOURCE_SCORE_FIELDS,
+  VIDEO_CODEC_SCORE_FIELDS,
+  type BitrateProfileId,
+  type OrderedScoreField,
+} from '../components/settings/content';
 
 interface ScoutRuleDraft {
   id: number;
@@ -269,48 +60,6 @@ interface LibraryRootEntry {
   path: string;
 }
 
-interface OrderedScoreField {
-  key: string;
-  label: string;
-}
-
-const RESOLUTION_SCORE_FIELDS: OrderedScoreField[] = [
-  { key: 'scoutCfRes2160', label: '2160p' },
-  { key: 'scoutCfRes1080', label: '1080p' },
-  { key: 'scoutCfRes720', label: '720p' },
-];
-
-const SOURCE_SCORE_FIELDS: OrderedScoreField[] = [
-  { key: 'scoutCfSourceRemux', label: 'Remux' },
-  { key: 'scoutCfSourceBluray', label: 'BluRay' },
-  { key: 'scoutCfSourceWebdl', label: 'WEB-DL' },
-];
-
-const VIDEO_CODEC_SCORE_FIELDS: OrderedScoreField[] = [
-  { key: 'scoutCfCodecHevc', label: 'HEVC' },
-  { key: 'scoutCfCodecAv1', label: 'AV1' },
-  { key: 'scoutCfCodecH264', label: 'H264' },
-];
-
-const AUDIO_SCORE_FIELDS: OrderedScoreField[] = [
-  { key: 'scoutCfAudioAtmos', label: 'Atmos' },
-  { key: 'scoutCfAudioTruehd', label: 'TrueHD' },
-  { key: 'scoutCfAudioDts', label: 'DTS' },
-  { key: 'scoutCfAudioDdp', label: 'DD+ / EAC3' },
-  { key: 'scoutCfAudioAc3', label: 'AC3' },
-  { key: 'scoutCfAudioAac', label: 'AAC' },
-];
-
-const BITRATE_KEYS = {
-  min2160: 'scoutCfBitrateMin2160Mbps',
-  max2160: 'scoutCfBitrateMax2160Mbps',
-  min1080: 'scoutCfBitrateMin1080Mbps',
-  max1080: 'scoutCfBitrateMax1080Mbps',
-  min720: 'scoutCfBitrateMin720Mbps',
-  max720: 'scoutCfBitrateMax720Mbps',
-  minOther: 'scoutCfBitrateMinOtherMbps',
-  maxOther: 'scoutCfBitrateMaxOtherMbps',
-} as const;
 
 function detectBitrateProfileFromSettings(current: Record<string, string>): BitrateProfileId | null {
   const same = (a: string | undefined, b: string): boolean => {
@@ -2190,6 +1939,7 @@ export function Settings() {
                 style={{
                   borderColor: llmDragIndex === idx ? '#7c3aed' : 'var(--c-border)',
                   background: llmDragIndex === idx ? 'rgba(124,58,237,0.08)' : 'transparent',
+                  cursor: llmDragIndex === idx ? 'grabbing' : 'grab',
                 }}
                 draggable
                 onDragStart={() => onLlmDragStart(idx)}
@@ -2198,7 +1948,11 @@ export function Settings() {
                 onDragEnd={onLlmDragEnd}
               >
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-xs font-mono min-w-[5rem]" style={{ color: '#c4b5fd' }} title="Drag to reorder">
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-mono min-w-[5rem]"
+                    style={{ color: '#c4b5fd', cursor: llmDragIndex === idx ? 'grabbing' : 'grab' }}
+                    title="Drag to reorder"
+                  >
                     <GripVertical size={14} />
                     P{idx + 1}
                   </span>
@@ -2271,13 +2025,8 @@ export function Settings() {
               className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
-              {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate LLM Ruleset Draft'}
+              {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate Ruleset Draft'}
             </button>
-            {scoutRefineDraftMutation.data?.mode && (
-              <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                Mode: {scoutRefineDraftMutation.data.mode}
-              </span>
-            )}
           </div>
           {scoutRefineDraftMutation.data && (
             <textarea

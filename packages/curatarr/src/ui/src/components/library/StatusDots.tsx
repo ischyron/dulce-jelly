@@ -1,4 +1,4 @@
-import type { Movie } from '../../../api/client.js';
+import type { Movie } from '../../api/client';
 
 interface Props {
   movie: Movie;

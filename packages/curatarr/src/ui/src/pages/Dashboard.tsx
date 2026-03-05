@@ -2,72 +2,13 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Film, LayoutDashboard, ScanLine, CheckCircle, AlertCircle, Rocket, Loader2 } from 'lucide-react';
-import { api } from '../api/client.js';
-import { ResolutionPieChart, CodecBarChart } from '../components/Charts.js';
-import { ScanProgressModal } from '../components/ScanProgressModal.js';
-import { InfoHint } from '../components/InfoHint.js';
-
-function JellyfinIcon({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & { size?: number }) {
-  return (
-    <svg
-      role="img"
-      viewBox="0 0 24 24"
-      width={size}
-      height={size}
-      fill="currentColor"
-      aria-label="Jellyfin"
-      {...props}
-    >
-      <path d="M12 .002C8.826.002-1.398 18.537.16 21.666c1.56 3.129 22.14 3.094 23.682 0C25.384 18.573 15.177 0 12 0zm7.76 18.949c-1.008 2.028-14.493 2.05-15.514 0C3.224 16.9 9.92 4.755 12.003 4.755c2.081 0 8.77 12.166 7.759 14.196zM12 9.198c-1.054 0-4.446 6.15-3.93 7.189.518 1.04 7.348 1.027 7.86 0 .511-1.027-2.874-7.19-3.93-7.19z" />
-    </svg>
-  );
-}
-
-function formatSyncDate(value: string): string {
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return value;
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mmm = d.toLocaleString('en-US', { month: 'short' });
-  const yyyy = d.getFullYear();
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
-}
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  color = 'text-[#a78bfa]',
-  subWrap = false,
-  infoText,
-}: {
-  icon: React.ElementType;
-  label: string;
-  value: string | number;
-  sub?: React.ReactNode;
-  color?: string;
-  subWrap?: boolean;
-  infoText?: string;
-}) {
-  return (
-    <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
-      <div className={`flex items-center gap-2 mb-2 text-sm ${color}`}>
-        <Icon size={16} />
-        <span>{label}</span>
-        {infoText && <InfoHint label={`${label} info`} text={infoText} />}
-      </div>
-      <div className="text-2xl font-bold text-[#f0eeff]">{value}</div>
-      <div
-        className={`text-xs text-[#6b6888] mt-0.5 min-h-[16px] ${subWrap ? 'leading-5 whitespace-normal break-words' : 'truncate'}`}
-        title={typeof sub === 'string' ? sub : undefined}
-      >
-        {sub ?? ''}
-      </div>
-    </div>
-  );
-}
+import { api } from '../api/client';
+import { ResolutionPieChart, CodecBarChart } from '../components/Charts';
+import { JellyfinIcon } from '../components/shared/icons/index';
+import { StatCard } from '../components/dashboard/StatCard';
+import { formatSyncDate } from '../components/dashboard/formatSyncDate';
+import { ScanProgressModal } from '../components/ScanProgressModal';
+import { InfoHint } from '../components/InfoHint';
 
 export function Dashboard() {
   const { data, isLoading, error } = useQuery({

@@ -1,15 +1,15 @@
 {
   "name": "curatarr",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "LLM-backed intelligent media library management",
   "private": true,
   "type": "module",
   "engines": {
     "node": ">=20.0.0"
   },
-  "main": "dist/index.js",
+  "main": "src/server/dist/index.js",
   "bin": {
-    "curatarr": "dist/index.js"
+    "curatarr": "src/server/dist/index.js"
   },
   "scripts": {
     "build:ui": "cd src/ui && npm run build",
@@ -18,11 +18,11 @@
     "lint": "eslint 'src/**/*.ts'",
     "test": "node --test test/*.test.mjs",
     "test:e2e": "npx playwright test --config=playwright.config.cjs --reporter=line",
-    "clean": "rm -rf dist dist-ui",
-    "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"tsc -w --preserveWatchOutput\" \"node --watch dist/index.js serve\" \"cd src/ui && npm run dev\"",
-    "dev:server": "concurrently -n tsc,api -c cyan,magenta \"tsc -w --preserveWatchOutput\" \"node --watch dist/index.js serve\"",
+    "clean": "rm -rf dist dist-ui src/dist-ui src/server/dist src/ui/dist",
+    "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"tsc -w --preserveWatchOutput\" \"node --watch src/server/dist/index.js serve\" \"cd src/ui && npm run dev\"",
+    "dev:server": "concurrently -n tsc,api -c cyan,magenta \"tsc -w --preserveWatchOutput\" \"node --watch src/server/dist/index.js serve\"",
     "dev:ui": "cd src/ui && npm run dev",
-    "serve": "node dist/index.js serve"
+    "serve": "node src/server/dist/index.js serve"
   },
   "dependencies": {
     "@hono/node-server": "^1.19.9",

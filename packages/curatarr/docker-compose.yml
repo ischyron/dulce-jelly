@@ -16,7 +16,7 @@ services:
       - /path/to/curatarr/data:/data
       # Movie library (optional) — mount your library here, then set Library Path to /media in Settings.
       # On macOS, ensure the path is in Docker Desktop → Settings → Resources → File Sharing first.
-      # - /path/to/movies:/media:ro
+      # - /path/to/movies:/media
     ports:
       - "${CURATARR_HOST_PORT:-3270}:7474"
     restart: unless-stopped

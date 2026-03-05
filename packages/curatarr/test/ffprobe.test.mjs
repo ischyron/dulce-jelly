@@ -14,7 +14,7 @@ import path from 'node:path';
 const execFileAsync = promisify(execFile);
 
 // Import compiled JS
-const { parseProbeOutput, extractReleaseGroup, probeFile } = await import('../dist/scanner/ffprobe.js');
+const { parseProbeOutput, extractReleaseGroup, probeFile } = await import('../src/server/dist/scanner/ffprobe.js');
 
 // ──────────────────────────────────────────────────────────────────
 // extractReleaseGroup

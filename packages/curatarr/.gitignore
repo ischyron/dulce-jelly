@@ -1,6 +1,9 @@
 node_modules/
 dist/
+src/server/dist/
+src/ui/dist/
 dist-ui/
+src/dist-ui/
 test-results/
 test/results/
 *.db

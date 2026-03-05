@@ -848,7 +848,6 @@ function buildScoutRefinementDraft(
   db: CuratDb,
   objective: string,
 ): {
-  mode: 'heuristic';
   objective: string;
   prompt: string;
   proposedSettings: Record<string, string>;
@@ -904,7 +903,6 @@ function buildScoutRefinementDraft(
   ].join('\n');
 
   return {
-    mode: 'heuristic',
     objective,
     prompt,
     proposedSettings,

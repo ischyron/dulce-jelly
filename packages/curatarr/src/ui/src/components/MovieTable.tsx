@@ -1,6 +1,6 @@
-import { type Movie } from '../api/client.js';
-import { ResolutionBadge, CodecBadge, HdrBadge } from './QualityBadge.js';
-import { InfoHint } from './InfoHint.js';
+import { type Movie } from '../api/client';
+import { ResolutionBadge, CodecBadge, HdrBadge } from './QualityBadge';
+import { InfoHint } from './InfoHint';
 
 interface Props {
   movies: Movie[];

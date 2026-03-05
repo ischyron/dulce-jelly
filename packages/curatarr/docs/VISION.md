@@ -6,9 +6,9 @@
 
 ## Executive Summary
 
-**Curatarr** is an LLM-backed media acquisition and library management system that replaces the traditional *arr stack (Radarr, Sonarr, Prowlarr, Recyclarr) with a single intelligent system.
+**Curatarr** is an LLM-backed media acquisition and library management system focused on replacing Radarr/Recyclarr decision logic with a single intelligent system while retaining Prowlarr as the indexer manager.
 
-**Core insight**: The *arr stack is complex, and its decision-making is rule-based. An LLM-backed system can make smarter decisions about content identity, quality authenticity, and upgrade worthiness — preventing incidents like wrong-content replacements while simplifying the stack.
+**Core insight**: Current decision logic is rule-only and brittle. An LLM-backed system can make smarter decisions about content identity, quality authenticity, and upgrade worthiness — preventing wrong-content replacements while simplifying movie automation.
 
 ---
 
@@ -73,13 +73,13 @@ Research into Radarr's source code revealed:
 
 ### Value Proposition
 
-| Traditional *arr | Curatarr |
+| Traditional stack | Curatarr |
 |------------------|----------|
-| 4+ systems | 1 system |
+| Multiple decision/config systems | Unified movie decision layer |
 | Rule-based decisions | LLM-backed intelligence |
 | Filename-based content matching | Semantic content verification |
 | Additive CF scoring | Size-to-quality sanity checks |
-| Separate indexer manager | Direct indexer integration |
+| Prowlarr as indexer manager | Prowlarr retained and integrated |
 | Complex configuration | Quality profiles baked in |
 
 ### Core Differentiators
@@ -100,7 +100,8 @@ Research into Radarr's source code revealed:
    - Beyond resolution: evaluate actual encode quality
 
 4. **Simplified Architecture**
-   - Single system replaces Radarr + Sonarr + Prowlarr + Recyclarr
+   - Single system replaces Radarr + Recyclarr movie decision logic
+   - Prowlarr remains the indexer manager
    - Jellyfin remains the library manager and player
    - SABnzbd/qBittorrent remain download clients
 
@@ -145,8 +146,8 @@ Research into Radarr's source code revealed:
          │                    │                    │
          ▼                    ▼                    ▼
    ┌──────────┐        ┌──────────┐         ┌──────────┐
-   │ Jellyfin │        │ SABnzbd  │         │ Indexer  │
-   │ (library │        │ (downld) │         │ (direct) │
+   │ Jellyfin │        │ SABnzbd  │         │ Prowlarr │
+   │ (library │        │ (downld) │         │ (indexer)│
    │ + player)│        └──────────┘         └──────────┘
    └──────────┘
 ```
@@ -191,7 +192,7 @@ Search indexer with LLM-backed verification.
 ```
 User: curatarr search "F1 2025" --profile Efficient-4K
     ↓
-Query indexer (Newznab API)
+Query Prowlarr (Newznab/Torznab API)
     ↓
 For each result:
   ├─ Parse release title → resolution, codec, group, source
@@ -309,7 +310,7 @@ interface LibraryItem {
 
 ### Search Engine (`search/`)
 
-- Direct Newznab API integration (no Prowlarr)
+- Prowlarr-backed Newznab/Torznab integration
 - SQLite cache for search results
 - Title parsing with TRaSH patterns
 - Release group reputation scoring
@@ -408,7 +409,7 @@ Return JSON with confidence scores and reasoning.
 | Jellyseerr | Requests | Keep (optional) |
 | Radarr | Movie management | **Replace** |
 | Sonarr | TV management | **Replace** |
-| Prowlarr | Indexer management | **Replace** |
+| Prowlarr | Indexer management | Keep |
 | Recyclarr | Quality rules sync | **Replace** |
 | SABnzbd | Usenet downloads | Keep |
 | qBittorrent | Torrent downloads | Keep |
@@ -420,11 +421,12 @@ Return JSON with confidence scores and reasoning.
 |---------|---------|
 | Jellyfin | Library + Player |
 | Curatarr | Everything else |
+| Prowlarr | Indexer management |
 | SABnzbd | Usenet downloads |
 | qBittorrent | Torrent downloads |
 | Caddy | Reverse proxy |
 
-**Container count**: 9 → 5
+**Container count**: 9 → 6
 
 ---
 
@@ -454,11 +456,11 @@ Curatarr polls Jellyfin library:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Sync strategy | On-demand | User runs `curatarr sync`; no scheduled sync |
-| Indexer | Single for MVP | Direct Newznab API; multi-indexer later |
+| Indexer | Single for MVP | Prowlarr integration first; direct adapters optional later |
 | REST API | Not MVP | CLI-first; API later for UI |
 | Download trigger | User-confirmed | `--confirm` flag required; legally compliant |
 | Content scope | Movies first | TV is more complex; post-MVP |
-| Prowlarr | Eliminate | Query indexer directly |
+| Prowlarr | Retain | Use as indexer manager and API adapter |
 | Radarr/Sonarr | Eliminate | Curatarr handles search + import |
 | Recyclarr | Eliminate | Rules baked into Curatarr |
 
@@ -468,7 +470,7 @@ Curatarr polls Jellyfin library:
 
 ### Phase 1: Core CLI (MVP)
 - [ ] Library scanner with FFprobe metrics
-- [ ] Indexer client (Newznab direct)
+- [ ] Indexer client (Prowlarr API)
 - [ ] Title parser (TRaSH patterns)
 - [ ] SQLite cache
 - [ ] CLI: `scan`, `search`, `cache-stats`
@@ -535,7 +537,7 @@ curatarr/                      # or packages/curatarr/ if staying in monorepo
 │   │
 │   ├── search/                # Indexer + cache
 │   │   ├── index.ts
-│   │   ├── indexerClient.ts   # Newznab API
+│   │   ├── indexerClient.ts   # Prowlarr-backed Newznab/Torznab
 │   │   ├── cache.ts           # SQLite
 │   │   ├── titleParser.ts
 │   │   └── types.ts

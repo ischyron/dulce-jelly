@@ -1,7 +1,7 @@
 import { NavLink, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { LayoutDashboard, Library, Bot, ScanLine, Settings, ShieldCheck, GitMerge } from 'lucide-react';
-import { api } from '../api/client.js';
+import { api } from '../api/client';
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },

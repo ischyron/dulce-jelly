@@ -35,9 +35,9 @@ RUN apk add --no-cache ffmpeg su-exec
 
 WORKDIR /app
 
-# Built artifacts
-COPY --from=builder /build/dist     ./dist
-COPY --from=builder /build/dist-ui  ./dist-ui
+# Built artifacts (server under src/server/dist, UI under src/ui/dist)
+COPY --from=builder /build/src/server/dist ./src/server/dist
+COPY --from=builder /build/src/ui/dist ./src/ui/dist
 COPY --from=builder /build/node_modules ./node_modules
 COPY config/ ./config/
 
@@ -64,4 +64,4 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:7474/api/stats > /dev/null || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["node", "dist/index.js", "serve"]
+CMD ["node", "src/server/dist/index.js", "serve"]

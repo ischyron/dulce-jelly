@@ -1,13 +1,13 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { Sidebar } from './components/Sidebar.js';
-import { Dashboard } from './pages/Dashboard.js';
-import { Library } from './pages/Library.js';
-import { ScoutQueue } from './pages/ScoutQueue.js';
-import { Scan } from './pages/Scan.js';
-import { Settings } from './pages/Settings.js';
-import { Disambiguate } from './pages/Disambiguate.js';
-import { Verify } from './pages/Verify.js';
-import { Movie } from './pages/Movie.js';
+import { Sidebar } from './components/Sidebar';
+import { Dashboard } from './pages/Dashboard';
+import { Library } from './pages/Library';
+import { ScoutQueue } from './pages/ScoutQueue';
+import { Scan } from './pages/Scan';
+import { Settings } from './pages/Settings';
+import { Disambiguate } from './pages/Disambiguate';
+import { Verify } from './pages/Verify';
+import { Movie } from './pages/Movie';
 
 export default function App() {
   return (

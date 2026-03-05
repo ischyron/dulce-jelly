@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { Trash2, AlertTriangle, FolderOpen, File, Loader2, X } from 'lucide-react';
-import { api } from '../api/client.js';
+import { api } from '../api/client';
 
 function formatSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';

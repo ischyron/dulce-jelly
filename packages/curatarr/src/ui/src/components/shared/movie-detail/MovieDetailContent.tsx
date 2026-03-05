@@ -13,9 +13,9 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react';
-import { api, type DroppedScoutRelease, type FileRow, type ScoutRelease } from '../api/client.js';
-import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from './QualityBadge.js';
-import { DeleteConfirmModal } from './DeleteConfirmModal.js';
+import { api, type DroppedScoutRelease, type FileRow, type ScoutRelease } from '../../../api/client';
+import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from '../../QualityBadge';
+import { DeleteConfirmModal } from '../../DeleteConfirmModal';
 
 interface Props {
   movieId: number;
@@ -71,10 +71,19 @@ function normalizeTag(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, '-');
 }
 
+function safeJsonParse<T>(raw: string | null, fallback: T): T {
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 function FileCard({ file }: { file: FileRow }) {
   const audioTracks: { codec: string; channels: number; language: string }[] =
-    file.audio_tracks ? JSON.parse(file.audio_tracks) : [];
-  const subtitles: string[] = file.subtitle_langs ? JSON.parse(file.subtitle_langs) : [];
+    safeJsonParse(file.audio_tracks, []);
+  const subtitles: string[] = safeJsonParse(file.subtitle_langs, []);
 
   return (
     <div className="rounded-lg border p-3 space-y-2 text-sm" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
@@ -231,8 +240,8 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   }
 
   const displayTitle = data.jellyfin_title ?? data.parsed_title ?? data.folder_name;
-  const genres: string[] = data.genres ? JSON.parse(data.genres) : [];
-  const tags: string[] = data.tags ? JSON.parse(data.tags) : [];
+  const genres: string[] = safeJsonParse(data.genres, []);
+  const tags: string[] = safeJsonParse(data.tags, []);
   const availableTags = (tagsData?.tags ?? []).filter(t => !tags.includes(t));
   const addableTag = normalizeTag(newTag);
   const disambiguationReason = data.disambiguation_reason ?? null;

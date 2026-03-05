@@ -17,6 +17,17 @@
 
 ### Curatarr Backlog
 
+- [DONE] ~~Trim LLM ruleset examples to only two relevant examples and hide backend draft mode details in Settings UI.~~
+  - Implemented:
+    - Replaced disabled example list under Scout > Extended release filter (LLM ruleset) with exactly:
+      - `Prefer usenet in close ties.`
+      - `Avoid AV1 when compatibility is uncertain.`
+    - Removed user-facing mode display (`Mode: heuristic`) from Settings draft generation UI.
+    - Simplified button label to `Generate Ruleset Draft`.
+    - Removed `mode` from `ScoutRulesRefineDraftResponse` type and backend draft response payload.
+    - Added API test coverage for objective-driven draft settings:
+      - Asserts usenet/torrent tie-break patch and AV1 compatibility patch in refine-draft response.
+
 - [DONE] ~~Integrate TrashGuide as a dedicated section for Custom Format Scores, syncing directly from the TrashGuide. Users should not edit these scores for now. Investigate how Radarr handles edits to Recyclarr-synced Custom Format scores—specifically, what occurs if a user modifies a TrashGuide-synced Custom Format in Radarr. Ensure our implementation matches this behavior for consistency.~~
   - Implemented:
     - Add parity read path against Radarr CF assignments and compare with Curatarr TRaSH snapshot.

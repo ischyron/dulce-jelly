@@ -65,16 +65,19 @@ test.describe('Scout feature checks', () => {
     expect(body).toHaveProperty('diff');
   });
 
-  test('scout refinement draft endpoint returns prompt + suggestions', async ({ request }) => {
+  test('scout refinement draft endpoint reflects usenet + compatibility objective', async ({ request }) => {
     const res = await request.post('/api/scout/rules/refine-draft', {
-      data: { objective: 'favor compatibility on android tv and reduce transcodes' },
+      data: { objective: 'Prefer usenet in close ties. Prioritize compatibility on Android TV. Avoid AV1 when compatibility is uncertain.' },
     });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
-    expect(body.mode).toBe('heuristic');
     expect(typeof body.prompt).toBe('string');
     expect(body.prompt.length).toBeGreaterThan(50);
     expect(body.proposedSettings).toBeTruthy();
+    expect(body.proposedSettings.scoutCfUsenetBonus).toBe('12');
+    expect(body.proposedSettings.scoutCfTorrentBonus).toBe('-2');
+    expect(body.proposedSettings.scoutCfCodecAv1).toBe('6');
+    expect(body.proposedSettings.scoutCfCodecH264).toBe('14');
   });
 
   test('custom CF preview and validation', async ({ request }) => {

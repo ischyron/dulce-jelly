@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-import { MovieDetailContent } from '../components/MovieDetailContent.js';
+import { MovieDetailPane } from '../components/shared/movie-detail';
 
 export function Movie() {
   const { id } = useParams<{ id: string }>();
@@ -27,7 +27,7 @@ export function Movie() {
       </div>
 
       <div className="rounded-xl border p-5" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <MovieDetailContent
+        <MovieDetailPane
           movieId={movieId}
           mode="page"
           onDeleted={() => navigate('/library')}

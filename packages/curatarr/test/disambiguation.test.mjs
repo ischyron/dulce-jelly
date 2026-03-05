@@ -1,7 +1,7 @@
 import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const { DisambiguationEngine } = await import('../dist/disambiguation/engine.js');
+const { DisambiguationEngine } = await import('../src/server/dist/disambiguation/engine.js');
 
 function mkMovie(id, title, year) {
   return {

@@ -200,7 +200,7 @@ Environment variable expansion: `${VAR_NAME}` syntax in YAML.
 npm install          # Install deps
 npm run build        # Compile TS
 npm run dev          # Watch mode
-node dist/index.js   # Run CLI
+node src/server/dist/index.js   # Run CLI
 ```
 
 ## Next Steps for Implementation

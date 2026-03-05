@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, X, GitMerge, AlertTriangle, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { api, type DisambiguationLogRow, type UnmatchedMovie } from '../api/client.js';
-import { ScanProgressModal } from '../components/ScanProgressModal.js';
+import { api, type DisambiguationLogRow, type UnmatchedMovie } from '../api/client';
+import { ScanProgressModal } from '../components/ScanProgressModal';
 
 const REASON_LABELS: Record<string, string> = {
   year_mismatch: 'Year mismatch',

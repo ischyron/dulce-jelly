@@ -15,6 +15,7 @@
 6) **Data mount:** Treat `data/` as mounted state, not code (backup-backed).
 7) **Agent workspace**: Use `temp/` directory for work logs, summaries, and temporary analysis files (gitignored).
 8) **Large changes commit rule:** After any large build-related change or major refactor, commit the completed work to git with a clear, scoped commit message.
+9) **Refactor hygiene rule:** Any refactor must include cleanup of obsolete, duplicated, or unused code introduced or touched by the change. Do not leave partial migrations, dead code, or duplicate constants/components behind.
 
 ## Host & Storage
 - **Host:** Any system capable of running Docker (tested on macOS/Linux).

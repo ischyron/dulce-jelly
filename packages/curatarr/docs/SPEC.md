@@ -6,6 +6,7 @@
 
 ## Table of Contents
 
+0. [Technical Architecture Diagram](./technical/architecture.md)
 1. [Executive Summary](#1-executive-summary)
 2. [Problem Statement](#2-problem-statement)
 3. [Core Features](#3-core-features)
@@ -100,6 +101,8 @@ Managing Radarr + Recyclarr as separate systems with interconnected CF profile c
 ---
 
 ## 4. System Architecture
+
+Reference diagram and layering notes: [technical/architecture.md](./technical/architecture.md)
 
 ### 4.1 High-Level Architecture
 

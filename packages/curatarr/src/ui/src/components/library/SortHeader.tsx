@@ -1,6 +1,6 @@
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
-import { InfoHint } from '../../../components/InfoHint.js';
-import type { SortField } from '../types.js';
+import { InfoHint } from '../InfoHint';
+import type { SortField } from './types';
 
 interface Props {
   field: SortField;

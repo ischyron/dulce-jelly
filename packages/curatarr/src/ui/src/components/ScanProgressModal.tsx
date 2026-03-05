@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { X, CheckCircle, AlertCircle, Loader2, Square } from 'lucide-react';
-import { api } from '../api/client.js';
+import { api } from '../api/client';
 
 interface FolderStatus {
   name: string;

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { X, Film, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MovieDetailContent } from './MovieDetailContent.js';
+import { MovieDetailPane } from './shared/movie-detail';
 
 interface Props {
   movieId: number;
@@ -84,7 +84,7 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <MovieDetailContent
+          <MovieDetailPane
             movieId={movieId}
             mode="drawer"
             onDeleted={onClose}

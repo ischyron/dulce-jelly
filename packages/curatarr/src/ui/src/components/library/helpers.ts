@@ -1,4 +1,4 @@
-import { PERSIST_FILTER_KEYS, SORT_FIELDS, type SortField } from './types.js';
+import { PERSIST_FILTER_KEYS, SORT_FIELDS, type SortField } from './types';
 
 export function toSortField(value: string | null): SortField {
   if (!value) return 'title';

@@ -300,7 +300,6 @@ export interface ScoutCustomCfPreviewResponse {
 }
 
 export interface ScoutRulesRefineDraftResponse {
-  mode: 'heuristic';
   objective: string;
   prompt: string;
   proposedSettings: Record<string, string>;

@@ -672,6 +672,7 @@ export function Settings() {
             </div>
             <div className="flex items-center gap-2">
               <button
+                type="button"
                 onClick={() => {
                   setShowScanPrompt(false);
                   navigate('/scan');
@@ -682,6 +683,7 @@ export function Settings() {
                 <ScanLine size={12} /> Go to Scan
               </button>
               <button
+                type="button"
                 onClick={() => setShowScanPrompt(false)}
                 className="text-xs underline"
                 style={{ color: 'var(--c-muted)' }}
@@ -809,6 +811,7 @@ export function Settings() {
 
       <div className="flex items-center gap-3">
         <button
+          type="button"
           onClick={handleSave}
           disabled={saveMutation.isPending}
           className="px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-60"

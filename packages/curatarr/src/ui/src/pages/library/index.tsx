@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, type Movie, type Stats } from '../../api/client.js';
 import { MovieDetailDrawer } from '../../components/MovieDetailDrawer.js';
-import { normalizeTag, persistedFilterParams, sp, spInt, fmtSize, toSortDir, toSortField } from './helpers.js';
+import { normalizeTag, persistedFilterParams, getSearchParam, getSearchParamInteger, formatSize, toSortDirection, toSortField } from './helpers.js';
 import { AV1_WARN_PROFILES } from './types.js';
 import { LibraryFilterBar } from './components/LibraryFilterBar.js';
 import { LibraryTable } from './components/LibraryTable.js';
@@ -16,16 +16,16 @@ export function Library() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
 
-  const pageRaw = spInt(searchParams, 'page', 1);
-  const limitParam = sp(searchParams, 'limit', '50');
-  const limitRaw = spInt(searchParams, 'limit', 50);
+  const pageRaw = getSearchParamInteger(searchParams, 'page', 1);
+  const limitParam = getSearchParam(searchParams, 'limit', '50');
+  const limitRaw = getSearchParamInteger(searchParams, 'limit', 50);
   const sortBy = toSortField(searchParams.get('sort'));
-  const sortDir = toSortDir(searchParams.get('dir'));
-  const resolution = sp(searchParams, 'resolution', '');
-  const codec = sp(searchParams, 'codec', '');
-  const audioFormat = sp(searchParams, 'audioFormat', '');
-  const audioLayout = sp(searchParams, 'audioLayout', '');
-  const genreFilter = sp(searchParams, 'genre', '');
+  const sortDir = toSortDirection(searchParams.get('dir'));
+  const resolution = getSearchParam(searchParams, 'resolution', '');
+  const codec = getSearchParam(searchParams, 'codec', '');
+  const audioFormat = getSearchParam(searchParams, 'audioFormat', '');
+  const audioLayout = getSearchParam(searchParams, 'audioLayout', '');
+  const genreFilter = getSearchParam(searchParams, 'genre', '');
   const selectedGenres = genreFilter ? genreFilter.split(',').map((g) => g.trim()).filter(Boolean) : [];
   const hdrOnly = searchParams.get('hdr') === '1';
   const dvOnly = searchParams.get('dv') === '1';
@@ -33,13 +33,13 @@ export function Library() {
   const legacyOnly = searchParams.get('legacy') === '1';
   const noJf = searchParams.get('noJf') === '1';
   const multiOnly = searchParams.get('multi') === '1';
-  const tagFilter = sp(searchParams, 'tags', '');
+  const tagFilter = getSearchParam(searchParams, 'tags', '');
   const selectedTags = tagFilter ? tagFilter.split(',').map((t) => normalizeTag(t)).filter(Boolean) : [];
-  const search = sp(searchParams, 'q', '');
+  const search = getSearchParam(searchParams, 'q', '');
   const showAll = limitParam === 'all' || searchParams.get('all') === '1';
   const page = Math.max(1, pageRaw);
   const limit = showAll ? 50 : Math.max(1, limitRaw);
-  const selectedId = spInt(searchParams, 'movie', 0) || undefined;
+  const selectedId = getSearchParamInteger(searchParams, 'movie', 0) || undefined;
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tagFilterRef = useRef<HTMLDivElement | null>(null);
@@ -389,7 +389,7 @@ export function Library() {
           onToggleSelectAllOnPage={toggleSelectAllOnPage}
           onToggleSelected={toggleSelected}
           onToggleMovieDrawer={(id) => patch({ movie: selectedId === id ? null : String(id) })}
-          fmtSize={fmtSize}
+          formatSize={formatSize}
         />
       </div>
 

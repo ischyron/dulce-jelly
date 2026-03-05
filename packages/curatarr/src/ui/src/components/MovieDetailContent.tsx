@@ -24,20 +24,20 @@ interface Props {
   onDeleted?: () => void;
 }
 
-function fmtSize(bytes: number | null): string {
+function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
   const gb = bytes / 1e9;
   return gb >= 1 ? `${gb.toFixed(2)} GB` : `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
-function fmtDuration(secs: number | null): string {
+function formatDuration(secs: number | null): string {
   if (!secs) return '—';
   const h = Math.floor(secs / 3600);
   const m = Math.floor((secs % 3600) / 60);
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-function fmtSyncDate(value: string): string {
+function formatSyncDate(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   const dd = String(d.getDate()).padStart(2, '0');
@@ -48,7 +48,7 @@ function fmtSyncDate(value: string): string {
   return `${dd}-${mmm}-${yyyy} ${hh}:${mm}`;
 }
 
-function fmtAge(value: string | null): string {
+function formatAge(value: string | null): string {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
@@ -62,7 +62,7 @@ function fmtAge(value: string | null): string {
   return `${Math.max(1, mins)}m`;
 }
 
-function fmtReleaseSize(bytes: number | null): string {
+function formatReleaseSize(bytes: number | null): string {
   if (!bytes) return '—';
   return `${(bytes / 1e9).toFixed(1)} GB`;
 }
@@ -92,8 +92,8 @@ function FileCard({ file }: { file: FileRow }) {
         )}
       </div>
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs" style={{ color: 'var(--c-muted)' }}>
-        <span>Size: <span style={{ color: '#d4cfff' }}>{fmtSize(file.file_size)}</span></span>
-        <span>Duration: <span style={{ color: '#d4cfff' }}>{fmtDuration(file.duration)}</span></span>
+        <span>Size: <span style={{ color: '#d4cfff' }}>{formatSize(file.file_size)}</span></span>
+        <span>Duration: <span style={{ color: '#d4cfff' }}>{formatDuration(file.duration)}</span></span>
         <span>MB/min: <span style={{ color: '#d4cfff' }}>{file.mb_per_minute?.toFixed(1) ?? '—'}</span></span>
         <span>Container: <span style={{ color: '#d4cfff' }}>{(file.container ?? '—').toUpperCase()}</span></span>
         {file.release_group && (
@@ -147,8 +147,8 @@ function ScoutResultsTable({ releases }: { releases: ScoutRelease[] }) {
               </td>
               <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>{r.indexer ?? '—'}</td>
               <td className="px-2 py-1.5 uppercase" style={{ color: 'var(--c-muted)' }}>{r.protocol}</td>
-              <td className="px-2 py-1.5 text-right" style={{ color: 'var(--c-muted)' }}>{fmtReleaseSize(r.size)}</td>
-              <td className="px-2 py-1.5 text-right" style={{ color: 'var(--c-muted)' }}>{fmtAge(r.publishDate)}</td>
+              <td className="px-2 py-1.5 text-right" style={{ color: 'var(--c-muted)' }}>{formatReleaseSize(r.size)}</td>
+              <td className="px-2 py-1.5 text-right" style={{ color: 'var(--c-muted)' }}>{formatAge(r.publishDate)}</td>
               <td className="px-2 py-1.5 text-right" style={{ color: 'var(--c-muted)' }}>
                 {(r.seeders ?? 0)}/{(r.peers ?? 0)}
               </td>
@@ -332,7 +332,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             <div className="block w-full text-xs" style={{ color: '#8b87aa' }} data-testid="movie-synced-row">
               Jellyfin Synced:{' '}
               <span style={{ color: '#d4cfff' }}>
-                {data.jf_synced_at ? fmtSyncDate(data.jf_synced_at) : '—'}
+                {data.jf_synced_at ? formatSyncDate(data.jf_synced_at) : '—'}
               </span>
               {pendingJellyfinSync && (
                 <span className="italic ml-2" style={{ color: 'var(--c-muted)' }}>

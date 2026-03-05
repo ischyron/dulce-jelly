@@ -23,7 +23,7 @@ function JellyfinIcon({ size = 16, ...props }: React.SVGProps<SVGSVGElement> & {
   );
 }
 
-function fmtSyncDate(value: string): string {
+function formatSyncDate(value: string): string {
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return value;
   const dd = String(d.getDate()).padStart(2, '0');
@@ -100,7 +100,7 @@ export function Dashboard() {
     return <div className="p-8 text-red-400">Failed to load stats. Is the server running?</div>;
   }
 
-  const jfPct = data.totalMovies > 0
+  const jellyfinSyncPercentage = data.totalMovies > 0
     ? Math.round((data.jfEnriched / data.totalMovies) * 100)
     : 0;
 
@@ -108,7 +108,7 @@ export function Dashboard() {
   const lastScanSummary = lastScan ? (
     <div className="space-y-0.5 leading-5">
       <div>
-        Last scan: {fmtSyncDate(String(lastScan.started_at ?? '—'))} ({Number(lastScan.duration_sec ?? 0).toFixed(0)}s)
+        Last scan: {formatSyncDate(String(lastScan.started_at ?? '—'))} ({Number(lastScan.duration_sec ?? 0).toFixed(0)}s)
       </div>
       <div>
         <span className="text-emerald-400 font-semibold">{String(lastScan.scanned_ok ?? 0)}</span>
@@ -209,7 +209,7 @@ export function Dashboard() {
         <StatCard
           icon={JellyfinIcon}
           label="Jellyfin Synced"
-          value={`${jfPct}%`}
+          value={`${jellyfinSyncPercentage}%`}
           sub={
             <span className="inline-flex items-center gap-1 text-sm">
               <span className="text-[#d4cfff] font-semibold">{data.jfEnriched}</span>

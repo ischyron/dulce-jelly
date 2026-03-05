@@ -8,7 +8,7 @@ interface Props {
   selectedId?: number;
 }
 
-function fmtSize(bytes: number | null): string {
+function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
   const gb = bytes / 1e9;
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(bytes / 1e6).toFixed(0)} MB`;
@@ -83,7 +83,7 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
                 {m.community_rating != null ? m.community_rating.toFixed(1) : '—'}
               </td>
               <td className="px-3 py-2 text-right text-[#8b87aa] text-xs">
-                {fmtSize(m.file_size)}
+                {formatSize(m.file_size)}
               </td>
             </tr>
           ))}

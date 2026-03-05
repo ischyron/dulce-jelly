@@ -3,11 +3,11 @@ import { Sidebar } from './components/Sidebar.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { Library } from './pages/Library.js';
 import { ScoutQueue } from './pages/ScoutQueue.js';
-import { Scan } from './pages/ScanPage.js';
+import { Scan } from './pages/Scan.js';
 import { Settings } from './pages/Settings.js';
-import { Disambiguate } from './pages/DisambiguatePage.js';
-import { Verify } from './pages/VerifyPage.js';
-import { Movie } from './pages/MoviePage.js';
+import { Disambiguate } from './pages/Disambiguate.js';
+import { Verify } from './pages/Verify.js';
+import { Movie } from './pages/Movie.js';
 
 export default function App() {
   return (

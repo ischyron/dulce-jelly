@@ -19,7 +19,7 @@ interface Props {
   onToggleSelectAllOnPage: (checked: boolean) => void;
   onToggleSelected: (id: number, checked: boolean) => void;
   onToggleMovieDrawer: (id: number) => void;
-  fmtSize: (bytes: number | null) => string;
+  formatSize: (bytes: number | null) => string;
 }
 
 export function LibraryTable({
@@ -36,7 +36,7 @@ export function LibraryTable({
   onToggleSelectAllOnPage,
   onToggleSelected,
   onToggleMovieDrawer,
-  fmtSize,
+  formatSize,
 }: Props) {
   if (isLoading) {
     return <div className="p-8 text-sm" style={{ color: 'var(--c-muted)' }}>Loading…</div>;
@@ -190,7 +190,7 @@ export function LibraryTable({
               {movie.community_rating != null ? movie.community_rating.toFixed(1) : '—'}
             </td>
             <td className="px-3 py-2 text-right text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>
-              {fmtSize(movie.file_size)}
+              {formatSize(movie.file_size)}
             </td>
             <td className="px-3 py-2 text-center">
               <QualityFlagsBadge qualityFlagsJson={movie.quality_flags} verifyStatus={movie.verify_status} />

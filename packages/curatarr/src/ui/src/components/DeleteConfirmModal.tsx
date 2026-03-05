@@ -3,7 +3,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { Trash2, AlertTriangle, FolderOpen, File, Loader2, X } from 'lucide-react';
 import { api } from '../api/client.js';
 
-function fmtSize(bytes: number): string {
+function formatSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
   if (bytes < 1e3) return `${Math.round(bytes)} B`;
   if (bytes < 1e6) return `${(bytes / 1e3).toFixed(1)} KB`;
@@ -82,7 +82,7 @@ export function DeleteConfirmModal({ movieId, movieTitle, onDeleted, onClose }: 
                     <File size={10} />
                     {f.name}
                   </span>
-                  <span className="ml-3 shrink-0 opacity-60">{fmtSize(f.size)}</span>
+                  <span className="ml-3 shrink-0 opacity-60">{formatSize(f.size)}</span>
                 </div>
               ))}
             </div>

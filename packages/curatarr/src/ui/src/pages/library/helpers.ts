@@ -5,27 +5,27 @@ export function toSortField(value: string | null): SortField {
   return SORT_FIELDS.has(value as SortField) ? (value as SortField) : 'title';
 }
 
-export function toSortDir(value: string | null): 'asc' | 'desc' {
+export function toSortDirection(value: string | null): 'asc' | 'desc' {
   return value === 'desc' ? 'desc' : 'asc';
 }
 
-export function fmtSize(bytes: number | null): string {
+export function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
   const gb = bytes / 1e9;
   return gb >= 1 ? `${gb.toFixed(1)} GB` : `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
-export function fmtTotalSize(bytes: number): string {
+export function formatTotalSize(bytes: number): string {
   if (bytes >= 1e12) return `${(bytes / 1e12).toFixed(2)} TB`;
   if (bytes >= 1e9) return `${(bytes / 1e9).toFixed(1)} GB`;
   return `${(bytes / 1e6).toFixed(0)} MB`;
 }
 
-export function sp(params: URLSearchParams, key: string, fallback: string): string {
+export function getSearchParam(params: URLSearchParams, key: string, fallback: string): string {
   return params.get(key) ?? fallback;
 }
 
-export function spInt(params: URLSearchParams, key: string, fallback: number): number {
+export function getSearchParamInteger(params: URLSearchParams, key: string, fallback: number): number {
   const v = params.get(key);
   const n = v ? parseInt(v, 10) : Number.NaN;
   return Number.isNaN(n) ? fallback : n;

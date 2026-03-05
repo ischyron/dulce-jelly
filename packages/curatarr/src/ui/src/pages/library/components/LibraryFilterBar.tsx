@@ -1,7 +1,7 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { Search, Library as LibraryIcon } from 'lucide-react';
 import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS, CODEC_OPTIONS, AUDIO_FORMAT_OPTIONS, AUDIO_LAYOUT_OPTIONS } from '../types.js';
-import { fmtTotalSize } from '../helpers.js';
+import { formatTotalSize } from '../helpers.js';
 
 interface Props {
   isFetching: boolean;
@@ -488,7 +488,7 @@ export function LibraryFilterBar({
         {typeof totalLibrarySize === 'number' && totalLibrarySize > 0 ? (
           <>
             <span style={{ color: 'var(--c-border)' }}>·</span>
-            <span title="Total size on disk (all scanned files)">{fmtTotalSize(totalLibrarySize)}</span>
+            <span title="Total size on disk (all scanned files)">{formatTotalSize(totalLibrarySize)}</span>
           </>
         ) : null}
       </span>

@@ -435,7 +435,7 @@ function toPrettyJson(value: unknown): string {
   }
 }
 
-function fmtBytes(bytes: number): string {
+function formatBytes(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes <= 0) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB'];
   let n = bytes;
@@ -452,7 +452,7 @@ function bitrateToSizeGb(mbps: number, minutes: number): number {
   return (mbps * 1_000_000 / 8) * (minutes * 60) / 1_000_000_000;
 }
 
-function fmtGb(gb: number): string {
+function formatGigabytes(gb: number): string {
   if (!Number.isFinite(gb) || gb <= 0) return '0.0 GB';
   return `${gb.toFixed(1)} GB`;
 }
@@ -569,8 +569,8 @@ function BitrateBandField({
   const safeMax = Math.max(parsedMin, parsedMax);
   const shownMin = step < 1 ? safeMin.toFixed(1) : String(Math.round(safeMin));
   const shownMax = step < 1 ? safeMax.toFixed(1) : String(Math.round(safeMax));
-  const estMin = fmtGb(bitrateToSizeGb(safeMin, minutes));
-  const estMax = fmtGb(bitrateToSizeGb(safeMax, minutes));
+  const estMin = formatGigabytes(bitrateToSizeGb(safeMin, minutes));
+  const estMax = formatGigabytes(bitrateToSizeGb(safeMax, minutes));
 
   return (
     <div>
@@ -1882,7 +1882,7 @@ export function Settings() {
                                   {f.name}
                                 </a>
                               </td>
-                              <td className="px-2 py-1 text-right" style={{ color: 'var(--c-text)' }}>{fmtBytes(f.size)}</td>
+                              <td className="px-2 py-1 text-right" style={{ color: 'var(--c-text)' }}>{formatBytes(f.size)}</td>
                               <td className="px-2 py-1" style={{ color: f.warning ? '#f59e0b' : '#4ade80' }}>
                                 {f.warning ? `warning: ${f.warning}` : 'parsed'}
                               </td>

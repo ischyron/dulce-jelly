@@ -7,7 +7,7 @@ import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from '../comp
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer.js';
 import { InfoHint } from '../components/InfoHint.js';
 
-function fmtSize(bytes: number | null): string {
+function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
   return `${(bytes / 1e9).toFixed(1)} GB`;
 }
@@ -458,7 +458,7 @@ export function ScoutQueue() {
                     {c.community_rating?.toFixed(1) ?? '—'}
                   </td>
                   <td className="px-3 py-2 text-right text-xs" style={{ color: 'var(--c-muted)' }}>
-                    {fmtSize(c.file_size)}
+                    {formatSize(c.file_size)}
                   </td>
                 </tr>
               ))}

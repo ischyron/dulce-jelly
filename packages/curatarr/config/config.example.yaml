@@ -31,15 +31,15 @@ settings:
   prowlarrUrl: http://prowlarr:9696
 
   # Scout queue defaults
-  scoutMinCritic: "65"
-  scoutMinCommunity: "7.0"
+  scoutPipelineMinCritic: "65"
+  scoutPipelineMinImdb: "7.0"
   scoutMaxResolution: "2160p"
-  scoutSearchBatchSize: "5"
+  scoutPipelineBatchSize: "5"
 
   # Scout scheduler
-  scoutAutoEnabled: "false"
-  scoutAutoIntervalMin: "60"
-  scoutAutoCooldownMin: "240"
+  scoutPipelineAutoEnabled: "false"
+  scoutPipelineAutoIntervalMin: "60"
+  scoutPipelineAutoCooldownMin: "240"
 
   # Jellyfin sync scheduler
   jfSyncIntervalMin: "30"

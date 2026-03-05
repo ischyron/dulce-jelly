@@ -136,13 +136,13 @@ function startJfSyncScheduler(db: CuratDb): void {
 }
 
 function startScoutScheduler(db: CuratDb): void {
-  const enabled = (db.getSetting('scoutAutoEnabled') ?? 'false').toLowerCase();
+  const enabled = (db.getSetting('scoutPipelineAutoEnabled') ?? 'false').toLowerCase();
   if (!['1', 'true', 'yes', 'on'].includes(enabled)) {
     console.log('  Scout   : Auto-scout disabled');
     return;
   }
 
-  const intervalRaw = Number.parseInt(db.getSetting('scoutAutoIntervalMin') ?? '60', 10);
+  const intervalRaw = Number.parseInt(db.getSetting('scoutPipelineAutoIntervalMin') ?? '60', 10);
   const intervalMin = Number.isFinite(intervalRaw) ? Math.max(5, Math.min(24 * 60, intervalRaw)) : 60;
   const intervalMs = intervalMin * 60 * 1000;
   console.log(`  Scout   : Auto-scout every ${intervalMin} min`);

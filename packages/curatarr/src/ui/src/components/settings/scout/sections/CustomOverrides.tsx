@@ -1,6 +1,8 @@
 import type { CustomOverridesSectionProps } from '../../types';
 
 export function CustomOverrides({
+  form,
+  set,
   customCfDraft,
   updateCustomCfRule,
   removeCustomCfRule,
@@ -14,6 +16,14 @@ export function CustomOverrides({
   runCustomCfPreview,
   customCfPreviewPending,
   customCfPreviewData,
+  blockerDraft,
+  updateBlockerRule,
+  removeBlockerRule,
+  addBlockerRule,
+  saveBlockers,
+  blockersSavePending,
+  blockersSaved,
+  blockersError,
 }: CustomOverridesSectionProps) {
   return (
     <section className="space-y-4 py-3 border-t first:border-t-0" style={{ borderColor: 'var(--c-border)' }}>
@@ -29,14 +39,27 @@ export function CustomOverrides({
             className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
             style={{ background: 'rgba(124,58,237,0.28)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.4)' }}
           >
-            3
+            4
           </span>
-          Custom Format Scores (Overrides)
+          Custom CF + blockers
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Add your own filename/title pattern rules (regex or string) and score deltas. These apply after TRaSH baseline
           scoring.
         </p>
+        <label
+          htmlFor="scout-blockers-enabled"
+          className="inline-flex items-center gap-2 text-xs px-2 py-1 rounded border"
+          style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)', background: 'var(--c-surface)' }}
+        >
+          <input
+            id="scout-blockers-enabled"
+            type="checkbox"
+            checked={(form.scoutPipelineBlockersEnabled ?? 'false') === 'true'}
+            onChange={(e) => set('scoutPipelineBlockersEnabled', e.target.checked ? 'true' : 'false')}
+          />
+          Enable blocker enforcement (feature-flagged path)
+        </label>
         <div
           className="rounded border px-2 py-1.5 text-xs"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)', color: 'var(--c-muted)' }}
@@ -231,6 +254,100 @@ export function CustomOverrides({
               · Matches: {customCfPreviewData.reasons.join(', ') || 'none'}
             </div>
           )}
+        </div>
+        <div
+          className="rounded border p-2 space-y-2"
+          style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
+        >
+          <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Release blockers
+          </div>
+          {blockerDraft.map((row, idx) => {
+            const rowId = `${row.id ?? 'new'}-${idx}`;
+            return (
+              <div
+                key={`blocker-${rowId}`}
+                className="rounded border p-2 grid grid-cols-1 sm:grid-cols-12 gap-2"
+                style={{ borderColor: 'var(--c-border)' }}
+              >
+                <div className="sm:col-span-2">
+                  <input
+                    value={row.name}
+                    onChange={(e) => updateBlockerRule(idx, { name: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder="Blocker name"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <select
+                    value={row.matchType}
+                    onChange={(e) => updateBlockerRule(idx, { matchType: e.target.value as 'regex' | 'string' })}
+                    className="w-full px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                  >
+                    <option value="regex">Regex</option>
+                    <option value="string">String</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-4">
+                  <input
+                    value={row.pattern}
+                    onChange={(e) => updateBlockerRule(idx, { pattern: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs font-mono"
+                    style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder={row.matchType === 'regex' ? '\\bcam\\b' : 'cam'}
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <input
+                    value={row.reason}
+                    onChange={(e) => updateBlockerRule(idx, { reason: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder="Reason shown in dropped list"
+                  />
+                </div>
+                <div className="sm:col-span-2 flex items-center justify-end gap-2">
+                  <input
+                    type="checkbox"
+                    checked={row.enabled}
+                    onChange={(e) => updateBlockerRule(idx, { enabled: e.target.checked })}
+                    title="Enabled"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeBlockerRule(idx)}
+                    className="text-xs px-2 py-1 rounded border"
+                    style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={addBlockerRule}
+              className="px-3 py-1.5 rounded border text-xs"
+              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+            >
+              Add Blocker
+            </button>
+            <button
+              type="button"
+              onClick={saveBlockers}
+              disabled={blockersSavePending}
+              className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+            >
+              {blockersSavePending ? 'Saving…' : 'Save Blockers'}
+            </button>
+            {blockersSaved && <span className="text-xs text-green-400">Saved</span>}
+            {blockersError && <span className="text-xs text-red-400">{blockersError}</span>}
+          </div>
         </div>
       </div>
     </section>

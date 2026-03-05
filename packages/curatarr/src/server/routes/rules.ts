@@ -23,6 +23,24 @@ function validateRuleConfig(category: string, config: unknown): string | null {
     }
     return null;
   }
+
+  if (category === 'scout_release_blockers') {
+    const c = (config ?? {}) as Record<string, unknown>;
+    const matchType = c.matchType === 'regex' ? 'regex' : c.matchType === 'string' ? 'string' : '';
+    const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
+    if (!matchType) return 'scout_release_blockers requires matchType: regex|string';
+    if (!pattern) return 'scout_release_blockers requires a non-empty pattern';
+    if (matchType === 'regex') {
+      const flagsRaw = typeof c.flags === 'string' ? c.flags : 'i';
+      const flags = flagsRaw.includes('i') ? 'i' : '';
+      try {
+        new RegExp(pattern, flags);
+      } catch {
+        return 'scout_release_blockers pattern is not a valid regex';
+      }
+    }
+    return null;
+  }
   if (category === 'scout_llm_ruleset') {
     const c = (config ?? {}) as Record<string, unknown>;
     const sentence = typeof c.sentence === 'string' ? c.sentence.trim() : '';

@@ -1,4 +1,4 @@
-import type { ScoutCustomCfDraft, ScoutLlmRuleDraft } from '../types';
+import type { ScoutBlockerDraft, ScoutCustomCfDraft, ScoutLlmRuleDraft } from '../types';
 
 export function extractRuleDescription(configText: string): string {
   try {
@@ -57,5 +57,26 @@ export function parseLlmRule(rule: {
     enabled: rule.enabled !== 0,
     priority: rule.priority,
     sentence,
+  };
+}
+
+export function parseBlockerRule(rule: {
+  id: number;
+  name: string;
+  enabled: number;
+  priority: number;
+  config: unknown;
+}): ScoutBlockerDraft {
+  const cfg = (rule.config ?? {}) as Record<string, unknown>;
+  return {
+    id: rule.id,
+    name: rule.name,
+    enabled: rule.enabled !== 0,
+    priority: rule.priority,
+    matchType: cfg.matchType === 'regex' ? 'regex' : 'string',
+    pattern: typeof cfg.pattern === 'string' ? cfg.pattern : '',
+    flags: typeof cfg.flags === 'string' ? cfg.flags : 'i',
+    appliesTo: cfg.appliesTo === 'full' ? 'full' : 'title',
+    reason: typeof cfg.reason === 'string' ? cfg.reason : 'Blocked by custom rule',
   };
 }

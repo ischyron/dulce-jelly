@@ -4,25 +4,19 @@ import { type DragEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
-import {
-  BITRATE_BIAS_PROFILES,
-  BITRATE_KEYS,
-  type BitrateProfileId,
-  CLIENT_PROFILES,
-  LLM_RULESET_SAMPLES,
-} from '../components/settings/content';
+import { LLM_RULESET_SAMPLES } from '../components/settings/content';
 import { GeneralPanel } from '../components/settings/general/GeneralPanel';
 import { ScoutPanel } from '../components/settings/scout/ScoutPanel';
 import type {
   LibraryRootEntry,
+  ScoutBlockerDraft,
   ScoutCustomCfDraft,
   ScoutLlmRuleDraft,
   ScoutRuleDraft,
   SettingsForm,
 } from '../components/settings/types';
 import { normalizeRootPath, parseLibraryRoots, toLibraryRootsJson } from '../components/settings/utils/libraryRoots';
-import { parseCustomCfRule, parseLlmRule } from '../components/settings/utils/rules';
-import { detectBitrateProfileFromSettings } from '../components/settings/utils/scoring';
+import { parseBlockerRule, parseCustomCfRule, parseLlmRule } from '../components/settings/utils/rules';
 import { SETTINGS_DEFAULTS, type SettingsDefaultKey } from '../config/defaultSettings';
 
 const GENERAL_SETTING_KEYS = new Set([
@@ -57,12 +51,14 @@ export function Settings() {
   const [scoutRulesError, setScoutRulesError] = useState('');
   const [customCfSaved, setCustomCfSaved] = useState(false);
   const [customCfError, setCustomCfError] = useState('');
+  const [blockersSaved, setBlockersSaved] = useState(false);
+  const [blockersError, setBlockersError] = useState('');
   const [llmRulesSaved, setLlmRulesSaved] = useState(false);
   const [llmRulesError, setLlmRulesError] = useState('');
   const [llmDragIndex, setLlmDragIndex] = useState<number | null>(null);
   const [refineObjective, setRefineObjective] = useState('');
   const [customCfPreviewTitle, setCustomCfPreviewTitle] = useState('');
-  const [bitrateProfileId, setBitrateProfileId] = useState<BitrateProfileId>('webdl');
+  const [blockerDraft, setBlockerDraft] = useState<ScoutBlockerDraft[]>([]);
   const [movieRoots, setMovieRoots] = useState<string[]>(['']);
   const [seriesRoots] = useState<string[]>([]);
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -90,40 +86,41 @@ export function Settings() {
         llmProvider: withDefault('llmProvider'),
         llmApiKey: '',
         llmApiKeyMasked: data.settings.llmApiKey ?? '',
-        scoutMinCritic: withDefault('scoutMinCritic'),
-        scoutMinCommunity: withDefault('scoutMinCommunity'),
-        scoutSearchBatchSize: withDefault('scoutSearchBatchSize'),
-        scoutAutoEnabled: withDefault('scoutAutoEnabled'),
-        scoutAutoIntervalMin: withDefault('scoutAutoIntervalMin'),
-        scoutAutoCooldownMin: withDefault('scoutAutoCooldownMin'),
-        scoutCfRes2160: withDefault('scoutCfRes2160'),
-        scoutCfRes1080: withDefault('scoutCfRes1080'),
-        scoutCfRes720: withDefault('scoutCfRes720'),
-        scoutCfSourceRemux: withDefault('scoutCfSourceRemux'),
-        scoutCfSourceBluray: withDefault('scoutCfSourceBluray'),
-        scoutCfSourceWebdl: withDefault('scoutCfSourceWebdl'),
-        scoutCfCodecHevc: withDefault('scoutCfCodecHevc'),
-        scoutCfCodecAv1: withDefault('scoutCfCodecAv1'),
-        scoutCfCodecH264: withDefault('scoutCfCodecH264'),
-        scoutCfAudioAtmos: withDefault('scoutCfAudioAtmos'),
-        scoutCfAudioTruehd: withDefault('scoutCfAudioTruehd'),
-        scoutCfAudioDts: withDefault('scoutCfAudioDts'),
-        scoutCfAudioDdp: withDefault('scoutCfAudioDdp'),
-        scoutCfAudioAc3: withDefault('scoutCfAudioAc3'),
-        scoutCfAudioAac: withDefault('scoutCfAudioAac'),
-        scoutCfLegacyPenalty: withDefault('scoutCfLegacyPenalty'),
-        scoutCfBitrateMin2160Mbps: withDefault('scoutCfBitrateMin2160Mbps'),
-        scoutCfBitrateMax2160Mbps: withDefault('scoutCfBitrateMax2160Mbps'),
-        scoutCfBitrateMin1080Mbps: withDefault('scoutCfBitrateMin1080Mbps'),
-        scoutCfBitrateMax1080Mbps: withDefault('scoutCfBitrateMax1080Mbps'),
-        scoutCfBitrateMin720Mbps: withDefault('scoutCfBitrateMin720Mbps'),
-        scoutCfBitrateMax720Mbps: withDefault('scoutCfBitrateMax720Mbps'),
-        scoutCfBitrateMinOtherMbps: withDefault('scoutCfBitrateMinOtherMbps'),
-        scoutCfBitrateMaxOtherMbps: withDefault('scoutCfBitrateMaxOtherMbps'),
-        scoutCfSeedersDivisor: withDefault('scoutCfSeedersDivisor'),
-        scoutCfSeedersBonusCap: withDefault('scoutCfSeedersBonusCap'),
-        scoutCfUsenetBonus: withDefault('scoutCfUsenetBonus'),
-        scoutCfTorrentBonus: withDefault('scoutCfTorrentBonus'),
+        scoutPipelineMinCritic: withDefault('scoutPipelineMinCritic'),
+        scoutPipelineMinImdb: withDefault('scoutPipelineMinImdb'),
+        scoutPipelineBatchSize: withDefault('scoutPipelineBatchSize'),
+        scoutPipelineAutoEnabled: withDefault('scoutPipelineAutoEnabled'),
+        scoutPipelineAutoIntervalMin: withDefault('scoutPipelineAutoIntervalMin'),
+        scoutPipelineAutoCooldownMin: withDefault('scoutPipelineAutoCooldownMin'),
+        scoutPipelineBasicResolutionScore: withDefault('scoutPipelineBasicResolutionScore'),
+        scoutPipelineBasicVideoScore: withDefault('scoutPipelineBasicVideoScore'),
+        scoutPipelineBasicAudioScore: withDefault('scoutPipelineBasicAudioScore'),
+        scoutPipelineBitrateTargetMbps: withDefault('scoutPipelineBitrateTargetMbps'),
+        scoutPipelineBitrateTolerancePct: withDefault('scoutPipelineBitrateTolerancePct'),
+        scoutPipelineBitrateMaxScore: withDefault('scoutPipelineBitrateMaxScore'),
+        scoutPipelineTrashRes2160: withDefault('scoutPipelineTrashRes2160'),
+        scoutPipelineTrashRes1080: withDefault('scoutPipelineTrashRes1080'),
+        scoutPipelineTrashRes720: withDefault('scoutPipelineTrashRes720'),
+        scoutPipelineTrashSourceRemux: withDefault('scoutPipelineTrashSourceRemux'),
+        scoutPipelineTrashSourceBluray: withDefault('scoutPipelineTrashSourceBluray'),
+        scoutPipelineTrashSourceWebdl: withDefault('scoutPipelineTrashSourceWebdl'),
+        scoutPipelineTrashCodecHevc: withDefault('scoutPipelineTrashCodecHevc'),
+        scoutPipelineTrashCodecAv1: withDefault('scoutPipelineTrashCodecAv1'),
+        scoutPipelineTrashCodecH264: withDefault('scoutPipelineTrashCodecH264'),
+        scoutPipelineTrashAudioAtmos: withDefault('scoutPipelineTrashAudioAtmos'),
+        scoutPipelineTrashAudioTruehd: withDefault('scoutPipelineTrashAudioTruehd'),
+        scoutPipelineTrashAudioDts: withDefault('scoutPipelineTrashAudioDts'),
+        scoutPipelineTrashAudioDdp: withDefault('scoutPipelineTrashAudioDdp'),
+        scoutPipelineTrashAudioAc3: withDefault('scoutPipelineTrashAudioAc3'),
+        scoutPipelineTrashAudioAac: withDefault('scoutPipelineTrashAudioAac'),
+        scoutPipelineTrashLegacyPenalty: withDefault('scoutPipelineTrashLegacyPenalty'),
+        scoutPipelineTrashSeedersDivisor: withDefault('scoutPipelineTrashSeedersDivisor'),
+        scoutPipelineTrashSeedersBonusCap: withDefault('scoutPipelineTrashSeedersBonusCap'),
+        scoutPipelineTrashUsenetBonus: withDefault('scoutPipelineTrashUsenetBonus'),
+        scoutPipelineTrashTorrentBonus: withDefault('scoutPipelineTrashTorrentBonus'),
+        scoutPipelineBlockersEnabled: withDefault('scoutPipelineBlockersEnabled'),
+        scoutPipelineLlmTieDelta: withDefault('scoutPipelineLlmTieDelta'),
+        scoutPipelineLlmWeakDropDelta: withDefault('scoutPipelineLlmWeakDropDelta'),
         jfSyncIntervalMin: withDefault('jfSyncIntervalMin'),
         jfSyncBatchSize: withDefault('jfSyncBatchSize'),
       });
@@ -147,11 +144,6 @@ export function Settings() {
       }
     }
   }, [data]);
-
-  useEffect(() => {
-    const match = detectBitrateProfileFromSettings(form);
-    if (match) setBitrateProfileId(match);
-  }, [form]);
 
   const saveMutation = useMutation({
     mutationFn: ({ settings, scope }: { settings: Record<string, string>; scope: 'general' | 'scout' }) => {
@@ -295,6 +287,35 @@ export function Settings() {
       setCustomCfError((err as Error).message);
     },
   });
+  const saveBlockersMutation = useMutation({
+    mutationFn: (rules: ScoutBlockerDraft[]) => {
+      const payload = rules.map((r, idx) => ({
+        id: r.id,
+        category: 'scout_release_blockers',
+        name: r.name.trim() || `Blocker ${idx + 1}`,
+        enabled: r.enabled ? 1 : 0,
+        priority: idx + 1,
+        config: {
+          matchType: r.matchType,
+          pattern: r.pattern,
+          flags: r.flags || 'i',
+          appliesTo: r.appliesTo,
+          reason: r.reason || 'Blocked by custom rule',
+        },
+      }));
+      return api.saveRules(payload);
+    },
+    onSuccess: () => {
+      setBlockersSaved(true);
+      setBlockersError('');
+      setTimeout(() => setBlockersSaved(false), 2500);
+      refetchScoutRules();
+    },
+    onError: (err) => {
+      setBlockersSaved(false);
+      setBlockersError((err as Error).message);
+    },
+  });
   const saveLlmRulesMutation = useMutation({
     mutationFn: (rules: ScoutLlmRuleDraft[]) => {
       const payload = rules.map((r, idx) => ({
@@ -357,6 +378,8 @@ export function Settings() {
     setScoutRulesDraft(mapped);
     const customMapped = (scoutRulesData?.rules?.scout_custom_cf ?? []).map(parseCustomCfRule);
     setCustomCfDraft(customMapped);
+    const blockerMapped = (scoutRulesData?.rules?.scout_release_blockers ?? []).map(parseBlockerRule);
+    setBlockerDraft(blockerMapped);
     const llmMapped = (scoutRulesData?.rules?.scout_llm_ruleset ?? [])
       .map(parseLlmRule)
       .sort((a, b) => a.priority - b.priority || (a.id ?? 0) - (b.id ?? 0));
@@ -496,6 +519,30 @@ export function Settings() {
     setCustomCfDraft((prev) => prev.filter((_, i) => i !== index));
   }
 
+  function addBlockerRule() {
+    setBlockerDraft((prev) => [
+      ...prev,
+      {
+        name: `Blocker ${prev.length + 1}`,
+        enabled: true,
+        priority: prev.length + 1,
+        matchType: 'regex',
+        pattern: '',
+        flags: 'i',
+        appliesTo: 'title',
+        reason: 'Blocked by custom rule',
+      },
+    ]);
+  }
+
+  function updateBlockerRule(index: number, patch: Partial<ScoutBlockerDraft>) {
+    setBlockerDraft((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function removeBlockerRule(index: number) {
+    setBlockerDraft((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function addLlmRule() {
     setLlmRulesDraft((prev) => [
       ...prev,
@@ -554,28 +601,6 @@ export function Settings() {
     setLlmRulesDraft((prev) => prev.filter((_, i) => i !== index).map((row, i) => ({ ...row, priority: i + 1 })));
   }
 
-  function applyBitrateProfile(id: BitrateProfileId) {
-    const profile = BITRATE_BIAS_PROFILES.find((p) => p.id === id);
-    if (!profile) return;
-    const v = profile.values;
-    setForm((prev) => ({
-      ...prev,
-      [BITRATE_KEYS.min2160]: v.min2160,
-      [BITRATE_KEYS.max2160]: v.max2160,
-      [BITRATE_KEYS.min1080]: v.min1080,
-      [BITRATE_KEYS.max1080]: v.max1080,
-      [BITRATE_KEYS.min720]: v.min720,
-      [BITRATE_KEYS.max720]: v.max720,
-      [BITRATE_KEYS.minOther]: v.minOther,
-      [BITRATE_KEYS.maxOther]: v.maxOther,
-    }));
-  }
-
-  const selectedBitrateProfile =
-    BITRATE_BIAS_PROFILES.find((p) => p.id === bitrateProfileId) ?? BITRATE_BIAS_PROFILES[0];
-  const detectedBitrateProfile = detectBitrateProfileFromSettings(form);
-  const activeProfile = CLIENT_PROFILES.find((p) => p.id === clientProfile) ?? CLIENT_PROFILES[0];
-
   if (isLoading)
     return (
       <div className="p-8" style={{ color: 'var(--c-muted)' }}>
@@ -625,13 +650,6 @@ export function Settings() {
             cfScoring={{
               form,
               set,
-              activeProfileLabel: activeProfile.label,
-              activeProfileAv1: activeProfile.videoCodec.av1,
-              bitrateProfileId,
-              setBitrateProfileId,
-              applyBitrateProfile,
-              selectedBitrateProfile,
-              detectedBitrateProfile,
             }}
             trashSyncDetails={{
               onSyncTrash: () => scoutSyncTrashMutation.mutate(),
@@ -657,6 +675,8 @@ export function Settings() {
               },
             }}
             customOverrides={{
+              form,
+              set,
               customCfDraft,
               updateCustomCfRule,
               removeCustomCfRule,
@@ -670,6 +690,14 @@ export function Settings() {
               runCustomCfPreview: () => customCfPreviewMutation.mutate(customCfPreviewTitle),
               customCfPreviewPending: customCfPreviewMutation.isPending,
               customCfPreviewData: customCfPreviewMutation.data,
+              blockerDraft,
+              updateBlockerRule,
+              removeBlockerRule,
+              addBlockerRule,
+              saveBlockers: () => saveBlockersMutation.mutate(blockerDraft),
+              blockersSavePending: saveBlockersMutation.isPending,
+              blockersSaved,
+              blockersError,
             }}
             rules={{
               scoutRulesDraft,
@@ -680,6 +708,8 @@ export function Settings() {
               scoutRulesError,
             }}
             extendedLlmRuleset={{
+              form,
+              set,
               llmRulesDraft,
               llmDragIndex,
               onLlmDragStart,

@@ -32,12 +32,12 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   jfSyncBatchSize: '10', // items per JF API page during sync
 
   /** Scout defaults (used as query params on /api/candidates) */
-  scoutMinCritic: '65', // Metacritic ≥ 65
-  scoutMinCommunity: '7.0', // IMDb ≥ 7.0
-  scoutSearchBatchSize: '5', // hard-clamped to 10 in API/server
-  scoutAutoEnabled: 'false', // scheduled scout disabled by default
-  scoutAutoIntervalMin: '60', // auto scout schedule (minutes)
-  scoutAutoCooldownMin: '240', // don't rescout same title too aggressively
+  scoutPipelineMinCritic: '65', // Metacritic ≥ 65
+  scoutPipelineMinImdb: '7.0', // IMDb ≥ 7.0
+  scoutPipelineBatchSize: '5', // hard-clamped to 10 in API/server
+  scoutPipelineAutoEnabled: 'false', // scheduled scout disabled by default
+  scoutPipelineAutoIntervalMin: '60', // auto scout schedule (minutes)
+  scoutPipelineAutoCooldownMin: '240', // don't rescout same title too aggressively
   // Scout release scoring (CF-style knobs, configurable in Settings)
   ...getScoutDefaultSettings(),
   llmProvider: getDefaultLlmProvider(),

@@ -208,12 +208,9 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
   test('scout settings loads', async ({ page }) => {
     await page.goto('/settings/scout');
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: /Scout pipeline/i })).toBeVisible();
+    await expect(page.getByRole('heading', { name: /Scout Quality Pipeline/i })).toBeVisible();
     await expect(page.getByText(/Final LLM ruleset/i).first()).toBeVisible();
     await expect(page.getByText(/New installs start with 2 disabled examples/i)).toBeVisible();
-    await expect(
-      page.getByText('Higher score means releases with those attributes are more likely to be selected.'),
-    ).toBeVisible();
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
     await expect(page.getByText('Max Resolution')).toHaveCount(0);
   });

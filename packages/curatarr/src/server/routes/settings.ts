@@ -86,9 +86,16 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
     const numericBounds: Record<string, { min: number; max: number }> = {
       jfSyncIntervalMin: { min: 0, max: 24 * 60 },
       jfSyncBatchSize: { min: 1, max: 500 },
-      scoutAutoIntervalMin: { min: 5, max: 24 * 60 },
-      scoutAutoCooldownMin: { min: 5, max: 7 * 24 * 60 },
-      scoutSearchBatchSize: { min: 1, max: 10 },
+      scoutPipelineAutoIntervalMin: { min: 5, max: 24 * 60 },
+      scoutPipelineAutoCooldownMin: { min: 5, max: 7 * 24 * 60 },
+      scoutPipelineBatchSize: { min: 1, max: 10 },
+      scoutPipelineMinCritic: { min: 0, max: 100 },
+      scoutPipelineMinImdb: { min: 0, max: 10 },
+      scoutPipelineBitrateTargetMbps: { min: 1, max: 200 },
+      scoutPipelineBitrateTolerancePct: { min: 1, max: 200 },
+      scoutPipelineBitrateMaxScore: { min: 0, max: 200 },
+      scoutPipelineLlmTieDelta: { min: 0, max: 100 },
+      scoutPipelineLlmWeakDropDelta: { min: 0, max: 300 },
     };
 
     for (const [key, bounds] of Object.entries(numericBounds)) {

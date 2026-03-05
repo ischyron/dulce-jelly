@@ -31,10 +31,10 @@ export function ScoutQueue() {
   });
 
   const settings = settingsData?.settings ?? {};
-  const seedMinCritic = Number.parseFloat(settings.scoutMinCritic ?? '65');
-  const seedMinComm = Number.parseFloat(settings.scoutMinCommunity ?? '7.0');
+  const seedMinCritic = Number.parseFloat(settings.scoutPipelineMinCritic ?? '65');
+  const seedMinComm = Number.parseFloat(settings.scoutPipelineMinImdb ?? '7.0');
   const seedGenre = '';
-  const maxBatch = clampBatchSize(settings.scoutSearchBatchSize);
+  const maxBatch = clampBatchSize(settings.scoutPipelineBatchSize);
 
   const [selectedId, setSelectedId] = useState<number | undefined>();
   const [selectedBatch, setSelectedBatch] = useState<number[]>([]);

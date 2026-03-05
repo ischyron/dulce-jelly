@@ -32,10 +32,10 @@ test.describe('Scout feature checks', () => {
     const json = await res.json();
     const settings = json.settings ?? {};
 
-    expect(settings).toHaveProperty('scoutMinCritic');
-    expect(settings).toHaveProperty('scoutMinCommunity');
-    expect(settings).toHaveProperty('scoutSearchBatchSize');
-    expect(settings).toHaveProperty('scoutAutoEnabled');
+    expect(settings).toHaveProperty('scoutPipelineMinCritic');
+    expect(settings).toHaveProperty('scoutPipelineMinImdb');
+    expect(settings).toHaveProperty('scoutPipelineBatchSize');
+    expect(settings).toHaveProperty('scoutPipelineAutoEnabled');
   });
 
   test('sync TRaSH scores updates scout CF settings', async ({ request }) => {
@@ -43,12 +43,12 @@ test.describe('Scout feature checks', () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(body.applied).toBeTruthy();
-    expect(body.applied.scoutCfRes2160).toBeTruthy();
+    expect(body.applied.scoutPipelineTrashRes2160).toBeTruthy();
     expect(body.meta?.source).toBe('TRaSH-Guides');
 
     const settingsRes = await request.get('/api/settings');
     const settings = (await settingsRes.json()).settings ?? {};
-    expect(settings.scoutCfRes2160).toBe(body.applied.scoutCfRes2160);
+    expect(settings.scoutPipelineTrashRes2160).toBe(body.applied.scoutPipelineTrashRes2160);
     expect(settings.scoutTrashSyncSource).toBe('TRaSH-Guides');
     expect(Object.prototype.hasOwnProperty.call(settings, 'scoutTrashSyncRevision')).toBeTruthy();
     expect(settings.scoutTrashSyncedAt).toBeTruthy();
@@ -77,10 +77,10 @@ test.describe('Scout feature checks', () => {
     expect(typeof body.prompt).toBe('string');
     expect(body.prompt.length).toBeGreaterThan(50);
     expect(body.proposedSettings).toBeTruthy();
-    expect(body.proposedSettings.scoutCfUsenetBonus).toBe('12');
-    expect(body.proposedSettings.scoutCfTorrentBonus).toBe('-2');
-    expect(body.proposedSettings.scoutCfCodecAv1).toBe('6');
-    expect(body.proposedSettings.scoutCfCodecH264).toBe('14');
+    expect(body.proposedSettings.scoutPipelineTrashUsenetBonus).toBe('12');
+    expect(body.proposedSettings.scoutPipelineTrashTorrentBonus).toBe('-2');
+    expect(body.proposedSettings.scoutPipelineTrashCodecAv1).toBe('6');
+    expect(body.proposedSettings.scoutPipelineTrashCodecH264).toBe('14');
   });
 
   test('custom CF preview and validation', async ({ request }) => {

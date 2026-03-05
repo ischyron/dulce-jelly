@@ -14,11 +14,13 @@ interface DroppedRelease extends ProwlarrSearchResult {
   droppedReason: string;
 }
 
-interface BitrateGateResult {
-  excluded: boolean;
-  reason?: string;
-}
 interface ScoutScoreConfig {
+  basicResolutionScore: number;
+  basicVideoScore: number;
+  basicAudioScore: number;
+  bitrateTargetMbps: number;
+  bitrateTolerancePct: number;
+  bitrateMaxScore: number;
   res2160: number;
   res1080: number;
   res720: number;
@@ -35,18 +37,12 @@ interface ScoutScoreConfig {
   audioAc3: number;
   audioAac: number;
   legacyPenalty: number;
-  bitrateMin2160Mbps: number;
-  bitrateMax2160Mbps: number;
-  bitrateMin1080Mbps: number;
-  bitrateMax1080Mbps: number;
-  bitrateMin720Mbps: number;
-  bitrateMax720Mbps: number;
-  bitrateMinOtherMbps: number;
-  bitrateMaxOtherMbps: number;
   seedersDivisor: number;
   seedersBonusCap: number;
   usenetBonus: number;
   torrentBonus: number;
+  llmTieDelta: number;
+  llmWeakDropDelta: number;
 }
 
 interface SearchSuccess {
@@ -113,65 +109,65 @@ function toFloat(raw: string | undefined, fallback: number): number {
 const SCOUT_DEFAULT_SETTINGS = getScoutDefaultSettings();
 
 const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
-  res2160: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfRes2160, 46),
-  res1080: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfRes1080, 24),
-  res720: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfRes720, 8),
-  sourceRemux: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSourceRemux, 30),
-  sourceBluray: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSourceBluray, 20),
-  sourceWebdl: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSourceWebdl, 14),
-  codecHevc: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfCodecHevc, 22),
-  codecAv1: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfCodecAv1, 10),
-  codecH264: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfCodecH264, 8),
-  audioAtmos: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAtmos, 10),
-  audioTruehd: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioTruehd, 8),
-  audioDts: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioDts, 6),
-  audioDdp: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioDdp, 5),
-  audioAc3: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAc3, 2),
-  audioAac: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfAudioAac, 1),
-  legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfLegacyPenalty, 40),
-  bitrateMin2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin2160Mbps, 10),
-  bitrateMax2160Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax2160Mbps, 35),
-  bitrateMin1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin1080Mbps, 4),
-  bitrateMax1080Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax1080Mbps, 15),
-  bitrateMin720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMin720Mbps, 2.5),
-  bitrateMax720Mbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMax720Mbps, 8),
-  bitrateMinOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMinOtherMbps, 1),
-  bitrateMaxOtherMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutCfBitrateMaxOtherMbps, 12),
-  seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersDivisor, 25),
-  seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfSeedersBonusCap, 10),
-  usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfUsenetBonus, 10),
-  torrentBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutCfTorrentBonus, 0),
+  basicResolutionScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicResolutionScore, 6),
+  basicVideoScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoScore, 5),
+  basicAudioScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioScore, 4),
+  bitrateTargetMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateTargetMbps, 18),
+  bitrateTolerancePct: toFloat(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateTolerancePct, 40),
+  bitrateMaxScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateMaxScore, 12),
+  res2160: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashRes2160, 46),
+  res1080: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashRes1080, 24),
+  res720: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashRes720, 8),
+  sourceRemux: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSourceRemux, 30),
+  sourceBluray: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSourceBluray, 20),
+  sourceWebdl: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSourceWebdl, 14),
+  codecHevc: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashCodecHevc, 22),
+  codecAv1: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashCodecAv1, 10),
+  codecH264: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashCodecH264, 8),
+  audioAtmos: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioAtmos, 10),
+  audioTruehd: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioTruehd, 8),
+  audioDts: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioDts, 6),
+  audioDdp: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioDdp, 5),
+  audioAc3: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioAc3, 2),
+  audioAac: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioAac, 1),
+  legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashLegacyPenalty, 40),
+  seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSeedersDivisor, 25),
+  seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSeedersBonusCap, 10),
+  usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashUsenetBonus, 10),
+  torrentBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashTorrentBonus, 0),
+  llmTieDelta: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineLlmTieDelta, 10),
+  llmWeakDropDelta: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineLlmWeakDropDelta, 40),
 };
 
 const TRASH_SCOUT_BASELINE_SETTINGS: Record<string, string> = {
-  scoutCfRes2160: '46',
-  scoutCfRes1080: '24',
-  scoutCfRes720: '8',
-  scoutCfSourceRemux: '34',
-  scoutCfSourceBluray: '22',
-  scoutCfSourceWebdl: '14',
-  scoutCfCodecHevc: '22',
-  scoutCfCodecAv1: '12',
-  scoutCfCodecH264: '6',
-  scoutCfAudioAtmos: '10',
-  scoutCfAudioTruehd: '8',
-  scoutCfAudioDts: '6',
-  scoutCfAudioDdp: '5',
-  scoutCfAudioAc3: '2',
-  scoutCfAudioAac: '1',
-  scoutCfLegacyPenalty: '40',
-  scoutCfBitrateMin2160Mbps: '10',
-  scoutCfBitrateMax2160Mbps: '35',
-  scoutCfBitrateMin1080Mbps: '4',
-  scoutCfBitrateMax1080Mbps: '15',
-  scoutCfBitrateMin720Mbps: '2.5',
-  scoutCfBitrateMax720Mbps: '8',
-  scoutCfBitrateMinOtherMbps: '1',
-  scoutCfBitrateMaxOtherMbps: '12',
-  scoutCfSeedersDivisor: '25',
-  scoutCfSeedersBonusCap: '10',
-  scoutCfUsenetBonus: '10',
-  scoutCfTorrentBonus: '0',
+  scoutPipelineBasicResolutionScore: '6',
+  scoutPipelineBasicVideoScore: '5',
+  scoutPipelineBasicAudioScore: '4',
+  scoutPipelineBitrateTargetMbps: '18',
+  scoutPipelineBitrateTolerancePct: '40',
+  scoutPipelineBitrateMaxScore: '12',
+  scoutPipelineTrashRes2160: '46',
+  scoutPipelineTrashRes1080: '24',
+  scoutPipelineTrashRes720: '8',
+  scoutPipelineTrashSourceRemux: '34',
+  scoutPipelineTrashSourceBluray: '22',
+  scoutPipelineTrashSourceWebdl: '14',
+  scoutPipelineTrashCodecHevc: '22',
+  scoutPipelineTrashCodecAv1: '12',
+  scoutPipelineTrashCodecH264: '6',
+  scoutPipelineTrashAudioAtmos: '10',
+  scoutPipelineTrashAudioTruehd: '8',
+  scoutPipelineTrashAudioDts: '6',
+  scoutPipelineTrashAudioDdp: '5',
+  scoutPipelineTrashAudioAc3: '2',
+  scoutPipelineTrashAudioAac: '1',
+  scoutPipelineTrashLegacyPenalty: '40',
+  scoutPipelineTrashSeedersDivisor: '25',
+  scoutPipelineTrashSeedersBonusCap: '10',
+  scoutPipelineTrashUsenetBonus: '10',
+  scoutPipelineTrashTorrentBonus: '0',
+  scoutPipelineLlmTieDelta: '10',
+  scoutPipelineLlmWeakDropDelta: '40',
 };
 
 interface ScoutRuleSeed {
@@ -624,14 +620,81 @@ function loadScoutLlmRules(db: CuratDb): ScoutLlmRule[] {
     .sort((a, b) => a.priority - b.priority || a.id - b.id);
 }
 
+function loadScoutBlockerRules(db: CuratDb): ScoutBlockerRule[] {
+  const rows = db.getRules('scout_release_blockers').filter((r) => r.enabled !== 0);
+  const out: ScoutBlockerRule[] = [];
+  for (const row of rows) {
+    const cfg = safeParseJson(row.config) as Record<string, unknown>;
+    const matchType = cfg.matchType === 'regex' ? 'regex' : 'string';
+    const pattern = typeof cfg.pattern === 'string' ? cfg.pattern.trim() : '';
+    if (!pattern) continue;
+    out.push({
+      id: row.id,
+      name: row.name,
+      enabled: row.enabled !== 0,
+      priority: row.priority,
+      matchType,
+      flags: typeof cfg.flags === 'string' ? cfg.flags : 'i',
+      appliesTo: cfg.appliesTo === 'full' ? 'full' : 'title',
+      pattern,
+      reason: typeof cfg.reason === 'string' && cfg.reason.trim() ? cfg.reason.trim() : 'Blocked by custom rule',
+    });
+  }
+  return out.sort((a, b) => a.priority - b.priority || a.id - b.id);
+}
+
+function applyBlockerRules(
+  releases: ScoredRelease[],
+  blockers: ScoutBlockerRule[],
+): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
+  if (blockers.length === 0) return { finals: releases, dropped: [] };
+  const finals: ScoredRelease[] = [];
+  const dropped: DroppedRelease[] = [];
+  for (const rel of releases) {
+    let dropReason: string | null = null;
+    for (const rule of blockers) {
+      const target = rule.appliesTo === 'full' ? rel.title : rel.title;
+      let matched = false;
+      if (rule.matchType === 'regex') {
+        try {
+          matched = new RegExp(rule.pattern, rule.flags.includes('i') ? 'i' : '').test(target);
+        } catch {
+          matched = false;
+        }
+      } else {
+        matched = target.toLowerCase().includes(rule.pattern.toLowerCase());
+      }
+      if (matched) {
+        dropReason = `Blocked: ${rule.reason}`;
+        break;
+      }
+    }
+    if (dropReason) {
+      dropped.push({ ...rel, droppedReason: dropReason });
+    } else {
+      finals.push(rel);
+    }
+  }
+  return { finals, dropped };
+}
+
 function applyLlmRuleset(
   releases: ScoredRelease[],
   llmRules: ScoutLlmRule[],
+  cfg: ScoutScoreConfig,
 ): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
   if (llmRules.length === 0) return { finals: releases, dropped: [] };
+  const sortedBase = [...releases].sort((a, b) => b.score - a.score);
+  const topScore = sortedBase[0]?.score ?? 0;
+  const tieWindow = sortedBase.filter((r) => topScore - r.score <= cfg.llmTieDelta);
+  const tieSet = new Set(tieWindow.map((r) => r.guid ?? r.title));
   const dropped: DroppedRelease[] = [];
   const finals: ScoredRelease[] = [];
   for (const rel of releases) {
+    if (topScore - rel.score > cfg.llmWeakDropDelta) {
+      dropped.push({ ...rel, droppedReason: 'Dropped by LLM weak candidate threshold.' });
+      continue;
+    }
     let score = rel.score;
     const reasons = [...rel.reasons];
     let dropReason = '';
@@ -656,15 +719,15 @@ function applyLlmRuleset(
         score -= 5;
         reasons.push(`llm_rule:${rule.priority} avoid av1`);
       }
-      if (s.includes('prefer usenet') && rel.protocol === 'usenet') {
+      if (s.includes('prefer usenet') && rel.protocol === 'usenet' && tieSet.has(rel.guid ?? rel.title)) {
         score += 3;
         reasons.push(`llm_rule:${rule.priority} prefer usenet`);
       }
-      if (s.includes('prefer remux') && /\bremux\b/.test(t)) {
+      if (s.includes('prefer remux') && /\bremux\b/.test(t) && tieSet.has(rel.guid ?? rel.title)) {
         score += 4;
         reasons.push(`llm_rule:${rule.priority} prefer remux`);
       }
-      if (s.includes('prefer web-dl') && /\bweb-?dl\b/.test(t)) {
+      if (s.includes('prefer web-dl') && /\bweb-?dl\b/.test(t) && tieSet.has(rel.guid ?? rel.title)) {
         score += 2;
         reasons.push(`llm_rule:${rule.priority} prefer web-dl`);
       }
@@ -872,27 +935,27 @@ function buildScoutRefinementDraft(
   const toggles: Array<{ id: number; name: string; enabled: boolean }> = [];
 
   if (/\b(storage|size|efficient|space|compact)\b/.test(normalized)) {
-    proposedSettings.scoutCfSourceRemux = '24';
+    proposedSettings.scoutPipelineTrashSourceRemux = '24';
   }
   if (/\b(quality|cinema|reference|best|archive)\b/.test(normalized)) {
-    proposedSettings.scoutCfSourceRemux = '40';
-    proposedSettings.scoutCfSourceBluray = '26';
-    proposedSettings.scoutCfRes2160 = '52';
+    proposedSettings.scoutPipelineTrashSourceRemux = '40';
+    proposedSettings.scoutPipelineTrashSourceBluray = '26';
+    proposedSettings.scoutPipelineTrashRes2160 = '52';
   }
   if (/\b(compat|android|chromecast|transcode|playback)\b/.test(normalized)) {
-    proposedSettings.scoutCfCodecAv1 = '6';
-    proposedSettings.scoutCfCodecH264 = '14';
+    proposedSettings.scoutPipelineTrashCodecAv1 = '6';
+    proposedSettings.scoutPipelineTrashCodecH264 = '14';
     for (const rule of rules) {
       if (rule.name.toLowerCase().includes('av1')) toggles.push({ id: rule.id, name: rule.name, enabled: true });
     }
   }
   if (/\b(torrent)\b/.test(normalized) && !/\b(usenet)\b/.test(normalized)) {
-    proposedSettings.scoutCfTorrentBonus = '8';
-    proposedSettings.scoutCfUsenetBonus = '0';
+    proposedSettings.scoutPipelineTrashTorrentBonus = '8';
+    proposedSettings.scoutPipelineTrashUsenetBonus = '0';
   }
   if (/\b(usenet)\b/.test(normalized) && !/\b(torrent)\b/.test(normalized)) {
-    proposedSettings.scoutCfUsenetBonus = '12';
-    proposedSettings.scoutCfTorrentBonus = '-2';
+    proposedSettings.scoutPipelineTrashUsenetBonus = '12';
+    proposedSettings.scoutPipelineTrashTorrentBonus = '-2';
   }
 
   const scoreCfg = resolveScoutScoreConfig(db);
@@ -937,151 +1000,182 @@ function floatSetting(db: CuratDb, key: string, fallback: number, min: number, m
 
 function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
   return {
-    res2160: intSetting(db, 'scoutCfRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
-    res1080: intSetting(db, 'scoutCfRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
-    res720: intSetting(db, 'scoutCfRes720', DEFAULT_SCOUT_SCORE_CONFIG.res720, -200, 200),
-    sourceRemux: intSetting(db, 'scoutCfSourceRemux', DEFAULT_SCOUT_SCORE_CONFIG.sourceRemux, -200, 200),
-    sourceBluray: intSetting(db, 'scoutCfSourceBluray', DEFAULT_SCOUT_SCORE_CONFIG.sourceBluray, -200, 200),
-    sourceWebdl: intSetting(db, 'scoutCfSourceWebdl', DEFAULT_SCOUT_SCORE_CONFIG.sourceWebdl, -200, 200),
-    codecHevc: intSetting(db, 'scoutCfCodecHevc', DEFAULT_SCOUT_SCORE_CONFIG.codecHevc, -200, 200),
-    codecAv1: intSetting(db, 'scoutCfCodecAv1', DEFAULT_SCOUT_SCORE_CONFIG.codecAv1, -200, 200),
-    codecH264: intSetting(db, 'scoutCfCodecH264', DEFAULT_SCOUT_SCORE_CONFIG.codecH264, -200, 200),
-    audioAtmos: intSetting(db, 'scoutCfAudioAtmos', DEFAULT_SCOUT_SCORE_CONFIG.audioAtmos, -200, 200),
-    audioTruehd: intSetting(db, 'scoutCfAudioTruehd', DEFAULT_SCOUT_SCORE_CONFIG.audioTruehd, -200, 200),
-    audioDts: intSetting(db, 'scoutCfAudioDts', DEFAULT_SCOUT_SCORE_CONFIG.audioDts, -200, 200),
-    audioDdp: intSetting(db, 'scoutCfAudioDdp', DEFAULT_SCOUT_SCORE_CONFIG.audioDdp, -200, 200),
-    audioAc3: intSetting(db, 'scoutCfAudioAc3', DEFAULT_SCOUT_SCORE_CONFIG.audioAc3, -200, 200),
-    audioAac: intSetting(db, 'scoutCfAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
-    legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
-    bitrateMin2160Mbps: floatSetting(
+    basicResolutionScore: intSetting(
       db,
-      'scoutCfBitrateMin2160Mbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin2160Mbps,
+      'scoutPipelineBasicResolutionScore',
+      DEFAULT_SCOUT_SCORE_CONFIG.basicResolutionScore,
       0,
       200,
     ),
-    bitrateMax2160Mbps: floatSetting(
+    basicVideoScore: intSetting(db, 'scoutPipelineBasicVideoScore', DEFAULT_SCOUT_SCORE_CONFIG.basicVideoScore, 0, 200),
+    basicAudioScore: intSetting(db, 'scoutPipelineBasicAudioScore', DEFAULT_SCOUT_SCORE_CONFIG.basicAudioScore, 0, 200),
+    bitrateTargetMbps: floatSetting(
       db,
-      'scoutCfBitrateMax2160Mbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax2160Mbps,
+      'scoutPipelineBitrateTargetMbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateTargetMbps,
       1,
+      200,
+    ),
+    bitrateTolerancePct: floatSetting(
+      db,
+      'scoutPipelineBitrateTolerancePct',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateTolerancePct,
+      1,
+      200,
+    ),
+    bitrateMaxScore: intSetting(db, 'scoutPipelineBitrateMaxScore', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxScore, 0, 200),
+    res2160: intSetting(db, 'scoutPipelineTrashRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
+    res1080: intSetting(db, 'scoutPipelineTrashRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
+    res720: intSetting(db, 'scoutPipelineTrashRes720', DEFAULT_SCOUT_SCORE_CONFIG.res720, -200, 200),
+    sourceRemux: intSetting(db, 'scoutPipelineTrashSourceRemux', DEFAULT_SCOUT_SCORE_CONFIG.sourceRemux, -200, 200),
+    sourceBluray: intSetting(db, 'scoutPipelineTrashSourceBluray', DEFAULT_SCOUT_SCORE_CONFIG.sourceBluray, -200, 200),
+    sourceWebdl: intSetting(db, 'scoutPipelineTrashSourceWebdl', DEFAULT_SCOUT_SCORE_CONFIG.sourceWebdl, -200, 200),
+    codecHevc: intSetting(db, 'scoutPipelineTrashCodecHevc', DEFAULT_SCOUT_SCORE_CONFIG.codecHevc, -200, 200),
+    codecAv1: intSetting(db, 'scoutPipelineTrashCodecAv1', DEFAULT_SCOUT_SCORE_CONFIG.codecAv1, -200, 200),
+    codecH264: intSetting(db, 'scoutPipelineTrashCodecH264', DEFAULT_SCOUT_SCORE_CONFIG.codecH264, -200, 200),
+    audioAtmos: intSetting(db, 'scoutPipelineTrashAudioAtmos', DEFAULT_SCOUT_SCORE_CONFIG.audioAtmos, -200, 200),
+    audioTruehd: intSetting(db, 'scoutPipelineTrashAudioTruehd', DEFAULT_SCOUT_SCORE_CONFIG.audioTruehd, -200, 200),
+    audioDts: intSetting(db, 'scoutPipelineTrashAudioDts', DEFAULT_SCOUT_SCORE_CONFIG.audioDts, -200, 200),
+    audioDdp: intSetting(db, 'scoutPipelineTrashAudioDdp', DEFAULT_SCOUT_SCORE_CONFIG.audioDdp, -200, 200),
+    audioAc3: intSetting(db, 'scoutPipelineTrashAudioAc3', DEFAULT_SCOUT_SCORE_CONFIG.audioAc3, -200, 200),
+    audioAac: intSetting(db, 'scoutPipelineTrashAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
+    legacyPenalty: intSetting(db, 'scoutPipelineTrashLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
+    seedersDivisor: intSetting(
+      db,
+      'scoutPipelineTrashSeedersDivisor',
+      DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor,
+      1,
+      500,
+    ),
+    seedersBonusCap: intSetting(
+      db,
+      'scoutPipelineTrashSeedersBonusCap',
+      DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap,
+      0,
+      200,
+    ),
+    usenetBonus: intSetting(db, 'scoutPipelineTrashUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
+    torrentBonus: intSetting(db, 'scoutPipelineTrashTorrentBonus', DEFAULT_SCOUT_SCORE_CONFIG.torrentBonus, -200, 200),
+    llmTieDelta: intSetting(db, 'scoutPipelineLlmTieDelta', DEFAULT_SCOUT_SCORE_CONFIG.llmTieDelta, 0, 100),
+    llmWeakDropDelta: intSetting(
+      db,
+      'scoutPipelineLlmWeakDropDelta',
+      DEFAULT_SCOUT_SCORE_CONFIG.llmWeakDropDelta,
+      0,
       300,
     ),
-    bitrateMin1080Mbps: floatSetting(
-      db,
-      'scoutCfBitrateMin1080Mbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin1080Mbps,
-      0,
-      120,
-    ),
-    bitrateMax1080Mbps: floatSetting(
-      db,
-      'scoutCfBitrateMax1080Mbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax1080Mbps,
-      1,
-      200,
-    ),
-    bitrateMin720Mbps: floatSetting(
-      db,
-      'scoutCfBitrateMin720Mbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin720Mbps,
-      0,
-      80,
-    ),
-    bitrateMax720Mbps: floatSetting(
-      db,
-      'scoutCfBitrateMax720Mbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax720Mbps,
-      1,
-      150,
-    ),
-    bitrateMinOtherMbps: floatSetting(
-      db,
-      'scoutCfBitrateMinOtherMbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMinOtherMbps,
-      0,
-      60,
-    ),
-    bitrateMaxOtherMbps: floatSetting(
-      db,
-      'scoutCfBitrateMaxOtherMbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxOtherMbps,
-      1,
-      120,
-    ),
-    seedersDivisor: intSetting(db, 'scoutCfSeedersDivisor', DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor, 1, 500),
-    seedersBonusCap: intSetting(db, 'scoutCfSeedersBonusCap', DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap, 0, 200),
-    usenetBonus: intSetting(db, 'scoutCfUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
-    torrentBonus: intSetting(db, 'scoutCfTorrentBonus', DEFAULT_SCOUT_SCORE_CONFIG.torrentBonus, -200, 200),
   };
 }
 
-function scoreRelease(
-  r: ProwlarrSearchResult,
-  cfg: ScoutScoreConfig,
-  customCfRules: ScoutCustomCfRule[],
-): ScoredRelease {
+function addBasicFormatScore(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, runtimeSec: number | null): ScoredRelease {
   const t = r.title.toLowerCase();
   let score = 0;
   const reasons: string[] = [];
 
   if (/\b2160p\b|\b4k\b/.test(t)) {
+    score += cfg.basicResolutionScore;
+    reasons.push('basic:resolution');
+  } else if (/\b1080p\b/.test(t)) {
+    score += cfg.basicResolutionScore;
+    reasons.push('basic:resolution');
+  } else if (/\b720p\b/.test(t)) {
+    score += cfg.basicResolutionScore;
+    reasons.push('basic:resolution');
+  }
+
+  if (/\bhevc\b|\bx265\b/.test(t)) {
+    score += cfg.basicVideoScore;
+    reasons.push('basic:video');
+  } else if (/\bav1\b/.test(t)) {
+    score += cfg.basicVideoScore;
+    reasons.push('basic:video');
+  } else if (/\bh264\b|\bx264\b/.test(t)) {
+    score += cfg.basicVideoScore;
+    reasons.push('basic:video');
+  }
+
+  if (/\batmos\b|\btruehd\b|\bdts(?:-?hd|-?x)?\b|\be-?ac-?3\b|\bddp\b|\bdd\+\b|\bac-?3\b|\baac\b/.test(t)) {
+    score += cfg.basicAudioScore;
+    reasons.push('basic:audio');
+  }
+
+  if (runtimeSec && runtimeSec > 0 && r.size && r.size > 0) {
+    const estimatedMbps = (r.size * 8) / runtimeSec / 1_000_000;
+    const distanceRatio = Math.abs(estimatedMbps - cfg.bitrateTargetMbps) / Math.max(cfg.bitrateTargetMbps, 0.1);
+    const toleranceRatio = Math.max(0.01, cfg.bitrateTolerancePct / 100);
+    const alignment = Math.max(0, 1 - Math.min(1, distanceRatio / toleranceRatio));
+    const bitrateScore = Math.round(cfg.bitrateMaxScore * alignment);
+    if (bitrateScore > 0) {
+      score += bitrateScore;
+      reasons.push(`basic:bitrate(${bitrateScore})`);
+    }
+  }
+
+  return { ...r, score, reasons };
+}
+
+function addTrashScore(r: ScoredRelease, cfg: ScoutScoreConfig): ScoredRelease {
+  const t = r.title.toLowerCase();
+  let score = r.score;
+  const reasons = [...r.reasons];
+
+  if (/\b2160p\b|\b4k\b/.test(t)) {
     score += cfg.res2160;
-    reasons.push('2160p');
+    reasons.push('trash:2160p');
   } else if (/\b1080p\b/.test(t)) {
     score += cfg.res1080;
-    reasons.push('1080p');
+    reasons.push('trash:1080p');
   } else if (/\b720p\b/.test(t)) {
     score += cfg.res720;
-    reasons.push('720p');
+    reasons.push('trash:720p');
   }
 
   if (/\b(remux)\b/.test(t)) {
     score += cfg.sourceRemux;
-    reasons.push('remux');
+    reasons.push('trash:remux');
   } else if (/\bbluray\b|\bbd\b/.test(t)) {
     score += cfg.sourceBluray;
-    reasons.push('bluray');
+    reasons.push('trash:bluray');
   } else if (/\bweb-?dl\b/.test(t)) {
     score += cfg.sourceWebdl;
-    reasons.push('web-dl');
+    reasons.push('trash:web-dl');
   }
 
   if (/\bhevc\b|\bx265\b/.test(t)) {
     score += cfg.codecHevc;
-    reasons.push('hevc');
+    reasons.push('trash:hevc');
   } else if (/\bav1\b/.test(t)) {
     score += cfg.codecAv1;
-    reasons.push('av1');
+    reasons.push('trash:av1');
   } else if (/\bh264\b|\bx264\b/.test(t)) {
     score += cfg.codecH264;
-    reasons.push('h264');
+    reasons.push('trash:h264');
   }
 
   if (/\batmos\b/.test(t)) {
     score += cfg.audioAtmos;
-    reasons.push('atmos');
+    reasons.push('trash:atmos');
   }
   if (/\btruehd\b/.test(t)) {
     score += cfg.audioTruehd;
-    reasons.push('truehd');
+    reasons.push('trash:truehd');
   } else if (/\bdts(?:-?hd|-?x)?\b/.test(t)) {
     score += cfg.audioDts;
-    reasons.push('dts');
+    reasons.push('trash:dts');
   } else if (/\be-?ac-?3\b|\bddp\b|\bdd\+\b/.test(t)) {
     score += cfg.audioDdp;
-    reasons.push('ddp/eac3');
+    reasons.push('trash:ddp/eac3');
   } else if (/\bac-?3\b/.test(t)) {
     score += cfg.audioAc3;
-    reasons.push('ac3');
+    reasons.push('trash:ac3');
   } else if (/\baac\b/.test(t)) {
     score += cfg.audioAac;
-    reasons.push('aac');
+    reasons.push('trash:aac');
   }
 
   if (/\bxvid\b|\bmpeg4\b/.test(t)) {
     score -= cfg.legacyPenalty;
-    reasons.push('legacy codec penalty');
+    reasons.push('trash:legacy codec penalty');
   }
 
   if (r.seeders != null) {
@@ -1090,79 +1184,25 @@ function scoreRelease(
 
   if (r.protocol === 'usenet') {
     score += cfg.usenetBonus;
-    reasons.push('usenet preference');
+    reasons.push('trash:usenet preference');
   } else if (r.protocol === 'torrent') {
     score += cfg.torrentBonus;
-    reasons.push('torrent preference');
-  }
-
-  const custom = applyCustomCfRules(r, customCfRules);
-  if (custom.delta !== 0) {
-    score += custom.delta;
-    reasons.push(...custom.reasons);
+    reasons.push('trash:torrent preference');
   }
 
   return { ...r, score, reasons };
 }
 
-function resolutionFromTitle(title: string): '2160p' | '1080p' | '720p' | 'other' | null {
-  const t = title.toLowerCase();
-  if (/\b2160p\b|\b4k\b/.test(t)) return '2160p';
-  if (/\b1080p\b/.test(t)) return '1080p';
-  if (/\b720p\b/.test(t)) return '720p';
-  if (/\b480p\b/.test(t)) return 'other';
-  return null;
-}
-
-function codecFromTitle(title: string): 'av1' | 'hevc' | 'h264' | 'unknown' {
-  const t = title.toLowerCase();
-  if (/\bav1\b/.test(t)) return 'av1';
-  if (/\bhevc\b|\bx265\b/.test(t)) return 'hevc';
-  if (/\bh264\b|\bx264\b/.test(t)) return 'h264';
-  return 'unknown';
-}
-
-function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: ScoutScoreConfig): BitrateGateResult {
-  if (runtimeSec == null || runtimeSec <= 0 || r.size == null || r.size <= 0) return { excluded: false };
-  const res = resolutionFromTitle(r.title);
-  if (!res) return { excluded: false };
-
-  const minByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
-    '2160p': cfg.bitrateMin2160Mbps,
-    '1080p': cfg.bitrateMin1080Mbps,
-    '720p': cfg.bitrateMin720Mbps,
-    other: cfg.bitrateMinOtherMbps,
-  };
-  const maxByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
-    '2160p': Math.max(cfg.bitrateMin2160Mbps, cfg.bitrateMax2160Mbps),
-    '1080p': Math.max(cfg.bitrateMin1080Mbps, cfg.bitrateMax1080Mbps),
-    '720p': Math.max(cfg.bitrateMin720Mbps, cfg.bitrateMax720Mbps),
-    other: Math.max(cfg.bitrateMinOtherMbps, cfg.bitrateMaxOtherMbps),
-  };
-  const codecMultiplier: Record<'av1' | 'hevc' | 'h264' | 'unknown', number> = {
-    av1: 0.8,
-    hevc: 1.0,
-    h264: 1.35,
-    unknown: 1.0,
-  };
-
-  const codec = codecFromTitle(r.title);
-  const floor = Math.max(0, minByResMbps[res] * codecMultiplier[codec]);
-  const ceil = Math.max(floor, maxByResMbps[res] * codecMultiplier[codec]);
-  const estimatedMbps = (r.size * 8) / runtimeSec / 1_000_000;
-  if (estimatedMbps < floor) {
-    return {
-      excluded: true,
-      reason: `excluded low bitrate for ${res}: ${estimatedMbps.toFixed(2)} Mbps < ${floor.toFixed(2)} Mbps`,
-    };
-  }
-  if (estimatedMbps > ceil) {
-    return {
-      excluded: true,
-      reason: `excluded high bitrate for ${res}: ${estimatedMbps.toFixed(2)} Mbps > ${ceil.toFixed(2)} Mbps`,
-    };
-  }
-  return { excluded: false };
+interface ScoutBlockerRule {
+  id: number;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  matchType: 'regex' | 'string';
+  pattern: string;
+  flags: string;
+  appliesTo: 'title' | 'full';
+  reason: string;
 }
 
 function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | null {
@@ -1173,7 +1213,7 @@ function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | n
 }
 
 function configuredBatchCap(db: CuratDb): number {
-  const raw = Number.parseInt(db.getSetting('scoutSearchBatchSize') ?? '10', 10);
+  const raw = Number.parseInt(db.getSetting('scoutPipelineBatchSize') ?? '10', 10);
   if (!Number.isFinite(raw)) return 10;
   return Math.max(1, Math.min(10, raw));
 }
@@ -1197,29 +1237,32 @@ async function searchOneMovie(
   const query = toText(queryOverride).trim() || [title, year].filter(Boolean).join(' ');
   const scoreCfg = resolveScoutScoreConfig(db);
   const customCfRules = loadScoutCustomCfRules(db);
+  const blockerRules = loadScoutBlockerRules(db);
   const llmRules = loadScoutLlmRules(db);
+  const blockersEnabled = (db.getSetting('scoutPipelineBlockersEnabled') ?? 'false').toLowerCase() === 'true';
   const runtimeSec = db.getFilesForMovie(movieId).find((f) => (f.duration ?? 0) > 0)?.duration ?? null;
 
   const releases = await client.searchMovie(query);
-  const excludedReasons: string[] = [];
-  const scoredBase = releases
-    .map((r) => scoreRelease(r, scoreCfg, customCfRules))
-    .filter((r) => {
-      const gate = bitrateGate(r, runtimeSec, scoreCfg);
-      if (gate.excluded) {
-        if (gate.reason) excludedReasons.push(gate.reason);
-        return false;
-      }
-      return true;
-    });
-  const llmResult = applyLlmRuleset(scoredBase, llmRules);
+  const scoredBasic = releases.map((r) => addBasicFormatScore(r, scoreCfg, runtimeSec));
+  const scoredTrash = scoredBasic.map((r) => addTrashScore(r, scoreCfg));
+  const scoredWithCustom = scoredTrash.map((r) => {
+    const custom = applyCustomCfRules(r, customCfRules);
+    if (custom.delta === 0) return r;
+    return {
+      ...r,
+      score: r.score + custom.delta,
+      reasons: [...r.reasons, ...custom.reasons],
+    };
+  });
+
+  const blockerResult = blockersEnabled
+    ? applyBlockerRules(scoredWithCustom, blockerRules)
+    : { finals: scoredWithCustom, dropped: [] as DroppedRelease[] };
+  const llmResult = applyLlmRuleset(blockerResult.finals, llmRules, scoreCfg);
   const scored = llmResult.finals;
-  const dropped = llmResult.dropped;
+  const dropped = [...blockerResult.dropped, ...llmResult.dropped];
   const best = scored[0] ?? null;
-  const summary =
-    excludedReasons.length > 0
-      ? `${recommendationSummary(best)} ${excludedReasons.length} release(s) excluded by bitrate gate.${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by LLM ruleset.` : ''}`
-      : recommendationSummary(best);
+  const summary = `${recommendationSummary(best)}${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by blockers/LLM rules.` : ''}`;
   return {
     movieId,
     query,
@@ -1239,14 +1282,14 @@ function toPriorityScore(mc: number | null, imdb: number | null): number {
 }
 
 function configuredCooldownMin(db: CuratDb): number {
-  const raw = Number.parseInt(db.getSetting('scoutAutoCooldownMin') ?? '240', 10);
+  const raw = Number.parseInt(db.getSetting('scoutPipelineAutoCooldownMin') ?? '240', 10);
   if (!Number.isFinite(raw)) return 240;
   return Math.max(5, Math.min(24 * 60, raw));
 }
 
 function pickAutoMovieIds(db: CuratDb, cap: number): { ids: number[]; skippedByCooldown: number } {
-  const minCritic = Number.parseFloat(db.getSetting('scoutMinCritic') ?? '65');
-  const minCommunity = Number.parseFloat(db.getSetting('scoutMinCommunity') ?? '7.0');
+  const minCritic = Number.parseFloat(db.getSetting('scoutPipelineMinCritic') ?? '65');
+  const minCommunity = Number.parseFloat(db.getSetting('scoutPipelineMinImdb') ?? '7.0');
   const pool = db.getUpgradeCandidates({
     maxResolution: '2160p',
     minCriticRating: Number.isFinite(minCritic) ? minCritic : 65,

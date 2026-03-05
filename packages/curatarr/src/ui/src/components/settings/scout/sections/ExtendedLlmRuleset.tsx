@@ -2,6 +2,8 @@ import { GripVertical } from 'lucide-react';
 import type { ExtendedLlmRulesetSectionProps } from '../../types';
 
 export function ExtendedLlmRuleset({
+  form,
+  set,
   llmRulesDraft,
   llmDragIndex,
   onLlmDragStart,
@@ -34,9 +36,9 @@ export function ExtendedLlmRuleset({
         >
           <span
             className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold"
-            style={{ background: 'rgba(124,58,237,0.28)', color: '#ddd6fe', border: '1px solid rgba(196,181,253,0.4)' }}
+            style={{ background: 'rgba(251,146,60,0.25)', color: '#ffedd5', border: '1px solid rgba(253,186,116,0.4)' }}
           >
-            4
+            5
           </span>
           Final LLM ruleset
         </div>
@@ -55,6 +57,42 @@ export function ExtendedLlmRuleset({
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Drag and drop can be used to set rule priority (top runs first).
         </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label
+              className="text-sm font-medium mb-1 block"
+              style={{ color: '#c4b5fd' }}
+              htmlFor="scout-llm-tie-delta"
+            >
+              Tie-break delta
+            </label>
+            <input
+              id="scout-llm-tie-delta"
+              name="scoutPipelineLlmTieDelta"
+              value={form.scoutPipelineLlmTieDelta ?? '10'}
+              onChange={(e) => set('scoutPipelineLlmTieDelta', e.target.value)}
+              className="w-full px-2 py-1 rounded text-xs"
+              style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+            />
+          </div>
+          <div>
+            <label
+              className="text-sm font-medium mb-1 block"
+              style={{ color: '#c4b5fd' }}
+              htmlFor="scout-llm-weak-delta"
+            >
+              Weak drop delta
+            </label>
+            <input
+              id="scout-llm-weak-delta"
+              name="scoutPipelineLlmWeakDropDelta"
+              value={form.scoutPipelineLlmWeakDropDelta ?? '40'}
+              onChange={(e) => set('scoutPipelineLlmWeakDropDelta', e.target.value)}
+              className="w-full px-2 py-1 rounded text-xs"
+              style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+            />
+          </div>
+        </div>
         <div className="space-y-2">
           {llmRulesDraft.map((rule, idx) => (
             <div

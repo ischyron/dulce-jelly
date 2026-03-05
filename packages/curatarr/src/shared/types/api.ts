@@ -178,6 +178,12 @@ export interface ScoutRelease {
   peers: number | null;
   score: number;
   reasons: string[];
+  stageScores?: {
+    basic?: number;
+    trash?: number;
+    customCf?: number;
+    llm?: number;
+  };
 }
 
 export interface DroppedScoutRelease extends ScoutRelease {

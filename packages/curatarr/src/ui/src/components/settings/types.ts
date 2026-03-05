@@ -6,7 +6,7 @@ import type {
   ScoutTrashParityResponse,
   ScoutTrashSyncDetailsResponse,
 } from '../../../../shared/types/api';
-import type { BitrateProfileId, BitrateProfileSpec, OrderedScoreField } from './content';
+import type { OrderedScoreField } from './content';
 
 export type SettingsForm = Record<string, string>;
 export type SetField = (name: string, value: string) => void;
@@ -53,6 +53,18 @@ export interface ScoutCustomCfDraft {
   score: string;
   flags: string;
   appliesTo: 'title' | 'full';
+}
+
+export interface ScoutBlockerDraft {
+  id?: number;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  matchType: 'regex' | 'string';
+  pattern: string;
+  flags: string;
+  appliesTo: 'title' | 'full';
+  reason: string;
 }
 
 export interface ScoutLlmRuleDraft {
@@ -104,13 +116,6 @@ export interface MinimumQualifiersSectionProps {
 export interface CfScoringSectionProps {
   form: SettingsForm;
   set: SetField;
-  activeProfileLabel: string;
-  activeProfileAv1: string;
-  bitrateProfileId: BitrateProfileId;
-  setBitrateProfileId: (id: BitrateProfileId) => void;
-  applyBitrateProfile: (id: BitrateProfileId) => void;
-  selectedBitrateProfile: BitrateProfileSpec;
-  detectedBitrateProfile: BitrateProfileId | null;
 }
 
 export interface TrashSyncDetailsSectionProps {
@@ -134,6 +139,8 @@ export interface TrashBaselineSectionProps {
 }
 
 export interface CustomOverridesSectionProps {
+  form: SettingsForm;
+  set: SetField;
   customCfDraft: ScoutCustomCfDraft[];
   updateCustomCfRule: (index: number, patch: Partial<ScoutCustomCfDraft>) => void;
   removeCustomCfRule: (index: number) => void;
@@ -147,6 +154,14 @@ export interface CustomOverridesSectionProps {
   runCustomCfPreview: () => void;
   customCfPreviewPending: boolean;
   customCfPreviewData?: ScoutCustomCfPreviewResponse;
+  blockerDraft: ScoutBlockerDraft[];
+  updateBlockerRule: (index: number, patch: Partial<ScoutBlockerDraft>) => void;
+  removeBlockerRule: (index: number) => void;
+  addBlockerRule: () => void;
+  saveBlockers: () => void;
+  blockersSavePending: boolean;
+  blockersSaved: boolean;
+  blockersError: string;
 }
 
 export interface RulesSectionProps {
@@ -159,6 +174,8 @@ export interface RulesSectionProps {
 }
 
 export interface ExtendedLlmRulesetSectionProps {
+  form: SettingsForm;
+  set: SetField;
   llmRulesDraft: ScoutLlmRuleDraft[];
   llmDragIndex: number | null;
   onLlmDragStart: (index: number) => void;

@@ -7,7 +7,7 @@ For task completion rules and feature gating, follow `packages/curatarr/AGENTS.m
 
 - `AGENTS.md` is canonical for Definition of Done and gate enforcement.
 - Do not treat roadmap/spec prose as completion evidence.
-- Completion requires runnable proof (tests, e2e, manual verification, git, deploy) recorded in TODO.
+- Completion requires runnable proof (tests, e2e, manual verification, git, deploy) recorded in `PROGRESS.md`.
 - If a required gate cannot run, status must be `BLOCKED` or `IN-PROGRESS`, not `DONE`.
 
 ## Validation Stack (Reference)

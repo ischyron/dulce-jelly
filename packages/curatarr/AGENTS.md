@@ -24,7 +24,7 @@ Required preflight command:
 
 If either required MCP server is missing or disabled:
 - Do not mark task `DONE`.
-- Mark `BLOCKED` (or remain `IN-PROGRESS`) and record missing MCP preflight in TODO evidence.
+- Mark `BLOCKED` (or remain `IN-PROGRESS`) and record missing MCP preflight in `PROGRESS.md` evidence.
 
 ## Required Workflow (Definition of Done)
 A task can be marked `DONE` only after all gates below pass.
@@ -67,10 +67,10 @@ A task can be marked `DONE` only after all gates below pass.
 ## Gate Failure Policy
 - If any required gate cannot run or fails, status must be `BLOCKED` (or remain `IN-PROGRESS`).
 - Do not mark as `DONE` with follow-up questions.
-- Record the exact failed/missing gate and reason in TODO.
+- Record the exact failed/missing gate and reason in `PROGRESS.md`.
 
-## TODO Evidence Requirement
-For each task moved to `DONE`, include compact evidence inline in the TODO item.
+## PROGRESS Evidence Requirement
+For each task moved to `DONE`, include compact evidence inline in the `PROGRESS.md` item.
 Use this template:
 
 ```text

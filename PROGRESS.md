@@ -1,19 +1,22 @@
-# Agent's TODO
+# Progress Tracker
 
 ### Ground rules
-- Always read the todo from disk as human would keep this updated and so latest status and feedback on tasks is important
-- Always read the TODO from disk, as the human keeps this updated and the latest status and feedback on tasks are important.
-- Work through todos independently; pause only if human review is required.
-- Strike out when done/blocked.
-- Don't create new sections for TODOs or bugs. Keep status inline.
-- Process to mark a TODO  as DONE or closure of any work item.
-  - develop feature/fix with all edge cases considred
-  - unit/interaction test if any need to commit
-  - run e2e test 
-  - commit and push changed to git.
-  - deploy it on docker
-  - Then mark as complete or done
-  - Follow up questions if any edge cases left unhanlded due to lack of requirement clarity
+- Always read this PROGRESS.MD from disk before starting each task and before updating task status.
+- Do not create new sections on this file; keep updates inline under existing items.
+- Status lifecycle is strict: `TODO -> IN-PROGRESS -> DONE | BLOCKED`.
+- `DONE` is allowed only when all workflow gates in `AGENTS.md` pass.
+- If any required gate is missing, skipped, or failed, mark `BLOCKED` (or keep `IN-PROGRESS`).
+- Do not close tasks with follow-up questions when required gates are incomplete.
+- Strike through completed or blocked items and keep the final status label visible.
+- Every item marked `DONE` must include inline evidence:
+  - Dev summary
+  - Unit/interaction test command and result
+  - Playwright e2e command and result
+  - Chrome MCP manual verification result (or explicit `N/A` reason)
+  - Commit hash and push confirmation
+  - Deploy command/result
+  - Date
+
 
 
 ### Other Todo Items/Issues 

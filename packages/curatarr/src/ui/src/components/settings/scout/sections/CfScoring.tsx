@@ -34,43 +34,43 @@ export function CfScoring({
 }: CfScoringSectionProps) {
   const pipelineSteps = [
     {
-      step: 0,
       title: 'Scout Minimum Qualifiers',
       detail: 'Gate the candidate pool with MC/IMDb thresholds and batch size.',
-      tone: 'rgba(99,102,241,0.28)',
+      tone: 'linear-gradient(135deg, rgba(99,102,241,0.55), rgba(129,140,248,0.35))',
     },
     {
-      step: 1,
       title: 'TRaSH Guide CF scoring',
       detail: 'Apply baseline deterministic scoring from TRaSH-aligned rules.',
-      tone: 'rgba(59,130,246,0.28)',
+      tone: 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))',
     },
     {
-      step: 2,
       title: 'Custom CF + blockers',
       detail: 'Apply your overrides and release blockers (feature-flagged path).',
-      tone: 'rgba(16,185,129,0.28)',
+      tone: 'linear-gradient(135deg, rgba(16,185,129,0.55), rgba(52,211,153,0.35))',
     },
     {
-      step: 3,
       title: 'Final LLM rule set',
       detail: 'Drop weak candidates and break close-score ties.',
-      tone: 'rgba(245,158,11,0.28)',
+      tone: 'linear-gradient(135deg, rgba(245,158,11,0.55), rgba(251,191,36,0.35))',
     },
     {
-      step: 4,
       title: 'Final choice',
       detail: 'Surface the strongest final recommendation for action.',
-      tone: 'rgba(236,72,153,0.28)',
+      tone: 'linear-gradient(135deg, rgba(236,72,153,0.55), rgba(244,114,182,0.35))',
     },
   ] as const;
 
-  const stepPill = (step: number, tone: string) => (
+  const stepPill = (stepLabel: string, tone: string) => (
     <span
       className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-      style={{ background: tone, border: '1px solid rgba(196,181,253,0.5)', color: '#f5f3ff' }}
+      style={{
+        background: tone,
+        border: '1px solid rgba(224,231,255,0.7)',
+        color: '#ffffff',
+        boxShadow: '0 0 0 1px rgba(15,23,42,0.35) inset',
+      }}
     >
-      {step}
+      {stepLabel}
     </span>
   );
 
@@ -82,25 +82,38 @@ export function CfScoring({
       </h2>
       <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
         Curatarr runs this pipeline from top to bottom. Higher score means releases with those attributes are more
-        likely to be selected.
+        likely to be selected.{' '}
+        <a
+          href="https://github.com/ischyron/dulce-jelly/blob/main/packages/curatarr/docs/scout-approach.md"
+          target="_blank"
+          rel="noreferrer"
+          style={{ color: '#c4b5fd', textDecoration: 'underline' }}
+        >
+          Learn More
+        </a>
       </p>
-      <div
-        className="rounded-xl border p-4 text-xs"
-        style={{
-          borderColor: 'rgba(124,58,237,0.35)',
-          background: 'linear-gradient(180deg, rgba(124,58,237,0.14), rgba(17,24,39,0.28))',
-          color: 'var(--c-muted)',
-        }}
+      <details
+        className="rounded-xl border text-xs"
+        style={{ borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(15,23,42,0.35)', color: 'var(--c-muted)' }}
       >
-        <div className="space-y-2">
+        <summary
+          className="cursor-pointer list-none px-4 py-3 flex items-center justify-between"
+          style={{ color: '#ddd6fe' }}
+        >
+          <span className="font-semibold">Target pipeline</span>
+          <span className="text-[11px]" style={{ color: '#c4b5fd' }}>
+            Expand
+          </span>
+        </summary>
+        <div className="p-4 pt-0 space-y-2">
           {pipelineSteps.map((step, idx) => (
-            <div key={step.step} className="space-y-2">
+            <div key={step.title} className="space-y-2">
               <div
                 className="rounded-lg border p-3"
                 style={{ borderColor: 'rgba(196,181,253,0.3)', background: 'rgba(15,23,42,0.58)' }}
               >
                 <div className="flex items-center gap-2">
-                  {stepPill(step.step, step.tone)}
+                  {stepPill(String(idx), step.tone)}
                   <span className="font-semibold" style={{ color: '#e9d5ff' }}>
                     {step.title}
                   </span>
@@ -117,7 +130,7 @@ export function CfScoring({
             </div>
           ))}
         </div>
-      </div>
+      </details>
       <div
         className="rounded-xl border p-4 space-y-3"
         style={{ borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.05)' }}
@@ -126,7 +139,7 @@ export function CfScoring({
           className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
           style={{ color: '#c4b5fd' }}
         >
-          {stepPill(0, 'rgba(99,102,241,0.28)')}
+          {stepPill('0', 'linear-gradient(135deg, rgba(99,102,241,0.55), rgba(129,140,248,0.35))')}
           Scout Minimum Qualifiers
         </div>
         <MinimumQualifiersFields form={form} set={set} />
@@ -143,7 +156,7 @@ export function CfScoring({
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             style={{ color: '#8b87aa' }}
           >
-            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            {stepPill('1', 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))')}
             TRaSH Guide CF scoring · Resolution
           </div>
           <OrderedScoreRow fields={RESOLUTION_SCORE_FIELDS} form={form} onChange={set} />
@@ -157,7 +170,7 @@ export function CfScoring({
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             style={{ color: '#8b87aa' }}
           >
-            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            {stepPill('1', 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))')}
             TRaSH Guide CF scoring · Source
           </div>
           <OrderedScoreRow fields={SOURCE_SCORE_FIELDS} form={form} onChange={set} />
@@ -171,7 +184,7 @@ export function CfScoring({
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             style={{ color: '#8b87aa' }}
           >
-            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            {stepPill('1', 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))')}
             TRaSH Guide CF scoring · Video
           </div>
           <OrderedScoreRow fields={VIDEO_CODEC_SCORE_FIELDS} form={form} onChange={set} />
@@ -210,7 +223,7 @@ export function CfScoring({
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             style={{ color: '#8b87aa' }}
           >
-            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            {stepPill('1', 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))')}
             TRaSH Guide CF scoring · Audio
           </div>
           <OrderedScoreRow fields={AUDIO_SCORE_FIELDS} form={form} onChange={set} />
@@ -224,7 +237,7 @@ export function CfScoring({
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             style={{ color: '#8b87aa' }}
           >
-            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            {stepPill('1', 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))')}
             TRaSH Guide CF scoring · Curatarr Recommended Bitrate Profiles
           </div>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
@@ -298,7 +311,7 @@ export function CfScoring({
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             style={{ color: '#8b87aa' }}
           >
-            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            {stepPill('1', 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))')}
             TRaSH Guide CF scoring · Bitrate Gates (Adjust below)
           </div>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
@@ -364,7 +377,7 @@ export function CfScoring({
             className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2"
             style={{ color: '#8b87aa' }}
           >
-            {stepPill(1, 'rgba(59,130,246,0.28)')}
+            {stepPill('1', 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))')}
             TRaSH Guide CF scoring · Protocol & Availability
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">

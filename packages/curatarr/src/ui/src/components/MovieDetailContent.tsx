@@ -13,7 +13,7 @@ import {
   Tag,
   Trash2,
 } from 'lucide-react';
-import { api, type FileRow, type ScoutRelease } from '../api/client.js';
+import { api, type DroppedScoutRelease, type FileRow, type ScoutRelease } from '../api/client.js';
 import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from './QualityBadge.js';
 import { DeleteConfirmModal } from './DeleteConfirmModal.js';
 
@@ -152,6 +152,33 @@ function ScoutResultsTable({ releases }: { releases: ScoutRelease[] }) {
               <td className="px-2 py-1.5 text-right" style={{ color: 'var(--c-muted)' }}>
                 {(r.seeders ?? 0)}/{(r.peers ?? 0)}
               </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[] }) {
+  return (
+    <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
+      <table className="w-full text-xs border-collapse">
+        <thead>
+          <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
+            <th className="px-2 py-2 text-left">Score</th>
+            <th className="px-2 py-2 text-left">Release</th>
+            <th className="px-2 py-2 text-left">Dropped Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          {releases.map((r, i) => (
+            <tr key={`${r.guid ?? r.title}-drop-${i}`} style={{ borderTop: '1px solid rgba(38,38,58,0.8)' }}>
+              <td className="px-2 py-1.5 font-semibold text-orange-300">{r.score}</td>
+              <td className="px-2 py-1.5">
+                <div className="truncate" style={{ color: '#d4cfff' }} title={r.title}>{r.title}</div>
+              </td>
+              <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>{r.droppedReason}</td>
             </tr>
           ))}
         </tbody>
@@ -516,6 +543,16 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 )}
               </div>
               <ScoutResultsTable releases={scoutSearch.data.releases} />
+              {(scoutSearch.data.droppedReleases?.length ?? 0) > 0 && (
+                <details className="rounded-lg border p-2" style={{ borderColor: 'var(--c-border)', background: 'rgba(245,158,11,0.08)' }}>
+                  <summary className="cursor-pointer text-xs font-semibold" style={{ color: '#fbbf24' }}>
+                    Dropped Releases ({scoutSearch.data.droppedReleases.length})
+                  </summary>
+                  <div className="mt-2">
+                    <DroppedScoutResultsTable releases={scoutSearch.data.droppedReleases} />
+                  </div>
+                </details>
+              )}
             </div>
           )}
         </div>

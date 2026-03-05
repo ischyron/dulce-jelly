@@ -209,11 +209,16 @@ export interface ScoutRelease {
   reasons: string[];
 }
 
+export interface DroppedScoutRelease extends ScoutRelease {
+  droppedReason: string;
+}
+
 export interface ScoutSearchOneResponse {
   movieId: number;
   query: string;
   total: number;
   releases: ScoutRelease[];
+  droppedReleases: DroppedScoutRelease[];
   recommendation: {
     mode: 'tabulated';
     summary: string;
@@ -226,6 +231,7 @@ export interface ScoutBatchItem {
   query?: string;
   total?: number;
   releases?: ScoutRelease[];
+  droppedReleases?: DroppedScoutRelease[];
   error?: string;
 }
 
@@ -300,6 +306,27 @@ export interface ScoutTrashSyncDetailsResponse {
       warning?: string;
     }>;
   } | null;
+}
+
+export interface ScoutTrashParityResponse {
+  state: 'in_sync' | 'drifted' | 'unknown';
+  checkedAt: string;
+  reason?: string;
+  baselineCount: number;
+  currentCount: number;
+  diff: {
+    added: Array<{ name: string; score: number }>;
+    removed: Array<{ name: string; score: number }>;
+    changed: Array<{ name: string; before: number; after: number }>;
+  };
+}
+
+export interface ScoutCustomCfPreviewResponse {
+  title: string;
+  totalRules: number;
+  delta: number;
+  reasons: string[];
+  matchedRuleIds: number[];
 }
 
 export interface ScoutRulesRefineDraftResponse {
@@ -501,6 +528,15 @@ export const api = {
 
   scoutTrashSyncDetails: () =>
     req<ScoutTrashSyncDetailsResponse>('/scout/trash-sync-details'),
+
+  scoutTrashParity: (refresh = false) =>
+    req<ScoutTrashParityResponse>(`/scout/trash-parity${refresh ? '?refresh=1' : ''}`),
+
+  scoutCustomCfPreview: (body: { title: string }) =>
+    req<ScoutCustomCfPreviewResponse>('/scout/custom-cf/preview', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   scoutRulesRefineDraft: (body: { objective: string }) =>
     req<ScoutRulesRefineDraftResponse>('/scout/rules/refine-draft', {

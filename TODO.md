@@ -17,11 +17,49 @@
 
 ### Curatarr Backlog
 
-- [TODO] Integrate TrashGuide as a dedicated section for Custom Format Scores, syncing directly from the TrashGuide. Users should not edit these scores for now. Investigate how Radarr handles edits to Recyclarr-synced Custom Format scores—specifically, what occurs if a user modifies a TrashGuide-synced Custom Format in Radarr. Ensure our implementation matches this behavior for consistency.
+- [DONE] ~~Integrate TrashGuide as a dedicated section for Custom Format Scores, syncing directly from the TrashGuide. Users should not edit these scores for now. Investigate how Radarr handles edits to Recyclarr-synced Custom Format scores—specifically, what occurs if a user modifies a TrashGuide-synced Custom Format in Radarr. Ensure our implementation matches this behavior for consistency.~~
+  - Implemented:
+    - Add parity read path against Radarr CF assignments and compare with Curatarr TRaSH snapshot.
+    - Persist parity status in settings keys:
+      - `scoutTrashParityState` (`in_sync|drifted|unknown`)
+      - `scoutTrashParityCheckedAt`
+      - `scoutTrashParityDiffJson`
+    - Add `GET /api/scout/trash-parity` and Settings UI panel showing drift details read-only.
+    - Define explicit conflict behavior in UI: user-edited Radarr values are shown as drift; Curatarr does not silently overwrite unless user runs explicit re-sync.
+    - Tests: API coverage for `in_sync`, `drifted`, and no-radarr-config paths.
 
-- [TODO] Implement a Custom Format Scores UI that allows users to add a string label and a numeric score. Filenames should be matched using either a provided regular expression or a string pattern. Example regex: \bDD[P+](?!A)|\b(e[-_. ]?ac-?3)\b. Ensure the UI supports entry and editing of pattern/score pairs, and that matching logic works for both regex and simple string inputs.
+- [DONE] ~~Implement a Custom Format Scores UI that allows users to add a string label and a numeric score. Filenames should be matched using either a provided regular expression or a string pattern. Example regex: \bDD[P+](?!A)|\b(e[-_. ]?ac-?3)\b. Ensure the UI supports entry and editing of pattern/score pairs, and that matching logic works for both regex and simple string inputs.~~
+  - Implemented:
+    - Data model via rules table category `scout_custom_cf` config schema:
+      - `{ matchType: 'regex'|'string', pattern: string, score: number, flags?: 'i', appliesTo?: 'title'|'full', notes?: string }`
+    - Server validation for save/update:
+      - Reject invalid regex with clear error.
+      - Clamp score range to existing CF range policy.
+    - Scoring pipeline integration:
+      - Evaluate all enabled custom CF rules in `scoreRelease`.
+      - Append match reasons (`custom_cf:<rule_name>`) for observability.
+      - Enforce deterministic order: TRaSH baseline -> built-in CF -> custom overrides.
+    - UI in Settings > Scout:
+      - Add/edit/delete rows, regex/string toggle, preview input with live match result.
+    - Tests:
+      - Unit/API tests for regex/string matching.
+      - E2E test validating custom rule impacts Scout result scoring/reasons.
 
-- [TODO] Redesign the Rules Config assistant. The current implementation is incorrect. This UI should allow users to input natural language rules as plain sentences and arrange them in order of priority (1 to N). It is not a pre-configuration tool as previously implemented. Clarify that this functionality is meant for advanced use cases—specifically, for handling tie-breakers or extending logic beyond deterministic scoring when additional edge cases must be covered without relying solely on custom scores.
+- [DONE] ~~Redesign the Rules Config assistant. The current implementation is incorrect. This UI should allow users to input natural language rules as plain sentences and arrange them in order of priority (1 to N). It is not a pre-configuration tool as previously implemented. Clarify that this functionality is meant for advanced use cases—specifically, for handling tie-breakers or extending logic beyond deterministic scoring when additional edge cases must be covered without relying solely on custom scores.~~
+  - Implemented:
+    - Replace helper-only flow with explicit ordered sentence list editor:
+      - row schema `{ id, enabled, priority, sentence }`, strict 1..N order.
+      - move up/down or drag reorder, save order stable.
+    - Persist as rules category `scout_llm_ruleset` through `/api/rules`.
+    - Build execution contract for Scout output:
+      - Input = deterministic top candidates + ordered rules.
+      - Output sections = `final_choices[]` and `dropped_releases[]` with reason strings.
+      - LLM stage only post-deterministic (drop weak candidates + tie-break close scores).
+    - UI:
+      - Add `Dropped Releases` section in Scout results with reason and score context.
+    - Tests:
+      - API test for ordered persistence and prompt assembly.
+      - E2E test for reorder persistence + dropped section visibility.
 
 
 ### Other Todo Items/Issues 

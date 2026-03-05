@@ -8,6 +8,12 @@ interface ScoredRelease extends ProwlarrSearchResult {
   reasons: string[];
 }
 
+interface DroppedRelease extends ProwlarrSearchResult {
+  score: number;
+  reasons: string[];
+  droppedReason: string;
+}
+
 interface BitrateGateResult {
   excluded: boolean;
   reason?: string;
@@ -48,6 +54,7 @@ interface SearchSuccess {
   query: string;
   total: number;
   releases: ScoredRelease[];
+  droppedReleases: DroppedRelease[];
   recommendation: ScoutRecommendation;
 }
 
@@ -173,6 +180,24 @@ interface ScoutRuleSeed {
   config: Record<string, unknown>;
 }
 
+const SCOUT_LLM_RULESET_BASELINE: ScoutRuleSeed[] = [
+  {
+    name: 'Drop CAM/TS releases',
+    priority: 1,
+    config: { sentence: 'Drop CAM, TS, and telesync releases.' },
+  },
+  {
+    name: 'Prefer usenet for close ties',
+    priority: 2,
+    config: { sentence: 'Prefer usenet in close ties.' },
+  },
+  {
+    name: 'Avoid AV1 on weak client profiles',
+    priority: 3,
+    config: { sentence: 'Avoid AV1 when compatibility is uncertain.' },
+  },
+];
+
 interface TrashAppliedRuleSnapshot {
   id: number;
   name: string;
@@ -209,6 +234,42 @@ interface TrashSyncDetailsResponse {
     rules: TrashAppliedRuleSnapshot[];
   };
   upstream: TrashUpstreamSnapshot | null;
+}
+
+interface ScoutTrashParityDiff {
+  added: Array<{ name: string; score: number }>;
+  removed: Array<{ name: string; score: number }>;
+  changed: Array<{ name: string; before: number; after: number }>;
+}
+
+interface ScoutTrashParityResponse {
+  state: 'in_sync' | 'drifted' | 'unknown';
+  checkedAt: string;
+  reason?: string;
+  baselineCount: number;
+  currentCount: number;
+  diff: ScoutTrashParityDiff;
+}
+
+interface RadarrCfScoreItem {
+  name: string;
+  score: number;
+}
+
+interface ScoutCustomCfRule {
+  id: number;
+  name: string;
+  pattern: string;
+  score: number;
+  matchType: 'regex' | 'string';
+  flags: string;
+  appliesTo: 'title' | 'full';
+}
+
+interface ScoutLlmRule {
+  id: number;
+  priority: number;
+  sentence: string;
 }
 
 const SCOUT_RULE_BASELINE: ScoutRuleSeed[] = [
@@ -324,6 +385,297 @@ function safeParseJson(s: string): unknown {
   }
 }
 
+function resolveRadarrConfig(db: CuratDb): { url: string; apiKey: string } | null {
+  const url = db.getSetting('radarrUrl') ?? '';
+  const apiKey = db.getSetting('radarrApiKey') ?? '';
+  if (!url || !apiKey) return null;
+  return { url, apiKey };
+}
+
+async function fetchRadarrCustomFormatScores(url: string, apiKey: string): Promise<RadarrCfScoreItem[]> {
+  const base = url.replace(/\/+$/, '');
+  const headers = { 'X-Api-Key': apiKey, Accept: 'application/json' };
+  const [cfRes, qpRes] = await Promise.all([
+    fetch(`${base}/api/v3/customformat`, { headers }),
+    fetch(`${base}/api/v3/qualityprofile`, { headers }),
+  ]);
+  if (!cfRes.ok) throw new Error(`radarr_customformat_${cfRes.status}`);
+  if (!qpRes.ok) throw new Error(`radarr_qualityprofile_${qpRes.status}`);
+  const customFormats = await cfRes.json().catch(() => []) as Array<{ id?: number; name?: string }>;
+  const profiles = await qpRes.json().catch(() => []) as Array<{
+    formatItems?: Array<{ format?: number; score?: number }>;
+  }>;
+  const nameById = new Map<number, string>();
+  for (const cf of customFormats) {
+    if (typeof cf.id === 'number' && typeof cf.name === 'string' && cf.name.trim()) {
+      nameById.set(cf.id, cf.name.trim());
+    }
+  }
+  const scoreByName = new Map<string, number>();
+  for (const profile of profiles) {
+    for (const item of profile.formatItems ?? []) {
+      const id = typeof item.format === 'number' ? item.format : NaN;
+      const name = nameById.get(id);
+      if (!name) continue;
+      const score = Number(item.score ?? 0);
+      if (!Number.isFinite(score)) continue;
+      const prev = scoreByName.get(name);
+      if (prev == null || Math.abs(score) > Math.abs(prev)) {
+        scoreByName.set(name, score);
+      }
+    }
+  }
+  return Array.from(scoreByName.entries())
+    .map(([name, score]) => ({ name, score }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function diffParity(
+  baseline: RadarrCfScoreItem[],
+  current: RadarrCfScoreItem[],
+): ScoutTrashParityDiff {
+  const prev = new Map(baseline.map((x) => [x.name, x.score]));
+  const now = new Map(current.map((x) => [x.name, x.score]));
+  const added: Array<{ name: string; score: number }> = [];
+  const removed: Array<{ name: string; score: number }> = [];
+  const changed: Array<{ name: string; before: number; after: number }> = [];
+  for (const [name, score] of now.entries()) {
+    if (!prev.has(name)) {
+      added.push({ name, score });
+      continue;
+    }
+    const before = prev.get(name) ?? 0;
+    if (before !== score) changed.push({ name, before, after: score });
+  }
+  for (const [name, score] of prev.entries()) {
+    if (!now.has(name)) removed.push({ name, score });
+  }
+  return { added, removed, changed };
+}
+
+function getStoredRadarrBaseline(db: CuratDb): RadarrCfScoreItem[] {
+  return parseJsonSetting<RadarrCfScoreItem[]>(db, 'scoutTrashRadarrSnapshotJson', []);
+}
+
+async function refreshTrashParity(db: CuratDb): Promise<ScoutTrashParityResponse> {
+  const checkedAt = new Date().toISOString();
+  const cfg = resolveRadarrConfig(db);
+  if (!cfg) {
+    const out: ScoutTrashParityResponse = {
+      state: 'unknown',
+      checkedAt,
+      reason: 'radarr_not_configured',
+      baselineCount: 0,
+      currentCount: 0,
+      diff: { added: [], removed: [], changed: [] },
+    };
+    applySettings(db, {
+      scoutTrashParityState: out.state,
+      scoutTrashParityCheckedAt: checkedAt,
+      scoutTrashParityDiffJson: JSON.stringify(out.diff),
+      scoutTrashParityReason: out.reason ?? '',
+    });
+    return out;
+  }
+  try {
+    const baseline = getStoredRadarrBaseline(db);
+    const current = await fetchRadarrCustomFormatScores(cfg.url, cfg.apiKey);
+    if (baseline.length === 0) {
+      const out: ScoutTrashParityResponse = {
+        state: 'unknown',
+        checkedAt,
+        reason: 'baseline_not_captured',
+        baselineCount: 0,
+        currentCount: current.length,
+        diff: { added: [], removed: [], changed: [] },
+      };
+      applySettings(db, {
+        scoutTrashParityState: out.state,
+        scoutTrashParityCheckedAt: checkedAt,
+        scoutTrashParityDiffJson: JSON.stringify(out.diff),
+        scoutTrashParityReason: out.reason ?? '',
+      });
+      return out;
+    }
+    const diff = diffParity(baseline, current);
+    const drifted = diff.added.length > 0 || diff.removed.length > 0 || diff.changed.length > 0;
+    const out: ScoutTrashParityResponse = {
+      state: drifted ? 'drifted' : 'in_sync',
+      checkedAt,
+      baselineCount: baseline.length,
+      currentCount: current.length,
+      diff,
+    };
+    applySettings(db, {
+      scoutTrashParityState: out.state,
+      scoutTrashParityCheckedAt: checkedAt,
+      scoutTrashParityDiffJson: JSON.stringify(out.diff),
+      scoutTrashParityReason: '',
+    });
+    return out;
+  } catch (err) {
+    const out: ScoutTrashParityResponse = {
+      state: 'unknown',
+      checkedAt,
+      reason: `radarr_parity_error:${(err as Error).message}`,
+      baselineCount: getStoredRadarrBaseline(db).length,
+      currentCount: 0,
+      diff: { added: [], removed: [], changed: [] },
+    };
+    applySettings(db, {
+      scoutTrashParityState: out.state,
+      scoutTrashParityCheckedAt: checkedAt,
+      scoutTrashParityDiffJson: JSON.stringify(out.diff),
+      scoutTrashParityReason: out.reason ?? '',
+    });
+    return out;
+  }
+}
+
+function getTrashParity(db: CuratDb): ScoutTrashParityResponse {
+  const checkedAt = db.getSetting('scoutTrashParityCheckedAt') ?? '';
+  const stateRaw = db.getSetting('scoutTrashParityState') ?? 'unknown';
+  const reason = db.getSetting('scoutTrashParityReason') ?? '';
+  const diff = parseJsonSetting<ScoutTrashParityDiff>(db, 'scoutTrashParityDiffJson', {
+    added: [],
+    removed: [],
+    changed: [],
+  });
+  const baseline = getStoredRadarrBaseline(db);
+  return {
+    state: stateRaw === 'in_sync' || stateRaw === 'drifted' ? stateRaw : 'unknown',
+    checkedAt: checkedAt || new Date(0).toISOString(),
+    reason: reason || undefined,
+    baselineCount: baseline.length,
+    currentCount: baseline.length + diff.added.length - diff.removed.length,
+    diff,
+  };
+}
+
+function loadScoutCustomCfRules(db: CuratDb): ScoutCustomCfRule[] {
+  const rows = db.getRules('scout_custom_cf').filter((r) => r.enabled !== 0);
+  const out: ScoutCustomCfRule[] = [];
+  for (const row of rows) {
+    const cfg = safeParseJson(row.config) as Record<string, unknown>;
+    const matchType = cfg.matchType === 'regex' ? 'regex' : 'string';
+    const pattern = typeof cfg.pattern === 'string' ? cfg.pattern : '';
+    const score = Number(cfg.score ?? 0);
+    const flagsRaw = typeof cfg.flags === 'string' ? cfg.flags : 'i';
+    const flags = flagsRaw.includes('i') ? 'i' : '';
+    const appliesTo = cfg.appliesTo === 'full' ? 'full' : 'title';
+    if (!pattern.trim() || !Number.isFinite(score)) continue;
+    out.push({
+      id: row.id,
+      name: row.name,
+      pattern: pattern.trim(),
+      score,
+      matchType,
+      flags,
+      appliesTo,
+    });
+  }
+  return out.sort((a, b) => a.id - b.id);
+}
+
+function applyCustomCfRules(
+  release: ProwlarrSearchResult,
+  rules: ScoutCustomCfRule[],
+): { delta: number; reasons: string[]; matchedRuleIds: number[] } {
+  let delta = 0;
+  const reasons: string[] = [];
+  const matchedRuleIds: number[] = [];
+  const text = release.title ?? '';
+  for (const rule of rules) {
+    const target = rule.appliesTo === 'full' ? text : text;
+    let matched = false;
+    if (rule.matchType === 'regex') {
+      try {
+        matched = new RegExp(rule.pattern, rule.flags).test(target);
+      } catch {
+        matched = false;
+      }
+    } else {
+      matched = target.toLowerCase().includes(rule.pattern.toLowerCase());
+    }
+    if (!matched) continue;
+    delta += rule.score;
+    matchedRuleIds.push(rule.id);
+    reasons.push(`custom_cf:${rule.name} (${rule.score >= 0 ? '+' : ''}${rule.score})`);
+  }
+  return { delta, reasons, matchedRuleIds };
+}
+
+function loadScoutLlmRules(db: CuratDb): ScoutLlmRule[] {
+  return db.getRules('scout_llm_ruleset')
+    .filter((r) => r.enabled !== 0)
+    .map((r) => {
+      const cfg = safeParseJson(r.config) as Record<string, unknown>;
+      const sentence = typeof cfg.sentence === 'string'
+        ? cfg.sentence
+        : (typeof cfg.description === 'string' ? cfg.description : r.name);
+      return {
+        id: r.id,
+        priority: r.priority,
+        sentence: sentence.trim(),
+      };
+    })
+    .filter((r) => r.sentence.length > 0)
+    .sort((a, b) => a.priority - b.priority || a.id - b.id);
+}
+
+function applyLlmRuleset(
+  releases: ScoredRelease[],
+  llmRules: ScoutLlmRule[],
+): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
+  if (llmRules.length === 0) return { finals: releases, dropped: [] };
+  const dropped: DroppedRelease[] = [];
+  const finals: ScoredRelease[] = [];
+  for (const rel of releases) {
+    let score = rel.score;
+    const reasons = [...rel.reasons];
+    let dropReason = '';
+    for (const rule of llmRules) {
+      const s = rule.sentence.toLowerCase();
+      const t = rel.title.toLowerCase();
+      if ((s.includes('drop cam') || s.includes('drop telesync') || s.includes('drop ts'))
+        && /\bcam\b|\bhdts\b|\bts\b|\btelesync\b|\btelecine\b/.test(t)) {
+        dropReason = `Dropped by LLM rule #${rule.priority}: ${rule.sentence}`;
+        break;
+      }
+      if (s.includes('drop low seed')) {
+        const n = Number((s.match(/(\d+)/)?.[1] ?? '5'));
+        if ((rel.seeders ?? 0) < n) {
+          dropReason = `Dropped by LLM rule #${rule.priority}: ${rule.sentence}`;
+          break;
+        }
+      }
+      if (s.includes('avoid av1') && /\bav1\b/.test(t)) {
+        score -= 5;
+        reasons.push(`llm_rule:${rule.priority} avoid av1`);
+      }
+      if (s.includes('prefer usenet') && rel.protocol === 'usenet') {
+        score += 3;
+        reasons.push(`llm_rule:${rule.priority} prefer usenet`);
+      }
+      if (s.includes('prefer remux') && /\bremux\b/.test(t)) {
+        score += 4;
+        reasons.push(`llm_rule:${rule.priority} prefer remux`);
+      }
+      if (s.includes('prefer web-dl') && /\bweb-?dl\b/.test(t)) {
+        score += 2;
+        reasons.push(`llm_rule:${rule.priority} prefer web-dl`);
+      }
+    }
+    if (dropReason) {
+      dropped.push({ ...rel, droppedReason: dropReason });
+      continue;
+    }
+    finals.push({ ...rel, score, reasons });
+  }
+  finals.sort((a, b) => b.score - a.score);
+  return { finals, dropped };
+}
+
 function applySettings(db: CuratDb, values: Record<string, string>): void {
   for (const [key, value] of Object.entries(values)) {
     db.setSetting(key, value);
@@ -339,6 +691,25 @@ function ensureScoutRuleBaseline(db: CuratDb): number[] {
     const id = db.upsertRule({
       id: prev?.id,
       category: 'scout',
+      name: seed.name,
+      enabled: prev ? prev.enabled !== 0 : true,
+      priority: prev?.priority ?? seed.priority,
+      config: prev ? safeParseJson(prev.config) as object : seed.config,
+    });
+    saved.push(id);
+  }
+  return saved;
+}
+
+function ensureScoutLlmRulesetBaseline(db: CuratDb): number[] {
+  const existing = db.getRules('scout_llm_ruleset');
+  const existingByName = new Map(existing.map((r) => [r.name, r]));
+  const saved: number[] = [];
+  for (const seed of SCOUT_LLM_RULESET_BASELINE) {
+    const prev = existingByName.get(seed.name);
+    const id = db.upsertRule({
+      id: prev?.id,
+      category: 'scout_llm_ruleset',
       name: seed.name,
       enabled: prev ? prev.enabled !== 0 : true,
       priority: prev?.priority ?? seed.priority,
@@ -485,7 +856,7 @@ function buildScoutRefinementDraft(
 } {
   const normalized = objective.toLowerCase();
   const proposedSettings: Record<string, string> = {};
-  const rules = db.getRules('scout');
+  const rules = db.getRules('scout_llm_ruleset');
   const toggles: Array<{ id: number; name: string; enabled: boolean }> = [];
 
   if (/\b(storage|size|efficient|space|compact)\b/.test(normalized)) {
@@ -500,9 +871,7 @@ function buildScoutRefinementDraft(
     proposedSettings.scoutCfCodecAv1 = '6';
     proposedSettings.scoutCfCodecH264 = '14';
     for (const rule of rules) {
-      if (rule.name.toLowerCase().includes('av1 compatibility audit')) {
-        toggles.push({ id: rule.id, name: rule.name, enabled: true });
-      }
+      if (rule.name.toLowerCase().includes('av1')) toggles.push({ id: rule.id, name: rule.name, enabled: true });
     }
   }
   if (/\b(torrent)\b/.test(normalized) && !/\b(usenet)\b/.test(normalized)) {
@@ -604,7 +973,7 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
   };
 }
 
-function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig): ScoredRelease {
+function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, customCfRules: ScoutCustomCfRule[]): ScoredRelease {
   const t = r.title.toLowerCase();
   let score = 0;
   const reasons: string[] = [];
@@ -654,6 +1023,12 @@ function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig): ScoredRel
   } else if (r.protocol === 'torrent') {
     score += cfg.torrentBonus;
     reasons.push('torrent preference');
+  }
+
+  const custom = applyCustomCfRules(r, customCfRules);
+  if (custom.delta !== 0) {
+    score += custom.delta;
+    reasons.push(...custom.reasons);
   }
 
   return { ...r, score, reasons };
@@ -745,12 +1120,14 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
   const year = movie.jellyfin_year ?? movie.parsed_year;
   const query = toText(queryOverride).trim() || [title, year].filter(Boolean).join(' ');
   const scoreCfg = resolveScoutScoreConfig(db);
+  const customCfRules = loadScoutCustomCfRules(db);
+  const llmRules = loadScoutLlmRules(db);
   const runtimeSec = db.getFilesForMovie(movieId).find(f => (f.duration ?? 0) > 0)?.duration ?? null;
 
   const releases = await client.searchMovie(query);
   const excludedReasons: string[] = [];
-  const scored = releases
-    .map(r => scoreRelease(r, scoreCfg))
+  const scoredBase = releases
+    .map(r => scoreRelease(r, scoreCfg, customCfRules))
     .filter((r) => {
       const gate = bitrateGate(r, runtimeSec, scoreCfg);
       if (gate.excluded) {
@@ -758,17 +1135,20 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
         return false;
       }
       return true;
-    })
-    .sort((a, b) => b.score - a.score);
+    });
+  const llmResult = applyLlmRuleset(scoredBase, llmRules);
+  const scored = llmResult.finals;
+  const dropped = llmResult.dropped;
   const best = scored[0] ?? null;
   const summary = excludedReasons.length > 0
-    ? `${recommendationSummary(best)} ${excludedReasons.length} release(s) excluded by bitrate gate.`
+    ? `${recommendationSummary(best)} ${excludedReasons.length} release(s) excluded by bitrate gate.${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by LLM ruleset.` : ''}`
     : recommendationSummary(best);
   return {
     movieId,
     query,
     total: scored.length,
     releases: scored,
+    droppedReleases: dropped,
     recommendation: {
       mode: 'tabulated',
       summary,
@@ -876,11 +1256,13 @@ export async function runScoutAutoBatch(
 
 export function makeScoutRoutes(db: CuratDb): Hono {
   const app = new Hono();
+  ensureScoutLlmRulesetBaseline(db);
 
   // POST /api/scout/sync-trash-scores
   app.post('/sync-trash-scores', async (c) => {
     applySettings(db, TRASH_SCOUT_BASELINE_SETTINGS);
     const savedRuleIds = ensureScoutRuleBaseline(db);
+    ensureScoutLlmRulesetBaseline(db);
     const meta = await fetchTrashGuidesRevision();
     const upstream = await fetchTrashGuidesSnapshot();
     const appliedRules = db.getRules('scout')
@@ -893,6 +1275,15 @@ export function makeScoutRoutes(db: CuratDb): Hono {
         config: safeParseJson(r.config),
       }));
     const warningCombined = [meta.warning, upstream.warning].filter(Boolean).join('; ');
+    const radarrCfg = resolveRadarrConfig(db);
+    let radarrSnapshot: RadarrCfScoreItem[] = [];
+    if (radarrCfg) {
+      try {
+        radarrSnapshot = await fetchRadarrCustomFormatScores(radarrCfg.url, radarrCfg.apiKey);
+      } catch {
+        radarrSnapshot = [];
+      }
+    }
     applySettings(db, {
       scoutTrashSyncSource: meta.source,
       scoutTrashSyncRevision: meta.revision ?? '',
@@ -902,7 +1293,9 @@ export function makeScoutRoutes(db: CuratDb): Hono {
       scoutTrashAppliedRulesJson: JSON.stringify(appliedRules),
       scoutTrashUpstreamSnapshotJson: JSON.stringify(upstream.snapshot),
       scoutTrashSyncWarning: warningCombined,
+      scoutTrashRadarrSnapshotJson: JSON.stringify(radarrSnapshot),
     });
+    await refreshTrashParity(db);
     const details = getTrashSyncDetails(db);
     return c.json({
       applied: TRASH_SCOUT_BASELINE_SETTINGS,
@@ -915,6 +1308,42 @@ export function makeScoutRoutes(db: CuratDb): Hono {
   // GET /api/scout/trash-sync-details
   app.get('/trash-sync-details', (c) => {
     return c.json(getTrashSyncDetails(db));
+  });
+
+  // GET /api/scout/trash-parity?refresh=1
+  app.get('/trash-parity', async (c) => {
+    const refresh = c.req.query('refresh') === '1' || c.req.query('refresh') === 'true';
+    if (refresh) {
+      const parity = await refreshTrashParity(db);
+      return c.json(parity);
+    }
+    return c.json(getTrashParity(db));
+  });
+
+  // POST /api/scout/custom-cf/preview { title: string }
+  app.post('/custom-cf/preview', async (c) => {
+    const body = await c.req.json().catch(() => ({})) as { title?: unknown };
+    const title = toText(body.title).trim();
+    if (!title) return c.json({ error: 'title_required' }, 400);
+    const rules = loadScoutCustomCfRules(db);
+    const match = applyCustomCfRules({
+      title,
+      indexer: null,
+      protocol: 'unknown',
+      size: null,
+      publishDate: null,
+      guid: null,
+      downloadUrl: null,
+      seeders: null,
+      peers: null,
+    }, rules);
+    return c.json({
+      title,
+      totalRules: rules.length,
+      delta: match.delta,
+      reasons: match.reasons,
+      matchedRuleIds: match.matchedRuleIds,
+    });
   });
 
   // POST /api/scout/rules/refine-draft  { objective: string }
@@ -969,7 +1398,14 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     if (!cfg) return c.json({ error: 'prowlarr_not_configured' }, 422);
 
     const client = new ProwlarrClient(cfg.url, cfg.apiKey);
-    const results: Array<{ movieId: number; query?: string; total?: number; releases?: ScoredRelease[]; error?: string }> = [];
+    const results: Array<{
+      movieId: number;
+      query?: string;
+      total?: number;
+      releases?: ScoredRelease[];
+      droppedReleases?: DroppedRelease[];
+      error?: string;
+    }> = [];
     let processed = 0;
 
     for (const movieId of movieIds) {

@@ -1,6 +1,37 @@
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 
+function validateRuleConfig(category: string, config: unknown): string | null {
+  if (category === 'scout_custom_cf') {
+    const c = (config ?? {}) as Record<string, unknown>;
+    const matchType = c.matchType === 'regex' ? 'regex' : (c.matchType === 'string' ? 'string' : '');
+    const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
+    const score = Number(c.score ?? NaN);
+    if (!matchType) return 'scout_custom_cf requires matchType: regex|string';
+    if (!pattern) return 'scout_custom_cf requires a non-empty pattern';
+    if (!Number.isFinite(score)) return 'scout_custom_cf requires numeric score';
+    if (matchType === 'regex') {
+      const flagsRaw = typeof c.flags === 'string' ? c.flags : 'i';
+      const flags = flagsRaw.replace(/[^gimsuy]/g, '');
+      try {
+        // Validate regex early so scout scoring never crashes at runtime.
+        // eslint-disable-next-line no-new
+        new RegExp(pattern, flags);
+      } catch {
+        return 'scout_custom_cf pattern is not a valid regex';
+      }
+    }
+    return null;
+  }
+  if (category === 'scout_llm_ruleset') {
+    const c = (config ?? {}) as Record<string, unknown>;
+    const sentence = typeof c.sentence === 'string' ? c.sentence.trim() : '';
+    if (!sentence) return 'scout_llm_ruleset requires sentence';
+    return null;
+  }
+  return null;
+}
+
 export function makeRulesRoutes(db: CuratDb): Hono {
   const app = new Hono();
 
@@ -26,13 +57,19 @@ export function makeRulesRoutes(db: CuratDb): Hono {
     const ids: number[] = [];
     for (const rule of body.rules) {
       const r = rule as Record<string, unknown>;
+      const category = r.category as string;
+      const config = r.config as object;
+      const configError = validateRuleConfig(category, config);
+      if (configError) {
+        return c.json({ error: configError }, 400);
+      }
       const id = db.upsertRule({
         id: r.id as number | undefined,
-        category: r.category as string,
+        category,
         name: r.name as string,
         enabled: r.enabled !== false,
         priority: r.priority as number | undefined,
-        config: r.config as object,
+        config,
       });
       ids.push(id);
     }

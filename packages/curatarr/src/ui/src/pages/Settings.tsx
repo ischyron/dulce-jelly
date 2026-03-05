@@ -233,6 +233,26 @@ interface ScoutRuleDraft {
   configText: string;
 }
 
+interface ScoutCustomCfDraft {
+  id?: number;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  matchType: 'regex' | 'string';
+  pattern: string;
+  score: string;
+  flags: string;
+  appliesTo: 'title' | 'full';
+}
+
+interface ScoutLlmRuleDraft {
+  id?: number;
+  name: string;
+  enabled: boolean;
+  priority: number;
+  sentence: string;
+}
+
 interface LibraryRootEntry {
   type: 'movies' | 'series';
   path: string;
@@ -444,6 +464,35 @@ function patchRuleDescription(configText: string, description: string): string {
   } catch {
     return JSON.stringify({ description }, null, 2);
   }
+}
+
+function parseCustomCfRule(rule: { id: number; name: string; enabled: number; priority: number; config: unknown }): ScoutCustomCfDraft {
+  const cfg = (rule.config ?? {}) as Record<string, unknown>;
+  return {
+    id: rule.id,
+    name: rule.name,
+    enabled: rule.enabled !== 0,
+    priority: rule.priority,
+    matchType: cfg.matchType === 'regex' ? 'regex' : 'string',
+    pattern: typeof cfg.pattern === 'string' ? cfg.pattern : '',
+    score: String(cfg.score ?? '0'),
+    flags: typeof cfg.flags === 'string' ? cfg.flags : 'i',
+    appliesTo: cfg.appliesTo === 'full' ? 'full' : 'title',
+  };
+}
+
+function parseLlmRule(rule: { id: number; name: string; enabled: number; priority: number; config: unknown }): ScoutLlmRuleDraft {
+  const cfg = (rule.config ?? {}) as Record<string, unknown>;
+  const sentence = typeof cfg.sentence === 'string'
+    ? cfg.sentence
+    : (typeof cfg.description === 'string' ? cfg.description : rule.name);
+  return {
+    id: rule.id,
+    name: rule.name,
+    enabled: rule.enabled !== 0,
+    priority: rule.priority,
+    sentence,
+  };
 }
 
 // ── Field component ────────────────────────────────────────────────────
@@ -730,9 +779,16 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [showScanPrompt, setShowScanPrompt] = useState(false);
   const [scoutRulesDraft, setScoutRulesDraft] = useState<ScoutRuleDraft[]>([]);
+  const [customCfDraft, setCustomCfDraft] = useState<ScoutCustomCfDraft[]>([]);
+  const [llmRulesDraft, setLlmRulesDraft] = useState<ScoutLlmRuleDraft[]>([]);
   const [scoutRulesSaved, setScoutRulesSaved] = useState(false);
   const [scoutRulesError, setScoutRulesError] = useState('');
+  const [customCfSaved, setCustomCfSaved] = useState(false);
+  const [customCfError, setCustomCfError] = useState('');
+  const [llmRulesSaved, setLlmRulesSaved] = useState(false);
+  const [llmRulesError, setLlmRulesError] = useState('');
   const [refineObjective, setRefineObjective] = useState('');
+  const [customCfPreviewTitle, setCustomCfPreviewTitle] = useState('');
   const [bitrateProfileId, setBitrateProfileId] = useState<BitrateProfileId>('webdl');
   const [movieRoots, setMovieRoots] = useState<string[]>(['']);
   const [seriesRoots] = useState<string[]>([]);
@@ -851,13 +907,18 @@ export function Settings() {
     refetchInterval: 10_000,
   });
   const { data: scoutRulesData, refetch: refetchScoutRules } = useQuery({
-    queryKey: ['rules', 'scout'],
-    queryFn: () => api.rules('scout'),
+    queryKey: ['rules', 'all'],
+    queryFn: () => api.rules(),
     staleTime: 60_000,
   });
   const { data: trashSyncDetailsData, refetch: refetchTrashSyncDetails } = useQuery({
     queryKey: ['scout-trash-sync-details'],
     queryFn: api.scoutTrashSyncDetails,
+    staleTime: 60_000,
+  });
+  const { data: trashParityData, refetch: refetchTrashParity } = useQuery({
+    queryKey: ['scout-trash-parity'],
+    queryFn: () => api.scoutTrashParity(false),
     staleTime: 60_000,
   });
   const scoutAutoRunMutation = useMutation({
@@ -873,6 +934,7 @@ export function Settings() {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
       refetchScoutRules();
       refetchTrashSyncDetails();
+      refetchTrashParity();
     },
   });
   const scoutRefineDraftMutation = useMutation({
@@ -900,6 +962,63 @@ export function Settings() {
       setScoutRulesSaved(false);
       setScoutRulesError((err as Error).message);
     },
+  });
+  const saveCustomCfMutation = useMutation({
+    mutationFn: (rules: ScoutCustomCfDraft[]) => {
+      const payload = rules.map((r, idx) => ({
+        id: r.id,
+        category: 'scout_custom_cf',
+        name: r.name.trim() || `Custom CF ${idx + 1}`,
+        enabled: r.enabled,
+        priority: idx + 1,
+        config: {
+          matchType: r.matchType,
+          pattern: r.pattern,
+          score: Number(r.score || 0),
+          flags: r.flags || 'i',
+          appliesTo: r.appliesTo,
+        },
+      }));
+      return api.saveRules(payload);
+    },
+    onSuccess: () => {
+      setCustomCfSaved(true);
+      setCustomCfError('');
+      setTimeout(() => setCustomCfSaved(false), 2500);
+      refetchScoutRules();
+    },
+    onError: (err) => {
+      setCustomCfSaved(false);
+      setCustomCfError((err as Error).message);
+    },
+  });
+  const saveLlmRulesMutation = useMutation({
+    mutationFn: (rules: ScoutLlmRuleDraft[]) => {
+      const payload = rules.map((r, idx) => ({
+        id: r.id,
+        category: 'scout_llm_ruleset',
+        name: r.name.trim() || `LLM Rule ${idx + 1}`,
+        enabled: r.enabled,
+        priority: idx + 1,
+        config: {
+          sentence: r.sentence,
+        },
+      }));
+      return api.saveRules(payload);
+    },
+    onSuccess: () => {
+      setLlmRulesSaved(true);
+      setLlmRulesError('');
+      setTimeout(() => setLlmRulesSaved(false), 2500);
+      refetchScoutRules();
+    },
+    onError: (err) => {
+      setLlmRulesSaved(false);
+      setLlmRulesError((err as Error).message);
+    },
+  });
+  const customCfPreviewMutation = useMutation({
+    mutationFn: (title: string) => api.scoutCustomCfPreview({ title }),
   });
   const syncDetails = scoutSyncTrashMutation.data?.details ?? trashSyncDetailsData;
   const syncedTrashSource = syncDetails?.meta.source ?? data?.settings?.scoutTrashSyncSource ?? '';
@@ -931,6 +1050,11 @@ export function Settings() {
       configText: toPrettyJson(r.config),
     }));
     setScoutRulesDraft(mapped);
+    const customMapped = (scoutRulesData?.rules?.scout_custom_cf ?? []).map(parseCustomCfRule);
+    setCustomCfDraft(customMapped);
+    const llmMapped = (scoutRulesData?.rules?.scout_llm_ruleset ?? []).map(parseLlmRule)
+      .sort((a, b) => a.priority - b.priority || (a.id ?? 0) - (b.id ?? 0));
+    setLlmRulesDraft(llmMapped);
   }, [scoutRulesData]);
 
   const [jellyfinHealth, setJellyfinHealth] = useState<{ ok: boolean; libraries?: number; error?: string } | null>(null);
@@ -1046,6 +1170,62 @@ export function Settings() {
   function applyScoutPreset(preset: (typeof SCOUT_PRESET_SAMPLES)[number]) {
     setForm(prev => ({ ...prev, ...preset.settingsPatch }));
     setRefineObjective(preset.objective);
+  }
+
+  function addCustomCfRule() {
+    setCustomCfDraft((prev) => ([
+      ...prev,
+      {
+        name: `Custom CF ${prev.length + 1}`,
+        enabled: true,
+        priority: prev.length + 1,
+        matchType: 'regex',
+        pattern: '',
+        score: '0',
+        flags: 'i',
+        appliesTo: 'title',
+      },
+    ]));
+  }
+
+  function updateCustomCfRule(index: number, patch: Partial<ScoutCustomCfDraft>) {
+    setCustomCfDraft((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function removeCustomCfRule(index: number) {
+    setCustomCfDraft((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  function addLlmRule() {
+    setLlmRulesDraft((prev) => ([
+      ...prev,
+      {
+        name: `LLM Rule ${prev.length + 1}`,
+        enabled: true,
+        priority: prev.length + 1,
+        sentence: '',
+      },
+    ]));
+  }
+
+  function updateLlmRule(index: number, patch: Partial<ScoutLlmRuleDraft>) {
+    setLlmRulesDraft((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function moveLlmRule(index: number, dir: -1 | 1) {
+    setLlmRulesDraft((prev) => {
+      const next = [...prev];
+      const target = index + dir;
+      if (target < 0 || target >= next.length) return prev;
+      const tmp = next[index];
+      next[index] = next[target];
+      next[target] = tmp;
+      return next.map((row, i) => ({ ...row, priority: i + 1 }));
+    });
+  }
+
+  function removeLlmRule(index: number) {
+    setLlmRulesDraft((prev) => prev.filter((_, i) => i !== index).map((row, i) => ({ ...row, priority: i + 1 })));
   }
 
   function applyBitrateProfile(id: BitrateProfileId) {
@@ -1685,6 +1865,179 @@ export function Settings() {
           )}
         </div>
 
+        <div className="rounded-lg border p-3 space-y-3 text-xs" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+          <div className="font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            TRaSH Parity with Radarr (Read-only)
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { void refetchTrashParity(); void api.scoutTrashParity(true).then(() => refetchTrashParity()); }}
+              className="px-3 py-1.5 rounded border text-xs"
+              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+            >
+              Refresh Parity
+            </button>
+            <span style={{ color: 'var(--c-muted)' }}>
+              State:{' '}
+              <span style={{ color: trashParityData?.state === 'drifted' ? '#f59e0b' : (trashParityData?.state === 'in_sync' ? '#4ade80' : 'var(--c-text)') }}>
+                {trashParityData?.state ?? 'unknown'}
+              </span>
+            </span>
+          </div>
+          <div style={{ color: 'var(--c-muted)' }}>
+            Checked: <span style={{ color: 'var(--c-text)' }}>{trashParityData?.checkedAt ? new Date(trashParityData.checkedAt).toLocaleString() : 'n/a'}</span>
+            {' '}· Baseline: <span style={{ color: 'var(--c-text)' }}>{trashParityData?.baselineCount ?? 0}</span>
+            {' '}· Current: <span style={{ color: 'var(--c-text)' }}>{trashParityData?.currentCount ?? 0}</span>
+          </div>
+          {trashParityData?.reason && (
+            <div style={{ color: '#f59e0b' }}>Reason: {trashParityData.reason}</div>
+          )}
+          {(trashParityData?.diff.added.length ?? 0) > 0 && (
+            <div style={{ color: 'var(--c-muted)' }}>
+              Added in Radarr: {trashParityData?.diff.added.map(x => `${x.name} (${x.score})`).join(', ')}
+            </div>
+          )}
+          {(trashParityData?.diff.removed.length ?? 0) > 0 && (
+            <div style={{ color: 'var(--c-muted)' }}>
+              Removed from Radarr: {trashParityData?.diff.removed.map(x => `${x.name} (${x.score})`).join(', ')}
+            </div>
+          )}
+          {(trashParityData?.diff.changed.length ?? 0) > 0 && (
+            <div style={{ color: 'var(--c-muted)' }}>
+              Changed scores: {trashParityData?.diff.changed.map(x => `${x.name} (${x.before}→${x.after})`).join(', ')}
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Custom Format Scores (Overrides)
+          </div>
+          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+            Add filename/title pattern rules (regex or string) and score deltas. These apply after TRaSH baseline scoring.
+          </p>
+          <div className="space-y-2">
+            {customCfDraft.map((row, idx) => (
+              <div key={`${row.id ?? 'new'}-${idx}`} className="rounded border p-2 grid grid-cols-1 sm:grid-cols-12 gap-2" style={{ borderColor: 'var(--c-border)' }}>
+                <div className="sm:col-span-2">
+                  <input
+                    value={row.name}
+                    onChange={e => updateCustomCfRule(idx, { name: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder="Rule name"
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <select
+                    value={row.matchType}
+                    onChange={e => updateCustomCfRule(idx, { matchType: e.target.value as 'regex' | 'string' })}
+                    className="w-full px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                  >
+                    <option value="regex">Regex</option>
+                    <option value="string">String</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-4">
+                  <input
+                    value={row.pattern}
+                    onChange={e => updateCustomCfRule(idx, { pattern: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs font-mono"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder={row.matchType === 'regex' ? '\\bDD[P+](?!A)' : 'web-dl'}
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <input
+                    value={row.score}
+                    onChange={e => updateCustomCfRule(idx, { score: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder="score"
+                  />
+                </div>
+                <div className="sm:col-span-1">
+                  <input
+                    value={row.flags}
+                    onChange={e => updateCustomCfRule(idx, { flags: e.target.value })}
+                    className="w-full px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder="i"
+                    title="Regex flags"
+                    disabled={row.matchType !== 'regex'}
+                  />
+                </div>
+                <div className="sm:col-span-1 flex items-center justify-end gap-2">
+                  <input
+                    type="checkbox"
+                    checked={row.enabled}
+                    onChange={e => updateCustomCfRule(idx, { enabled: e.target.checked })}
+                    title="Enabled"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeCustomCfRule(idx)}
+                    className="text-xs px-2 py-1 rounded border"
+                    style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={addCustomCfRule}
+                className="px-3 py-1.5 rounded border text-xs"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                Add Rule
+              </button>
+              <button
+                type="button"
+                onClick={() => saveCustomCfMutation.mutate(customCfDraft)}
+                disabled={saveCustomCfMutation.isPending}
+                className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                {saveCustomCfMutation.isPending ? 'Saving…' : 'Save Custom CF Rules'}
+              </button>
+              {customCfSaved && <span className="text-xs text-green-400">Saved</span>}
+              {customCfError && <span className="text-xs text-red-400">{customCfError}</span>}
+            </div>
+          </div>
+          <div className="rounded border p-2 space-y-2" style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}>
+            <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>Live Match Preview</div>
+            <div className="flex items-center gap-2">
+              <input
+                value={customCfPreviewTitle}
+                onChange={e => setCustomCfPreviewTitle(e.target.value)}
+                placeholder="Release title to test..."
+                className="w-full px-2 py-1 rounded text-xs"
+                style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+              />
+              <button
+                type="button"
+                onClick={() => customCfPreviewMutation.mutate(customCfPreviewTitle)}
+                disabled={customCfPreviewMutation.isPending || !customCfPreviewTitle.trim()}
+                className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                Preview
+              </button>
+            </div>
+            {customCfPreviewMutation.data && (
+              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                Delta: <span style={{ color: 'var(--c-text)' }}>{customCfPreviewMutation.data.delta >= 0 ? '+' : ''}{customCfPreviewMutation.data.delta}</span>
+                {' '}· Matches: {customCfPreviewMutation.data.reasons.join(', ') || 'none'}
+              </div>
+            )}
+          </div>
+        </div>
+
         <div className="rounded-lg border p-3 space-y-3" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
             Scout Rules
@@ -1777,44 +2130,63 @@ export function Settings() {
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
             Result intent: Scout output includes stronger finalists, while weaker candidates are expected to move to a dropped-releases section.
           </p>
-          <div className="space-y-1">
-            <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>Opinionated Samples</div>
-            <div className="flex flex-wrap gap-2">
-              {SCOUT_PRESET_SAMPLES.map(preset => (
-                <button
-                  key={preset.id}
-                  type="button"
-                  onClick={() => applyScoutPreset(preset)}
-                  className="px-2 py-1 rounded border text-xs"
-                  style={{ borderColor: 'var(--c-border)', color: '#c4b5fd', background: 'rgba(124,58,237,0.08)' }}
-                  title={preset.summary}
-                >
-                  {preset.title}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>Natural Objective Samples</div>
-            <div className="flex flex-wrap gap-2">
-              {SCOUT_OBJECTIVE_SAMPLES.map(sample => (
-                <button
-                  key={sample}
-                  type="button"
-                  onClick={() => setRefineObjective(sample)}
-                  className="px-2 py-1 rounded border text-xs"
-                  style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
-                >
-                  {sample}
-                </button>
-              ))}
+          <div className="space-y-2">
+            {llmRulesDraft.map((rule, idx) => (
+              <div key={`${rule.id ?? 'new'}-${idx}`} className="rounded border p-2 space-y-2" style={{ borderColor: 'var(--c-border)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-mono min-w-[2rem]" style={{ color: '#c4b5fd' }}>{idx + 1}.</span>
+                  <input
+                    value={rule.name}
+                    onChange={e => updateLlmRule(idx, { name: e.target.value })}
+                    className="w-52 px-2 py-1 rounded text-xs"
+                    style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                    placeholder="Rule label"
+                  />
+                  <label className="inline-flex items-center gap-1 text-xs" style={{ color: 'var(--c-muted)' }}>
+                    <input type="checkbox" checked={rule.enabled} onChange={e => updateLlmRule(idx, { enabled: e.target.checked })} />
+                    Enabled
+                  </label>
+                  <button type="button" onClick={() => moveLlmRule(idx, -1)} className="px-2 py-1 rounded border text-xs" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>Up</button>
+                  <button type="button" onClick={() => moveLlmRule(idx, 1)} className="px-2 py-1 rounded border text-xs" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>Down</button>
+                  <button type="button" onClick={() => removeLlmRule(idx)} className="px-2 py-1 rounded border text-xs" style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}>Remove</button>
+                </div>
+                <textarea
+                  rows={2}
+                  value={rule.sentence}
+                  onChange={e => updateLlmRule(idx, { sentence: e.target.value })}
+                  placeholder="Natural rule sentence..."
+                  className="w-full px-3 py-2 rounded text-sm focus:outline-none"
+                  style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                />
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={addLlmRule}
+                className="px-3 py-1.5 rounded border text-xs"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                Add Rule
+              </button>
+              <button
+                type="button"
+                onClick={() => saveLlmRulesMutation.mutate(llmRulesDraft)}
+                disabled={saveLlmRulesMutation.isPending}
+                className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                {saveLlmRulesMutation.isPending ? 'Saving…' : 'Save LLM Ruleset'}
+              </button>
+              {llmRulesSaved && <span className="text-xs text-green-400">Saved</span>}
+              {llmRulesError && <span className="text-xs text-red-400">{llmRulesError}</span>}
             </div>
           </div>
           <textarea
             rows={2}
             value={refineObjective}
             onChange={e => setRefineObjective(e.target.value)}
-            placeholder="Example: favor compatibility on Android TV while keeping 4K quality high."
+            placeholder="Optional objective to generate a draft prompt"
             className="w-full px-3 py-2 rounded text-sm focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           />
@@ -1828,16 +2200,6 @@ export function Settings() {
             >
               {scoutRefineDraftMutation.isPending ? 'Generating…' : 'Generate LLM Ruleset Draft'}
             </button>
-            {scoutRefineDraftMutation.data && (
-              <button
-                type="button"
-                onClick={applyRefinementSuggestions}
-                className="px-3 py-1.5 rounded border text-xs"
-                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-              >
-                Apply Suggestions
-              </button>
-            )}
             {scoutRefineDraftMutation.data?.mode && (
               <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
                 Mode: {scoutRefineDraftMutation.data.mode}

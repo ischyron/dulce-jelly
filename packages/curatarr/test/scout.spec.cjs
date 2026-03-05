@@ -57,6 +57,14 @@ test.describe('Scout feature checks', () => {
     }
   });
 
+  test('trash parity endpoint returns status payload', async ({ request }) => {
+    const res = await request.get('/api/scout/trash-parity');
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(['in_sync', 'drifted', 'unknown']).toContain(body.state);
+    expect(body).toHaveProperty('diff');
+  });
+
   test('scout refinement draft endpoint returns prompt + suggestions', async ({ request }) => {
     const res = await request.post('/api/scout/rules/refine-draft', {
       data: { objective: 'favor compatibility on android tv and reduce transcodes' },
@@ -67,6 +75,74 @@ test.describe('Scout feature checks', () => {
     expect(typeof body.prompt).toBe('string');
     expect(body.prompt.length).toBeGreaterThan(50);
     expect(body.proposedSettings).toBeTruthy();
+  });
+
+  test('custom CF preview and validation', async ({ request }) => {
+    const badSave = await request.put('/api/rules', {
+      data: {
+        rules: [{
+          category: 'scout_custom_cf',
+          name: 'Broken Regex',
+          enabled: true,
+          priority: 1,
+          config: { matchType: 'regex', pattern: '([', score: 5, flags: 'i', appliesTo: 'title' },
+        }],
+      },
+    });
+    expect(badSave.status()).toBe(400);
+
+    const save = await request.put('/api/rules', {
+      data: {
+        rules: [{
+          category: 'scout_custom_cf',
+          name: 'DDP Boost',
+          enabled: true,
+          priority: 1,
+          config: { matchType: 'regex', pattern: '\\bDD[P+](?!A)|\\b(e[-_. ]?ac-?3)\\b', score: 7, flags: 'i', appliesTo: 'title' },
+        }],
+      },
+    });
+    expect(save.ok()).toBeTruthy();
+
+    const preview = await request.post('/api/scout/custom-cf/preview', {
+      data: { title: 'Some.Movie.2025.2160p.WEB-DL.DDP5.1.x265' },
+    });
+    expect(preview.ok()).toBeTruthy();
+    const body = await preview.json();
+    expect(body.delta).toBeGreaterThanOrEqual(7);
+    expect(Array.isArray(body.reasons)).toBeTruthy();
+  });
+
+  test('llm ruleset persists ordered natural rules', async ({ request }) => {
+    const save = await request.put('/api/rules', {
+      data: {
+        rules: [
+          {
+            category: 'scout_llm_ruleset',
+            name: 'Rule B',
+            enabled: true,
+            priority: 2,
+            config: { sentence: 'Prefer usenet in close ties.' },
+          },
+          {
+            category: 'scout_llm_ruleset',
+            name: 'Rule A',
+            enabled: true,
+            priority: 1,
+            config: { sentence: 'Drop CAM releases.' },
+          },
+        ],
+      },
+    });
+    expect(save.ok()).toBeTruthy();
+
+    const list = await request.get('/api/rules?category=scout_llm_ruleset');
+    expect(list.ok()).toBeTruthy();
+    const body = await list.json();
+    const rows = body?.rules?.scout_llm_ruleset ?? [];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows[0].priority).toBeLessThanOrEqual(rows[rows.length - 1].priority);
+    expect(typeof rows[0].config?.sentence).toBe('string');
   });
 
   test('movies endpoint supports multi-version filter', async ({ request }) => {

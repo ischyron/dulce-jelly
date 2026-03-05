@@ -67,7 +67,10 @@ test.describe('Scout feature checks', () => {
 
   test('scout refinement draft endpoint reflects usenet + compatibility objective', async ({ request }) => {
     const res = await request.post('/api/scout/rules/refine-draft', {
-      data: { objective: 'Prefer usenet in close ties. Prioritize compatibility on Android TV. Avoid AV1 when compatibility is uncertain.' },
+      data: {
+        objective:
+          'Prefer usenet in close ties. Prioritize compatibility on Android TV. Avoid AV1 when compatibility is uncertain.',
+      },
     });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
@@ -83,26 +86,36 @@ test.describe('Scout feature checks', () => {
   test('custom CF preview and validation', async ({ request }) => {
     const badSave = await request.put('/api/rules', {
       data: {
-        rules: [{
-          category: 'scout_custom_cf',
-          name: 'Broken Regex',
-          enabled: true,
-          priority: 1,
-          config: { matchType: 'regex', pattern: '([', score: 5, flags: 'i', appliesTo: 'title' },
-        }],
+        rules: [
+          {
+            category: 'scout_custom_cf',
+            name: 'Broken Regex',
+            enabled: true,
+            priority: 1,
+            config: { matchType: 'regex', pattern: '([', score: 5, flags: 'i', appliesTo: 'title' },
+          },
+        ],
       },
     });
     expect(badSave.status()).toBe(400);
 
     const save = await request.put('/api/rules', {
       data: {
-        rules: [{
-          category: 'scout_custom_cf',
-          name: 'DDP Boost',
-          enabled: true,
-          priority: 1,
-          config: { matchType: 'regex', pattern: '\\bDD[P+](?!A)|\\b(e[-_. ]?ac-?3)\\b', score: 7, flags: 'i', appliesTo: 'title' },
-        }],
+        rules: [
+          {
+            category: 'scout_custom_cf',
+            name: 'DDP Boost',
+            enabled: true,
+            priority: 1,
+            config: {
+              matchType: 'regex',
+              pattern: '\\bDD[P+](?!A)|\\b(e[-_. ]?ac-?3)\\b',
+              score: 7,
+              flags: 'i',
+              appliesTo: 'title',
+            },
+          },
+        ],
       },
     });
     expect(save.ok()).toBeTruthy();

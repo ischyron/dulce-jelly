@@ -1,9 +1,9 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import type { CuratDb } from '../../db/client.js';
-import { syncEmitter } from '../sse.js';
 import { JellyfinClient } from '../../integrations/jellyfin/client.js';
 import { syncJellyfin } from '../../integrations/jellyfin/sync.js';
+import { syncEmitter } from '../sse.js';
 
 export function makeSyncRoutes(db: CuratDb): Hono {
   const app = new Hono();
@@ -14,16 +14,12 @@ export function makeSyncRoutes(db: CuratDb): Hono {
       return c.json({ error: 'Sync already running' }, 409);
     }
 
-    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const resync = Boolean(body.resync);
 
     // Resolve Jellyfin connection from request override or persisted settings
-    const url = (body.url as string)
-      ?? db.getSetting('jellyfinUrl')
-      ?? '';
-    const apiKey = (body.apiKey as string)
-      ?? db.getSetting('jellyfinApiKey')
-      ?? '';
+    const url = (body.url as string) ?? db.getSetting('jellyfinUrl') ?? '';
+    const apiKey = (body.apiKey as string) ?? db.getSetting('jellyfinApiKey') ?? '';
 
     if (!url || !apiKey) {
       return c.json({ error: 'Jellyfin URL and API key required. Configure in Settings.' }, 400);
@@ -87,7 +83,9 @@ export function makeSyncRoutes(db: CuratDb): Hono {
             event: ev.event,
             data: JSON.stringify(ev.data),
           });
-        } catch { /* client disconnected */ }
+        } catch {
+          /* client disconnected */
+        }
       });
 
       await new Promise<void>((resolve) => {

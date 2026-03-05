@@ -3,9 +3,9 @@
  * Walk library root, ffprobe all video files, store in SQLite.
  */
 
-import { Command } from 'commander';
 import os from 'node:os';
 import path from 'node:path';
+import { Command } from 'commander';
 import { CuratDb } from '../db/client.js';
 import { scanLibrary } from '../scanner/scan.js';
 import { countMovieFolders } from '../scanner/walker.js';
@@ -48,18 +48,17 @@ export function makeScanCommand(): Command {
           if (now - lastPrint < 500) return; // throttle to 2Hz
           lastPrint = now;
 
-          const pct = p.foldersTotal > 0
-            ? Math.round(p.filesProcessed / (p.filesProcessed + Math.max(1, p.foldersTotal - p.foldersDone)) * 100)
-            : 0;
-          const eta = p.currentRate > 0
-            ? Math.round((p.foldersTotal - p.foldersDone) / p.currentRate)
-            : null;
+          const pct =
+            p.foldersTotal > 0
+              ? Math.round((p.filesProcessed / (p.filesProcessed + Math.max(1, p.foldersTotal - p.foldersDone))) * 100)
+              : 0;
+          const eta = p.currentRate > 0 ? Math.round((p.foldersTotal - p.foldersDone) / p.currentRate) : null;
 
           process.stdout.write(
             `\r  [${String(p.filesProcessed).padStart(5)}] ` +
-            `${p.currentRate.toFixed(1)} f/s  ` +
-            `ok=${p.filesOk}  err=${p.filesErrored}  ` +
-            `${eta != null ? `ETA ~${eta}s` : ''}   `.padEnd(20)
+              `${p.currentRate.toFixed(1)} f/s  ` +
+              `ok=${p.filesOk}  err=${p.filesErrored}  ` +
+              `${eta != null ? `ETA ~${eta}s` : ''}   `.padEnd(20),
           );
         },
       });

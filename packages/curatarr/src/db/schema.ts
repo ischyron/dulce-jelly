@@ -165,7 +165,7 @@ export function applySchema(db: Database.Database): void {
   // ── Schema migrations (ALTER TABLE for existing DBs) ───────────────
 
   // v6: user-editable tags and notes on movies
-  const moviesCols = (db.pragma('table_info(movies)') as { name: string }[]).map(c => c.name);
+  const moviesCols = (db.pragma('table_info(movies)') as { name: string }[]).map((c) => c.name);
   if (!moviesCols.includes('tags')) {
     db.exec(`ALTER TABLE movies ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'`);
   }
@@ -173,7 +173,7 @@ export function applySchema(db: Database.Database): void {
     db.exec(`ALTER TABLE movies ADD COLUMN notes TEXT`);
   }
 
-  const filesCols = (db.pragma('table_info(files)') as { name: string }[]).map(c => c.name);
+  const filesCols = (db.pragma('table_info(files)') as { name: string }[]).map((c) => c.name);
   if (!filesCols.includes('verify_status')) {
     db.exec(`ALTER TABLE files ADD COLUMN verify_status TEXT`);
   }
@@ -192,9 +192,7 @@ export function applySchema(db: Database.Database): void {
   // v7: reclassify resolution_cat using corrected widescreen thresholds.
   // Fixes scope films (e.g. 1916×796) incorrectly classified as 720p.
   // Runs once, tracked in settings table.
-  const resFixed = db.prepare(
-    "SELECT value FROM settings WHERE key = 'resolution_cat_v7'"
-  ).get();
+  const resFixed = db.prepare("SELECT value FROM settings WHERE key = 'resolution_cat_v7'").get();
   if (!resFixed) {
     db.exec(`
       UPDATE files SET resolution_cat = CASE
@@ -207,7 +205,7 @@ export function applySchema(db: Database.Database): void {
       WHERE width IS NOT NULL AND height IS NOT NULL
     `);
     db.prepare(
-      "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('resolution_cat_v7', '1', datetime('now'))"
+      "INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES ('resolution_cat_v7', '1', datetime('now'))",
     ).run();
   }
 

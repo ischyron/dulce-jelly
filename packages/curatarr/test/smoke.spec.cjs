@@ -8,9 +8,7 @@ const { test, expect } = require('@playwright/test');
 
 function qs(obj) {
   return new URLSearchParams(
-    Object.fromEntries(
-      Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && String(v) !== '')
-    )
+    Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined && v !== null && String(v) !== '')),
   ).toString();
 }
 
@@ -54,7 +52,10 @@ async function assertLibraryParity(page, request, pageParams, label) {
       await expect(page.locator('tbody tr').first(), `${label}: first row should be visible`).toBeVisible();
       await expect(page.getByText('No movies match the current filters.')).toBeHidden();
     } else {
-      await expect(page.getByText('No movies match the current filters.'), `${label}: empty state expected`).toBeVisible();
+      await expect(
+        page.getByText('No movies match the current filters.'),
+        `${label}: empty state expected`,
+      ).toBeVisible();
     }
     expect(errors, `${label}: page errors detected`).toEqual([]);
   } finally {
@@ -160,7 +161,10 @@ test.describe('Library', () => {
       { label: 'av1-compat', pageParams: { av1Compat: '1', page: '1' } },
       { label: 'multi-only', pageParams: { multi: '1', page: '1' } },
       { label: 'nojf-only', pageParams: { noJf: '1', page: '1' } },
-      { label: 'video-combo', pageParams: { page: '1', limit: '100', resolution: '2160p', hdr: '1', dv: '1', legacy: '1' } },
+      {
+        label: 'video-combo',
+        pageParams: { page: '1', limit: '100', resolution: '2160p', hdr: '1', dv: '1', legacy: '1' },
+      },
       { label: 'audio-format-ddp', pageParams: { page: '1', audioFormat: 'ddp' } },
       { label: 'audio-layout-5.1', pageParams: { page: '1', audioLayout: '5.1' } },
       { label: 'genre-filter', pageParams: { page: '1', genre: chosenGenre } },
@@ -172,7 +176,6 @@ test.describe('Library', () => {
       await assertLibraryParity(page, request, m.pageParams, m.label);
     }
   });
-
 });
 
 test.describe('Scout / Disambiguate / Verify / Settings', () => {
@@ -185,7 +188,9 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     await page.goto('/disambiguate');
     await expect(page.getByRole('heading', { name: 'Disambiguate' })).toBeVisible();
     await expect(page.getByText('Folder Naming Support')).toBeVisible();
-    await expect(page.getByText('Rename folder to match Jellyfin title/year or adjust Jellyfin metadata, then click Refresh.')).toBeVisible();
+    await expect(
+      page.getByText('Rename folder to match Jellyfin title/year or adjust Jellyfin metadata, then click Refresh.'),
+    ).toBeVisible();
   });
 
   test('verify loads', async ({ page }) => {

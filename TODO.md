@@ -17,6 +17,18 @@
 
 ### Curatarr Backlog
 
+- [DONE] ~~Integrate Biome linting + server/UI type linting as enforced quality gates, then refactor/fix issues found.~~
+  - Implemented:
+    - Added Curatarr-local Biome config and scripts:
+      - `lint`, `lint:fix`, `check`, `format`
+      - `typecheck`, `typecheck:server`, `typecheck:ui`
+    - Fixed UI/server type errors found by new type checks (Settings, Library filter refs, shared FileRow typing, rule payload typing).
+    - Fixed high-signal lint issues (unsafe `isNaN`, implicit `any`, unstable React list keys, hook dependency correctness).
+    - Added git pre-commit hook at `.githooks/pre-commit` that runs Curatarr-scoped:
+      - `lint:fix`
+      - `biome check` on staged Curatarr files
+      - `typecheck`
+
 - [DONE] ~~Trim LLM ruleset examples to only two relevant examples and hide backend draft mode details in Settings UI.~~
   - Implemented:
     - Replaced disabled example list under Scout > Extended release filter (LLM ruleset) with exactly:

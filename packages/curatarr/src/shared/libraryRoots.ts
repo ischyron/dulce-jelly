@@ -77,4 +77,3 @@ export function movieLibraryPaths(entries: LibraryRootEntry[]): string[] {
     .filter((e) => e.type === 'movies')
     .map((e) => path.resolve(normalizeLibraryPath(e.path)));
 }
-

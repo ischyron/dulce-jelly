@@ -5,33 +5,30 @@
  */
 
 import type { CuratDb, FileRow } from '../db/client.js';
-import { deepCheck } from './deepcheck.js';
 import { verifyEmitter } from '../server/sse.js';
+import { deepCheck } from './deepcheck.js';
 
 export interface VerifyOptions {
-  concurrency?: number;   // default 3
-  fileIds?: number[];     // if set, only verify these file IDs
-  rescan?: boolean;       // re-verify already-verified files
+  concurrency?: number; // default 3
+  fileIds?: number[]; // if set, only verify these file IDs
+  rescan?: boolean; // re-verify already-verified files
   signal?: AbortSignal;
 }
 
-export async function startVerifyQueue(
-  db: CuratDb,
-  opts: VerifyOptions = {}
-): Promise<void> {
+export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): Promise<void> {
   const concurrency = opts.concurrency ?? 3;
   const signal = opts.signal;
 
   let files: FileRow[];
   if (opts.fileIds && opts.fileIds.length > 0) {
     const all = db.getAllFiles();
-    files = all.filter(f => opts.fileIds!.includes(f.id));
+    files = all.filter((f) => opts.fileIds!.includes(f.id));
     if (!opts.rescan) {
-      files = files.filter(f => f.verify_status == null || f.verify_status === 'pending');
+      files = files.filter((f) => f.verify_status == null || f.verify_status === 'pending');
     }
   } else {
     files = opts.rescan
-      ? db.getAllFiles().filter(f => f.scanned_at != null && f.scan_error == null)
+      ? db.getAllFiles().filter((f) => f.scanned_at != null && f.scan_error == null)
       : db.getUnverifiedFiles(10_000);
   }
 
@@ -55,7 +52,7 @@ export async function startVerifyQueue(
 
       const status = result.ok ? 'pass' : 'fail';
       if (result.ok) passed++;
-      else if (result.errors.some(e => e.startsWith('spawn error') || e.startsWith('timeout'))) errors++;
+      else if (result.errors.some((e) => e.startsWith('spawn error') || e.startsWith('timeout'))) errors++;
       else failed++;
 
       checked++;

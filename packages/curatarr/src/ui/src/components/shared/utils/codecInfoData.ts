@@ -33,12 +33,7 @@ export const VIDEO_CODEC_INFO: CodecInfoItem[] = [
 ];
 
 export const VIDEO_FORMAT_INFO: CodecInfoItem[] = [
-  {
-    key: 'hdr',
-    label: 'HDR',
-    filterHint: 'hdr=1',
-    description: 'High Dynamic Range signal present in file metadata.',
-  },
+  { key: 'hdr', label: 'HDR', filterHint: 'hdr=1', description: 'High Dynamic Range signal present in file metadata.' },
   {
     key: 'dv',
     label: 'Dolby Vision (DV)',
@@ -112,3 +107,12 @@ export const AUDIO_LAYOUT_INFO: CodecInfoItem[] = [
     description: 'Eight-channel surround layout. Higher channel count, but support depends on playback chain.',
   },
 ];
+
+const BY_KEY = new Map<string, CodecInfoItem>();
+for (const item of [...VIDEO_CODEC_INFO, ...VIDEO_FORMAT_INFO, ...AUDIO_FORMAT_INFO, ...AUDIO_LAYOUT_INFO]) {
+  BY_KEY.set(item.key.toLowerCase(), item);
+}
+
+export function getCodecDescription(key: string): string | undefined {
+  return BY_KEY.get(key.toLowerCase())?.description;
+}

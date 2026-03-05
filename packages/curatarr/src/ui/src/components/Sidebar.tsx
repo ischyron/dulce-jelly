@@ -1,6 +1,6 @@
-import { NavLink, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LayoutDashboard, Library, Bot, ScanLine, Settings, ShieldCheck, GitMerge } from 'lucide-react';
+import { Bot, GitMerge, LayoutDashboard, Library, ScanLine, Settings, ShieldCheck } from 'lucide-react';
+import { Link, NavLink } from 'react-router-dom';
 import { api } from '../api/client';
 
 const navItems = [
@@ -24,14 +24,21 @@ export function Sidebar() {
   const pendingCount = disData ?? 0;
 
   return (
-    <aside className="w-56 shrink-0 border-r flex flex-col"
-      style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+    <aside
+      className="w-56 shrink-0 border-r flex flex-col"
+      style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+    >
       {/* Wordmark */}
-      <Link to="/" className="flex items-center gap-2.5 px-4 py-5 border-b hover:opacity-80 transition-opacity"
-        style={{ borderColor: 'var(--c-border)' }}>
+      <Link
+        to="/"
+        className="flex items-center gap-2.5 px-4 py-5 border-b hover:opacity-80 transition-opacity"
+        style={{ borderColor: 'var(--c-border)' }}
+      >
         <img src="/logo.svg" alt="Curatarr logo" width={24} height={24} />
-        <span className="text-sm font-bold tracking-widest uppercase"
-          style={{ color: 'var(--c-accent)', letterSpacing: '0.15em' }}>
+        <span
+          className="text-sm font-bold tracking-widest uppercase"
+          style={{ color: 'var(--c-accent)', letterSpacing: '0.15em' }}
+        >
           CURATARR
         </span>
       </Link>
@@ -44,20 +51,18 @@ export function Sidebar() {
             to={to}
             end={to === '/'}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative ` +
-              (isActive
-                ? 'border-r-2'
-                : '')
+              `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors relative ` + (isActive ? 'border-r-2' : '')
             }
-            style={({ isActive }) => isActive
-              ? {
-                  background: 'rgba(124,58,237,0.15)',
-                  borderColor: 'var(--c-accent)',
-                  color: '#c4b5fd',
-                }
-              : {
-                  color: 'var(--c-muted)',
-                }
+            style={({ isActive }) =>
+              isActive
+                ? {
+                    background: 'rgba(124,58,237,0.15)',
+                    borderColor: 'var(--c-accent)',
+                    color: '#c4b5fd',
+                  }
+                : {
+                    color: 'var(--c-muted)',
+                  }
             }
           >
             {({ isActive }) => (
@@ -65,8 +70,10 @@ export function Sidebar() {
                 <Icon size={17} style={isActive ? { color: 'var(--c-accent)' } : undefined} />
                 <span className="flex-1">{label}</span>
                 {badge && pendingCount > 0 && (
-                  <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
-                    style={{ background: 'var(--c-accent)', color: 'white', minWidth: '1.25rem', textAlign: 'center' }}>
+                  <span
+                    className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ background: 'var(--c-accent)', color: 'white', minWidth: '1.25rem', textAlign: 'center' }}
+                  >
                     {pendingCount > 99 ? '99+' : pendingCount}
                   </span>
                 )}
@@ -76,8 +83,7 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="px-4 py-3 text-xs border-t"
-        style={{ color: 'var(--c-muted)', borderColor: 'var(--c-border)' }}>
+      <div className="px-4 py-3 text-xs border-t" style={{ color: 'var(--c-muted)', borderColor: 'var(--c-border)' }}>
         v0.2.0
       </div>
     </aside>

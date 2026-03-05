@@ -35,10 +35,7 @@ export interface DeepCheckResult {
 // ── Patterns ───────────────────────────────────────────────────────────────
 
 /** Truly benign lines that can be ignored without logging */
-const BENIGN_PATTERNS = [
-  /pts has no value/i,
-  /application provided invalid/i,
-];
+const BENIGN_PATTERNS = [/pts has no value/i, /application provided invalid/i];
 
 /** DTS/PTS disorder patterns — captured as quality flags, not ignored */
 const DTS_DISORDER = /non monoton|DTS .{0,60}, next:.{0,60}invalid|out of order packet/i;
@@ -49,11 +46,11 @@ function parseDtsMagnitude(line: string): number | null {
   if (!m) return null;
   const cur = parseFloat(m[1]);
   const nxt = parseFloat(m[2]);
-  return isNaN(cur) || isNaN(nxt) ? null : Math.abs(nxt - cur);
+  return Number.isNaN(cur) || Number.isNaN(nxt) ? null : Math.abs(nxt - cur);
 }
 
 function isBenign(line: string): boolean {
-  return BENIGN_PATTERNS.some(p => p.test(line));
+  return BENIGN_PATTERNS.some((p) => p.test(line));
 }
 
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per file
@@ -71,22 +68,33 @@ async function analyzeGop(filePath: string): Promise<QualityFlag[]> {
   return new Promise<QualityFlag[]>((resolve) => {
     const flags: QualityFlag[] = [];
 
-    const proc = spawn('ffprobe', [
-      '-v', 'quiet',
-      '-select_streams', 'v:0',
-      '-show_packets',
-      '-show_entries', 'packet=flags,pts_time',
-      '-of', 'csv=p=0',
-      '-t', '60',      // first 60 seconds only
-      filePath,
-    ], { stdio: ['ignore', 'pipe', 'ignore'] });
+    const proc = spawn(
+      'ffprobe',
+      [
+        '-v',
+        'quiet',
+        '-select_streams',
+        'v:0',
+        '-show_packets',
+        '-show_entries',
+        'packet=flags,pts_time',
+        '-of',
+        'csv=p=0',
+        '-t',
+        '60', // first 60 seconds only
+        filePath,
+      ],
+      { stdio: ['ignore', 'pipe', 'ignore'] },
+    );
 
     let stdout = '';
-    proc.stdout?.on('data', (chunk: Buffer) => { stdout += chunk.toString(); });
+    proc.stdout?.on('data', (chunk: Buffer) => {
+      stdout += chunk.toString();
+    });
 
     const timer = setTimeout(() => {
       proc.kill('SIGKILL');
-      resolve([]);  // timeout — skip GOP analysis
+      resolve([]); // timeout — skip GOP analysis
     }, 30_000);
 
     proc.on('close', () => {
@@ -99,7 +107,7 @@ async function analyzeGop(filePath: string): Promise<QualityFlag[]> {
         if (parts.length < 2) continue;
         const packetFlags = parts[0];
         const ptsTime = parseFloat(parts[1]);
-        if (packetFlags.startsWith('K') && !isNaN(ptsTime)) {
+        if (packetFlags.startsWith('K') && !Number.isNaN(ptsTime)) {
           keyframeTimes.push(ptsTime);
         }
       }
@@ -129,7 +137,8 @@ async function analyzeGop(filePath: string): Promise<QualityFlag[]> {
           severity: 'WARN',
           code: 'large_gop',
           message: `large GOP (max ${maxGap.toFixed(1)}s, avg ${avgGap.toFixed(1)}s)`,
-          detail: 'Long keyframe intervals slow chapter seeking and bitrate adaptation. Normal: ≤ 2–4 s for streaming; Blu-ray encodes may reach 10 s.',
+          detail:
+            'Long keyframe intervals slow chapter seeking and bitrate adaptation. Normal: ≤ 2–4 s for streaming; Blu-ray encodes may reach 10 s.',
         });
       }
 
@@ -138,17 +147,14 @@ async function analyzeGop(filePath: string): Promise<QualityFlag[]> {
 
     proc.on('error', () => {
       clearTimeout(timer);
-      resolve([]);  // ffprobe unavailable — skip
+      resolve([]); // ffprobe unavailable — skip
     });
   });
 }
 
 // ── Main deepCheck ─────────────────────────────────────────────────────────
 
-export async function deepCheck(
-  filePath: string,
-  signal?: AbortSignal
-): Promise<DeepCheckResult> {
+export async function deepCheck(filePath: string, signal?: AbortSignal): Promise<DeepCheckResult> {
   const start = Date.now();
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -160,31 +166,33 @@ export async function deepCheck(
     const _warnings: string[] = [];
     const _dtsLines: string[] = [];
 
-    const proc = spawn('ffmpeg', [
-      '-v', 'error',
-      '-threads', '2',
-      '-i', filePath,
-      '-map', '0',
-      '-f', 'null',
-      '-',
-    ], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn('ffmpeg', ['-v', 'error', '-threads', '2', '-i', filePath, '-map', '0', '-f', 'null', '-'], {
+      stdio: ['ignore', 'ignore', 'pipe'],
+    });
 
     let stderr = '';
-    proc.stderr?.on('data', (chunk: Buffer) => { stderr += chunk.toString(); });
+    proc.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
 
     const timer = setTimeout(() => {
       proc.kill('SIGKILL');
       _errors.push('timeout: file check exceeded 5 minutes');
     }, TIMEOUT_MS);
 
-    const onAbort = () => { proc.kill('SIGKILL'); };
+    const onAbort = () => {
+      proc.kill('SIGKILL');
+    };
     signal?.addEventListener('abort', onAbort, { once: true });
 
     proc.on('close', () => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);
 
-      for (const line of stderr.split('\n').map(l => l.trim()).filter(Boolean)) {
+      for (const line of stderr
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)) {
         if (isBenign(line)) continue;
 
         if (DTS_DISORDER.test(line)) {
@@ -218,11 +226,9 @@ export async function deepCheck(
   if (dtsLines.length > 0) {
     // Try to extract the dominant jump magnitude
     const magnitudes = dtsLines.map(parseDtsMagnitude).filter((v): v is number => v !== null);
-    const unique = [...new Set(magnitudes.map(v => v.toFixed(3)))];
+    const unique = [...new Set(magnitudes.map((v) => v.toFixed(3)))];
     const repeated = magnitudes.length > 1 && unique.length === 1;
-    const magStr = magnitudes.length > 0
-      ? ` (${magnitudes[0].toFixed(3)}s${repeated ? ' repeated' : ''})`
-      : '';
+    const magStr = magnitudes.length > 0 ? ` (${magnitudes[0].toFixed(3)}s${repeated ? ' repeated' : ''})` : '';
 
     qualityFlags.push({
       severity: 'FLAG',
@@ -239,7 +245,7 @@ export async function deepCheck(
   }
 
   // Promote decode errors to quality flags too (mux-level)
-  if (errors.length > 0 && errors.some(e => !e.startsWith('spawn error') && !e.startsWith('timeout'))) {
+  if (errors.length > 0 && errors.some((e) => !e.startsWith('spawn error') && !e.startsWith('timeout'))) {
     qualityFlags.push({
       severity: 'FLAG',
       code: 'decode_error',

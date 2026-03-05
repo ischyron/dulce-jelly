@@ -1,12 +1,12 @@
-import { Hono } from 'hono';
-import { streamSSE } from 'hono/streaming';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import fs from 'node:fs';
+import { Hono } from 'hono';
+import { streamSSE } from 'hono/streaming';
 import type { CuratDb } from '../../db/client.js';
-import { scanEmitter } from '../sse.js';
 import { scanLibrary } from '../../scanner/scan.js';
 import { movieLibraryPaths, parseLibraryRootsJson } from '../../shared/libraryRoots.js';
+import { scanEmitter } from '../sse.js';
 
 export function makeScanRoutes(db: CuratDb): Hono {
   const app = new Hono();
@@ -17,7 +17,7 @@ export function makeScanRoutes(db: CuratDb): Hono {
       return c.json({ error: 'Scan already running' }, 409);
     }
 
-    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const requestedPath = typeof body.path === 'string' ? body.path : '';
     const jobs = Math.max(1, parseInt(String(body.jobs ?? Math.floor(os.cpus().length / 2)), 10));
     const rescan = Boolean(body.rescan);
@@ -29,7 +29,12 @@ export function makeScanRoutes(db: CuratDb): Hono {
       : configuredMoviePaths;
 
     if (libraryPaths.length === 0) {
-      return c.json({ error: 'Library root folders not configured. Add Movies roots in Settings or provide a path in request body.' }, 400);
+      return c.json(
+        {
+          error: 'Library root folders not configured. Add Movies roots in Settings or provide a path in request body.',
+        },
+        400,
+      );
     }
 
     for (const p of libraryPaths) {
@@ -69,10 +74,21 @@ export function makeScanRoutes(db: CuratDb): Hono {
             rescan,
             signal,
             onProgress: (p) => {
-              scanEmitter.emit('progress', { ...p, rootPath: libraryPath, rootIndex: i + 1, rootTotal: libraryPaths.length });
+              scanEmitter.emit('progress', {
+                ...p,
+                rootPath: libraryPath,
+                rootIndex: i + 1,
+                rootTotal: libraryPaths.length,
+              });
             },
             onFolderComplete: (folderName, fileCount) => {
-              scanEmitter.emit('folder_complete', { folderName, fileCount, rootPath: libraryPath, rootIndex: i + 1, rootTotal: libraryPaths.length });
+              scanEmitter.emit('folder_complete', {
+                folderName,
+                fileCount,
+                rootPath: libraryPath,
+                rootIndex: i + 1,
+                rootTotal: libraryPaths.length,
+              });
             },
           });
           aggregate.totalFolders += result.totalFolders;
@@ -83,9 +99,8 @@ export function makeScanRoutes(db: CuratDb): Hono {
           scanEmitter.emit('root_complete', { libraryPath, index: i + 1, total: libraryPaths.length, result });
         }
         aggregate.durationSec = (Date.now() - startedAt) / 1000;
-        aggregate.notes = libraryPaths.length > 1
-          ? `Scanned ${libraryPaths.length} movie roots`
-          : `Scanned ${libraryPaths[0]}`;
+        aggregate.notes =
+          libraryPaths.length > 1 ? `Scanned ${libraryPaths.length} movie roots` : `Scanned ${libraryPaths[0]}`;
 
         const result = aggregate;
         if (signal.aborted) {
@@ -128,7 +143,9 @@ export function makeScanRoutes(db: CuratDb): Hono {
             event: ev.event,
             data: JSON.stringify(ev.data),
           });
-        } catch { /* client disconnected */ }
+        } catch {
+          /* client disconnected */
+        }
       });
 
       await new Promise<void>((resolve) => {

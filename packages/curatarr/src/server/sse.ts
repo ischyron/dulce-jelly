@@ -26,7 +26,10 @@ export class SseEmitter {
   start(): AbortSignal {
     this.running = true;
     this.recentEvents = [];
-    if (this.clearTimer) { clearTimeout(this.clearTimer); this.clearTimer = null; }
+    if (this.clearTimer) {
+      clearTimeout(this.clearTimer);
+      this.clearTimer = null;
+    }
     this._abortController = new AbortController();
     return this._abortController.signal;
   }
@@ -47,7 +50,11 @@ export class SseEmitter {
   subscribe(fn: Subscriber): () => void {
     // Replay buffered events to new subscriber first
     for (const ev of this.recentEvents) {
-      try { fn(ev); } catch { /* */ }
+      try {
+        fn(ev);
+      } catch {
+        /* */
+      }
     }
     this.subscribers.add(fn);
     return () => this.subscribers.delete(fn);
@@ -58,7 +65,11 @@ export class SseEmitter {
     this.recentEvents.push(ev);
     if (this.recentEvents.length > this.REPLAY_LIMIT) this.recentEvents.shift();
     for (const fn of this.subscribers) {
-      try { fn(ev); } catch { /* subscriber gone */ }
+      try {
+        fn(ev);
+      } catch {
+        /* subscriber gone */
+      }
     }
   }
 

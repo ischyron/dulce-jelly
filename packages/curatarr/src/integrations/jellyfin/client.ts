@@ -18,10 +18,10 @@ export interface JfMovie {
   Name: string;
   OriginalTitle?: string;
   ProductionYear?: number;
-  Path?: string;                   // file path Jellyfin knows about
-  CriticRating?: number;           // Metacritic 0-100
-  CommunityRating?: number;        // IMDb-style 0-10
-  OfficialRating?: string;         // MPAA
+  Path?: string; // file path Jellyfin knows about
+  CriticRating?: number; // Metacritic 0-100
+  CommunityRating?: number; // IMDb-style 0-10
+  OfficialRating?: string; // MPAA
   Overview?: string;
   Genres?: string[];
   ProviderIds?: {
@@ -52,8 +52,7 @@ export interface JfLibrary {
 export class JellyfinClient {
   private baseUrl: string;
   private apiKey: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private cache = new Map<string, CacheEntry<any>>();
+  private cache = new Map<string, CacheEntry<unknown>>();
 
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
@@ -73,18 +72,20 @@ export class JellyfinClient {
 
   async getMovieLibraries(): Promise<JfLibrary[]> {
     const libs = await this.getLibraries();
-    return libs.filter(l => l.CollectionType === 'movies');
+    return libs.filter((l) => l.CollectionType === 'movies');
   }
 
   // ──────────────────────────────────────────────────────────────────
   // Movies — batched fetch with progress
   // ──────────────────────────────────────────────────────────────────
 
-  async getAllMovies(opts: {
-    batchSize?: number;
-    onProgress?: (fetched: number, total: number) => void;
-    includeUserData?: boolean;
-  } = {}): Promise<{ movies: JfMovie[]; errors: string[] }> {
+  async getAllMovies(
+    opts: {
+      batchSize?: number;
+      onProgress?: (fetched: number, total: number) => void;
+      includeUserData?: boolean;
+    } = {},
+  ): Promise<{ movies: JfMovie[]; errors: string[] }> {
     const batchSize = opts.batchSize ?? DEFAULT_BATCH_SIZE;
     const libraries = await this.getMovieLibraries();
     const allMovies: JfMovie[] = [];
@@ -96,8 +97,12 @@ export class JellyfinClient {
 
       while (true) {
         const fields = [
-          'Path', 'ProviderIds', 'CriticRating', 'CommunityRating',
-          'Genres', 'MediaSources',
+          'Path',
+          'ProviderIds',
+          'CriticRating',
+          'CommunityRating',
+          'Genres',
+          'MediaSources',
           ...(opts.includeUserData ? ['UserData'] : []),
         ].join(',');
 
@@ -111,9 +116,7 @@ export class JellyfinClient {
         });
 
         try {
-          const data = await this.get<{ Items: JfMovie[]; TotalRecordCount: number }>(
-            `/Items?${qs}`
-          );
+          const data = await this.get<{ Items: JfMovie[]; TotalRecordCount: number }>(`/Items?${qs}`);
           totalCount = data.TotalRecordCount;
           allMovies.push(...data.Items);
           startIndex += batchSize;
@@ -136,7 +139,7 @@ export class JellyfinClient {
     return this.get<JfMovie>(
       `/Items/${jellyfinId}?Fields=Path,ProviderIds,CriticRating,CommunityRating,Genres,Overview`,
       DEFAULT_TIMEOUT_MS,
-      true
+      true,
     );
   }
 
@@ -175,7 +178,7 @@ export class JellyfinClient {
       const res = await fetch(url, {
         headers: {
           'X-Emby-Token': this.apiKey,
-          'Accept': 'application/json',
+          Accept: 'application/json',
         },
         signal: controller.signal,
       });
@@ -184,7 +187,7 @@ export class JellyfinClient {
         throw new Error(`HTTP ${res.status} ${res.statusText} — ${url}`);
       }
 
-      const data = await res.json() as T;
+      const data = (await res.json()) as T;
 
       if (cacheable) {
         this.cache.set(apiPath, { data, expiresAt: Date.now() + CACHE_TTL_MS });

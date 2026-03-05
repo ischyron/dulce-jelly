@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
-import { AlertTriangle, ShieldAlert, TriangleAlert, Info } from 'lucide-react';
+import { AlertTriangle, Info, ShieldAlert, TriangleAlert } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { getCodecDescription } from './shared/utils';
 
 // ── QualityFlag types (mirrors src/scanner/deepcheck.ts) ──────────────────
 
@@ -15,25 +16,33 @@ export interface QualityFlag {
 const FLAG_DOCS: Record<string, { title: string; explanation: string; impact: string; action: string }> = {
   backward_pts: {
     title: 'Backward PTS jumps — timestamp disorder',
-    explanation: 'The video stream contains presentation timestamps (PTS) that decrease instead of increasing. This means the encoder or muxer produced an invalid bitstream with out-of-order frame timing.',
-    impact: 'Playback freezes, stutter, or black frames at the affected point. Hardware decoders on Android TV or Apple TV may lock up.',
-    action: 'Re-encode from a clean source. If the source is a Blu-ray disc, the disc itself may have non-standard timestamps that a good encoder should handle.',
+    explanation:
+      'The video stream contains presentation timestamps (PTS) that decrease instead of increasing. This means the encoder or muxer produced an invalid bitstream with out-of-order frame timing.',
+    impact:
+      'Playback freezes, stutter, or black frames at the affected point. Hardware decoders on Android TV or Apple TV may lock up.',
+    action:
+      'Re-encode from a clean source. If the source is a Blu-ray disc, the disc itself may have non-standard timestamps that a good encoder should handle.',
   },
   large_gop: {
     title: 'Large GOP — long keyframe interval',
-    explanation: 'The gap between I-frames (keyframes) is larger than typical recommendations (≤ 4 s for streaming). Blu-ray encodes commonly use 5–10 s GOP, which is generally fine.',
-    impact: 'Slow chapter seek (player must decode from the last keyframe), slow adaptive bitrate switching. Values > 10 s may cause visible lag when jumping to a chapter.',
-    action: 'Usually acceptable for local library playback. If seek lag is noticeable, re-encode with a smaller GOP (e.g., -g 120 for 24 fps = 5 s).',
+    explanation:
+      'The gap between I-frames (keyframes) is larger than typical recommendations (≤ 4 s for streaming). Blu-ray encodes commonly use 5–10 s GOP, which is generally fine.',
+    impact:
+      'Slow chapter seek (player must decode from the last keyframe), slow adaptive bitrate switching. Values > 10 s may cause visible lag when jumping to a chapter.',
+    action:
+      'Usually acceptable for local library playback. If seek lag is noticeable, re-encode with a smaller GOP (e.g., -g 120 for 24 fps = 5 s).',
   },
   decode_error: {
     title: 'Decode errors',
-    explanation: 'ffmpeg encountered errors while fully decoding the file. This may indicate a corrupt bitstream, truncated data, or a broken encode.',
+    explanation:
+      'ffmpeg encountered errors while fully decoding the file. This may indicate a corrupt bitstream, truncated data, or a broken encode.',
     impact: 'Possible visual artefacts, incomplete playback, or a hard stop at the corrupted region.',
     action: 'Verify the file with a full deep check. Replace the file if errors persist.',
   },
   mux_error: {
     title: 'Mux-level error',
-    explanation: 'The container has structural problems (bad header, invalid chunk layout, or missing index). The video content itself may be fine, but the wrapper is damaged.',
+    explanation:
+      'The container has structural problems (bad header, invalid chunk layout, or missing index). The video content itself may be fine, but the wrapper is damaged.',
     impact: 'Seeking may fail, duration may be reported incorrectly, or some players may refuse to open the file.',
     action: 'Remux into a fresh MKV using mkvmerge or ffmpeg -c copy to rebuild the container without re-encoding.',
   },
@@ -47,7 +56,6 @@ Severities:
 
 Run Deep Verify after your initial Library Scan to populate this column.`;
 
-
 interface QualityBadgeProps {
   resolution?: string | null;
   codec?: string | null;
@@ -59,36 +67,38 @@ const AV1_UNSUPPORTED_PROFILES = new Set(['android_tv', 'fire_tv']);
 const resColors: Record<string, string> = {
   '2160p': 'bg-purple-600/30 text-purple-300 border-purple-700',
   '1080p': 'bg-blue-600/30 text-blue-300 border-blue-700',
-  '720p':  'bg-cyan-600/30 text-cyan-300 border-cyan-700',
-  '480p':  'bg-yellow-600/30 text-yellow-300 border-yellow-700',
-  'other': 'bg-[#26263a]/60 text-[#8b87aa] border-[#26263a]',
+  '720p': 'bg-cyan-600/30 text-cyan-300 border-cyan-700',
+  '480p': 'bg-yellow-600/30 text-yellow-300 border-yellow-700',
+  other: 'bg-[#26263a]/60 text-[#8b87aa] border-[#26263a]',
 };
 
 const codecColors: Record<string, string> = {
-  'hevc':        'bg-teal-600/30 text-teal-300 border-teal-700',
-  'h264':        'bg-sky-600/30 text-sky-300 border-sky-700',
-  'av1':         'bg-emerald-600/30 text-emerald-300 border-emerald-700',
-  'mpeg4':       'bg-orange-600/30 text-orange-300 border-orange-700',
-  'mpeg2video':  'bg-red-600/30 text-red-300 border-red-700',
+  hevc: 'bg-teal-600/30 text-teal-300 border-teal-700',
+  h264: 'bg-sky-600/30 text-sky-300 border-sky-700',
+  av1: 'bg-emerald-600/30 text-emerald-300 border-emerald-700',
+  mpeg4: 'bg-orange-600/30 text-orange-300 border-orange-700',
+  mpeg2video: 'bg-red-600/30 text-red-300 border-red-700',
 };
 
 /** Read the active client profile from localStorage (set by Settings page) */
 function getClientProfile(): string {
-  try { return localStorage.getItem('clientProfile') ?? 'android_tv'; }
-  catch { return 'android_tv'; }
+  try {
+    return localStorage.getItem('clientProfile') ?? 'android_tv';
+  } catch {
+    return 'android_tv';
+  }
 }
 
 export function ResolutionBadge({ resolution }: { resolution?: string | null }) {
   if (!resolution) return null;
   const cls = resColors[resolution] ?? resColors['other'];
-  return (
-    <span className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${cls}`}>
-      {resolution}
-    </span>
-  );
+  return <span className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${cls}`}>{resolution}</span>;
 }
 
-export function CodecBadge({ codec, showCompatWarning = false }: {
+export function CodecBadge({
+  codec,
+  showCompatWarning = false,
+}: {
   codec?: string | null;
   showCompatWarning?: boolean;
 }) {
@@ -102,7 +112,10 @@ export function CodecBadge({ codec, showCompatWarning = false }: {
 
   return (
     <span className="inline-flex items-center gap-1">
-      <span className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${cls}`}>
+      <span
+        className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${cls}`}
+        title={getCodecDescription(key) ?? codec}
+      >
         {codec}
       </span>
       {av1Warn && (
@@ -125,7 +138,7 @@ export function LegacyCodecBadge({ codec }: { codec?: string | null }) {
   if (!isLegacy) return null;
   return (
     <span
-      title="Legacy codec — consider replacing with H264 or HEVC"
+      title={getCodecDescription('legacy') ?? 'Legacy codec — consider replacing with H264 or HEVC'}
       className="inline-flex items-center px-1.5 py-0.5 text-xs font-mono rounded border bg-orange-600/30 text-orange-300 border-orange-700 gap-1"
     >
       <AlertTriangle size={10} />
@@ -134,17 +147,24 @@ export function LegacyCodecBadge({ codec }: { codec?: string | null }) {
   );
 }
 
-export function HdrBadge({ hdrFormats, dvProfile }: {
+export function HdrBadge({
+  hdrFormats,
+  dvProfile,
+}: {
   hdrFormats?: string;
   dvProfile?: number | null;
 }) {
   let formats: string[] = [];
-  try { formats = hdrFormats ? (JSON.parse(hdrFormats) as string[]) : []; } catch { /* */ }
+  try {
+    formats = hdrFormats ? (JSON.parse(hdrFormats) as string[]) : [];
+  } catch {
+    /* */
+  }
   if (formats.length === 0) return null;
 
   return (
     <span className="inline-flex gap-1">
-      {formats.map(f => {
+      {formats.map((f) => {
         const isDv = f === 'DolbyVision';
         const label = isDv && dvProfile ? `DV${dvProfile}` : f.replace('DolbyVision', 'DV');
         // P7 = FEL — only SHIELD decodes natively; add subtle indicator
@@ -154,9 +174,7 @@ export function HdrBadge({ hdrFormats, dvProfile }: {
             key={f}
             title={isP7 ? 'DV Profile 7 (FEL) — requires NVIDIA SHIELD or FEL-capable player' : undefined}
             className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${
-              isP7
-                ? 'bg-pink-600/30 text-pink-300 border-pink-700'
-                : 'bg-amber-600/30 text-amber-300 border-amber-700'
+              isP7 ? 'bg-pink-600/30 text-pink-300 border-pink-700' : 'bg-amber-600/30 text-amber-300 border-amber-700'
             }`}
           >
             {label}
@@ -183,9 +201,11 @@ export function CriticScoreBadge({
   return (
     <span
       className="inline-flex items-center gap-1 font-mono"
-      title={fresh
-        ? `${score} — Fresh (≥60). Jellyfin critic score (0–100).`
-        : `${score} — Rotten (<60). Jellyfin critic score (0–100).`}
+      title={
+        fresh
+          ? `${score} — Fresh (≥60). Jellyfin critic score (0–100).`
+          : `${score} — Rotten (<60). Jellyfin critic score (0–100).`
+      }
     >
       {showTomatoIcon && (
         <img
@@ -240,7 +260,10 @@ export function QualityFlagsBadge({
 
   function handleToggle(e: React.MouseEvent) {
     e.stopPropagation();
-    if (open) { setOpen(false); return; }
+    if (open) {
+      setOpen(false);
+      return;
+    }
     const rect = btnRef.current?.getBoundingClientRect();
     if (rect) {
       const POPUP_W = 340;
@@ -254,24 +277,36 @@ export function QualityFlagsBadge({
   }
 
   let flags: QualityFlag[] = [];
-  try { flags = qualityFlagsJson ? (JSON.parse(qualityFlagsJson) as QualityFlag[]) : []; } catch { /* */ }
+  try {
+    flags = qualityFlagsJson ? (JSON.parse(qualityFlagsJson) as QualityFlag[]) : [];
+  } catch {
+    /* */
+  }
 
   // Not yet verified
   if (!verifyStatus) {
     return (
-      <span className="text-xs" style={{ color: 'var(--c-border)' }} title="Not yet verified — run Deep Verify to check">—</span>
+      <span
+        className="text-xs"
+        style={{ color: 'var(--c-border)' }}
+        title="Not yet verified — run Deep Verify to check"
+      >
+        —
+      </span>
     );
   }
 
-  const hasFlag = flags.some(f => f.severity === 'FLAG');
-  const hasWarn = flags.some(f => f.severity === 'WARN');
+  const hasFlag = flags.some((f) => f.severity === 'FLAG');
+  const hasWarn = flags.some((f) => f.severity === 'WARN');
 
   // No flags detected
   if (flags.length === 0) {
     return (
-      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
+      <span
+        className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
         style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80' }}
-        title="Deep verify passed — no quality flags">
+        title="Deep verify passed — no quality flags"
+      >
         OK
       </span>
     );
@@ -305,48 +340,65 @@ export function QualityFlagsBadge({
             background: '#1e1e2e',
             border: '1px solid var(--c-border)',
           }}
-          onClick={e => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-3 py-2 border-b"
-            style={{ borderColor: 'var(--c-border)' }}>
+          <div
+            className="flex items-center justify-between px-3 py-2 border-b"
+            style={{ borderColor: 'var(--c-border)' }}
+          >
             <span className="font-semibold" style={{ color: 'var(--c-text)' }}>
               Quality Issues
             </span>
             <span className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowDocs(v => !v)}
+              <button
+                type="button"
+                onClick={() => setShowDocs((v) => !v)}
                 title="Show column documentation"
-                style={{ color: showDocs ? 'var(--c-accent)' : 'var(--c-muted)' }}>
+                style={{ color: showDocs ? 'var(--c-accent)' : 'var(--c-muted)' }}
+              >
                 <Info size={13} />
               </button>
-              <button type="button" onClick={() => setOpen(false)}
-                style={{ color: 'var(--c-muted)' }}>✕</button>
+              <button type="button" onClick={() => setOpen(false)} style={{ color: 'var(--c-muted)' }}>
+                ✕
+              </button>
             </span>
           </div>
 
           {/* Flag list */}
           <div className="px-3 py-2 space-y-2">
-            {flags.map((f, i) => {
+            {flags.map((f) => {
               const isFlag = f.severity === 'FLAG';
               const color = isFlag ? '#f87171' : '#fbbf24';
               const doc = FLAG_DOCS[f.code];
               return (
-                <div key={i} className="space-y-0.5">
+                <div key={`${f.code}:${f.message}`} className="space-y-0.5">
                   <div className="flex items-start gap-1.5">
-                    <span className="font-semibold shrink-0 mt-0.5"
-                      style={{ color }}>
+                    <span className="font-semibold shrink-0 mt-0.5" style={{ color }}>
                       {f.severity}
                     </span>
                     <span style={{ color: 'var(--c-text)' }}>{f.message}</span>
                   </div>
                   {doc && (
                     <div className="ml-10 space-y-0.5" style={{ color: 'var(--c-muted)' }}>
-                      <div><span className="font-medium" style={{ color: '#a5b4fc' }}>Impact:</span> {doc.impact}</div>
-                      <div><span className="font-medium" style={{ color: '#a5b4fc' }}>Action:</span> {doc.action}</div>
+                      <div>
+                        <span className="font-medium" style={{ color: '#a5b4fc' }}>
+                          Impact:
+                        </span>{' '}
+                        {doc.impact}
+                      </div>
+                      <div>
+                        <span className="font-medium" style={{ color: '#a5b4fc' }}>
+                          Action:
+                        </span>{' '}
+                        {doc.action}
+                      </div>
                     </div>
                   )}
                   {f.detail && !doc && (
-                    <div className="ml-10" style={{ color: 'var(--c-muted)' }}>{f.detail}</div>
+                    <div className="ml-10" style={{ color: 'var(--c-muted)' }}>
+                      {f.detail}
+                    </div>
                   )}
                 </div>
               );
@@ -356,9 +408,13 @@ export function QualityFlagsBadge({
           {/* Docs section */}
           {showDocs && (
             <div className="border-t px-3 py-2" style={{ borderColor: 'var(--c-border)' }}>
-              <p className="font-semibold mb-1.5" style={{ color: '#a5b4fc' }}>About Quality Analytics</p>
-              <pre className="whitespace-pre-wrap leading-relaxed"
-                style={{ color: 'var(--c-muted)', fontFamily: 'inherit', fontSize: '0.7rem' }}>
+              <p className="font-semibold mb-1.5" style={{ color: '#a5b4fc' }}>
+                About Quality Analytics
+              </p>
+              <pre
+                className="whitespace-pre-wrap leading-relaxed"
+                style={{ color: 'var(--c-muted)', fontFamily: 'inherit', fontSize: '0.7rem' }}
+              >
                 {DOCS_INTRO}
               </pre>
             </div>

@@ -1,13 +1,13 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Bot, Star } from 'lucide-react';
-import { api, type Candidate } from '../api/client';
-import { ResolutionBadge, CodecBadge, HdrBadge, CriticScoreBadge } from '../components/QualityBadge';
-import { MovieDetailDrawer } from '../components/MovieDetailDrawer';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { type Candidate, api } from '../api/client';
 import { InfoHint } from '../components/InfoHint';
-import { CompatTag } from '../components/scout-queue/CompatTag';
+import { MovieDetailDrawer } from '../components/MovieDetailDrawer';
+import { CodecBadge, CriticScoreBadge, HdrBadge, ResolutionBadge } from '../components/QualityBadge';
 import { BatchConfirmModal } from '../components/scout-queue/BatchConfirmModal';
+import { CompatTag } from '../components/scout-queue/CompatTag';
 
 function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
@@ -50,7 +50,12 @@ export function ScoutQueue() {
   const effMinCritic = qMinCritic != null ? Number(qMinCritic) : seedMinCritic;
   const effMinComm = qMinCommunity != null ? Number(qMinCommunity) : seedMinComm;
   const effGenre = qGenre ?? seedGenre;
-  const selectedGenres = effGenre ? effGenre.split(',').map(g => g.trim()).filter(Boolean) : [];
+  const selectedGenres = effGenre
+    ? effGenre
+        .split(',')
+        .map((g) => g.trim())
+        .filter(Boolean)
+    : [];
   const genreRef = useRef<HTMLDivElement | null>(null);
   const [genreOpen, setGenreOpen] = useState(false);
 
@@ -64,14 +69,17 @@ export function ScoutQueue() {
   }, [genreOpen]);
 
   function patch(changes: Record<string, string | null>) {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      for (const [k, v] of Object.entries(changes)) {
-        if (v == null || v === '') next.delete(k);
-        else next.set(k, v);
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [k, v] of Object.entries(changes)) {
+          if (v == null || v === '') next.delete(k);
+          else next.set(k, v);
+        }
+        return next;
+      },
+      { replace: true },
+    );
   }
 
   const { data: genresData } = useQuery({
@@ -83,17 +91,18 @@ export function ScoutQueue() {
   const genreKey = selectedGenres.join(',');
   const { data, isLoading } = useQuery({
     queryKey: ['candidates', effMinCritic, effMinComm, genreKey],
-    queryFn: () => api.candidates({
-      minCritic: effMinCritic,
-      minCommunity: effMinComm,
-      ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
-      limit: 200,
-    }),
+    queryFn: () =>
+      api.candidates({
+        minCritic: effMinCritic,
+        minCommunity: effMinComm,
+        ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
+        limit: 200,
+      }),
     enabled: Number.isFinite(effMinCritic) && Number.isFinite(effMinComm),
   });
 
   function removeGenreFilter(genre: string) {
-    const next = selectedGenres.filter(g => g !== genre);
+    const next = selectedGenres.filter((g) => g !== genre);
     patch({ genre: next.length > 0 ? next.join(',') : null });
   }
 
@@ -114,16 +123,16 @@ export function ScoutQueue() {
   }, [data?.candidates]);
 
   const selectedRows = selectedBatch
-    .map(id => candidateById.get(id))
+    .map((id) => candidateById.get(id))
     .filter((v): v is Candidate => Boolean(v))
     .slice(0, 10);
   const pageCandidateIds = data?.candidates.map((c: Candidate) => c.id) ?? [];
-  const allPageSelected = pageCandidateIds.length > 0 && pageCandidateIds.every(id => selectedBatch.includes(id));
+  const allPageSelected = pageCandidateIds.length > 0 && pageCandidateIds.every((id) => selectedBatch.includes(id));
 
   const batchMutation = useMutation({
     mutationFn: (movieIds: number[]) => api.scoutSearchBatch({ movieIds, batchSize: movieIds.length }),
     onSuccess: (res) => {
-      const errors = res.results.filter(r => r.error).length;
+      const errors = res.results.filter((r) => r.error).length;
       setBatchResultMsg(`Batch scout complete: ${res.processed} processed${errors ? `, ${errors} errors` : ''}.`);
       setShowBatchModal(false);
       setSelectedBatch([]);
@@ -137,8 +146,8 @@ export function ScoutQueue() {
   function toggleRowSelection(movieId: number, checked: boolean) {
     setBatchUiError('');
     setBatchResultMsg('');
-    setSelectedBatch(prev => {
-      if (!checked) return prev.filter(id => id !== movieId);
+    setSelectedBatch((prev) => {
+      if (!checked) return prev.filter((id) => id !== movieId);
       if (prev.includes(movieId)) return prev;
       if (prev.length >= maxBatch) {
         setBatchUiError(`Max batch size reached (${maxBatch}).`);
@@ -162,7 +171,7 @@ export function ScoutQueue() {
   function toggleSelectAllOnPage(checked: boolean) {
     setBatchUiError('');
     setBatchResultMsg('');
-    setSelectedBatch(prev => {
+    setSelectedBatch((prev) => {
       if (checked) {
         const merged = Array.from(new Set([...prev, ...pageCandidateIds]));
         if (merged.length > maxBatch) {
@@ -171,15 +180,17 @@ export function ScoutQueue() {
         }
         return merged;
       }
-      return prev.filter(id => !pageCandidateIds.includes(id));
+      return prev.filter((id) => !pageCandidateIds.includes(id));
     });
   }
 
   return (
     <div className="flex flex-col h-full">
       {/* Filters */}
-      <div className="px-6 py-3 border-b flex items-center gap-4 shrink-0"
-        style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
+      <div
+        className="px-6 py-3 border-b flex items-center gap-4 shrink-0"
+        style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
+      >
         <h1 className="font-semibold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
           <Bot size={17} style={{ color: 'var(--c-accent)' }} />
           Scout Queue
@@ -193,21 +204,32 @@ export function ScoutQueue() {
             Genre
           </label>
           <button
-            onClick={() => setGenreOpen(v => !v)}
+            onClick={() => setGenreOpen((v) => !v)}
             className="px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: selectedGenres.length > 0 ? 'var(--c-accent)' : 'var(--c-muted)' }}
+            style={{
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              color: selectedGenres.length > 0 ? 'var(--c-accent)' : 'var(--c-muted)',
+            }}
           >
             {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : 'Select genres'}
           </button>
           {genreOpen && (
-            <div className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
-              style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+            <div
+              className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+            >
               {(genresData?.genres ?? []).length === 0 && (
-                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>No genres available.</div>
+                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                  No genres available.
+                </div>
               )}
-              {(genresData?.genres ?? []).map(g => (
-                <label key={g} className="flex items-center gap-2 text-xs cursor-pointer"
-                  style={{ color: selectedGenres.includes(g) ? '#d4cfff' : 'var(--c-muted)' }}>
+              {(genresData?.genres ?? []).map((g) => (
+                <label
+                  key={g}
+                  className="flex items-center gap-2 text-xs cursor-pointer"
+                  style={{ color: selectedGenres.includes(g) ? '#d4cfff' : 'var(--c-muted)' }}
+                >
                   <input
                     type="checkbox"
                     checked={selectedGenres.includes(g)}
@@ -221,12 +243,16 @@ export function ScoutQueue() {
           )}
           {selectedGenres.length > 0 && (
             <div className="flex items-center gap-1 flex-wrap">
-              {selectedGenres.map(g => (
+              {selectedGenres.map((g) => (
                 <button
                   key={g}
                   onClick={() => removeGenreFilter(g)}
                   className="px-2 py-0.5 rounded-full text-xs border"
-                  style={{ color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }}
+                  style={{
+                    color: '#c4b5fd',
+                    borderColor: 'rgba(124,58,237,0.35)',
+                    background: 'rgba(124,58,237,0.12)',
+                  }}
                   title="Remove genre filter"
                 >
                   {g} ×
@@ -244,9 +270,11 @@ export function ScoutQueue() {
             Min MC
           </label>
           <input
-            type="number" min={0} max={100}
+            type="number"
+            min={0}
+            max={100}
             value={effMinCritic}
-            onChange={e => patch({ minCritic: e.target.value })}
+            onChange={(e) => patch({ minCritic: e.target.value })}
             className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           />
@@ -260,9 +288,12 @@ export function ScoutQueue() {
             Min IMDb
           </label>
           <input
-            type="number" min={0} max={10} step={0.1}
+            type="number"
+            min={0}
+            max={10}
+            step={0.1}
             value={effMinComm}
-            onChange={e => patch({ minCommunity: e.target.value })}
+            onChange={(e) => patch({ minCommunity: e.target.value })}
             className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           />
@@ -302,36 +333,48 @@ export function ScoutQueue() {
       {/* Table */}
       <div className="flex-1 overflow-auto">
         {isLoading ? (
-          <div className="p-8" style={{ color: 'var(--c-muted)' }}>Loading…</div>
+          <div className="p-8" style={{ color: 'var(--c-muted)' }}>
+            Loading…
+          </div>
         ) : !data?.candidates.length ? (
           <div className="p-8 space-y-1" style={{ color: 'var(--c-muted)' }}>
             <p className="text-sm">No upgrade candidates with current filters.</p>
             <p className="text-xs">
               Scout Queue requires Metacritic and IMDb ratings — these come from{' '}
-              <strong style={{ color: 'var(--c-text)' }}>Jellyfin Sync</strong> (Scan &amp; Sync page).
-              If you haven't synced yet, all ratings are null and no movies will appear here.
-              Try setting Min MC and Min IMDb to 0 to see all scanned movies regardless of ratings.
+              <strong style={{ color: 'var(--c-text)' }}>Jellyfin Sync</strong> (Scan &amp; Sync page). If you haven't
+              synced yet, all ratings are null and no movies will appear here. Try setting Min MC and Min IMDb to 0 to
+              see all scanned movies regardless of ratings.
             </p>
           </div>
         ) : (
           <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="text-left text-xs uppercase tracking-wider sticky top-0"
-                style={{ borderBottom: '1px solid var(--c-border)', background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
+              <tr
+                className="text-left text-xs uppercase tracking-wider sticky top-0"
+                style={{
+                  borderBottom: '1px solid var(--c-border)',
+                  background: 'var(--c-surface)',
+                  color: 'var(--c-muted)',
+                }}
+              >
                 <th className="px-2 py-2 text-center" style={{ width: '32px' }}>
-                  <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
-                    style={{ minWidth: 28, minHeight: 28 }}>
+                  <label
+                    className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
+                    style={{ minWidth: 28, minHeight: 28 }}
+                  >
                     <input
                       type="checkbox"
                       checked={allPageSelected}
-                      onChange={e => toggleSelectAllOnPage(e.target.checked)}
+                      onChange={(e) => toggleSelectAllOnPage(e.target.checked)}
                       className="w-5 h-5 accent-violet-600 cursor-pointer"
                       title="Select all rows on this page"
                     />
                   </label>
                 </th>
-                <th className="px-3 py-2"
-                  title="Priority score = round((CriticRating * 0.4) + (IMDbRating * 6)). Higher means better upgrade candidate.">
+                <th
+                  className="px-3 py-2"
+                  title="Priority score = round((CriticRating * 0.4) + (IMDbRating * 6)). Higher means better upgrade candidate."
+                >
                   <span className="inline-flex items-center gap-1">
                     Score
                     <InfoHint
@@ -347,15 +390,14 @@ export function ScoutQueue() {
                 <th className="px-3 py-2">
                   <span className="inline-flex items-center gap-1">
                     Group
-                    <InfoHint
-                      label="Group info"
-                      text="Torrent/Usenet release group inferred from the filename only."
-                    />
+                    <InfoHint label="Group info" text="Torrent/Usenet release group inferred from the filename only." />
                   </span>
                 </th>
                 <th className="px-3 py-2">Flags</th>
-                <th className="px-3 py-2 text-right"
-                  title="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin. Red = Fresh (≥60), grey = Rotten (<60).">
+                <th
+                  className="px-3 py-2 text-right"
+                  title="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin. Red = Fresh (≥60), grey = Rotten (<60)."
+                >
                   <span className="inline-flex items-center gap-1">
                     Critic
                     <InfoHint
@@ -364,8 +406,9 @@ export function ScoutQueue() {
                     />
                   </span>
                 </th>
-                <th className="px-3 py-2 text-right"
-                  title="IMDb community rating (0–10) from Jellyfin CommunityRating">IMDb</th>
+                <th className="px-3 py-2 text-right" title="IMDb community rating (0–10) from Jellyfin CommunityRating">
+                  IMDb
+                </th>
                 <th className="px-3 py-2 text-right">Size</th>
               </tr>
             </thead>
@@ -379,13 +422,15 @@ export function ScoutQueue() {
                     background: selectedId === c.id ? 'rgba(124,58,237,0.12)' : undefined,
                   }}
                 >
-                  <td className="px-2 py-2 text-center" onClick={e => e.stopPropagation()}>
-                    <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
-                      style={{ minWidth: 28, minHeight: 28 }}>
+                  <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
+                    <label
+                      className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
+                      style={{ minWidth: 28, minHeight: 28 }}
+                    >
                       <input
                         type="checkbox"
                         checked={selectedBatch.includes(c.id)}
-                        onChange={e => toggleRowSelection(c.id, e.target.checked)}
+                        onChange={(e) => toggleRowSelection(c.id, e.target.checked)}
                         aria-label={`Select ${c.jellyfin_title ?? c.parsed_title ?? c.folder_name}`}
                         className="w-5 h-5 accent-violet-600 cursor-pointer"
                       />
@@ -407,7 +452,9 @@ export function ScoutQueue() {
                       {c.jellyfin_title ?? c.parsed_title ?? c.folder_name}
                     </button>
                   </td>
-                  <td className="px-3 py-2" style={{ color: 'var(--c-muted)' }}>{c.parsed_year ?? '—'}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--c-muted)' }}>
+                    {c.parsed_year ?? '—'}
+                  </td>
                   <td className="px-3 py-2">
                     <span className="inline-flex gap-1">
                       <ResolutionBadge resolution={c.resolution_cat} />
@@ -439,12 +486,7 @@ export function ScoutQueue() {
         )}
       </div>
 
-      {selectedId && (
-        <MovieDetailDrawer
-          movieId={selectedId}
-          onClose={() => setSelectedId(undefined)}
-        />
-      )}
+      {selectedId && <MovieDetailDrawer movieId={selectedId} onClose={() => setSelectedId(undefined)} />}
 
       <BatchConfirmModal
         open={showBatchModal}

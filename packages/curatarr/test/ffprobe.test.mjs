@@ -3,13 +3,13 @@
  * Tests against real files in ~/Media/MEDIA1/Movies
  */
 
-import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { promisify } from 'node:util';
 import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { describe, test } from 'node:test';
+import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
@@ -173,12 +173,18 @@ describe('parseProbeOutput', () => {
   // HLG test
   test('detects HLG via color_transfer', () => {
     const hlgData = JSON.stringify({
-      streams: [{
-        index: 0, codec_type: 'video', codec_name: 'hevc',
-        width: 3840, height: 2160,
-        color_transfer: 'arib-std-b67', color_primaries: 'bt2020',
-        avg_frame_rate: '25/1',
-      }],
+      streams: [
+        {
+          index: 0,
+          codec_type: 'video',
+          codec_name: 'hevc',
+          width: 3840,
+          height: 2160,
+          color_transfer: 'arib-std-b67',
+          color_primaries: 'bt2020',
+          avg_frame_rate: '25/1',
+        },
+      ],
       format: { format_name: 'matroska,webm', duration: '3600' },
     });
     const r = parseProbeOutput(hlgData);
@@ -193,7 +199,7 @@ describe('parseProbeOutput', () => {
 
 const REAL_FILE = path.join(
   os.homedir(),
-  'Media/MEDIA1/Movies/12 Angry Men (1957)/12.Angry.Men.1957.2160p.4K.BluRay.x265.10bit.AAC5.1-[YTS.MX].mkv'
+  'Media/MEDIA1/Movies/12 Angry Men (1957)/12.Angry.Men.1957.2160p.4K.BluRay.x265.10bit.AAC5.1-[YTS.MX].mkv',
 );
 
 test('probes a real file (integration)', { skip: !existsSync(REAL_FILE) }, async () => {

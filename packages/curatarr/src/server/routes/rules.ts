@@ -4,7 +4,7 @@ import type { CuratDb } from '../../db/client.js';
 function validateRuleConfig(category: string, config: unknown): string | null {
   if (category === 'scout_custom_cf') {
     const c = (config ?? {}) as Record<string, unknown>;
-    const matchType = c.matchType === 'regex' ? 'regex' : (c.matchType === 'string' ? 'string' : '');
+    const matchType = c.matchType === 'regex' ? 'regex' : c.matchType === 'string' ? 'string' : '';
     const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
     const score = Number(c.score ?? NaN);
     if (!matchType) return 'scout_custom_cf requires matchType: regex|string';
@@ -50,7 +50,7 @@ export function makeRulesRoutes(db: CuratDb): Hono {
 
   // PUT /api/rules — upsert one or more rules
   app.put('/', async (c) => {
-    const body = await c.req.json() as { rules: unknown[] };
+    const body = (await c.req.json()) as { rules: unknown[] };
     if (!Array.isArray(body.rules)) {
       return c.json({ error: 'Expected { rules: [...] }' }, 400);
     }
@@ -85,7 +85,7 @@ export function makeRulesRoutes(db: CuratDb): Hono {
 
   // POST /api/rules/reorder  { category: string, ids: number[] }
   app.post('/reorder', async (c) => {
-    const body = await c.req.json() as { category: string; ids: number[] };
+    const body = (await c.req.json()) as { category: string; ids: number[] };
     if (!body.category || !Array.isArray(body.ids)) {
       return c.json({ error: 'Expected { category, ids }' }, 400);
     }
@@ -97,5 +97,9 @@ export function makeRulesRoutes(db: CuratDb): Hono {
 }
 
 function safeParseJson(s: string): unknown {
-  try { return JSON.parse(s); } catch { return s; }
+  try {
+    return JSON.parse(s);
+  } catch {
+    return s;
+  }
 }

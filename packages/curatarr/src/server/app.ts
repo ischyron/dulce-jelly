@@ -3,25 +3,25 @@
  * Creates the API router and static file serving for the React SPA.
  */
 
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
-import { serveStatic } from '@hono/node-server/serve-static';
 import type { CuratDb } from '../db/client.js';
-import { makeStatsRoutes } from './routes/stats.js';
-import { makeMoviesRoutes } from './routes/movies.js';
-import { makeScanRoutes } from './routes/scan.js';
-import { makeSyncRoutes } from './routes/sync.js';
 import { makeCandidatesRoutes } from './routes/candidates.js';
-import { makeRulesRoutes } from './routes/rules.js';
-import { makeSettingsRoutes } from './routes/settings.js';
 import { makeDisambiguateRoutes } from './routes/disambiguate.js';
-import { makeVerifyRoutes } from './routes/verify.js';
-import { makeProxyRoutes } from './routes/proxy.js';
-import { makeScoutRoutes } from './routes/scout.js';
 import { makeFsRoutes } from './routes/fs.js';
+import { makeMoviesRoutes } from './routes/movies.js';
+import { makeProxyRoutes } from './routes/proxy.js';
+import { makeRulesRoutes } from './routes/rules.js';
+import { makeScanRoutes } from './routes/scan.js';
+import { makeScoutRoutes } from './routes/scout.js';
+import { makeSettingsRoutes } from './routes/settings.js';
+import { makeStatsRoutes } from './routes/stats.js';
+import { makeSyncRoutes } from './routes/sync.js';
+import { makeVerifyRoutes } from './routes/verify.js';
 
 export function createApp(db: CuratDb, distUiPath: string): Hono {
   const app = new Hono();
@@ -30,11 +30,14 @@ export function createApp(db: CuratDb, distUiPath: string): Hono {
   app.use('*', logger());
 
   // CORS for Vite dev server (port 5173)
-  app.use('/api/*', cors({
-    origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowHeaders: ['Content-Type', 'Authorization'],
-  }));
+  app.use(
+    '/api/*',
+    cors({
+      origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
+      allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowHeaders: ['Content-Type', 'Authorization'],
+    }),
+  );
 
   // ── API Routes ────────────────────────────────────────────────────
   app.route('/api/stats', makeStatsRoutes(db));
@@ -75,11 +78,16 @@ export function createApp(db: CuratDb, distUiPath: string): Hono {
     // SPA fallback — serve index.html for client-side routes
     app.get('/*', serveStatic({ root: relRoot, path: '/index.html' }));
   } else {
-    app.get('/*', (c) => c.json({
-      error: 'UI not built',
-      hint: 'Run: npm run build:ui  (in packages/curatarr/)',
-      api: '/api/*',
-    }, 503));
+    app.get('/*', (c) =>
+      c.json(
+        {
+          error: 'UI not built',
+          hint: 'Run: npm run build:ui  (in packages/curatarr/)',
+          api: '/api/*',
+        },
+        503,
+      ),
+    );
   }
 
   return app;

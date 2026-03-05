@@ -1,14 +1,14 @@
+import { useQuery } from '@tanstack/react-query';
+import { AlertCircle, CheckCircle, Film, LayoutDashboard, Loader2, Rocket, ScanLine } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { Film, LayoutDashboard, ScanLine, CheckCircle, AlertCircle, Rocket, Loader2 } from 'lucide-react';
 import { api } from '../api/client';
-import { ResolutionPieChart, CodecBarChart } from '../components/Charts';
-import { JellyfinIcon } from '../components/shared/icons/index';
-import { StatCard } from '../components/dashboard/StatCard';
-import { formatSyncDate } from '../components/dashboard/formatSyncDate';
-import { ScanProgressModal } from '../components/ScanProgressModal';
+import { CodecBarChart, ResolutionPieChart } from '../components/Charts';
 import { InfoHint } from '../components/InfoHint';
+import { StatCard } from '../components/dashboard/StatCard';
+import { JellyfinIcon } from '../components/shared/icons/index';
+import { ScanProgressModal } from '../components/shared/modals';
+import { formatSyncDate } from '../components/shared/utils';
 
 export function Dashboard() {
   const { data, isLoading, error } = useQuery({
@@ -41,15 +41,14 @@ export function Dashboard() {
     return <div className="p-8 text-red-400">Failed to load stats. Is the server running?</div>;
   }
 
-  const jellyfinSyncPercentage = data.totalMovies > 0
-    ? Math.round((data.jfEnriched / data.totalMovies) * 100)
-    : 0;
+  const jellyfinSyncPercentage = data.totalMovies > 0 ? Math.round((data.jfEnriched / data.totalMovies) * 100) : 0;
 
   const lastScan = data.lastScan as Record<string, unknown> | undefined;
   const lastScanSummary = lastScan ? (
     <div className="space-y-0.5 leading-5">
       <div>
-        Last scan: {formatSyncDate(String(lastScan.started_at ?? '—'))} ({Number(lastScan.duration_sec ?? 0).toFixed(0)}s)
+        Last scan: {formatSyncDate(String(lastScan.started_at ?? '—'))} ({Number(lastScan.duration_sec ?? 0).toFixed(0)}
+        s)
       </div>
       <div>
         <span className="text-emerald-400 font-semibold">{String(lastScan.scanned_ok ?? 0)}</span>
@@ -66,12 +65,17 @@ export function Dashboard() {
       codec,
       count,
       filter:
-        codec === 'eac3' ? 'ddp'
-        : codec === 'truehd' ? 'truehd'
-        : codec.startsWith('dts') ? 'dts'
-        : codec === 'aac' ? 'aac'
-        : codec === 'ac3' ? 'ac3'
-        : codec,
+        codec === 'eac3'
+          ? 'ddp'
+          : codec === 'truehd'
+            ? 'truehd'
+            : codec.startsWith('dts')
+              ? 'dts'
+              : codec === 'aac'
+                ? 'aac'
+                : codec === 'ac3'
+                  ? 'ac3'
+                  : codec,
     }));
 
   return (
@@ -87,13 +91,17 @@ export function Dashboard() {
             disabled={scanLaunching}
             className="flex items-center gap-2 px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-60 text-white rounded-lg text-sm font-medium"
           >
-            {scanLaunching
-              ? <><Loader2 size={16} className="animate-spin" /> Starting…</>
-              : <><ScanLine size={16} /> Scan Library</>}
+            {scanLaunching ? (
+              <>
+                <Loader2 size={16} className="animate-spin" /> Starting…
+              </>
+            ) : (
+              <>
+                <ScanLine size={16} /> Scan Library
+              </>
+            )}
           </button>
-          {scanError && (
-            <p className="text-xs text-red-400 max-w-xs text-right">{scanError}</p>
-          )}
+          {scanError && <p className="text-xs text-red-400 max-w-xs text-right">{scanError}</p>}
         </div>
       </div>
 
@@ -103,13 +111,26 @@ export function Dashboard() {
           <Rocket size={22} className="text-[#a78bfa] shrink-0 mt-0.5" />
           <div className="space-y-1">
             <p className="font-semibold text-[#d4cfff]">Welcome to Curatarr!</p>
-            <p className="text-sm text-[#8b87aa]">
-              Your library is empty. To get started:
-            </p>
+            <p className="text-sm text-[#8b87aa]">Your library is empty. To get started:</p>
             <ol className="text-sm text-[#8b87aa] list-decimal list-inside space-y-0.5 mt-1">
-              <li>Go to <Link to="/settings" className="text-[#a78bfa] hover:underline">Settings</Link> and set your Library Root Folders (Movies).</li>
-              <li>Return here and click <strong className="text-[#c4b5fd]">Scan Library</strong> to analyse your files with ffprobe.</li>
-              <li>Optionally run <Link to="/scan" className="text-[#a78bfa] hover:underline">Jellyfin Sync</Link> to enrich metadata from Jellyfin.</li>
+              <li>
+                Go to{' '}
+                <Link to="/settings" className="text-[#a78bfa] hover:underline">
+                  Settings
+                </Link>{' '}
+                and set your Library Root Folders (Movies).
+              </li>
+              <li>
+                Return here and click <strong className="text-[#c4b5fd]">Scan Library</strong> to analyse your files
+                with ffprobe.
+              </li>
+              <li>
+                Optionally run{' '}
+                <Link to="/scan" className="text-[#a78bfa] hover:underline">
+                  Jellyfin Sync
+                </Link>{' '}
+                to enrich metadata from Jellyfin.
+              </li>
             </ol>
           </div>
         </div>
@@ -142,7 +163,12 @@ export function Dashboard() {
           icon={CheckCircle}
           label="Scanned Files"
           value={`${data.scannedFiles.toLocaleString()} / ${data.totalFiles.toLocaleString()}`}
-          sub={lastScanSummary ?? (data.totalFiles > data.scannedFiles ? `${(data.totalFiles - data.scannedFiles).toLocaleString()} pending` : '')}
+          sub={
+            lastScanSummary ??
+            (data.totalFiles > data.scannedFiles
+              ? `${(data.totalFiles - data.scannedFiles).toLocaleString()} pending`
+              : '')
+          }
           subWrap
           color="text-green-400"
           infoText="File-level ffprobe scan coverage. This is per video file, not per movie folder."
@@ -183,56 +209,58 @@ export function Dashboard() {
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Video</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-1 items-center text-sm">
-          <Link
-            to="/library?hdr=1"
-            className="hover:underline inline-flex items-center gap-1"
-            title="Show HDR files in Library"
-          >
-            <span className="text-amber-400 font-semibold">{data.hdrCount}</span>
-            <span className="text-[#8b87aa]">HDR</span>
-          </Link>
-          <span className="text-[#26263a]">·</span>
-          <Link
-            to="/library?dv=1"
-            className="hover:underline inline-flex items-center gap-1"
-            title="Show Dolby Vision files in Library"
-          >
-            <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
-            <span className="text-[#8b87aa]">Dolby Vision</span>
-          </Link>
-          {(data.codecDist['av1'] ?? 0) > 0 && (
-            <>
-              <span className="text-[#26263a]">·</span>
-              <Link to="/library?av1Compat=1"
-                className="hover:underline inline-flex items-center gap-1"
-                title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library">
-                <span className="text-emerald-400 font-semibold">{data.codecDist['av1']}</span>
-                <span className="text-[#8b87aa]">AV1</span>
-                <span className="text-amber-400 text-xs">⚠ compat</span>
-              </Link>
-            </>
-          )}
-          {((data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)) > 0 && (
-            <>
-              <span className="text-[#26263a]">·</span>
-              <Link to="/library?legacy=1"
-                className="hover:underline inline-flex items-center gap-1"
-                title="Legacy codec — click to filter in Library">
-                <span className="text-orange-400 font-semibold">
-                  {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)}
-                </span>
-                <span className="text-[#8b87aa]">legacy codec</span>
-              </Link>
-            </>
-          )}
+            <Link
+              to="/library?hdr=1"
+              className="hover:underline inline-flex items-center gap-1"
+              title="Show HDR files in Library"
+            >
+              <span className="text-amber-400 font-semibold">{data.hdrCount}</span>
+              <span className="text-[#8b87aa]">HDR</span>
+            </Link>
+            <span className="text-[#26263a]">·</span>
+            <Link
+              to="/library?dv=1"
+              className="hover:underline inline-flex items-center gap-1"
+              title="Show Dolby Vision files in Library"
+            >
+              <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
+              <span className="text-[#8b87aa]">Dolby Vision</span>
+            </Link>
+            {(data.codecDist['av1'] ?? 0) > 0 && (
+              <>
+                <span className="text-[#26263a]">·</span>
+                <Link
+                  to="/library?av1Compat=1"
+                  className="hover:underline inline-flex items-center gap-1"
+                  title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library"
+                >
+                  <span className="text-emerald-400 font-semibold">{data.codecDist['av1']}</span>
+                  <span className="text-[#8b87aa]">AV1</span>
+                  <span className="text-amber-400 text-xs">⚠ compat</span>
+                </Link>
+              </>
+            )}
+            {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0) > 0 && (
+              <>
+                <span className="text-[#26263a]">·</span>
+                <Link
+                  to="/library?legacy=1"
+                  className="hover:underline inline-flex items-center gap-1"
+                  title="Legacy codec — click to filter in Library"
+                >
+                  <span className="text-orange-400 font-semibold">
+                    {(data.codecDist['mpeg4'] ?? 0) + (data.codecDist['mpeg2video'] ?? 0)}
+                  </span>
+                  <span className="text-[#8b87aa]">legacy codec</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Audio</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-            {audioQuickLinks.length === 0 && (
-              <span className="text-[#6b6888]">No audio codec data yet.</span>
-            )}
+            {audioQuickLinks.length === 0 && <span className="text-[#6b6888]">No audio codec data yet.</span>}
             {audioQuickLinks.map((row) => (
               <Link
                 key={row.codec}
@@ -271,9 +299,7 @@ export function Dashboard() {
         </div>
       </div>
 
-      {showScanModal && (
-        <ScanProgressModal mode="scan" onClose={() => setShowScanModal(false)} />
-      )}
+      {showScanModal && <ScanProgressModal mode="scan" onClose={() => setShowScanModal(false)} />}
     </div>
   );
 }

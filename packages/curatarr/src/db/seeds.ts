@@ -14,32 +14,30 @@
 
 import os from 'node:os';
 import path from 'node:path';
-import type { CuratDb } from './client.js';
-import { getDefaultLlmProvider, getScoutDefaultSettings } from '../shared/scoutDefaults.js';
 import { stringifyLibraryRoots } from '../shared/libraryRoots.js';
+import { getDefaultLlmProvider, getScoutDefaultSettings } from '../shared/scoutDefaults.js';
+import type { CuratDb } from './client.js';
 
 // ── Default settings ────────────────────────────────────────────────
 
 const DEFAULT_SETTINGS: Record<string, string> = {
   /** Resolved at runtime to avoid hardcoding username */
-  libraryRoots: stringifyLibraryRoots([
-    { type: 'movies', path: path.join(os.homedir(), 'Media', 'MEDIA1', 'Movies') },
-  ]),
+  libraryRoots: stringifyLibraryRoots([{ type: 'movies', path: path.join(os.homedir(), 'Media', 'MEDIA1', 'Movies') }]),
 
   /** Scan workers — half of logical CPUs, capped at 8 */
   defaultJobs: String(Math.min(8, Math.max(2, Math.floor(os.cpus().length / 2)))),
 
   /** JF sync schedule (applied at server startup) */
-  jfSyncIntervalMin: '30',       // 0 = disabled
-  jfSyncBatchSize: '10',         // items per JF API page during sync
+  jfSyncIntervalMin: '30', // 0 = disabled
+  jfSyncBatchSize: '10', // items per JF API page during sync
 
   /** Scout defaults (used as query params on /api/candidates) */
-  scoutMinCritic: '65',          // Metacritic ≥ 65
-  scoutMinCommunity: '7.0',      // IMDb ≥ 7.0
-  scoutSearchBatchSize: '5',     // hard-clamped to 10 in API/server
-  scoutAutoEnabled: 'false',     // scheduled scout disabled by default
-  scoutAutoIntervalMin: '60',    // auto scout schedule (minutes)
-  scoutAutoCooldownMin: '240',   // don't rescout same title too aggressively
+  scoutMinCritic: '65', // Metacritic ≥ 65
+  scoutMinCommunity: '7.0', // IMDb ≥ 7.0
+  scoutSearchBatchSize: '5', // hard-clamped to 10 in API/server
+  scoutAutoEnabled: 'false', // scheduled scout disabled by default
+  scoutAutoIntervalMin: '60', // auto scout schedule (minutes)
+  scoutAutoCooldownMin: '240', // don't rescout same title too aggressively
   // Scout release scoring (CF-style knobs, configurable in Settings)
   ...getScoutDefaultSettings(),
   llmProvider: getDefaultLlmProvider(),
@@ -77,10 +75,11 @@ const DEFAULT_RULES: RuleSeed[] = [
       maxResolution: '2160p',
       preferredCodecs: ['hevc', 'h264'],
       compatCodecs: ['hevc', 'h264', 'mpeg4'],
-      av1Support: 'none',           // older sticks lack hardware AV1 decode
+      av1Support: 'none', // older sticks lack hardware AV1 decode
       hdrSupport: ['HDR10', 'HLG'],
-      dvProfiles: [],               // DV requires extra licensing on AOSP
-      notes: 'No AV1 hardware decode on most Chromecast/Android TV sticks. DV needs app-level support (e.g. Jellyfin Android with ExoPlayer).',
+      dvProfiles: [], // DV requires extra licensing on AOSP
+      notes:
+        'No AV1 hardware decode on most Chromecast/Android TV sticks. DV needs app-level support (e.g. Jellyfin Android with ExoPlayer).',
     },
   },
   {
@@ -142,7 +141,8 @@ const DEFAULT_RULES: RuleSeed[] = [
       groups: ['YTS.MX', 'YTS.AG', 'YTS.AM', 'YTS.LT', 'YIFY', 'YTS'],
       tier: 'web-opt',
       upgradeDesirable: true,
-      notes: 'Small H264 encodes (typically 700MB–2GB). Good for 1080p viewing; prime candidates for 4K/HEVC upgrade when available.',
+      notes:
+        'Small H264 encodes (typically 700MB–2GB). Good for 1080p viewing; prime candidates for 4K/HEVC upgrade when available.',
     },
   },
   {
@@ -190,14 +190,14 @@ const DEFAULT_RULES: RuleSeed[] = [
     priority: 0,
     config: {
       weights: {
-        av1:        100,   // best compression, emerging
-        hevc:       90,    // preferred for 4K
-        h264:       70,    // universal compat
-        mpeg4:      40,    // old, avoid
-        mpeg2video: 20,    // very old
-        other:      30,
+        av1: 100, // best compression, emerging
+        hevc: 90, // preferred for 4K
+        h264: 70, // universal compat
+        mpeg4: 40, // old, avoid
+        mpeg2video: 20, // very old
+        other: 30,
       },
-      av1TvClientWarning: true,   // warn when active client profile doesn't support AV1
+      av1TvClientWarning: true, // warn when active client profile doesn't support AV1
       notes: 'AV1 scores highest for compression efficiency but TV client compat must be checked.',
     },
   },
@@ -210,9 +210,9 @@ const DEFAULT_RULES: RuleSeed[] = [
       weights: {
         '2160p': 100,
         '1080p': 70,
-        '720p':  40,
-        '480p':  10,
-        other:   20,
+        '720p': 40,
+        '480p': 10,
+        other: 20,
       },
     },
   },
@@ -224,12 +224,12 @@ const DEFAULT_RULES: RuleSeed[] = [
     config: {
       bonuses: {
         DolbyVision: 15,
-        'HDR10+':    10,
-        HDR10:       8,
-        HLG:         5,
+        'HDR10+': 10,
+        HDR10: 8,
+        HLG: 5,
       },
       dvProfilePenalty: {
-        7: 5,    // P7 FEL — compatible with fewer clients, small penalty
+        7: 5, // P7 FEL — compatible with fewer clients, small penalty
       },
       notes: 'DV P7 (FEL) is only fully decoded on SHIELD/high-end setups.',
     },
@@ -242,9 +242,9 @@ const DEFAULT_RULES: RuleSeed[] = [
     config: {
       // MB/min thresholds — flag bloated or suspiciously small encodes
       redFlags: {
-        tooSmall1080p: 50,    // < 50 MB/min for 1080p is suspiciously small
-        tooLarge1080p: 400,   // > 400 MB/min for 1080p is likely a remux (fine)
-        tooSmall2160p: 100,   // < 100 MB/min for 2160p is compressed/web
+        tooSmall1080p: 50, // < 50 MB/min for 1080p is suspiciously small
+        tooLarge1080p: 400, // > 400 MB/min for 1080p is likely a remux (fine)
+        tooSmall2160p: 100, // < 100 MB/min for 2160p is compressed/web
       },
     },
   },
@@ -259,7 +259,7 @@ const DEFAULT_RULES: RuleSeed[] = [
       // Surface these in the Scout Queue by default
       minCriticRating: 65,
       minCommunityRating: 7.0,
-      maxCurrentResolution: '1080p',   // currently ≤ 1080p → upgrade candidate
+      maxCurrentResolution: '1080p', // currently ≤ 1080p → upgrade candidate
       targetGroups: ['YTS.MX', 'YTS.AG', 'YTS.AM', 'YIFY', 'YTS'],
       // Desired upgrade target
       targetResolution: '2160p',
@@ -277,7 +277,7 @@ const DEFAULT_RULES: RuleSeed[] = [
       // Files to flag for review given Android TV default profile
       flagCodecs: ['av1'],
       reason: 'AV1 may not hardware-decode on Android TV sticks — check client compatibility',
-      action: 'review',   // 'review' | 'replace' | 'ignore'
+      action: 'review', // 'review' | 'replace' | 'ignore'
       notes: 'If primary client is Chromecast 4K (2022+) or SHIELD, disable this rule.',
     },
   },
@@ -306,7 +306,7 @@ export function seedDefaults(db: CuratDb): void {
 
   // Seed rules (skip if any rules already exist in the category)
   const existingRules = db.getRules();
-  const existingCategories = new Set(existingRules.map(r => r.category));
+  const existingCategories = new Set(existingRules.map((r) => r.category));
 
   for (const rule of DEFAULT_RULES) {
     if (!existingCategories.has(rule.category)) {

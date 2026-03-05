@@ -20,14 +20,20 @@ export function CompatTag({ codec }: Props) {
 
   if (k === 'av1' && AV1_TV_WARN_PROFILES.has(profile)) {
     return (
-      <span title="AV1 not hardware-decoded on this client" className="inline-flex items-center gap-0.5 text-xs text-amber-400">
+      <span
+        title="AV1 not hardware-decoded on this client"
+        className="inline-flex items-center gap-0.5 text-xs text-amber-400"
+      >
         <AlertTriangle size={11} /> AV1 compat
       </span>
     );
   }
   if (LEGACY_CODECS.has(k)) {
     return (
-      <span title="Legacy codec — replace recommended" className="inline-flex items-center gap-0.5 text-xs text-orange-400">
+      <span
+        title="Legacy codec — replace recommended"
+        className="inline-flex items-center gap-0.5 text-xs text-orange-400"
+      >
         <AlertTriangle size={11} /> legacy
       </span>
     );

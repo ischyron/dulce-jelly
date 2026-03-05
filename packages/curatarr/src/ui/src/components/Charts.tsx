@@ -1,15 +1,12 @@
-import {
-  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+import { Bar, BarChart, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 
 const RES_COLORS: Record<string, string> = {
   '2160p': '#a855f7',
   '1080p': '#3b82f6',
   '720p': '#22c55e',
   '480p': '#eab308',
-  'other': '#6b7280',
-  'unknown': '#374151',
+  other: '#6b7280',
+  unknown: '#374151',
 };
 
 const CODEC_COLORS: Record<string, string> = {
@@ -51,7 +48,7 @@ export function ResolutionPieChart({ data }: DistChartProps) {
               stroke="#16161f"
               strokeWidth={2}
             >
-              {entries.map(e => (
+              {entries.map((e) => (
                 <Cell key={e.name} fill={RES_COLORS[e.name] ?? '#6b7280'} />
               ))}
             </Pie>
@@ -71,7 +68,7 @@ export function ResolutionPieChart({ data }: DistChartProps) {
       </div>
 
       <div className="flex-1 flex flex-col gap-2">
-        {entries.map(e => {
+        {entries.map((e) => {
           const pct = Math.round((e.value / total) * 100);
           return (
             <div key={e.name} className="text-xs">
@@ -83,7 +80,9 @@ export function ResolutionPieChart({ data }: DistChartProps) {
                   />
                   <span className="text-[#9f9abf]">{e.name}</span>
                 </div>
-                <span className="text-[#f0eeff] tabular-nums">{e.value} <span className="text-[#6b6888]">({pct}%)</span></span>
+                <span className="text-[#f0eeff] tabular-nums">
+                  {e.value} <span className="text-[#6b6888]">({pct}%)</span>
+                </span>
               </div>
               <div className="h-1.5 rounded-full bg-[#1f2030] overflow-hidden">
                 <div
@@ -119,7 +118,7 @@ export function CodecBarChart({ data }: DistChartProps) {
           itemStyle={{ color: '#d1d5db' }}
         />
         <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-          {entries.map(e => (
+          {entries.map((e) => (
             <Cell key={e.name} fill={CODEC_COLORS[e.name] ?? '#6366f1'} />
           ))}
         </Bar>

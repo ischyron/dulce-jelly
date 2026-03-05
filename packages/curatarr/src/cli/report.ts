@@ -3,16 +3,16 @@
  * Print quality analysis from the SQLite DB.
  */
 
-import { Command } from 'commander';
 import os from 'node:os';
 import path from 'node:path';
+import { Command } from 'commander';
 import { CuratDb } from '../db/client.js';
 import {
-  printStatus,
-  printUpgradeCandidates,
-  printSuspiciousFiles,
-  printHdrBreakdown,
   printAudioBreakdown,
+  printHdrBreakdown,
+  printStatus,
+  printSuspiciousFiles,
+  printUpgradeCandidates,
 } from '../report/report.js';
 
 export function makeReportCommand(): Command {

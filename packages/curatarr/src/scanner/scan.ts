@@ -4,11 +4,11 @@
  * Concurrent ffprobe with configurable worker pool.
  */
 
-import path from 'node:path';
 import os from 'node:os';
-import { walkLibrary } from './walker.js';
-import { probeFile, probeToUpsert } from './ffprobe.js';
+import path from 'node:path';
 import type { CuratDb } from '../db/client.js';
+import { probeFile, probeToUpsert } from './ffprobe.js';
+import { walkLibrary } from './walker.js';
 
 export interface ScanOptions {
   /** Number of concurrent ffprobe processes. Default: half CPU cores. */
@@ -33,7 +33,7 @@ export interface ScanProgress {
   filesProcessed: number;
   filesOk: number;
   filesErrored: number;
-  currentRate: number;   // files/sec (rolling)
+  currentRate: number; // files/sec (rolling)
   elapsedSec: number;
   cancelled?: boolean;
 }
@@ -52,10 +52,7 @@ export interface ScanResult {
 // Concurrency pool — run up to N async tasks simultaneously
 // ──────────────────────────────────────────────────────────────────
 
-async function runPool<T>(
-  tasks: (() => Promise<T>)[],
-  concurrency: number
-): Promise<T[]> {
+async function runPool<T>(tasks: (() => Promise<T>)[], concurrency: number): Promise<T[]> {
   const results: T[] = [];
   let idx = 0;
 
@@ -75,11 +72,7 @@ async function runPool<T>(
 // Main scan function
 // ──────────────────────────────────────────────────────────────────
 
-export async function scanLibrary(
-  rootPath: string,
-  db: CuratDb,
-  opts: ScanOptions = {}
-): Promise<ScanResult> {
+export async function scanLibrary(rootPath: string, db: CuratDb, opts: ScanOptions = {}): Promise<ScanResult> {
   const concurrency = opts.concurrency ?? Math.max(1, Math.floor(os.cpus().length / 2));
   const rescan = opts.rescan ?? false;
 
@@ -101,7 +94,7 @@ export async function scanLibrary(
     folderName: string;
     parsedTitle: string;
     parsedYear: number | undefined;
-    movieId?: number;           // filled after upsert
+    movieId?: number; // filled after upsert
     filePath: string;
     filename: string;
     alreadyScanned: boolean;
@@ -132,7 +125,7 @@ export async function scanLibrary(
 
       // Check if already scanned
       const existingFiles = db.getFilesForMovie(movieId);
-      const existing = existingFiles.find(f => f.file_path === filePath);
+      const existing = existingFiles.find((f) => f.file_path === filePath);
       const alreadyScanned = !!(existing?.scanned_at && !rescan);
 
       if (alreadyScanned) {
@@ -162,9 +155,10 @@ export async function scanLibrary(
   if (workItems.length === 0) {
     const durationSec = (Date.now() - startTime) / 1000;
     result.durationSec = durationSec;
-    const notes = prunedMissingFiles > 0
-      ? `All files already scanned; pruned ${prunedMissingFiles} stale DB file rows`
-      : 'All files already scanned';
+    const notes =
+      prunedMissingFiles > 0
+        ? `All files already scanned; pruned ${prunedMissingFiles} stale DB file rows`
+        : 'All files already scanned';
     db.finishScanRun(runId, { ...result, durationSec, notes });
     return result;
   }
@@ -173,7 +167,7 @@ export async function scanLibrary(
   let filesProcessed = 0;
   const rateWindow: number[] = []; // timestamps for rolling rate
 
-  const tasks = workItems.map(item => async () => {
+  const tasks = workItems.map((item) => async () => {
     // Check cancellation before each file
     if (opts.signal?.aborted) return;
     if (!item.movieId) return;
@@ -194,7 +188,9 @@ export async function scanLibrary(
           result.errors.push({ file: item.filePath, error: 'File too large' });
           return;
         }
-      } catch { /* stat failed — proceed anyway */ }
+      } catch {
+        /* stat failed — proceed anyway */
+      }
     }
 
     const probeResult = await probeFile(item.filePath);
@@ -234,7 +230,7 @@ export async function scanLibrary(
         folder: item.folderName,
         file: item.filename,
         foldersDone: folderFileDone.size,
-        foldersTotal: folderFileCounts.size,  // only folders with pending work, not all library folders
+        foldersTotal: folderFileCounts.size, // only folders with pending work, not all library folders
         filesProcessed,
         filesOk: result.scannedOk,
         filesErrored: result.scanErrors,
@@ -255,10 +251,13 @@ export async function scanLibrary(
     scannedOk: result.scannedOk,
     scanErrors: result.scanErrors,
     durationSec: result.durationSec,
-    notes: [
-      result.errors.length > 0 ? `${result.errors.length} errors` : null,
-      prunedMissingFiles > 0 ? `pruned ${prunedMissingFiles} stale DB file rows` : null,
-    ].filter(Boolean).join('; ') || undefined,
+    notes:
+      [
+        result.errors.length > 0 ? `${result.errors.length} errors` : null,
+        prunedMissingFiles > 0 ? `pruned ${prunedMissingFiles} stale DB file rows` : null,
+      ]
+        .filter(Boolean)
+        .join('; ') || undefined,
   });
 
   return result;

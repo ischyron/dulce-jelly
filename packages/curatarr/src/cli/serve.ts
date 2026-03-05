@@ -3,18 +3,18 @@
  * Starts the Hono HTTP server serving the API + React SPA.
  */
 
-import { Command } from 'commander';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { serve } from '@hono/node-server';
+import { Command } from 'commander';
 import { CuratDb } from '../db/client.js';
-import { createApp } from '../server/app.js';
 import { seedDefaults } from '../db/seeds.js';
 import { JellyfinClient } from '../integrations/jellyfin/client.js';
 import { syncJellyfin } from '../integrations/jellyfin/sync.js';
-import { syncEmitter } from '../server/sse.js';
+import { createApp } from '../server/app.js';
 import { runScoutAutoBatch } from '../server/routes/scout.js';
+import { syncEmitter } from '../server/sse.js';
 import { applyRuntimeSettingsToDb, ensureRuntimePaths, loadRuntimeConfig } from '../shared/runtimeConfig.js';
 import { getScoutDefaultSettings } from '../shared/scoutDefaults.js';
 
@@ -82,7 +82,7 @@ export function makeServeCommand(): Command {
 
 function startJfSyncScheduler(db: CuratDb): void {
   const intervalMin = parseInt(db.getSetting('jfSyncIntervalMin') ?? '30', 10);
-  if (isNaN(intervalMin) || intervalMin <= 0) {
+  if (Number.isNaN(intervalMin) || intervalMin <= 0) {
     console.log('  JF Sync : Auto-sync disabled (interval = 0)');
     return;
   }
@@ -148,11 +148,11 @@ function startScoutScheduler(db: CuratDb): void {
   const runScheduledScout = async () => {
     try {
       const summary = await runScoutAutoBatch(db, 'scheduled');
-      const errors = summary.results.filter(r => r.error).length;
+      const errors = summary.results.filter((r) => r.error).length;
       console.log(
         `  [Scout] Auto batch done — ${summary.processed}/${summary.maxAllowed} processed` +
-        `${summary.skippedByCooldown ? `, ${summary.skippedByCooldown} cooldown-skipped` : ''}` +
-        `${errors ? `, ${errors} errors` : ''}`,
+          `${summary.skippedByCooldown ? `, ${summary.skippedByCooldown} cooldown-skipped` : ''}` +
+          `${errors ? `, ${errors} errors` : ''}`,
       );
     } catch (err) {
       const msg = (err as Error).message;

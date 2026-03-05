@@ -1,13 +1,10 @@
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { JellyfinClient } from '../../integrations/jellyfin/client.js';
-import { syncScoringYamlFromSettings } from '../../shared/scoutDefaults.js';
 import { parseLibraryRootsUnknown, validateLibraryRootsEntries } from '../../shared/libraryRoots.js';
+import { syncScoringYamlFromSettings } from '../../shared/scoutDefaults.js';
 
-const DEPRECATED_SCOUT_SETTINGS = [
-  'scoutCfSmall4kPenalty',
-  'scoutCfSmall4kMinGiB',
-] as const;
+const DEPRECATED_SCOUT_SETTINGS = ['scoutCfSmall4kPenalty', 'scoutCfSmall4kMinGiB'] as const;
 
 export function makeSettingsRoutes(db: CuratDb): Hono {
   const app = new Hono();
@@ -23,7 +20,10 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
 
   cleanupDeprecatedScoutSettings();
 
-  async function testProwlarr(url: string, apiKey: string): Promise<{ ok: boolean; indexers?: number; error?: string }> {
+  async function testProwlarr(
+    url: string,
+    apiKey: string,
+  ): Promise<{ ok: boolean; indexers?: number; error?: string }> {
     const endpoint = `${url.replace(/\/+$/, '')}/api/v1/indexer`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10_000);
@@ -65,7 +65,7 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
 
   // PUT /api/settings  { key: value, ... }
   app.put('/', async (c) => {
-    const body = await c.req.json() as Record<string, string>;
+    const body = (await c.req.json()) as Record<string, string>;
     if (typeof body.libraryRoots === 'string') {
       let decoded: unknown;
       try {

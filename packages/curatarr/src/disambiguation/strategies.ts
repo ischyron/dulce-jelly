@@ -12,9 +12,9 @@ import type { DisambiguateRequest, DisambiguateResult } from './types.js';
 export function normTitle(s: string): string {
   return s
     .toLowerCase()
-    .replace(/\s*\(\d{4}\)\s*$/, '')  // strip trailing "(year)"
-    .replace(/^the\s+/, '')            // strip leading "The "
-    .replace(/[^\w\s]/g, '')           // strip punctuation
+    .replace(/\s*\(\d{4}\)\s*$/, '') // strip trailing "(year)"
+    .replace(/^the\s+/, '') // strip leading "The "
+    .replace(/[^\w\s]/g, '') // strip punctuation
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -29,7 +29,10 @@ export function titleSimilarity(a: string, b: string): number {
   const used = new Set<number>();
   for (const ch of shorter) {
     const idx = longer.split('').findIndex((c, i) => c === ch && !used.has(i));
-    if (idx >= 0) { matches++; used.add(idx); }
+    if (idx >= 0) {
+      matches++;
+      used.add(idx);
+    }
   }
   return matches / longer.length;
 }
@@ -44,10 +47,7 @@ function makeMatch(req: DisambiguateRequest, m: MovieRow): DisambiguateResult['m
 }
 
 function normPath(p: string): string {
-  return p
-    .replace(/\\/g, '/')
-    .replace(/\/+$/, '')
-    .toLowerCase();
+  return p.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
 }
 
 function pathFolderName(p: string): string {
@@ -58,15 +58,12 @@ function pathFolderName(p: string): string {
 
 // ── Strategy functions ─────────────────────────────────────────────
 
-export function strategyPath(
-  req: DisambiguateRequest,
-  dbMovies: MovieRow[]
-): DisambiguateResult | undefined {
+export function strategyPath(req: DisambiguateRequest, dbMovies: MovieRow[]): DisambiguateResult | undefined {
   if (!req.folderPath) return undefined;
   const reqPath = normPath(req.folderPath);
 
   // 1) Exact path match after path normalization.
-  const exact = dbMovies.find(m => normPath(m.folder_path) === reqPath);
+  const exact = dbMovies.find((m) => normPath(m.folder_path) === reqPath);
   if (exact) {
     return {
       requestId: req.id,
@@ -81,7 +78,7 @@ export function strategyPath(
   //    if Jellyfin and Curatarr use different roots (/Volumes/Movies vs /media),
   //    match by the movie folder name when it is unique.
   const folder = pathFolderName(reqPath);
-  const byFolder = dbMovies.filter(m => pathFolderName(m.folder_path) === folder);
+  const byFolder = dbMovies.filter((m) => pathFolderName(m.folder_path) === folder);
   if (byFolder.length !== 1) return undefined;
   const m = byFolder[0];
   return {
@@ -93,12 +90,9 @@ export function strategyPath(
   };
 }
 
-export function strategyImdb(
-  req: DisambiguateRequest,
-  dbMovies: MovieRow[]
-): DisambiguateResult | undefined {
+export function strategyImdb(req: DisambiguateRequest, dbMovies: MovieRow[]): DisambiguateResult | undefined {
   if (!req.imdbId) return undefined;
-  const m = dbMovies.find(m => m.imdb_id === req.imdbId);
+  const m = dbMovies.find((m) => m.imdb_id === req.imdbId);
   if (!m) return undefined;
   return {
     requestId: req.id,
@@ -109,13 +103,10 @@ export function strategyImdb(
   };
 }
 
-export function strategyTitleYear(
-  req: DisambiguateRequest,
-  dbMovies: MovieRow[]
-): DisambiguateResult | undefined {
+export function strategyTitleYear(req: DisambiguateRequest, dbMovies: MovieRow[]): DisambiguateResult | undefined {
   if (!req.year) return undefined;
   const reqNorm = normTitle(req.title);
-  const m = dbMovies.find(m => {
+  const m = dbMovies.find((m) => {
     if (m.parsed_year !== req.year && m.jellyfin_year !== req.year) return false;
     return normTitle(m.parsed_title ?? m.folder_name) === reqNorm;
   });
@@ -129,12 +120,9 @@ export function strategyTitleYear(
   };
 }
 
-export function strategyTitleOnly(
-  req: DisambiguateRequest,
-  dbMovies: MovieRow[]
-): DisambiguateResult | undefined {
+export function strategyTitleOnly(req: DisambiguateRequest, dbMovies: MovieRow[]): DisambiguateResult | undefined {
   const reqNorm = normTitle(req.title);
-  const m = dbMovies.find(m => normTitle(m.parsed_title ?? m.folder_name) === reqNorm);
+  const m = dbMovies.find((m) => normTitle(m.parsed_title ?? m.folder_name) === reqNorm);
   if (!m) return undefined;
   const yearMismatch = req.year != null && m.parsed_year != null && m.parsed_year !== req.year;
   return {
@@ -147,25 +135,20 @@ export function strategyTitleOnly(
   };
 }
 
-export function strategyFuzzy(
-  req: DisambiguateRequest,
-  dbMovies: MovieRow[]
-): DisambiguateResult | undefined {
+export function strategyFuzzy(req: DisambiguateRequest, dbMovies: MovieRow[]): DisambiguateResult | undefined {
   const reqNorm = normTitle(req.title);
   const candidates = dbMovies
-    .map(m => {
+    .map((m) => {
       const dbNorm = normTitle(m.parsed_title ?? m.folder_name);
       return { m, sim: titleSimilarity(reqNorm, dbNorm) };
     })
-    .filter(x => x.sim >= 0.85)
+    .filter((x) => x.sim >= 0.85)
     .sort((a, b) => b.sim - a.sim);
 
   if (candidates.length === 0) return undefined;
   const best = candidates[0];
   const yearMismatch = req.year != null && best.m.parsed_year != null && best.m.parsed_year !== req.year;
-  const reason: DisambiguateResult['ambiguousReason'] = yearMismatch
-    ? 'year_and_title_fuzzy'
-    : 'title_fuzzy';
+  const reason: DisambiguateResult['ambiguousReason'] = yearMismatch ? 'year_and_title_fuzzy' : 'title_fuzzy';
   return {
     requestId: req.id,
     match: makeMatch(req, best.m),

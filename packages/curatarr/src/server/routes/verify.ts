@@ -10,8 +10,8 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import type { CuratDb } from '../../db/client.js';
-import { verifyEmitter } from '../sse.js';
 import { startVerifyQueue } from '../../scanner/verifyQueue.js';
+import { verifyEmitter } from '../sse.js';
 
 export function makeVerifyRoutes(db: CuratDb): Hono {
   const app = new Hono();
@@ -22,7 +22,7 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
       return c.json({ error: 'Verify already running' }, 409);
     }
 
-    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const concurrency = Math.max(1, Math.min(8, parseInt(String(body.concurrency ?? 3), 10)));
     const fileIds = Array.isArray(body.fileIds) ? (body.fileIds as number[]) : undefined;
     const rescan = Boolean(body.rescan);
@@ -64,7 +64,9 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
       const unsub = verifyEmitter.subscribe(async (ev) => {
         try {
           await stream.writeSSE({ event: ev.event, data: JSON.stringify(ev.data) });
-        } catch { /* client disconnected */ }
+        } catch {
+          /* client disconnected */
+        }
       });
 
       await new Promise<void>((resolve) => {

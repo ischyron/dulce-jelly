@@ -36,13 +36,14 @@ function listMountedPaths(): string[] {
       if (!mountPoint.startsWith('/')) continue;
       const normalized = normalizeDir(mountPoint);
       if (
-        normalized === '/'
-        || normalized.startsWith('/proc')
-        || normalized.startsWith('/sys')
-        || normalized.startsWith('/dev')
-        || normalized.startsWith('/run')
-        || normalized.startsWith('/var/lib/docker')
-      ) continue;
+        normalized === '/' ||
+        normalized.startsWith('/proc') ||
+        normalized.startsWith('/sys') ||
+        normalized.startsWith('/dev') ||
+        normalized.startsWith('/run') ||
+        normalized.startsWith('/var/lib/docker')
+      )
+        continue;
       if (!fs.existsSync(normalized)) continue;
       out.add(normalized);
     }
@@ -97,7 +98,8 @@ export function makeFsRoutes(): Hono {
       return c.json({ error: `Path is outside allowed roots: ${currentPath}` }, 403);
     }
 
-    const entries = fs.readdirSync(currentPath, { withFileTypes: true })
+    const entries = fs
+      .readdirSync(currentPath, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => ({ name: d.name, path: path.join(currentPath, d.name) }))
       .sort((a, b) => a.name.localeCompare(b.name));
@@ -117,4 +119,3 @@ export function makeFsRoutes(): Hono {
 
   return app;
 }
-

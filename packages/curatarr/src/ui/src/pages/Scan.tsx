@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { ScanLine, RefreshCw } from 'lucide-react';
-import { api, type ScanHistoryRun } from '../api/client';
-import { ScanProgressModal } from '../components/ScanProgressModal';
+import { RefreshCw, ScanLine } from 'lucide-react';
+import { useState } from 'react';
+import { type ScanHistoryRun, api } from '../api/client';
 import { InfoHint } from '../components/InfoHint';
+import { ScanProgressModal } from '../components/shared/modals';
 
 const JF_SYNC_HOW_IT_WORKS = `Jellyfin Sync — how it works
 
@@ -105,18 +105,20 @@ export function Scan() {
           Library Scan
         </h2>
         <p className="text-sm text-[#8b87aa]">
-          Scan movie folders and video files (uses ffprobe on video files to refresh quality metadata).
-          By default, already scanned files are skipped. Enable "Force rescan all files" below to re-scan all files.
+          Scan movie folders and video files (uses ffprobe on video files to refresh quality metadata). By default,
+          already scanned files are skipped. Enable "Force rescan all files" below to re-scan all files.
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2">
-            <label className="text-xs text-[#6b6888] block mb-1">Library Path (leave blank to use saved Movies roots)</label>
+            <label className="text-xs text-[#6b6888] block mb-1">
+              Library Path (leave blank to use saved Movies roots)
+            </label>
             <input
               type="text"
               placeholder="e.g. /media/Movies"
               value={scanPath}
-              onChange={e => setScanPath(e.target.value)}
+              onChange={(e) => setScanPath(e.target.value)}
               className="w-full px-3 py-1.5 bg-[#1e1e2e] border border-[#26263a] rounded text-sm text-[#f0eeff] placeholder-gray-600 focus:outline-none focus:border-[#7c3aed]"
             />
           </div>
@@ -124,9 +126,10 @@ export function Scan() {
             <label className="text-xs text-[#6b6888] block mb-1">Workers</label>
             <input
               type="number"
-              min={1} max={16}
+              min={1}
+              max={16}
               value={jobs}
-              onChange={e => setJobs(Number(e.target.value))}
+              onChange={(e) => setJobs(Number(e.target.value))}
               className="w-full px-3 py-1.5 bg-[#1e1e2e] border border-[#26263a] rounded text-sm text-[#f0eeff] focus:outline-none"
             />
           </div>
@@ -136,7 +139,7 @@ export function Scan() {
           <input
             type="checkbox"
             checked={rescan}
-            onChange={e => setRescan(e.target.checked)}
+            onChange={(e) => setRescan(e.target.checked)}
             className="accent-violet-600"
           />
           Force rescan all files
@@ -153,11 +156,9 @@ export function Scan() {
           className="flex items-center gap-2 px-5 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <ScanLine size={15} />
-          {scanRunning ? 'Scanning…' : (rescan ? 'Start Full Rescan' : 'Start Incremental Scan')}
+          {scanRunning ? 'Scanning…' : rescan ? 'Start Full Rescan' : 'Start Incremental Scan'}
         </button>
-        {scanError && (
-          <p className="text-sm text-red-400 mt-1">{scanError}</p>
-        )}
+        {scanError && <p className="text-sm text-red-400 mt-1">{scanError}</p>}
       </div>
 
       {/* Sync section */}
@@ -168,8 +169,8 @@ export function Scan() {
           <InfoHint label="How Jellyfin sync works" text={JF_SYNC_HOW_IT_WORKS} />
         </h2>
         <p className="text-sm text-[#8b87aa]">
-          Fetch movie metadata from Jellyfin (ratings, genres, IDs) and enrich the local database.
-          Requires Jellyfin URL and API key configured in Settings.
+          Fetch movie metadata from Jellyfin (ratings, genres, IDs) and enrich the local database. Requires Jellyfin URL
+          and API key configured in Settings.
         </p>
         <button
           onClick={triggerSync}
@@ -179,9 +180,7 @@ export function Scan() {
           <RefreshCw size={15} />
           {syncRunning ? 'Syncing…' : 'Sync from Jellyfin'}
         </button>
-        {syncError && (
-          <p className="text-sm text-red-400 mt-1">{syncError}</p>
-        )}
+        {syncError && <p className="text-sm text-red-400 mt-1">{syncError}</p>}
       </div>
 
       {/* Scan history */}
@@ -226,8 +225,13 @@ export function Scan() {
       {modal && (
         <ScanProgressModal
           mode={modal}
-          onCompleted={() => { void refetchHistory(); }}
-          onClose={() => { setModal(null); void refetchHistory(); }}
+          onCompleted={() => {
+            void refetchHistory();
+          }}
+          onClose={() => {
+            setModal(null);
+            void refetchHistory();
+          }}
         />
       )}
     </div>

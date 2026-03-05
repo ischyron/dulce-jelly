@@ -94,7 +94,8 @@ Codec normalization is applied (AV1 lower band, H264 higher band) before filteri
 
 This avoids one global bitrate threshold across all formats.`;
 
-export const BITRATE_PROFILE_DESCRIPTION = 'Choose a bias profile to prefill recommended bitrate Min/Max gates by resolution. By default, WEB-DL bias is selected for storage efficiency.';
+export const BITRATE_PROFILE_DESCRIPTION =
+  'Choose a bias profile to prefill recommended bitrate Min/Max gates by resolution. By default, WEB-DL bias is selected for storage efficiency.';
 
 export const BITRATE_PREVIEW_MINUTES = 110;
 

@@ -1,9 +1,9 @@
 import type { Movie } from '../../api/client';
-import { ResolutionBadge, CodecBadge, HdrBadge, QualityFlagsBadge, CriticScoreBadge } from '../QualityBadge';
 import { InfoHint } from '../InfoHint';
-import type { SortField } from './types';
+import { CodecBadge, CriticScoreBadge, HdrBadge, QualityFlagsBadge, ResolutionBadge } from '../QualityBadge';
 import { SortHeader } from './SortHeader';
 import { StatusDots } from './StatusDots';
+import type { SortField } from './types';
 
 interface Props {
   isLoading: boolean;
@@ -39,7 +39,11 @@ export function LibraryTable({
   formatSize,
 }: Props) {
   if (isLoading) {
-    return <div className="p-8 text-sm" style={{ color: 'var(--c-muted)' }}>Loading…</div>;
+    return (
+      <div className="p-8 text-sm" style={{ color: 'var(--c-muted)' }}>
+        Loading…
+      </div>
+    );
   }
 
   if (!movies.length) {
@@ -59,7 +63,10 @@ export function LibraryTable({
       <thead className="sticky top-0 z-[5]" style={{ background: 'var(--c-bg)' }}>
         <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
           <th className="px-2 py-2 text-center" style={{ width: '32px' }}>
-            <label className="inline-flex items-center justify-center cursor-pointer p-1 rounded" style={{ minWidth: 28, minHeight: 28 }}>
+            <label
+              className="inline-flex items-center justify-center cursor-pointer p-1 rounded"
+              style={{ minWidth: 28, minHeight: 28 }}
+            >
               <input
                 type="checkbox"
                 checked={allPageSelected}
@@ -71,9 +78,22 @@ export function LibraryTable({
           </th>
           <SortHeader field="title" label="Title" current={sortBy} dir={sortDir} onChange={onSort} />
           <SortHeader field="year" label="Year" current={sortBy} dir={sortDir} onChange={onSort} />
-          <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left" style={{ color: 'var(--c-muted)' }}>Quality</th>
-          <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left" style={{ color: 'var(--c-muted)' }}>HDR</th>
-          <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left" style={{ color: 'var(--c-muted)' }}>
+          <th
+            className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left"
+            style={{ color: 'var(--c-muted)' }}
+          >
+            Quality
+          </th>
+          <th
+            className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left"
+            style={{ color: 'var(--c-muted)' }}
+          >
+            HDR
+          </th>
+          <th
+            className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-left"
+            style={{ color: 'var(--c-muted)' }}
+          >
             <span className="inline-flex items-center gap-1">
               Group
               <InfoHint label="Group info" text="Torrent/Usenet release group inferred from the filename only." />
@@ -88,7 +108,13 @@ export function LibraryTable({
             align="right"
             infoTitle="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin."
           />
-          <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-right" style={{ color: 'var(--c-muted)' }} title="IMDb community rating (0–10) from Jellyfin CommunityRating">IMDb</th>
+          <th
+            className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-right"
+            style={{ color: 'var(--c-muted)' }}
+            title="IMDb community rating (0–10) from Jellyfin CommunityRating"
+          >
+            IMDb
+          </th>
           <SortHeader field="size" label="Size" current={sortBy} dir={sortDir} onChange={onSort} align="right" />
           <th
             className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-center"
@@ -97,7 +123,10 @@ export function LibraryTable({
           >
             Issues
           </th>
-          <th className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-center w-20" style={{ color: 'var(--c-muted)' }}>
+          <th
+            className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-center w-20"
+            style={{ color: 'var(--c-muted)' }}
+          >
             <span className="inline-flex items-center justify-center gap-1">
               Status
               <InfoHint
@@ -105,26 +134,90 @@ export function LibraryTable({
                 content={
                   <div className="space-y-2">
                     <div className="font-semibold">Status dot guide</div>
-                    <p className="text-[11px] opacity-90">Two dots are shown per movie: left = scan health, right = Jellyfin match state.</p>
+                    <p className="text-[11px] opacity-90">
+                      Two dots are shown per movie: left = scan health, right = Jellyfin match state.
+                    </p>
                     <div className="text-[11px] rounded border p-2" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
                       <div className="font-semibold mb-1">Left dot (Scan)</div>
-                      <table className="w-full border-collapse"><tbody>
-                        <tr><td className="py-0.5 pr-2 w-5"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#4ade80' }} /></td><td className="py-0.5">Scanned/verified OK</td></tr>
-                        <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#fb923c' }} /></td><td className="py-0.5">Verify failed</td></tr>
-                        <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#f87171' }} /></td><td className="py-0.5">Scan error</td></tr>
-                        <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#fbbf24' }} /></td><td className="py-0.5">Pending scan</td></tr>
-                        <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#3f3f5a' }} /></td><td className="py-0.5">Not scanned</td></tr>
-                      </tbody></table>
+                      <table className="w-full border-collapse">
+                        <tbody>
+                          <tr>
+                            <td className="py-0.5 pr-2 w-5">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full align-middle"
+                                style={{ background: '#4ade80' }}
+                              />
+                            </td>
+                            <td className="py-0.5">Scanned/verified OK</td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pr-2">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full align-middle"
+                                style={{ background: '#fb923c' }}
+                              />
+                            </td>
+                            <td className="py-0.5">Verify failed</td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pr-2">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full align-middle"
+                                style={{ background: '#f87171' }}
+                              />
+                            </td>
+                            <td className="py-0.5">Scan error</td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pr-2">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full align-middle"
+                                style={{ background: '#fbbf24' }}
+                              />
+                            </td>
+                            <td className="py-0.5">Pending scan</td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pr-2">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full align-middle"
+                                style={{ background: '#3f3f5a' }}
+                              />
+                            </td>
+                            <td className="py-0.5">Not scanned</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
                     <div className="my-2" />
                     <div className="text-[11px] rounded border p-2" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
                       <div className="font-semibold mb-1">Right dot (Jellyfin)</div>
-                      <table className="w-full border-collapse"><tbody>
-                        <tr><td className="py-0.5 pr-2 w-5"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#7c3aed' }} /></td><td className="py-0.5">Matched in Jellyfin</td></tr>
-                        <tr><td className="py-0.5 pr-2"><span className="inline-block w-2 h-2 rounded-full align-middle" style={{ background: '#3f3f5a' }} /></td><td className="py-0.5">Not matched</td></tr>
-                      </tbody></table>
+                      <table className="w-full border-collapse">
+                        <tbody>
+                          <tr>
+                            <td className="py-0.5 pr-2 w-5">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full align-middle"
+                                style={{ background: '#7c3aed' }}
+                              />
+                            </td>
+                            <td className="py-0.5">Matched in Jellyfin</td>
+                          </tr>
+                          <tr>
+                            <td className="py-0.5 pr-2">
+                              <span
+                                className="inline-block w-2 h-2 rounded-full align-middle"
+                                style={{ background: '#3f3f5a' }}
+                              />
+                            </td>
+                            <td className="py-0.5">Not matched</td>
+                          </tr>
+                        </tbody>
+                      </table>
                     </div>
-                    <p className="text-[11px] opacity-90">Tip: use <span className="font-semibold">Jellyfin Sync Needed</span> to list unmatched movies.</p>
+                    <p className="text-[11px] opacity-90">
+                      Tip: use <span className="font-semibold">Jellyfin Sync Needed</span> to list unmatched movies.
+                    </p>
                   </div>
                 }
               />

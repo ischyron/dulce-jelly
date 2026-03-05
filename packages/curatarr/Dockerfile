@@ -39,6 +39,7 @@ WORKDIR /app
 COPY --from=builder /build/src/server/dist ./src/server/dist
 COPY --from=builder /build/src/ui/dist ./src/ui/dist
 COPY --from=builder /build/node_modules ./node_modules
+COPY --from=builder /build/package.json ./package.json
 COPY config/ ./config/
 
 # Entrypoint

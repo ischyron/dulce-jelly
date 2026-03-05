@@ -1,6 +1,6 @@
-import test from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import test from 'node:test';
 import { ProwlarrClient } from '../src/server/dist/integrations/prowlarr/client.js';
 
 test('Prowlarr client parses realistic movie search payload from mock API', async () => {

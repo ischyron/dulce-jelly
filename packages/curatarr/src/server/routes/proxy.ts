@@ -41,7 +41,7 @@ export function makeProxyRoutes(db: CuratDb): Hono {
 
       return c.body(body, 200, {
         'Content-Type': contentType,
-        'Cache-Control': 'public, max-age=86400',   // 24 h client-side cache
+        'Cache-Control': 'public, max-age=86400', // 24 h client-side cache
       });
     } catch {
       return c.json({ error: 'Failed to fetch image from Jellyfin' }, 502);

@@ -3,8 +3,8 @@
  * Typed wrappers around better-sqlite3 for all curatarr tables.
  */
 
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
 import BetterSqlite3 from 'better-sqlite3';
 import type Database from 'better-sqlite3';
 import { applySchema } from './schema.js';
@@ -22,12 +22,12 @@ export interface MovieRow {
   tmdb_id: string | null;
   critic_rating: number | null;
   community_rating: number | null;
-  genres: string | null;       // JSON array string
+  genres: string | null; // JSON array string
   overview: string | null;
   jellyfin_path: string | null;
   jf_synced_at: string | null;
   // v6 curatarr augmentation
-  tags: string;                // JSON array of user tags
+  tags: string; // JSON array of user tags
   notes: string | null;
   created_at: string;
   updated_at: string;
@@ -48,15 +48,15 @@ export interface FileRow {
   frame_rate: number | null;
   color_transfer: string | null;
   color_primaries: string | null;
-  hdr_formats: string;         // JSON array string
+  hdr_formats: string; // JSON array string
   dv_profile: number | null;
   audio_codec: string | null;
   audio_profile: string | null;
   audio_channels: number | null;
   audio_layout: string | null;
   audio_bitrate: number | null;
-  audio_tracks: string;        // JSON array string
-  subtitle_langs: string;      // JSON array string
+  audio_tracks: string; // JSON array string
+  subtitle_langs: string; // JSON array string
   file_size: number | null;
   duration: number | null;
   container: string | null;
@@ -70,7 +70,7 @@ export interface FileRow {
   verify_errors: string | null; // JSON array of error strings
   verified_at: string | null;
   // v8 quality analytics
-  quality_flags: string;        // JSON array of {severity,code,message,detail?}
+  quality_flags: string; // JSON array of {severity,code,message,detail?}
   created_at: string;
   updated_at: string;
 }
@@ -183,31 +183,36 @@ export class CuratDb {
   // ──────────────────────────────────────────────────────────────────
 
   upsertMovie(data: MovieUpsert): number {
-    const existing = this.db.prepare(
-      'SELECT id FROM movies WHERE folder_path = ?'
-    ).get(data.folderPath) as { id: number } | undefined;
+    const existing = this.db.prepare('SELECT id FROM movies WHERE folder_path = ?').get(data.folderPath) as
+      | { id: number }
+      | undefined;
 
     if (existing) {
-      this.db.prepare(`
+      this.db
+        .prepare(`
         UPDATE movies SET
           folder_name  = ?,
           parsed_title = ?,
           parsed_year  = ?,
           updated_at   = datetime('now')
         WHERE id = ?
-      `).run(data.folderName, data.parsedTitle ?? null, data.parsedYear ?? null, existing.id);
+      `)
+        .run(data.folderName, data.parsedTitle ?? null, data.parsedYear ?? null, existing.id);
       return existing.id;
     }
 
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       INSERT INTO movies (folder_path, folder_name, parsed_title, parsed_year)
       VALUES (?, ?, ?, ?)
-    `).run(data.folderPath, data.folderName, data.parsedTitle ?? null, data.parsedYear ?? null);
+    `)
+      .run(data.folderPath, data.folderName, data.parsedTitle ?? null, data.parsedYear ?? null);
     return Number(result.lastInsertRowid);
   }
 
   enrichFromJellyfin(folderPath: string, enrich: JellyfinEnrichment): boolean {
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       UPDATE movies SET
         jellyfin_id      = ?,
         jellyfin_title   = ?,
@@ -222,36 +227,39 @@ export class CuratDb {
         jf_synced_at     = datetime('now'),
         updated_at       = datetime('now')
       WHERE folder_path = ?
-    `).run(
-      enrich.jellyfinId,
-      enrich.jellyfinTitle ?? null,
-      enrich.jellyfinYear ?? null,
-      enrich.imdbId ?? null,
-      enrich.tmdbId ?? null,
-      enrich.criticRating ?? null,
-      enrich.communityRating ?? null,
-      enrich.genres ? JSON.stringify(enrich.genres) : null,
-      enrich.overview ?? null,
-      enrich.jellyfinPath ?? null,
-      folderPath
-    );
+    `)
+      .run(
+        enrich.jellyfinId,
+        enrich.jellyfinTitle ?? null,
+        enrich.jellyfinYear ?? null,
+        enrich.imdbId ?? null,
+        enrich.tmdbId ?? null,
+        enrich.criticRating ?? null,
+        enrich.communityRating ?? null,
+        enrich.genres ? JSON.stringify(enrich.genres) : null,
+        enrich.overview ?? null,
+        enrich.jellyfinPath ?? null,
+        folderPath,
+      );
     return result.changes > 0;
   }
 
   /** Find movie by Jellyfin path (exact) or parsed title+year */
   findMovieByPath(filePath: string): MovieRow | undefined {
-    return this.db.prepare(
-      'SELECT * FROM movies WHERE folder_path = ? OR jellyfin_path = ?'
-    ).get(filePath, filePath) as MovieRow | undefined;
+    return this.db.prepare('SELECT * FROM movies WHERE folder_path = ? OR jellyfin_path = ?').get(filePath, filePath) as
+      | MovieRow
+      | undefined;
   }
 
   findMovieByTitleYear(title: string, year: number): MovieRow | undefined {
     // Try parsed_title first, then folder_name contains
-    return (this.db.prepare(
-      `SELECT * FROM movies
+    return this.db
+      .prepare(
+        `SELECT * FROM movies
        WHERE (parsed_title = ? OR jellyfin_title = ?) AND (parsed_year = ? OR jellyfin_year = ?)
-       LIMIT 1`
-    ).get(title, title, year, year) as MovieRow | undefined);
+       LIMIT 1`,
+      )
+      .get(title, title, year, year) as MovieRow | undefined;
   }
 
   getAllMovies(): MovieRow[] {
@@ -288,8 +296,14 @@ export class CuratDb {
   updateMovieMeta(id: number, meta: { tags?: string[]; notes?: string }): boolean {
     const sets: string[] = [];
     const vals: (string | null)[] = [];
-    if (meta.tags !== undefined) { sets.push('tags = ?'); vals.push(JSON.stringify(meta.tags)); }
-    if (meta.notes !== undefined) { sets.push('notes = ?'); vals.push(meta.notes ?? null); }
+    if (meta.tags !== undefined) {
+      sets.push('tags = ?');
+      vals.push(JSON.stringify(meta.tags));
+    }
+    if (meta.notes !== undefined) {
+      sets.push('notes = ?');
+      vals.push(meta.notes ?? null);
+    }
     if (sets.length === 0) return false;
     sets.push("updated_at = datetime('now')");
     const r = this.db.prepare(`UPDATE movies SET ${sets.join(', ')} WHERE id = ?`).run(...vals, id);
@@ -298,9 +312,9 @@ export class CuratDb {
 
   /** Distinct sorted set of all tags used across movies */
   getAllTags(): string[] {
-    const rows = this.db.prepare(
-      "SELECT tags FROM movies WHERE tags IS NOT NULL AND tags != '[]'"
-    ).all() as Array<{ tags: string | null }>;
+    const rows = this.db.prepare("SELECT tags FROM movies WHERE tags IS NOT NULL AND tags != '[]'").all() as Array<{
+      tags: string | null;
+    }>;
     const set = new Set<string>();
     for (const row of rows) {
       if (!row.tags) continue;
@@ -322,7 +336,10 @@ export class CuratDb {
   /** Batch-merge tags into selected movies. Returns updated row count. */
   batchAddTags(ids: number[], tags: string[]): number {
     if (ids.length === 0 || tags.length === 0) return 0;
-    const getOne = this.db.prepare('SELECT tags FROM movies WHERE id = ?') as Database.Statement<[number], { tags: string }>;
+    const getOne = this.db.prepare('SELECT tags FROM movies WHERE id = ?') as Database.Statement<
+      [number],
+      { tags: string }
+    >;
     const setOne = this.db.prepare("UPDATE movies SET tags = ?, updated_at = datetime('now') WHERE id = ?");
     const tx = this.db.transaction((movieIds: number[], addTags: string[]) => {
       let updated = 0;
@@ -332,7 +349,7 @@ export class CuratDb {
         let curr: string[] = [];
         try {
           const parsed = JSON.parse(row.tags) as unknown;
-          if (Array.isArray(parsed)) curr = parsed.filter(v => typeof v === 'string') as string[];
+          if (Array.isArray(parsed)) curr = parsed.filter((v) => typeof v === 'string') as string[];
         } catch {
           curr = [];
         }
@@ -350,7 +367,10 @@ export class CuratDb {
   batchRemoveTags(ids: number[], tags: string[]): number {
     if (ids.length === 0 || tags.length === 0) return 0;
     const toRemove = new Set(tags);
-    const getOne = this.db.prepare('SELECT tags FROM movies WHERE id = ?') as Database.Statement<[number], { tags: string }>;
+    const getOne = this.db.prepare('SELECT tags FROM movies WHERE id = ?') as Database.Statement<
+      [number],
+      { tags: string }
+    >;
     const setOne = this.db.prepare("UPDATE movies SET tags = ?, updated_at = datetime('now') WHERE id = ?");
     const tx = this.db.transaction((movieIds: number[]) => {
       let updated = 0;
@@ -360,11 +380,11 @@ export class CuratDb {
         let curr: string[] = [];
         try {
           const parsed = JSON.parse(row.tags) as unknown;
-          if (Array.isArray(parsed)) curr = parsed.filter(v => typeof v === 'string') as string[];
+          if (Array.isArray(parsed)) curr = parsed.filter((v) => typeof v === 'string') as string[];
         } catch {
           curr = [];
         }
-        const next = curr.filter(t => !toRemove.has(t));
+        const next = curr.filter((t) => !toRemove.has(t));
         if (JSON.stringify(next) !== JSON.stringify(curr)) {
           updated += setOne.run(JSON.stringify(next), id).changes;
         }
@@ -376,7 +396,8 @@ export class CuratDb {
 
   /** Re-apply Jellyfin enrichment for a movie by ID (used by jf-refresh endpoint) */
   enrichMovieById(id: number, enrich: JellyfinEnrichment): boolean {
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       UPDATE movies SET
         jellyfin_id      = ?,
         jellyfin_title   = ?,
@@ -391,19 +412,20 @@ export class CuratDb {
         jf_synced_at     = datetime('now'),
         updated_at       = datetime('now')
       WHERE id = ?
-    `).run(
-      enrich.jellyfinId,
-      enrich.jellyfinTitle ?? null,
-      enrich.jellyfinYear ?? null,
-      enrich.imdbId ?? null,
-      enrich.tmdbId ?? null,
-      enrich.criticRating ?? null,
-      enrich.communityRating ?? null,
-      enrich.genres ? JSON.stringify(enrich.genres) : null,
-      enrich.overview ?? null,
-      enrich.jellyfinPath ?? null,
-      id
-    );
+    `)
+      .run(
+        enrich.jellyfinId,
+        enrich.jellyfinTitle ?? null,
+        enrich.jellyfinYear ?? null,
+        enrich.imdbId ?? null,
+        enrich.tmdbId ?? null,
+        enrich.criticRating ?? null,
+        enrich.communityRating ?? null,
+        enrich.genres ? JSON.stringify(enrich.genres) : null,
+        enrich.overview ?? null,
+        enrich.jellyfinPath ?? null,
+        id,
+      );
     return result.changes > 0;
   }
 
@@ -413,9 +435,9 @@ export class CuratDb {
 
   upsertFile(data: FileUpsert): number {
     const now = new Date().toISOString();
-    const existing = this.db.prepare(
-      'SELECT id FROM files WHERE file_path = ?'
-    ).get(data.filePath) as { id: number } | undefined;
+    const existing = this.db.prepare('SELECT id FROM files WHERE file_path = ?').get(data.filePath) as
+      | { id: number }
+      | undefined;
 
     const params = [
       data.movieId,
@@ -445,12 +467,13 @@ export class CuratDb {
       data.mbPerMinute ?? null,
       data.releaseGroup ?? null,
       data.ffprobeRaw ?? null,
-      data.scanError ? null : now,   // scanned_at only set on success
+      data.scanError ? null : now, // scanned_at only set on success
       data.scanError ?? null,
     ];
 
     if (existing) {
-      this.db.prepare(`
+      this.db
+        .prepare(`
         UPDATE files SET
           movie_id        = ?,
           filename        = ?,
@@ -483,11 +506,13 @@ export class CuratDb {
           scan_error      = ?,
           updated_at      = datetime('now')
         WHERE id = ?
-      `).run(...params, existing.id);
+      `)
+        .run(...params, existing.id);
       return existing.id;
     }
 
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       INSERT INTO files (
         movie_id, filename, resolution, resolution_cat, width, height,
         video_codec, video_bitrate, bit_depth, frame_rate,
@@ -499,14 +524,13 @@ export class CuratDb {
       ) VALUES (
         ?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
       )
-    `).run(...params, data.filePath);
+    `)
+      .run(...params, data.filePath);
     return Number(result.lastInsertRowid);
   }
 
   getFilesForMovie(movieId: number): FileRow[] {
-    return this.db.prepare(
-      'SELECT * FROM files WHERE movie_id = ? ORDER BY file_size DESC'
-    ).all(movieId) as FileRow[];
+    return this.db.prepare('SELECT * FROM files WHERE movie_id = ? ORDER BY file_size DESC').all(movieId) as FileRow[];
   }
 
   getAllFiles(): FileRow[] {
@@ -514,9 +538,7 @@ export class CuratDb {
   }
 
   getUnscannedFiles(): FileRow[] {
-    return this.db.prepare(
-      'SELECT * FROM files WHERE scanned_at IS NULL AND scan_error IS NULL'
-    ).all() as FileRow[];
+    return this.db.prepare('SELECT * FROM files WHERE scanned_at IS NULL AND scan_error IS NULL').all() as FileRow[];
   }
 
   /**
@@ -525,9 +547,10 @@ export class CuratDb {
    */
   pruneMissingFilesUnderRoot(rootPath: string, presentFilePaths: Set<string>): number {
     const prefix = rootPath.endsWith(path.sep) ? rootPath : `${rootPath}${path.sep}`;
-    const rows = this.db.prepare(
-      'SELECT id, file_path FROM files WHERE file_path LIKE ?'
-    ).all(`${prefix}%`) as Array<{ id: number; file_path: string }>;
+    const rows = this.db.prepare('SELECT id, file_path FROM files WHERE file_path LIKE ?').all(`${prefix}%`) as Array<{
+      id: number;
+      file_path: string;
+    }>;
 
     const del = this.db.prepare('DELETE FROM files WHERE id = ?');
     const tx = this.db.transaction((candidates: Array<{ id: number; file_path: string }>) => {
@@ -560,29 +583,49 @@ export class CuratDb {
   } {
     const totalMovies = (this.db.prepare('SELECT COUNT(*) as n FROM movies').get() as { n: number }).n;
     const totalFiles = (this.db.prepare('SELECT COUNT(*) as n FROM files').get() as { n: number }).n;
-    const scannedFiles = (this.db.prepare('SELECT COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL').get() as { n: number }).n;
-    const errorFiles = (this.db.prepare('SELECT COUNT(*) as n FROM files WHERE scan_error IS NOT NULL').get() as { n: number }).n;
-    const jfEnriched = (this.db.prepare('SELECT COUNT(*) as n FROM movies WHERE jellyfin_id IS NOT NULL').get() as { n: number }).n;
-    const totalLibrarySize = (this.db.prepare('SELECT COALESCE(SUM(file_size), 0) as n FROM files WHERE scanned_at IS NOT NULL').get() as { n: number }).n;
+    const scannedFiles = (
+      this.db.prepare('SELECT COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL').get() as { n: number }
+    ).n;
+    const errorFiles = (
+      this.db.prepare('SELECT COUNT(*) as n FROM files WHERE scan_error IS NOT NULL').get() as { n: number }
+    ).n;
+    const jfEnriched = (
+      this.db.prepare('SELECT COUNT(*) as n FROM movies WHERE jellyfin_id IS NOT NULL').get() as { n: number }
+    ).n;
+    const totalLibrarySize = (
+      this.db.prepare('SELECT COALESCE(SUM(file_size), 0) as n FROM files WHERE scanned_at IS NOT NULL').get() as {
+        n: number;
+      }
+    ).n;
 
-    const resDist = this.db.prepare(
-      "SELECT resolution_cat as cat, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY resolution_cat"
-    ).all() as { cat: string; n: number }[];
+    const resDist = this.db
+      .prepare(
+        'SELECT resolution_cat as cat, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY resolution_cat',
+      )
+      .all() as { cat: string; n: number }[];
 
-    const codecDist = this.db.prepare(
-      "SELECT video_codec as codec, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY video_codec ORDER BY n DESC"
-    ).all() as { codec: string; n: number }[];
-    const audioCodecDist = this.db.prepare(
-      "SELECT audio_codec as codec, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY audio_codec ORDER BY n DESC"
-    ).all() as { codec: string; n: number }[];
+    const codecDist = this.db
+      .prepare(
+        'SELECT video_codec as codec, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY video_codec ORDER BY n DESC',
+      )
+      .all() as { codec: string; n: number }[];
+    const audioCodecDist = this.db
+      .prepare(
+        'SELECT audio_codec as codec, COUNT(*) as n FROM files WHERE scanned_at IS NOT NULL GROUP BY audio_codec ORDER BY n DESC',
+      )
+      .all() as { codec: string; n: number }[];
 
-    const hdrCount = (this.db.prepare(
-      "SELECT COUNT(*) as n FROM files WHERE hdr_formats != '[]' AND scanned_at IS NOT NULL"
-    ).get() as { n: number }).n;
+    const hdrCount = (
+      this.db.prepare("SELECT COUNT(*) as n FROM files WHERE hdr_formats != '[]' AND scanned_at IS NOT NULL").get() as {
+        n: number;
+      }
+    ).n;
 
-    const dolbyVisionCount = (this.db.prepare(
-      "SELECT COUNT(*) as n FROM files WHERE hdr_formats LIKE '%DolbyVision%' AND scanned_at IS NOT NULL"
-    ).get() as { n: number }).n;
+    const dolbyVisionCount = (
+      this.db
+        .prepare("SELECT COUNT(*) as n FROM files WHERE hdr_formats LIKE '%DolbyVision%' AND scanned_at IS NOT NULL")
+        .get() as { n: number }
+    ).n;
 
     return {
       totalMovies,
@@ -591,27 +634,27 @@ export class CuratDb {
       errorFiles,
       jfEnriched,
       totalLibrarySize,
-      resolutionDist: Object.fromEntries(resDist.map(r => [r.cat ?? 'unknown', r.n])),
-      codecDist: Object.fromEntries(codecDist.map(r => [r.codec ?? 'unknown', r.n])),
-      audioCodecDist: Object.fromEntries(audioCodecDist.map(r => [r.codec ?? 'unknown', r.n])),
+      resolutionDist: Object.fromEntries(resDist.map((r) => [r.cat ?? 'unknown', r.n])),
+      codecDist: Object.fromEntries(codecDist.map((r) => [r.codec ?? 'unknown', r.n])),
+      audioCodecDist: Object.fromEntries(audioCodecDist.map((r) => [r.codec ?? 'unknown', r.n])),
       hdrCount,
       dolbyVisionCount,
     };
   }
 
   /** Movies with low quality + high ratings — prime upgrade candidates */
-  getUpgradeCandidates(opts: {
-    maxResolution?: string;     // "1080p" = include 1080p and below
-    releaseGroups?: string[];   // e.g. ['YTS.MX', 'YTS', 'YIFY']
-    genre?: string;
-    genres?: string[];
-    minCriticRating?: number;   // Metacritic, 0-100
-    minCommunityRating?: number;// IMDb-style, 0-10
-    limit?: number;
-  } = {}): UpgradeCandidate[] {
-    const resCats = opts.maxResolution
-      ? this.resolutionCatsUpTo(opts.maxResolution)
-      : undefined;
+  getUpgradeCandidates(
+    opts: {
+      maxResolution?: string; // "1080p" = include 1080p and below
+      releaseGroups?: string[]; // e.g. ['YTS.MX', 'YTS', 'YIFY']
+      genre?: string;
+      genres?: string[];
+      minCriticRating?: number; // Metacritic, 0-100
+      minCommunityRating?: number; // IMDb-style, 0-10
+      limit?: number;
+    } = {},
+  ): UpgradeCandidate[] {
+    const resCats = opts.maxResolution ? this.resolutionCatsUpTo(opts.maxResolution) : undefined;
 
     let sql = `
       SELECT m.*, f.resolution_cat, f.video_codec, f.audio_codec,
@@ -630,12 +673,10 @@ export class CuratDb {
 
     if (opts.releaseGroups && opts.releaseGroups.length > 0) {
       sql += ` AND (${opts.releaseGroups.map(() => 'f.release_group LIKE ?').join(' OR ')})`;
-      bindings.push(...opts.releaseGroups.map(g => `%${g}%`));
+      bindings.push(...opts.releaseGroups.map((g) => `%${g}%`));
     }
 
-    const genres = opts.genres && opts.genres.length > 0
-      ? opts.genres
-      : (opts.genre ? [opts.genre] : []);
+    const genres = opts.genres && opts.genres.length > 0 ? opts.genres : opts.genre ? [opts.genre] : [];
     if (genres.length > 0) {
       const placeholders = genres.map(() => '?').join(',');
       sql += ` AND EXISTS (
@@ -643,7 +684,7 @@ export class CuratDb {
         FROM json_each(COALESCE(m.genres, '[]')) g
         WHERE LOWER(CAST(g.value AS TEXT)) IN (${placeholders})
       )`;
-      bindings.push(...genres.map(g => g.toLowerCase()));
+      bindings.push(...genres.map((g) => g.toLowerCase()));
     }
 
     if (opts.minCriticRating !== undefined) {
@@ -673,21 +714,25 @@ export class CuratDb {
   // ──────────────────────────────────────────────────────────────────
 
   startScanRun(rootPath: string): number {
-    const result = this.db.prepare(
-      'INSERT INTO scan_runs (started_at, root_path) VALUES (datetime(\'now\'), ?)'
-    ).run(rootPath);
+    const result = this.db
+      .prepare("INSERT INTO scan_runs (started_at, root_path) VALUES (datetime('now'), ?)")
+      .run(rootPath);
     return Number(result.lastInsertRowid);
   }
 
-  finishScanRun(runId: number, stats: {
-    totalFolders: number;
-    totalFiles: number;
-    scannedOk: number;
-    scanErrors: number;
-    durationSec: number;
-    notes?: string;
-  }): void {
-    this.db.prepare(`
+  finishScanRun(
+    runId: number,
+    stats: {
+      totalFolders: number;
+      totalFiles: number;
+      scannedOk: number;
+      scanErrors: number;
+      durationSec: number;
+      notes?: string;
+    },
+  ): void {
+    this.db
+      .prepare(`
       UPDATE scan_runs SET
         finished_at   = datetime('now'),
         total_folders = ?,
@@ -697,22 +742,23 @@ export class CuratDb {
         duration_sec  = ?,
         notes         = ?
       WHERE id = ?
-    `).run(
-      stats.totalFolders,
-      stats.totalFiles,
-      stats.scannedOk,
-      stats.scanErrors,
-      stats.durationSec,
-      stats.notes ?? null,
-      runId
-    );
+    `)
+      .run(
+        stats.totalFolders,
+        stats.totalFiles,
+        stats.scannedOk,
+        stats.scanErrors,
+        stats.durationSec,
+        stats.notes ?? null,
+        runId,
+      );
     this.pruneOldScanRuns(CuratDb.SCAN_HISTORY_MAX_RUNS);
   }
 
   getLastScanRun(): Record<string, unknown> | undefined {
-    return this.db.prepare(
-      'SELECT * FROM scan_runs ORDER BY id DESC LIMIT 1'
-    ).get() as Record<string, unknown> | undefined;
+    return this.db.prepare('SELECT * FROM scan_runs ORDER BY id DESC LIMIT 1').get() as
+      | Record<string, unknown>
+      | undefined;
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -725,15 +771,17 @@ export class CuratDb {
   }
 
   setSetting(key: string, value: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO settings (key, value, updated_at) VALUES (?, ?, datetime('now'))
       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
-    `).run(key, value);
+    `)
+      .run(key, value);
   }
 
   getAllSettings(): Record<string, string> {
     const rows = this.db.prepare('SELECT key, value FROM settings').all() as { key: string; value: string }[];
-    return Object.fromEntries(rows.map(r => [r.key, r.value]));
+    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
   }
 
   deleteSettings(keys: string[]): number {
@@ -749,18 +797,19 @@ export class CuratDb {
 
   getRules(category?: string): QualityRule[] {
     if (category) {
-      return this.db.prepare(
-        'SELECT * FROM quality_rules WHERE category = ? ORDER BY priority ASC, id ASC'
-      ).all(category) as QualityRule[];
+      return this.db
+        .prepare('SELECT * FROM quality_rules WHERE category = ? ORDER BY priority ASC, id ASC')
+        .all(category) as QualityRule[];
     }
-    return this.db.prepare(
-      'SELECT * FROM quality_rules ORDER BY category ASC, priority ASC, id ASC'
-    ).all() as QualityRule[];
+    return this.db
+      .prepare('SELECT * FROM quality_rules ORDER BY category ASC, priority ASC, id ASC')
+      .all() as QualityRule[];
   }
 
   upsertRule(rule: QualityRuleUpsert): number {
     if (rule.id) {
-      this.db.prepare(`
+      this.db
+        .prepare(`
         UPDATE quality_rules SET
           category   = ?,
           name       = ?,
@@ -769,16 +818,29 @@ export class CuratDb {
           config     = ?,
           updated_at = datetime('now')
         WHERE id = ?
-      `).run(rule.category, rule.name, rule.enabled ? 1 : 0, rule.priority ?? 0,
-             typeof rule.config === 'string' ? rule.config : JSON.stringify(rule.config),
-             rule.id);
+      `)
+        .run(
+          rule.category,
+          rule.name,
+          rule.enabled ? 1 : 0,
+          rule.priority ?? 0,
+          typeof rule.config === 'string' ? rule.config : JSON.stringify(rule.config),
+          rule.id,
+        );
       return rule.id;
     }
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       INSERT INTO quality_rules (category, name, enabled, priority, config)
       VALUES (?, ?, ?, ?, ?)
-    `).run(rule.category, rule.name, rule.enabled ? 1 : 0, rule.priority ?? 0,
-           typeof rule.config === 'string' ? rule.config : JSON.stringify(rule.config));
+    `)
+      .run(
+        rule.category,
+        rule.name,
+        rule.enabled ? 1 : 0,
+        rule.priority ?? 0,
+        typeof rule.config === 'string' ? rule.config : JSON.stringify(rule.config),
+      );
     return Number(result.lastInsertRowid);
   }
 
@@ -789,7 +851,7 @@ export class CuratDb {
 
   reorderRules(category: string, ids: number[]): void {
     const update = this.db.prepare(
-      'UPDATE quality_rules SET priority = ?, updated_at = datetime(\'now\') WHERE id = ? AND category = ?'
+      "UPDATE quality_rules SET priority = ?, updated_at = datetime('now') WHERE id = ? AND category = ?",
     );
     const tx = this.db.transaction((orderedIds: number[]) => {
       orderedIds.forEach((id, idx) => update.run(idx, id, category));
@@ -803,7 +865,8 @@ export class CuratDb {
 
   private pruneOldScanRuns(maxRuns = CuratDb.SCAN_HISTORY_MAX_RUNS): number {
     const max = Math.max(1, Math.floor(maxRuns));
-    const result = this.db.prepare(`
+    const result = this.db
+      .prepare(`
       DELETE FROM scan_runs
       WHERE id NOT IN (
         SELECT id
@@ -811,15 +874,17 @@ export class CuratDb {
         ORDER BY id DESC
         LIMIT ?
       )
-    `).run(max);
+    `)
+      .run(max);
     return result.changes;
   }
 
   getScanRuns(limit = CuratDb.SCAN_HISTORY_MAX_RUNS): Record<string, unknown>[] {
     const safeLimit = Math.max(1, Math.min(CuratDb.SCAN_HISTORY_MAX_RUNS, Math.floor(limit)));
-    return this.db.prepare(
-      'SELECT * FROM scan_runs ORDER BY id DESC LIMIT ?'
-    ).all(safeLimit) as Record<string, unknown>[];
+    return this.db.prepare('SELECT * FROM scan_runs ORDER BY id DESC LIMIT ?').all(safeLimit) as Record<
+      string,
+      unknown
+    >[];
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -827,56 +892,61 @@ export class CuratDb {
   // ──────────────────────────────────────────────────────────────────
 
   logDisambiguationResult(result: import('../disambiguation/types.js').DisambiguateResult, jobId: string): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO disambiguation_log
         (job_id, request_id, input_title, input_year, method, confidence,
          matched_movie_id, ambiguous, reason)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      jobId,
-      result.requestId,
-      result.requestId,  // input_title filled by caller — requestId is the title here
-      null,
-      result.method,
-      result.confidence,
-      result.match?.movieId ?? null,
-      result.ambiguous ? 1 : 0,
-      result.ambiguousReason ?? null
-    );
+    `)
+      .run(
+        jobId,
+        result.requestId,
+        result.requestId, // input_title filled by caller — requestId is the title here
+        null,
+        result.method,
+        result.confidence,
+        result.match?.movieId ?? null,
+        result.ambiguous ? 1 : 0,
+        result.ambiguousReason ?? null,
+      );
   }
 
   logDisambiguationResultFull(
     result: import('../disambiguation/types.js').DisambiguateResult,
     jobId: string,
     inputTitle: string,
-    inputYear?: number
+    inputYear?: number,
   ): void {
-    this.db.prepare(`
+    this.db
+      .prepare(`
       INSERT INTO disambiguation_log
         (job_id, request_id, input_title, input_year, method, confidence,
          matched_movie_id, ambiguous, reason)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(
-      jobId,
-      result.requestId,
-      inputTitle,
-      inputYear ?? null,
-      result.method,
-      result.confidence,
-      result.match?.movieId ?? null,
-      result.ambiguous ? 1 : 0,
-      result.ambiguousReason ?? null
-    );
+    `)
+      .run(
+        jobId,
+        result.requestId,
+        inputTitle,
+        inputYear ?? null,
+        result.method,
+        result.confidence,
+        result.match?.movieId ?? null,
+        result.ambiguous ? 1 : 0,
+        result.ambiguousReason ?? null,
+      );
   }
 
   getPendingDisambiguations(limit = 100): DisambiguationLogRow[] {
-    return this.db.prepare(
-      'SELECT * FROM disambiguation_log WHERE reviewed = 0 ORDER BY id DESC LIMIT ?'
-    ).all(limit) as DisambiguationLogRow[];
+    return this.db
+      .prepare('SELECT * FROM disambiguation_log WHERE reviewed = 0 ORDER BY id DESC LIMIT ?')
+      .all(limit) as DisambiguationLogRow[];
   }
 
   getAmbiguousDisambiguations(limit = 100): DisambiguationLogRow[] {
-    return this.db.prepare(`
+    return this.db
+      .prepare(`
       WITH latest AS (
         SELECT MAX(id) AS id
         FROM disambiguation_log
@@ -896,20 +966,21 @@ export class CuratDb {
       LEFT JOIN movies m ON dl.matched_movie_id = m.id
       ORDER  BY dl.id DESC
       LIMIT  ?
-    `).all(limit) as DisambiguationLogRow[];
+    `)
+      .all(limit) as DisambiguationLogRow[];
   }
 
   reviewDisambiguation(id: number, decision: 'confirm' | 'reject'): boolean {
     const val = decision === 'confirm' ? 1 : -1;
-    const result = this.db.prepare(
-      'UPDATE disambiguation_log SET reviewed = ? WHERE id = ?'
-    ).run(val, id);
+    const result = this.db.prepare('UPDATE disambiguation_log SET reviewed = ? WHERE id = ?').run(val, id);
     return result.changes > 0;
   }
 
   getDisambiguationCount(): { pending: number; total: number } {
-    const pending = (this.db.prepare(
-      `WITH latest AS (
+    const pending = (
+      this.db
+        .prepare(
+          `WITH latest AS (
          SELECT MAX(id) AS id
          FROM disambiguation_log
          WHERE reviewed = 0 AND ambiguous = 1
@@ -919,23 +990,25 @@ export class CuratDb {
            COALESCE(input_year, -1),
            LOWER(COALESCE(reason, ''))
        )
-       SELECT COUNT(*) as n FROM latest`
-    ).get() as { n: number }).n;
-    const total = (this.db.prepare(
-      'SELECT COUNT(*) as n FROM disambiguation_log'
-    ).get() as { n: number }).n;
+       SELECT COUNT(*) as n FROM latest`,
+        )
+        .get() as { n: number }
+    ).n;
+    const total = (this.db.prepare('SELECT COUNT(*) as n FROM disambiguation_log').get() as { n: number }).n;
     return { pending, total };
   }
 
   getUnmatchedMovies(limit = 200): UnmatchedMovieRow[] {
-    return this.db.prepare(`
+    return this.db
+      .prepare(`
       SELECT id, folder_name, parsed_title, parsed_year, jellyfin_id
       FROM movies
       WHERE jellyfin_id IS NULL
         AND EXISTS (SELECT 1 FROM files f WHERE f.movie_id = movies.id)
       ORDER BY parsed_year DESC, folder_name ASC
       LIMIT ?
-    `).all(limit) as UnmatchedMovieRow[];
+    `)
+      .all(limit) as UnmatchedMovieRow[];
   }
 
   // ──────────────────────────────────────────────────────────────────
@@ -943,29 +1016,39 @@ export class CuratDb {
   // ──────────────────────────────────────────────────────────────────
 
   getUnverifiedFiles(limit = 500): FileRow[] {
-    return this.db.prepare(
-      `SELECT * FROM files
+    return this.db
+      .prepare(
+        `SELECT * FROM files
        WHERE scanned_at IS NOT NULL AND scan_error IS NULL
          AND (verify_status IS NULL OR verify_status = 'pending')
        ORDER BY id
-       LIMIT ?`
-    ).all(limit) as FileRow[];
+       LIMIT ?`,
+      )
+      .all(limit) as FileRow[];
   }
 
   getUnverifiedCount(): number {
-    return (this.db.prepare(
-      `SELECT COUNT(*) as n FROM files
+    return (
+      this.db
+        .prepare(
+          `SELECT COUNT(*) as n FROM files
        WHERE scanned_at IS NOT NULL AND scan_error IS NULL
-         AND (verify_status IS NULL OR verify_status = 'pending')`
-    ).get() as { n: number }).n;
+         AND (verify_status IS NULL OR verify_status = 'pending')`,
+        )
+        .get() as { n: number }
+    ).n;
   }
 
-  setVerifyResult(fileId: number, result: {
-    status: 'pass' | 'fail' | 'error';
-    errors: string[];
-    qualityFlags?: import('../scanner/deepcheck.js').QualityFlag[];
-  }): void {
-    this.db.prepare(`
+  setVerifyResult(
+    fileId: number,
+    result: {
+      status: 'pass' | 'fail' | 'error';
+      errors: string[];
+      qualityFlags?: import('../scanner/deepcheck.js').QualityFlag[];
+    },
+  ): void {
+    this.db
+      .prepare(`
       UPDATE files SET
         verify_status  = ?,
         verify_errors  = ?,
@@ -973,12 +1056,8 @@ export class CuratDb {
         verified_at    = datetime('now'),
         updated_at     = datetime('now')
       WHERE id = ?
-    `).run(
-      result.status,
-      JSON.stringify(result.errors),
-      JSON.stringify(result.qualityFlags ?? []),
-      fileId
-    );
+    `)
+      .run(result.status, JSON.stringify(result.errors), JSON.stringify(result.qualityFlags ?? []), fileId);
   }
 
   getVerifyStats(): {
@@ -987,11 +1066,13 @@ export class CuratDb {
     fail: number;
     error: number;
   } {
-    const rows = this.db.prepare(
-      `SELECT verify_status, COUNT(*) as n FROM files
+    const rows = this.db
+      .prepare(
+        `SELECT verify_status, COUNT(*) as n FROM files
        WHERE scanned_at IS NOT NULL
-       GROUP BY verify_status`
-    ).all() as { verify_status: string | null; n: number }[];
+       GROUP BY verify_status`,
+      )
+      .all() as { verify_status: string | null; n: number }[];
     const stats = { unverified: 0, pass: 0, fail: 0, error: 0 };
     for (const r of rows) {
       if (r.verify_status === 'pass') stats.pass = r.n;
@@ -1003,15 +1084,13 @@ export class CuratDb {
   }
 
   getFailedVerifyFiles(limit = 200, offset = 0): FileRow[] {
-    return this.db.prepare(
-      `SELECT * FROM files WHERE verify_status = 'fail' ORDER BY verified_at DESC LIMIT ? OFFSET ?`
-    ).all(limit, offset) as FileRow[];
+    return this.db
+      .prepare(`SELECT * FROM files WHERE verify_status = 'fail' ORDER BY verified_at DESC LIMIT ? OFFSET ?`)
+      .all(limit, offset) as FileRow[];
   }
 
   getFailedVerifyCount(): number {
-    return (this.db.prepare(
-      `SELECT COUNT(*) as n FROM files WHERE verify_status = 'fail'`
-    ).get() as { n: number }).n;
+    return (this.db.prepare(`SELECT COUNT(*) as n FROM files WHERE verify_status = 'fail'`).get() as { n: number }).n;
   }
 
   close(): void {

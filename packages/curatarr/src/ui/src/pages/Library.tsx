@@ -1,23 +1,23 @@
-import { useRef, useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api, type Movie, type Stats } from '../api/client';
+import { useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { type Movie, type Stats, api } from '../api/client';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer';
+import { LibraryFilterBar } from '../components/library/LibraryFilterBar';
+import { LibraryPagination } from '../components/library/LibraryPagination';
+import { LibraryTable } from '../components/library/LibraryTable';
+import { RemoveIndexModal } from '../components/library/RemoveIndexModal';
+import { TagBatchModal } from '../components/library/TagBatchModal';
 import {
-  normalizeTag,
-  persistedFilterParams,
+  formatSize,
   getSearchParam,
   getSearchParamInteger,
-  formatSize,
+  normalizeTag,
+  persistedFilterParams,
   toSortDirection,
   toSortField,
 } from '../components/library/helpers';
 import { AV1_WARN_PROFILES } from '../components/library/types';
-import { LibraryFilterBar } from '../components/library/LibraryFilterBar';
-import { LibraryTable } from '../components/library/LibraryTable';
-import { LibraryPagination } from '../components/library/LibraryPagination';
-import { RemoveIndexModal } from '../components/library/RemoveIndexModal';
-import { TagBatchModal } from '../components/library/TagBatchModal';
 
 export function Library() {
   const queryClient = useQueryClient();
@@ -34,7 +34,12 @@ export function Library() {
   const audioFormat = getSearchParam(searchParams, 'audioFormat', '');
   const audioLayout = getSearchParam(searchParams, 'audioLayout', '');
   const genreFilter = getSearchParam(searchParams, 'genre', '');
-  const selectedGenres = genreFilter ? genreFilter.split(',').map((g) => g.trim()).filter(Boolean) : [];
+  const selectedGenres = genreFilter
+    ? genreFilter
+        .split(',')
+        .map((g) => g.trim())
+        .filter(Boolean)
+    : [];
   const hdrOnly = searchParams.get('hdr') === '1';
   const dvOnly = searchParams.get('dv') === '1';
   const av1CompatOnly = searchParams.get('av1Compat') === '1';
@@ -42,7 +47,12 @@ export function Library() {
   const noJf = searchParams.get('noJf') === '1';
   const multiOnly = searchParams.get('multi') === '1';
   const tagFilter = getSearchParam(searchParams, 'tags', '');
-  const selectedTags = tagFilter ? tagFilter.split(',').map((t) => normalizeTag(t)).filter(Boolean) : [];
+  const selectedTags = tagFilter
+    ? tagFilter
+        .split(',')
+        .map((t) => normalizeTag(t))
+        .filter(Boolean)
+    : [];
   const search = getSearchParam(searchParams, 'q', '');
   const showAll = limitParam === 'all' || searchParams.get('all') === '1';
   const page = Math.max(1, pageRaw);
@@ -50,6 +60,7 @@ export function Library() {
   const selectedId = getSearchParamInteger(searchParams, 'movie', 0) || undefined;
 
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const restoredInitialParamsRef = useRef(false);
   const tagFilterRef = useRef<HTMLDivElement | null>(null);
   const genreFilterRef = useRef<HTMLDivElement | null>(null);
 
@@ -83,6 +94,9 @@ export function Library() {
   }, [tagFilterOpen, genreFilterOpen]);
 
   useEffect(() => {
+    if (restoredInitialParamsRef.current) return;
+    restoredInitialParamsRef.current = true;
+
     if (searchParams.get('reset') === '1') {
       sessionStorage.removeItem('curatarr:libraryParams');
       setSearchParams({}, { replace: true });
@@ -92,8 +106,7 @@ export function Library() {
       const saved = sessionStorage.getItem('curatarr:libraryParams');
       if (saved) setSearchParams(new URLSearchParams(saved), { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     const p = persistedFilterParams(searchParams).toString();
@@ -102,14 +115,17 @@ export function Library() {
   }, [searchParams]);
 
   function patch(changes: Record<string, string | null>) {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      for (const [k, v] of Object.entries(changes)) {
-        if (v === null || v === '') next.delete(k);
-        else next.set(k, v);
-      }
-      return next;
-    }, { replace: true });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        for (const [k, v] of Object.entries(changes)) {
+          if (v === null || v === '') next.delete(k);
+          else next.set(k, v);
+        }
+        return next;
+      },
+      { replace: true },
+    );
   }
 
   function handleSearchInput(val: string) {
@@ -135,18 +151,18 @@ export function Library() {
   const hasNonDefaultView = searchParams.toString() !== '';
   const hasActiveFilter = Boolean(
     search ||
-    resolution ||
-    codec ||
-    audioFormat ||
-    audioLayout ||
-    selectedGenres.length > 0 ||
-    selectedTags.length > 0 ||
-    hdrOnly ||
-    dvOnly ||
-    av1CompatOnly ||
-    legacyOnly ||
-    noJf ||
-    multiOnly
+      resolution ||
+      codec ||
+      audioFormat ||
+      audioLayout ||
+      selectedGenres.length > 0 ||
+      selectedTags.length > 0 ||
+      hdrOnly ||
+      dvOnly ||
+      av1CompatOnly ||
+      legacyOnly ||
+      noJf ||
+      multiOnly,
   );
 
   const { data: statsData } = useQuery<Stats>({
@@ -166,30 +182,51 @@ export function Library() {
   });
 
   const { data, isLoading, isFetching } = useQuery({
-    queryKey: ['movies', page, limit, showAll, search, resolution, codec, audioFormat, audioLayout, genreFilter, tagFilter, hdrOnly, dvOnly, av1CompatOnly, legacyOnly, noJf, multiOnly, sortBy, sortDir],
-    queryFn: () => api.movies({
-      page: showAll ? 1 : page,
-      limit: showAll ? 100000 : limit,
+    queryKey: [
+      'movies',
+      page,
+      limit,
+      showAll,
+      search,
+      resolution,
+      codec,
+      audioFormat,
+      audioLayout,
+      genreFilter,
+      tagFilter,
+      hdrOnly,
+      dvOnly,
+      av1CompatOnly,
+      legacyOnly,
+      noJf,
+      multiOnly,
       sortBy,
       sortDir,
-      ...(search ? { search } : {}),
-      ...(resolution ? { resolution } : {}),
-      ...((av1CompatOnly ? 'av1' : codec) ? { codec: (av1CompatOnly ? 'av1' : codec) } : {}),
-      ...(audioFormat ? { audioFormat } : {}),
-      ...(audioLayout ? { audioLayout } : {}),
-      ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
-      ...(selectedTags.length > 0 ? { tags: selectedTags.join(',') } : {}),
-      ...(hdrOnly ? { hdr: 'true' } : {}),
-      ...(dvOnly ? { dv: 'true' } : {}),
-      ...(legacyOnly ? { legacy: 'true' } : {}),
-      ...(noJf ? { noJf: 'true' } : {}),
-      ...(multiOnly ? { multi: 'true' } : {}),
-      ...(showAll ? { showAll: 'true' } : {}),
-    }),
+    ],
+    queryFn: () =>
+      api.movies({
+        page: showAll ? 1 : page,
+        limit: showAll ? 100000 : limit,
+        sortBy,
+        sortDir,
+        ...(search ? { search } : {}),
+        ...(resolution ? { resolution } : {}),
+        ...((av1CompatOnly ? 'av1' : codec) ? { codec: av1CompatOnly ? 'av1' : codec } : {}),
+        ...(audioFormat ? { audioFormat } : {}),
+        ...(audioLayout ? { audioLayout } : {}),
+        ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
+        ...(selectedTags.length > 0 ? { tags: selectedTags.join(',') } : {}),
+        ...(hdrOnly ? { hdr: 'true' } : {}),
+        ...(dvOnly ? { dv: 'true' } : {}),
+        ...(legacyOnly ? { legacy: 'true' } : {}),
+        ...(noJf ? { noJf: 'true' } : {}),
+        ...(multiOnly ? { multi: 'true' } : {}),
+        ...(showAll ? { showAll: 'true' } : {}),
+      }),
     placeholderData: (prev) => prev,
   });
 
-  const totalPages = showAll ? 1 : (data ? Math.ceil(data.total / limit) : 1);
+  const totalPages = showAll ? 1 : data ? Math.ceil(data.total / limit) : 1;
   const clientProfile = (() => {
     try {
       return localStorage.getItem('clientProfile') ?? 'android_tv';
@@ -351,7 +388,9 @@ export function Library() {
         dvOnly={dvOnly}
         onToggleDvOnly={(checked) => patch({ dv: checked ? '1' : null, page: '1' })}
         av1CompatOnly={av1CompatOnly}
-        onToggleAv1CompatOnly={(checked) => patch({ av1Compat: checked ? '1' : null, codec: checked ? null : codec, page: '1' })}
+        onToggleAv1CompatOnly={(checked) =>
+          patch({ av1Compat: checked ? '1' : null, codec: checked ? null : codec, page: '1' })
+        }
         legacyOnly={legacyOnly}
         onToggleLegacyOnly={(checked) => patch({ legacy: checked ? '1' : null, page: '1' })}
         audioFormat={audioFormat}

@@ -1,7 +1,7 @@
+import { ExternalLink, Film, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
-import { X, Film, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MovieDetailPane } from './shared/movie-detail';
+import { MovieDetailContent } from './shared/movie-detail';
 
 interface Props {
   movieId: number;
@@ -22,7 +22,7 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
       const root = asideRef.current;
       if (!root) return;
       const focusables = root.querySelectorAll<HTMLElement>(
-        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])'
+        'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])',
       );
       if (focusables.length === 0) return;
       const first = focusables[0];
@@ -38,7 +38,9 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
       }
     }
 
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
     window.addEventListener('keydown', handler);
     window.addEventListener('keydown', handleTabTrap);
     return () => {
@@ -57,9 +59,17 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
         aria-modal="true"
         aria-labelledby="movie-detail-drawer-title"
         className="relative z-10 w-[700px] max-w-full border-l flex flex-col overflow-hidden"
-        style={{ background: 'var(--c-bg)', borderColor: 'var(--c-border)' }}>
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--c-border)' }}>
-          <div id="movie-detail-drawer-title" className="flex items-center gap-2 text-sm font-medium" style={{ color: 'var(--c-text)' }}>
+        style={{ background: 'var(--c-bg)', borderColor: 'var(--c-border)' }}
+      >
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ borderColor: 'var(--c-border)' }}
+        >
+          <div
+            id="movie-detail-drawer-title"
+            className="flex items-center gap-2 text-sm font-medium"
+            style={{ color: 'var(--c-text)' }}
+          >
             <Film size={16} style={{ color: 'var(--c-accent)' }} />
             Movie Detail
           </div>
@@ -68,7 +78,8 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
               to={`/movies/${movieId}`}
               className="inline-flex items-center gap-1 text-xs hover:underline"
               style={{ color: '#a78bfa' }}
-              title="Open full page">
+              title="Open full page"
+            >
               <ExternalLink size={13} />
             </Link>
             <button
@@ -84,11 +95,7 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <MovieDetailPane
-            movieId={movieId}
-            mode="drawer"
-            onDeleted={onClose}
-          />
+          <MovieDetailContent movieId={movieId} mode="drawer" onDeleted={onClose} />
         </div>
       </aside>
     </div>

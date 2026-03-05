@@ -6,13 +6,13 @@
  * POST /api/disambiguate/:id/review   — confirm or reject a match
  */
 
+import { randomUUID } from 'node:crypto';
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
-import { randomUUID } from 'node:crypto';
 import type { CuratDb } from '../../db/client.js';
-import { disEmitter } from '../sse.js';
 import { runDisambiguationQueue } from '../../disambiguation/queue.js';
 import type { DisambiguateRequest } from '../../disambiguation/types.js';
+import { disEmitter } from '../sse.js';
 
 export function makeDisambiguateRoutes(db: CuratDb): Hono {
   const app = new Hono();
@@ -23,7 +23,7 @@ export function makeDisambiguateRoutes(db: CuratDb): Hono {
       return c.json({ error: 'Disambiguation job already running' }, 409);
     }
 
-    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const items = body.items as DisambiguateRequest[] | undefined;
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -57,7 +57,9 @@ export function makeDisambiguateRoutes(db: CuratDb): Hono {
       const unsub = disEmitter.subscribe(async (ev) => {
         try {
           await stream.writeSSE({ event: ev.event, data: JSON.stringify(ev.data) });
-        } catch { /* client disconnected */ }
+        } catch {
+          /* client disconnected */
+        }
       });
 
       await new Promise<void>((resolve) => {
@@ -90,9 +92,9 @@ export function makeDisambiguateRoutes(db: CuratDb): Hono {
   // POST /api/disambiguate/:id/review  { decision: 'confirm' | 'reject' }
   app.post('/:id/review', async (c) => {
     const id = parseInt(c.req.param('id'), 10);
-    if (isNaN(id)) return c.json({ error: 'Invalid id' }, 400);
+    if (Number.isNaN(id)) return c.json({ error: 'Invalid id' }, 400);
 
-    const body = await c.req.json().catch(() => ({})) as Record<string, unknown>;
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
     const decision = body.decision as string;
 
     if (decision !== 'confirm' && decision !== 'reject') {

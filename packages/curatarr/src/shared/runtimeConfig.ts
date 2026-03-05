@@ -119,15 +119,12 @@ export function loadRuntimeConfig(): RuntimeConfig {
   const rawSettings = (parsed.settings ?? {}) as PlainObject;
 
   const curatarrDataPath =
-    resolveRelative(configDir, str(paths.curatarrDataPath))
-    ?? path.resolve(process.cwd(), 'data', 'curatarr');
+    resolveRelative(configDir, str(paths.curatarrDataPath)) ?? path.resolve(process.cwd(), 'data', 'curatarr');
 
   const host = str(server.host) ?? '0.0.0.0';
   const port = Number(str(server.port) ?? '7474');
 
-  const dbPath =
-    resolveRelative(configDir, str(paths.dbPath))
-    ?? path.resolve(curatarrDataPath, 'db', 'curatarr.db');
+  const dbPath = resolveRelative(configDir, str(paths.dbPath)) ?? path.resolve(curatarrDataPath, 'db', 'curatarr.db');
 
   const settingsFromConfig = extractSettings(rawSettings);
   const settingsFromSecrets = extractSecretsSettings(readYamlFile(resolveSecretsPath()));

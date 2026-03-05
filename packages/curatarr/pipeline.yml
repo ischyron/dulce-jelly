@@ -18,6 +18,16 @@ trigger:
 # Stages run in order; a failure stops the pipeline
 stages:
 
+  - name: lint
+    desc: Biome lint/format checks
+    cmd: npm run lint
+    workdir: packages/curatarr
+
+  - name: typecheck
+    desc: TypeScript type checks (server + UI)
+    cmd: npm run typecheck
+    workdir: packages/curatarr
+
   - name: build-server
     desc: Compile TypeScript (tsc)
     cmd: npm run build:server

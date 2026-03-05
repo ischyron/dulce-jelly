@@ -22,16 +22,16 @@ interface FfStream {
   profile?: string;
   width?: number;
   height?: number;
-  bit_rate?: string;         // string in ffprobe output
+  bit_rate?: string; // string in ffprobe output
   bits_per_raw_sample?: string;
-  r_frame_rate?: string;     // "24000/1001"
+  r_frame_rate?: string; // "24000/1001"
   avg_frame_rate?: string;
   color_transfer?: string;
   color_primaries?: string;
   channels?: number;
   channel_layout?: string;
   sample_rate?: string;
-  pix_fmt?: string;          // "yuv420p10le" → bit_depth 10
+  pix_fmt?: string; // "yuv420p10le" → bit_depth 10
   disposition?: {
     default?: number;
     forced?: number;
@@ -52,7 +52,7 @@ interface FfSideData {
 
 interface FfFormat {
   filename: string;
-  format_name: string;       // "matroska,webm"
+  format_name: string; // "matroska,webm"
   duration?: string;
   size?: string;
   bit_rate?: string;
@@ -92,7 +92,7 @@ export interface ProbeResult {
   duration?: number;
   container?: string;
   mbPerMinute?: number;
-  ffprobeRaw: string;        // full JSON for reprocessing
+  ffprobeRaw: string; // full JSON for reprocessing
 }
 
 export interface AudioTrack {
@@ -103,7 +103,7 @@ export interface AudioTrack {
   channelLayout: string;
   language: string;
   isDefault: boolean;
-  bitrate: number;           // kbps; 0 for lossless
+  bitrate: number; // kbps; 0 for lossless
 }
 
 // ──────────────────────────────────────────────────────────────────
@@ -152,7 +152,7 @@ function detectBitDepth(stream: FfStream): number {
   // bits_per_raw_sample is most reliable
   if (stream.bits_per_raw_sample) {
     const n = parseInt(stream.bits_per_raw_sample, 10);
-    if (!isNaN(n)) return n;
+    if (!Number.isNaN(n)) return n;
   }
   // Fall back to pix_fmt
   const pf = stream.pix_fmt ?? '';
@@ -171,7 +171,7 @@ function categoriseResolution(width: number, height: number): string {
   // not 720p, since their height is below 1080 but width is ~1920.
   if (height >= 2160 || width >= 3800) return '2160p';
   if (height >= 1080 || width >= 1880) return '1080p';
-  if (height >= 720  || width >= 1240) return '720p';
+  if (height >= 720 || width >= 1240) return '720p';
   if (height > 0) return '480p';
   return 'other';
 }
@@ -223,7 +223,7 @@ export function parseProbeOutput(raw: string): ProbeResult {
   result.duration = fmt.duration ? parseFloat(fmt.duration) : undefined;
 
   // ── Video stream ──────────────────────────────────────────────
-  const videoStream = data.streams.find(s => s.codec_type === 'video' && s.codec_name !== 'mjpeg');
+  const videoStream = data.streams.find((s) => s.codec_type === 'video' && s.codec_name !== 'mjpeg');
   if (videoStream) {
     result.videoCodec = videoStream.codec_name;
     result.colorTransfer = videoStream.color_transfer;
@@ -232,7 +232,7 @@ export function parseProbeOutput(raw: string): ProbeResult {
     result.bitDepth = detectBitDepth(videoStream);
     result.frameRate = parseFrameRate(videoStream.avg_frame_rate ?? videoStream.r_frame_rate);
 
-    const dvSd = videoStream.side_data_list?.find(sd => sd.side_data_type === 'DOVI configuration record');
+    const dvSd = videoStream.side_data_list?.find((sd) => sd.side_data_type === 'DOVI configuration record');
     if (dvSd?.dv_profile != null) result.dvProfile = dvSd.dv_profile;
 
     if (videoStream.width && videoStream.height) {
@@ -245,15 +245,15 @@ export function parseProbeOutput(raw: string): ProbeResult {
     // Bitrate: prefer stream bit_rate, fall back to format bit_rate
     const streamBr = videoStream.bit_rate ? parseInt(videoStream.bit_rate, 10) : NaN;
     const fmtBr = fmt.bit_rate ? parseInt(fmt.bit_rate, 10) : NaN;
-    const br = !isNaN(streamBr) && streamBr > 0 ? streamBr : fmtBr;
-    if (!isNaN(br) && br > 0) result.videoBitrate = Math.round(br / 1000); // → kbps
+    const br = !Number.isNaN(streamBr) && streamBr > 0 ? streamBr : fmtBr;
+    if (!Number.isNaN(br) && br > 0) result.videoBitrate = Math.round(br / 1000); // → kbps
   }
 
   // ── Audio streams ─────────────────────────────────────────────
-  const audioStreams = data.streams.filter(s => s.codec_type === 'audio');
+  const audioStreams = data.streams.filter((s) => s.codec_type === 'audio');
 
   // Primary = first default, or first overall
-  const primaryAudio = audioStreams.find(s => s.disposition?.default === 1) ?? audioStreams[0];
+  const primaryAudio = audioStreams.find((s) => s.disposition?.default === 1) ?? audioStreams[0];
 
   if (primaryAudio) {
     result.audioCodec = primaryAudio.codec_name;
@@ -261,10 +261,10 @@ export function parseProbeOutput(raw: string): ProbeResult {
     result.audioChannels = primaryAudio.channels;
     result.audioLayout = primaryAudio.channel_layout;
     const abr = primaryAudio.bit_rate ? parseInt(primaryAudio.bit_rate, 10) : 0;
-    result.audioBitrate = isNaN(abr) ? 0 : Math.round(abr / 1000);
+    result.audioBitrate = Number.isNaN(abr) ? 0 : Math.round(abr / 1000);
   }
 
-  result.audioTracks = audioStreams.map(s => ({
+  result.audioTracks = audioStreams.map((s) => ({
     index: s.index,
     codec: s.codec_name ?? 'unknown',
     profile: s.profile ?? null,
@@ -276,7 +276,7 @@ export function parseProbeOutput(raw: string): ProbeResult {
   }));
 
   // ── Subtitle streams ──────────────────────────────────────────
-  const subtitleStreams = data.streams.filter(s => s.codec_type === 'subtitle');
+  const subtitleStreams = data.streams.filter((s) => s.codec_type === 'subtitle');
   const langs = new Set<string>();
   for (const sub of subtitleStreams) {
     const lang = sub.tags?.language ?? sub.tags?.LANGUAGE;
@@ -302,14 +302,8 @@ export async function probeFile(filePath: string): Promise<ProbeResult | { error
   try {
     const { stdout } = await execFileAsync(
       'ffprobe',
-      [
-        '-v', 'quiet',
-        '-print_format', 'json',
-        '-show_streams',
-        '-show_format',
-        filePath,
-      ],
-      { timeout: FFPROBE_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 }
+      ['-v', 'quiet', '-print_format', 'json', '-show_streams', '-show_format', filePath],
+      { timeout: FFPROBE_TIMEOUT_MS, maxBuffer: 10 * 1024 * 1024 },
     );
 
     return parseProbeOutput(stdout);
@@ -325,14 +319,57 @@ export async function probeFile(filePath: string): Promise<ProbeResult | { error
 
 // Technical tokens that appear after dashes/underscores but are NOT release groups
 const NON_GROUP_TOKENS = new Set([
-  'DL', 'HD', 'UHD', 'SD', 'SDR', 'WEB', 'BD', 'BR',
-  'RIP', 'WEBRIP', 'BDRIP', 'DVDRIP', 'HDTV', 'PDTV',
-  'BLURAY', 'WEBDL', 'BDRIP', 'HDRIP', 'HDCAM', 'HDTS',
-  'X264', 'X265', 'H264', 'H265', 'HEVC', 'AVC', 'AV1',
-  'AAC', 'AC3', 'DTS', 'EAC3', 'FLAC', 'MP3', 'OPUS',
-  'PROPER', 'REPACK', 'REMUX', 'EXTENDED', 'INTERNAL',
-  'HDR', 'HDR10', 'HLG', 'SDR', '10BIT', '8BIT',
-  '1080P', '720P', '2160P', '480P', '4K', '2K',
+  'DL',
+  'HD',
+  'UHD',
+  'SD',
+  'SDR',
+  'WEB',
+  'BD',
+  'BR',
+  'RIP',
+  'WEBRIP',
+  'BDRIP',
+  'DVDRIP',
+  'HDTV',
+  'PDTV',
+  'BLURAY',
+  'WEBDL',
+  'BDRIP',
+  'HDRIP',
+  'HDCAM',
+  'HDTS',
+  'X264',
+  'X265',
+  'H264',
+  'H265',
+  'HEVC',
+  'AVC',
+  'AV1',
+  'AAC',
+  'AC3',
+  'DTS',
+  'EAC3',
+  'FLAC',
+  'MP3',
+  'OPUS',
+  'PROPER',
+  'REPACK',
+  'REMUX',
+  'EXTENDED',
+  'INTERNAL',
+  'HDR',
+  'HDR10',
+  'HLG',
+  'SDR',
+  '10BIT',
+  '8BIT',
+  '1080P',
+  '720P',
+  '2160P',
+  '480P',
+  '4K',
+  '2K',
 ]);
 
 // Matches resolution tokens like "1080p", "720P", "4k" (digits + optional p/i/k)
@@ -362,11 +399,7 @@ export function extractReleaseGroup(filename: string): string | undefined {
     const candidate = underscoreMatch[1];
     const upper = candidate.toUpperCase();
     // Skip pure numbers (years), resolution tokens, and known tech tokens
-    if (
-      !NON_GROUP_TOKENS.has(upper) &&
-      !RESOLUTION_RE.test(candidate) &&
-      !/^\d+$/.test(candidate)
-    ) {
+    if (!NON_GROUP_TOKENS.has(upper) && !RESOLUTION_RE.test(candidate) && !/^\d+$/.test(candidate)) {
       return candidate;
     }
   }
@@ -382,7 +415,7 @@ export function probeToUpsert(
   probe: ProbeResult,
   movieId: number,
   filePath: string,
-  filename: string
+  filename: string,
 ): Omit<FileUpsert, never> {
   return {
     movieId,

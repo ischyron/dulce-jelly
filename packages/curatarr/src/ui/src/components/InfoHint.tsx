@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
 import { Info } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Popover, PopoverContent, PopoverTrigger } from './shared/overlays/Popover';
 
 interface Props {
@@ -32,18 +32,16 @@ export function InfoHint({ text, content, label }: Props) {
         </button>
       </PopoverTrigger>
       <PopoverContent
-          align="start"
-          className="w-72"
-          style={{
-            background: '#111827',
-            borderColor: '#374151',
-            color: '#d1d5db',
-            lineHeight: '1.45',
-          }}
-        >
-          <div className="whitespace-pre-line">
-            {body}
-          </div>
+        align="start"
+        className="w-72"
+        style={{
+          background: '#111827',
+          borderColor: '#374151',
+          color: '#d1d5db',
+          lineHeight: '1.45',
+        }}
+      >
+        <div className="whitespace-pre-line">{body}</div>
       </PopoverContent>
     </Popover>
   );

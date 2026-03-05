@@ -11,21 +11,25 @@ import type { CuratDb } from '../db/client.js';
 
 export function printStatus(db: CuratDb): void {
   const stats = db.getStats();
-  const lastRun = db.getLastScanRun() as {
-    started_at: string;
-    finished_at: string | null;
-    root_path: string;
-    scanned_ok: number;
-    scan_errors: number;
-    duration_sec: number | null;
-  } | undefined;
+  const lastRun = db.getLastScanRun() as
+    | {
+        started_at: string;
+        finished_at: string | null;
+        root_path: string;
+        scanned_ok: number;
+        scan_errors: number;
+        duration_sec: number | null;
+      }
+    | undefined;
 
   console.log('\n── Curatarr Library Status ─────────────────────────────────');
   console.log(`  Movies in DB :  ${stats.totalMovies}`);
   console.log(`  Files in DB  :  ${stats.totalFiles}`);
   console.log(`  Scanned      :  ${stats.scannedFiles}`);
   console.log(`  Scan errors  :  ${stats.errorFiles}`);
-  console.log(`  JF enriched  :  ${stats.jfEnriched} (${Math.round(stats.jfEnriched / Math.max(1, stats.totalMovies) * 100)}%)`);
+  console.log(
+    `  JF enriched  :  ${stats.jfEnriched} (${Math.round((stats.jfEnriched / Math.max(1, stats.totalMovies)) * 100)}%)`,
+  );
 
   if (lastRun) {
     console.log(`\n── Last Scan ──────────────────────────────────────────────`);
@@ -37,7 +41,7 @@ export function printStatus(db: CuratDb): void {
 
   console.log('\n── Resolution Distribution ────────────────────────────────');
   for (const [cat, count] of Object.entries(stats.resolutionDist).sort()) {
-    const bar = '█'.repeat(Math.round(count / Math.max(1, stats.scannedFiles) * 30));
+    const bar = '█'.repeat(Math.round((count / Math.max(1, stats.scannedFiles)) * 30));
     console.log(`  ${cat.padEnd(8)} ${String(count).padStart(5)}  ${bar}`);
   }
 
@@ -58,14 +62,17 @@ export function printStatus(db: CuratDb): void {
 
 const LQ_GROUPS = ['YTS.MX', 'YTS', 'YTS.AG', 'YTS.LT', 'YTS.AM', 'YIFY', 'EVO', 'FGT'];
 
-export function printUpgradeCandidates(db: CuratDb, opts: {
-  limit?: number;
-  minCriticRating?: number;
-  minCommunityRating?: number;
-  maxResolution?: string;
-  lqGroupsOnly?: boolean;
-  skipRatingFilter?: boolean;   // useful before jf-sync; shows LQ groups regardless of rating
-} = {}): void {
+export function printUpgradeCandidates(
+  db: CuratDb,
+  opts: {
+    limit?: number;
+    minCriticRating?: number;
+    minCommunityRating?: number;
+    maxResolution?: string;
+    lqGroupsOnly?: boolean;
+    skipRatingFilter?: boolean; // useful before jf-sync; shows LQ groups regardless of rating
+  } = {},
+): void {
   const candidates = db.getUpgradeCandidates({
     maxResolution: opts.maxResolution ?? '1080p',
     releaseGroups: opts.lqGroupsOnly !== false ? LQ_GROUPS : undefined,
@@ -84,13 +91,13 @@ export function printUpgradeCandidates(db: CuratDb, opts: {
   console.log('');
   console.log(
     '  ' +
-    'Title'.padEnd(42) +
-    'Year'.padEnd(6) +
-    'Res'.padEnd(8) +
-    'Codec'.padEnd(8) +
-    'Group'.padEnd(14) +
-    'MC'.padEnd(6) +
-    'IMDb'
+      'Title'.padEnd(42) +
+      'Year'.padEnd(6) +
+      'Res'.padEnd(8) +
+      'Codec'.padEnd(8) +
+      'Group'.padEnd(14) +
+      'MC'.padEnd(6) +
+      'IMDb',
   );
   console.log('  ' + '─'.repeat(100));
 
@@ -124,10 +131,10 @@ const MIN_MB_PER_MIN: Record<string, number> = {
   // Thresholds tuned for detecting TRUE fakes (upscale claiming higher res).
   // Efficient HEVC encodes (YTS 4K) legitimately sit at 40-50 MB/min.
   // Only files claiming a resolution but encoded at 1-2x the next tier down are suspicious.
-  '2160p': 4,    // < 4 MB/min at 4K = almost certainly a 1080p upscale
-  '1080p': 1.5,  // < 1.5 MB/min at 1080p = likely a 720p encode
-  '720p':  0.8,
-  '480p':  0.3,
+  '2160p': 4, // < 4 MB/min at 4K = almost certainly a 1080p upscale
+  '1080p': 1.5, // < 1.5 MB/min at 1080p = likely a 720p encode
+  '720p': 0.8,
+  '480p': 0.3,
 };
 
 export function printSuspiciousFiles(db: CuratDb, limit = 30): void {
@@ -135,7 +142,8 @@ export function printSuspiciousFiles(db: CuratDb, limit = 30): void {
 
   // Find files where size is suspiciously low for the claimed resolution
   // Build a CASE expression for the threshold
-  const rows = raw.prepare(`
+  const rows = raw
+    .prepare(`
     SELECT
       m.folder_name  AS movie_folder,
       f.file_path,
@@ -163,7 +171,8 @@ export function printSuspiciousFiles(db: CuratDb, limit = 30): void {
       END
     ORDER BY (expected_min - f.mb_per_minute) DESC
     LIMIT ?
-  `).all(limit) as SuspiciousFile[];
+  `)
+    .all(limit) as SuspiciousFile[];
 
   if (rows.length === 0) {
     console.log('No suspicious files found.');
@@ -172,21 +181,14 @@ export function printSuspiciousFiles(db: CuratDb, limit = 30): void {
 
   console.log(`\n── Suspicious Files (low MB/min for claimed resolution) ──── top ${rows.length}`);
   console.log('');
-  console.log(
-    '  ' +
-    'Movie'.padEnd(42) +
-    'Res'.padEnd(8) +
-    'MB/min'.padEnd(10) +
-    'Expected'.padEnd(12) +
-    'Codec'
-  );
+  console.log('  ' + 'Movie'.padEnd(42) + 'Res'.padEnd(8) + 'MB/min'.padEnd(10) + 'Expected'.padEnd(12) + 'Codec');
   console.log('  ' + '─'.repeat(90));
 
   for (const row of rows) {
     const movie = (row.movie_folder ?? '?').slice(0, 40).padEnd(42);
     const res = (row.resolution_cat ?? '?').padEnd(8);
     const actual = (row.mb_per_minute?.toFixed(1) ?? '?').padEnd(10);
-    const expected = (`≥ ${row.expected_min} MB/min`).padEnd(12);
+    const expected = `≥ ${row.expected_min} MB/min`.padEnd(12);
     const codec = row.video_codec ?? '?';
     console.log(`  ${movie}${res}${actual}${expected}${codec}`);
   }
@@ -200,14 +202,16 @@ export function printSuspiciousFiles(db: CuratDb, limit = 30): void {
 export function printHdrBreakdown(db: CuratDb): void {
   const raw = db.raw();
 
-  const hdrRows = raw.prepare(`
+  const hdrRows = raw
+    .prepare(`
     SELECT hdr_formats, COUNT(*) as n
     FROM files
     WHERE scanned_at IS NOT NULL AND hdr_formats != '[]'
     GROUP BY hdr_formats
     ORDER BY n DESC
     LIMIT 20
-  `).all() as { hdr_formats: string; n: number }[];
+  `)
+    .all() as { hdr_formats: string; n: number }[];
 
   if (hdrRows.length === 0) {
     console.log('No HDR files found.');
@@ -217,7 +221,11 @@ export function printHdrBreakdown(db: CuratDb): void {
   console.log('\n── HDR Format Breakdown ────────────────────────────────────');
   for (const row of hdrRows) {
     let formats: string[];
-    try { formats = JSON.parse(row.hdr_formats); } catch { formats = [row.hdr_formats]; }
+    try {
+      formats = JSON.parse(row.hdr_formats);
+    } catch {
+      formats = [row.hdr_formats];
+    }
     console.log(`  ${formats.join(' + ').padEnd(30)} ${row.n}`);
   }
   console.log('');
@@ -230,7 +238,8 @@ export function printHdrBreakdown(db: CuratDb): void {
 export function printAudioBreakdown(db: CuratDb): void {
   const raw = db.raw();
 
-  const rows = raw.prepare(`
+  const rows = raw
+    .prepare(`
     SELECT
       audio_codec,
       audio_profile,
@@ -241,7 +250,8 @@ export function printAudioBreakdown(db: CuratDb): void {
     GROUP BY audio_codec, audio_profile, audio_channels
     ORDER BY n DESC
     LIMIT 20
-  `).all() as { audio_codec: string; audio_profile: string | null; audio_channels: number | null; n: number }[];
+  `)
+    .all() as { audio_codec: string; audio_profile: string | null; audio_channels: number | null; n: number }[];
 
   console.log('\n── Audio Breakdown ─────────────────────────────────────────');
   for (const row of rows) {

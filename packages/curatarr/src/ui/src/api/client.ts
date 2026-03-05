@@ -7,6 +7,7 @@ import type {
   CandidatesResponse,
   DisambiguatePendingResponse,
   DisambiguateRequest,
+  DisambiguationLogRow,
   DroppedScoutRelease,
   FileRow,
   FolderContents,
@@ -32,7 +33,6 @@ import type {
   UnmatchedMovie,
   VerifyFailure,
   VerifyFailuresResponse,
-  DisambiguationLogRow,
 } from '../../../shared/types/api';
 
 const BASE = '/api';
@@ -44,8 +44,7 @@ async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const body = await res.json().catch(() => null);
-    const msg = (body as { error?: string } | null)?.error
-      ?? await res.text().catch(() => res.statusText);
+    const msg = (body as { error?: string } | null)?.error ?? (await res.text().catch(() => res.statusText));
     throw new Error(msg);
   }
   return res.json() as Promise<T>;
@@ -80,9 +79,9 @@ export const api = {
   stats: () => req<Stats>('/stats'),
 
   movies: (params?: Record<string, string | number | boolean>) => {
-    const qs = params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
-    ) : '';
+    const qs = params
+      ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))
+      : '';
     return req<MoviesResponse>(`/movies${qs}`);
   },
   genres: () => req<GenresResponse>('/movies/genres'),
@@ -101,8 +100,7 @@ export const api = {
   jfRefreshMovie: (id: number) =>
     req<{ updated: boolean; movie: Movie }>(`/movies/${id}/jf-refresh`, { method: 'POST' }),
 
-  movieFolderContents: (id: number) =>
-    req<FolderContents>(`/movies/${id}/folder-contents`),
+  movieFolderContents: (id: number) => req<FolderContents>(`/movies/${id}/folder-contents`),
 
   deleteMovie: (id: number, mode: 'files' | 'folder') =>
     req<{ deleted: string[]; errors: string[]; mode: string }>(`/movies/${id}`, {
@@ -117,9 +115,9 @@ export const api = {
     }),
 
   candidates: (params?: Record<string, string | number>) => {
-    const qs = params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
-    ) : '';
+    const qs = params
+      ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))
+      : '';
     return req<CandidatesResponse>(`/candidates${qs}`);
   },
 
@@ -151,8 +149,7 @@ export const api = {
   saveRules: (rules: Partial<QualityRule>[]) =>
     req<{ saved: number[] }>('/rules', { method: 'PUT', body: JSON.stringify({ rules }) }),
 
-  deleteRule: (id: number) =>
-    req<{ deleted: boolean }>(`/rules/${id}`, { method: 'DELETE' }),
+  deleteRule: (id: number) => req<{ deleted: boolean }>(`/rules/${id}`, { method: 'DELETE' }),
 
   reorderRules: (category: string, ids: number[]) =>
     req<{ reordered: boolean }>('/rules/reorder', {
@@ -167,9 +164,14 @@ export const api = {
 
   health: (params?: { url?: string; apiKey?: string; prowlarrUrl?: string; prowlarrApiKey?: string }) => {
     const qs = params
-      ? '?' + new URLSearchParams(
-        Object.fromEntries(Object.entries(params).filter(([, v]) => v).map(([k, v]) => [k, v!]))
-      )
+      ? '?' +
+        new URLSearchParams(
+          Object.fromEntries(
+            Object.entries(params)
+              .filter(([, v]) => v)
+              .map(([k, v]) => [k, v!]),
+          ),
+        )
       : '';
     return req<{
       jellyfin: { ok: boolean; libraries?: number; error?: string };
@@ -177,8 +179,7 @@ export const api = {
     }>(`/settings/health${qs}`);
   },
 
-  fsRoots: () =>
-    req<{ mode: 'docker-mounted' | 'local-full'; roots: string[]; restricted: boolean }>('/fs/roots'),
+  fsRoots: () => req<{ mode: 'docker-mounted' | 'local-full'; roots: string[]; restricted: boolean }>('/fs/roots'),
 
   fsBrowse: (params?: { path?: string }) => {
     const qs = params?.path ? `?path=${encodeURIComponent(params.path)}` : '';
@@ -198,8 +199,7 @@ export const api = {
       body: JSON.stringify({ items }),
     }),
 
-  disambiguatePending: () =>
-    req<DisambiguatePendingResponse>('/disambiguate/pending'),
+  disambiguatePending: () => req<DisambiguatePendingResponse>('/disambiguate/pending'),
 
   disambiguateReview: (id: number, decision: 'confirm' | 'reject') =>
     req<{ updated: boolean }>(`/disambiguate/${id}/review`, {
@@ -213,16 +213,15 @@ export const api = {
       body: JSON.stringify(opts ?? {}),
     }),
 
-  verifyCancel: () =>
-    req<{ cancelled: boolean }>('/verify/cancel', { method: 'POST' }),
+  verifyCancel: () => req<{ cancelled: boolean }>('/verify/cancel', { method: 'POST' }),
 
   verifyStatus: () =>
     req<{ running: boolean; unverified: number; pass: number; fail: number; error: number }>('/verify/status'),
 
   verifyFailures: (params?: { page?: number; limit?: number }) => {
-    const qs = params ? '?' + new URLSearchParams(
-      Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)]))
-    ) : '';
+    const qs = params
+      ? '?' + new URLSearchParams(Object.fromEntries(Object.entries(params).map(([k, v]) => [k, String(v)])))
+      : '';
     return req<VerifyFailuresResponse>(`/verify/failures${qs}`);
   },
 

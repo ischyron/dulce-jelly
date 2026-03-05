@@ -1,6 +1,6 @@
+import { AlertCircle, CheckCircle, Loader2, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { X, CheckCircle, AlertCircle, Loader2, Square } from 'lucide-react';
-import { api } from '../api/client';
+import { api } from '../../../api/client';
 
 interface FolderStatus {
   name: string;
@@ -62,9 +62,9 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
 
     es.addEventListener('folder_complete', (e: MessageEvent) => {
       const data = JSON.parse(e.data || '{}') as { folderName: string; fileCount: number };
-      setCompletedFolders(prev => {
+      setCompletedFolders((prev) => {
         // Avoid duplicates
-        if (prev.some(f => f.name === data.folderName)) return prev;
+        if (prev.some((f) => f.name === data.folderName)) return prev;
         const next = [...prev, { name: data.folderName, fileCount: data.fileCount, done: true }];
         return next.slice(-200); // keep last 200
       });
@@ -101,7 +101,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
 
     es.addEventListener('ambiguous', (e: MessageEvent) => {
       const data = JSON.parse(e.data || '{}');
-      setAmbiguous(prev => [...prev.slice(-50), data]);
+      setAmbiguous((prev) => [...prev.slice(-50), data]);
     });
 
     return () => es.close();
@@ -110,9 +110,10 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
   async function stopScan() {
     setStopping(true);
     try {
-      const cancelFn = mode === 'scan'
-        ? () => fetch('/api/scan/cancel', { method: 'POST' }).then(r => r.json()) as Promise<{ cancelled: boolean }>
-        : () => api.syncCancel();
+      const cancelFn =
+        mode === 'scan'
+          ? () => fetch('/api/scan/cancel', { method: 'POST' }).then((r) => r.json()) as Promise<{ cancelled: boolean }>
+          : () => api.syncCancel();
       const res = await cancelFn();
       if (!res.cancelled) {
         // Operation already finished before cancel arrived — mark as done
@@ -152,7 +153,9 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
             <div>
               <div className="flex justify-between text-xs text-[#8b87aa] mb-1">
                 <span>{mode === 'scan' ? 'Scanning…' : 'Syncing…'}</span>
-                <span>{foldersTotal > 0 ? `${foldersDone} / ${foldersTotal} folders` : ''} {pct > 0 ? `(${pct}%)` : ''}</span>
+                <span>
+                  {foldersTotal > 0 ? `${foldersDone} / ${foldersTotal} folders` : ''} {pct > 0 ? `(${pct}%)` : ''}
+                </span>
               </div>
               <div className="h-2 bg-[#1e1e2e] rounded-full overflow-hidden">
                 <div
@@ -186,20 +189,12 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
           )}
 
           {mode === 'scan' && done && !cancelled && !error && (
-            <p className="text-xs text-[#8b87aa]">
-              {complete?.notes?.trim() || 'Completed.'}
-            </p>
+            <p className="text-xs text-[#8b87aa]">{complete?.notes?.trim() || 'Completed.'}</p>
           )}
 
-          {rate > 0 && (
-            <p className="text-xs text-[#6b6888] text-center">{rate.toFixed(1)} files/sec</p>
-          )}
+          {rate > 0 && <p className="text-xs text-[#6b6888] text-center">{rate.toFixed(1)} files/sec</p>}
 
-          {progress.file && (
-            <p className="text-xs text-[#6b6888] truncate font-mono">
-              {String(progress.file)}
-            </p>
-          )}
+          {progress.file && <p className="text-xs text-[#6b6888] truncate font-mono">{String(progress.file)}</p>}
 
           {/* Completed folders list */}
           {completedFolders.length > 0 && (
@@ -207,12 +202,9 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
               <h3 className="text-xs font-semibold text-[#6b6888] uppercase tracking-wider mb-2">
                 Completed Folders ({completedFolders.length})
               </h3>
-              <div
-                ref={folderListRef}
-                className="h-40 overflow-y-auto bg-[#1e1e2e]/50 rounded-lg p-2 space-y-1"
-              >
-                {completedFolders.map((f, i) => (
-                  <div key={i} className="flex items-center gap-2 text-xs">
+              <div ref={folderListRef} className="h-40 overflow-y-auto bg-[#1e1e2e]/50 rounded-lg p-2 space-y-1">
+                {completedFolders.map((f) => (
+                  <div key={`${f.name}:${f.fileCount}`} className="flex items-center gap-2 text-xs">
                     <CheckCircle size={11} className="text-green-500 shrink-0" />
                     <span className="text-[#c4b5fd] truncate">{f.name}</span>
                     <span className="text-[#6b6888] ml-auto shrink-0">{f.fileCount}f</span>
@@ -224,9 +216,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
 
           {/* Pending folders count */}
           {foldersTotal > 0 && foldersDone < foldersTotal && !done && (
-            <p className="text-xs text-[#6b6888]">
-              {foldersTotal - foldersDone} folders pending…
-            </p>
+            <p className="text-xs text-[#6b6888]">{foldersTotal - foldersDone} folders pending…</p>
           )}
 
           {/* Ambiguous matches (sync) */}
@@ -236,8 +226,11 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
                 Ambiguous Matches ({ambiguous.length})
               </h3>
               <div className="h-32 overflow-y-auto bg-[#1e1e2e]/50 rounded-lg p-2 space-y-1">
-                {(ambiguous as Record<string, unknown>[]).map((a, i) => (
-                  <div key={i} className="text-xs text-amber-300/80">
+                {(ambiguous as Record<string, unknown>[]).map((a) => (
+                  <div
+                    key={`${String(a.jfTitle)}:${String(a.jfYear ?? '')}:${String(a.dbFolderName)}:${String(a.reason)}`}
+                    className="text-xs text-amber-300/80"
+                  >
                     <span className="font-medium">{String(a.jfTitle)}</span>
                     {a.jfYear ? ` (${a.jfYear})` : ''} →{' '}
                     <span className="text-[#8b87aa]">{String(a.dbFolderName)}</span>
@@ -258,10 +251,15 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
               disabled={stopping}
               className="flex items-center gap-2 px-4 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-800 text-red-300 rounded-lg text-sm font-medium disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              {stopping
-                ? <><Loader2 size={13} className="animate-spin" /> Stopping…</>
-                : <><Square size={13} /> Stop {mode === 'scan' ? 'Scan' : 'Sync'}</>
-              }
+              {stopping ? (
+                <>
+                  <Loader2 size={13} className="animate-spin" /> Stopping…
+                </>
+              ) : (
+                <>
+                  <Square size={13} /> Stop {mode === 'scan' ? 'Scan' : 'Sync'}
+                </>
+              )}
             </button>
           )}
           {done && (

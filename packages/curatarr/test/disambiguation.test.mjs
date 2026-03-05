@@ -1,5 +1,5 @@
-import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
+import { describe, test } from 'node:test';
 
 const { DisambiguationEngine } = await import('../src/server/dist/disambiguation/engine.js');
 
@@ -30,10 +30,7 @@ function mkMovie(id, title, year) {
 
 describe('Disambiguation with soft-removed duplicate titles', () => {
   test('matches exact title+year when both variants exist', () => {
-    const movies = [
-      mkMovie(1, 'Les Misérables', 1998),
-      mkMovie(2, 'Les Misérables', 2012),
-    ];
+    const movies = [mkMovie(1, 'Les Misérables', 1998), mkMovie(2, 'Les Misérables', 2012)];
 
     const engine = new DisambiguationEngine(movies);
     const result = engine.disambiguate({
@@ -49,9 +46,7 @@ describe('Disambiguation with soft-removed duplicate titles', () => {
 
   test('flags year mismatch after soft-removing one title variant', () => {
     // Simulate DB soft-removal from Curatarr index: 2012 entry removed.
-    const movies = [
-      mkMovie(1, 'Les Misérables', 1998),
-    ];
+    const movies = [mkMovie(1, 'Les Misérables', 1998)];
 
     const engine = new DisambiguationEngine(movies);
     const result = engine.disambiguate({

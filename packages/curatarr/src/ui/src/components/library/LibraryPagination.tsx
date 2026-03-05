@@ -27,10 +27,13 @@ export function LibraryPagination({ page, totalPages, limit, total, onChangePage
         </button>
 
         <div className="flex items-center gap-2" style={{ color: 'var(--c-muted)' }}>
-          <span>Page {page} of {totalPages}</span>
+          <span>
+            Page {page} of {totalPages}
+          </span>
           <span style={{ color: 'var(--c-border)' }}>·</span>
           <span style={{ fontSize: '0.7rem' }}>
-            {((page - 1) * limit + 1).toLocaleString()}–{Math.min(page * limit, total).toLocaleString()} of {total.toLocaleString()}
+            {((page - 1) * limit + 1).toLocaleString()}–{Math.min(page * limit, total).toLocaleString()} of{' '}
+            {total.toLocaleString()}
           </span>
         </div>
 

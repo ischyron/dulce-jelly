@@ -62,9 +62,13 @@ export function TagBatchModal({
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           >
             <option value="">Select existing tag</option>
-            {allTags.filter((tag) => !batchTags.includes(tag)).map((tag) => (
-              <option key={tag} value={tag}>{tag}</option>
-            ))}
+            {allTags
+              .filter((tag) => !batchTags.includes(tag))
+              .map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
           </select>
 
           <button
@@ -106,9 +110,11 @@ export function TagBatchModal({
               key={tag}
               onClick={() => onRemoveBatchTag(tag)}
               className="px-2 py-0.5 rounded-full text-xs border"
-              style={isAddMode
-                ? { color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }
-                : { color: '#fca5a5', borderColor: 'rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.12)' }}
+              style={
+                isAddMode
+                  ? { color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }
+                  : { color: '#fca5a5', borderColor: 'rgba(239,68,68,0.35)', background: 'rgba(239,68,68,0.12)' }
+              }
             >
               {tag} ×
             </button>
@@ -132,11 +138,13 @@ export function TagBatchModal({
             onClick={onApply}
             disabled={batchTags.length === 0 || pending}
             className="px-3 py-1.5 rounded text-xs border disabled:opacity-40"
-            style={isAddMode
-              ? { borderColor: 'rgba(16,185,129,0.45)', color: '#a7f3d0', background: 'rgba(16,185,129,0.12)' }
-              : { borderColor: 'rgba(239,68,68,0.45)', color: '#fca5a5', background: 'rgba(239,68,68,0.12)' }}
+            style={
+              isAddMode
+                ? { borderColor: 'rgba(16,185,129,0.45)', color: '#a7f3d0', background: 'rgba(16,185,129,0.12)' }
+                : { borderColor: 'rgba(239,68,68,0.45)', color: '#fca5a5', background: 'rgba(239,68,68,0.12)' }
+            }
           >
-            {pending ? 'Applying…' : (isAddMode ? 'Apply Tags' : 'Remove Tags')}
+            {pending ? 'Applying…' : isAddMode ? 'Apply Tags' : 'Remove Tags'}
           </button>
         </div>
       </div>

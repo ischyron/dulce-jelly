@@ -401,8 +401,8 @@ async function fetchRadarrCustomFormatScores(url: string, apiKey: string): Promi
   ]);
   if (!cfRes.ok) throw new Error(`radarr_customformat_${cfRes.status}`);
   if (!qpRes.ok) throw new Error(`radarr_qualityprofile_${qpRes.status}`);
-  const customFormats = await cfRes.json().catch(() => []) as Array<{ id?: number; name?: string }>;
-  const profiles = await qpRes.json().catch(() => []) as Array<{
+  const customFormats = (await cfRes.json().catch(() => [])) as Array<{ id?: number; name?: string }>;
+  const profiles = (await qpRes.json().catch(() => [])) as Array<{
     formatItems?: Array<{ format?: number; score?: number }>;
   }>;
   const nameById = new Map<number, string>();
@@ -430,10 +430,7 @@ async function fetchRadarrCustomFormatScores(url: string, apiKey: string): Promi
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-function diffParity(
-  baseline: RadarrCfScoreItem[],
-  current: RadarrCfScoreItem[],
-): ScoutTrashParityDiff {
+function diffParity(baseline: RadarrCfScoreItem[], current: RadarrCfScoreItem[]): ScoutTrashParityDiff {
   const prev = new Map(baseline.map((x) => [x.name, x.score]));
   const now = new Map(current.map((x) => [x.name, x.score]));
   const added: Array<{ name: string; score: number }> = [];
@@ -606,13 +603,17 @@ function applyCustomCfRules(
 }
 
 function loadScoutLlmRules(db: CuratDb): ScoutLlmRule[] {
-  return db.getRules('scout_llm_ruleset')
+  return db
+    .getRules('scout_llm_ruleset')
     .filter((r) => r.enabled !== 0)
     .map((r) => {
       const cfg = safeParseJson(r.config) as Record<string, unknown>;
-      const sentence = typeof cfg.sentence === 'string'
-        ? cfg.sentence
-        : (typeof cfg.description === 'string' ? cfg.description : r.name);
+      const sentence =
+        typeof cfg.sentence === 'string'
+          ? cfg.sentence
+          : typeof cfg.description === 'string'
+            ? cfg.description
+            : r.name;
       return {
         id: r.id,
         priority: r.priority,
@@ -637,13 +638,15 @@ function applyLlmRuleset(
     for (const rule of llmRules) {
       const s = rule.sentence.toLowerCase();
       const t = rel.title.toLowerCase();
-      if ((s.includes('drop cam') || s.includes('drop telesync') || s.includes('drop ts'))
-        && /\bcam\b|\bhdts\b|\bts\b|\btelesync\b|\btelecine\b/.test(t)) {
+      if (
+        (s.includes('drop cam') || s.includes('drop telesync') || s.includes('drop ts')) &&
+        /\bcam\b|\bhdts\b|\bts\b|\btelesync\b|\btelecine\b/.test(t)
+      ) {
         dropReason = `Dropped by LLM rule #${rule.priority}: ${rule.sentence}`;
         break;
       }
       if (s.includes('drop low seed')) {
-        const n = Number((s.match(/(\d+)/)?.[1] ?? '5'));
+        const n = Number(s.match(/(\d+)/)?.[1] ?? '5');
         if ((rel.seeders ?? 0) < n) {
           dropReason = `Dropped by LLM rule #${rule.priority}: ${rule.sentence}`;
           break;
@@ -684,7 +687,7 @@ function applySettings(db: CuratDb, values: Record<string, string>): void {
 
 function ensureScoutRuleBaseline(db: CuratDb): number[] {
   const existing = db.getRules('scout');
-  const existingByName = new Map(existing.map(r => [r.name, r]));
+  const existingByName = new Map(existing.map((r) => [r.name, r]));
   const saved: number[] = [];
   for (const seed of SCOUT_RULE_BASELINE) {
     const prev = existingByName.get(seed.name);
@@ -694,7 +697,7 @@ function ensureScoutRuleBaseline(db: CuratDb): number[] {
       name: seed.name,
       enabled: prev ? prev.enabled !== 0 : true,
       priority: prev?.priority ?? seed.priority,
-      config: prev ? safeParseJson(prev.config) as object : seed.config,
+      config: prev ? (safeParseJson(prev.config) as object) : seed.config,
     });
     saved.push(id);
   }
@@ -713,14 +716,19 @@ function ensureScoutLlmRulesetBaseline(db: CuratDb): number[] {
       name: seed.name,
       enabled: prev ? prev.enabled !== 0 : true,
       priority: prev?.priority ?? seed.priority,
-      config: prev ? safeParseJson(prev.config) as object : seed.config,
+      config: prev ? (safeParseJson(prev.config) as object) : seed.config,
     });
     saved.push(id);
   }
   return saved;
 }
 
-async function fetchTrashGuidesRevision(): Promise<{ source: string; revision: string | null; fetchedAt: string; warning?: string }> {
+async function fetchTrashGuidesRevision(): Promise<{
+  source: string;
+  revision: string | null;
+  fetchedAt: string;
+  warning?: string;
+}> {
   const fetchedAt = new Date().toISOString();
   try {
     const res = await fetch(
@@ -735,7 +743,7 @@ async function fetchTrashGuidesRevision(): Promise<{ source: string; revision: s
         warning: `revision_lookup_failed_${res.status}`,
       };
     }
-    const body = await res.json() as Array<{ sha?: string }>;
+    const body = (await res.json()) as Array<{ sha?: string }>;
     return {
       source: 'TRaSH-Guides',
       revision: body?.[0]?.sha?.slice(0, 12) ?? null,
@@ -756,21 +764,26 @@ async function fetchTrashGuidesSnapshot(): Promise<{ snapshot: TrashUpstreamSnap
   const maxFiles = 10;
   const maxBytes = 180_000;
   try {
-    const listRes = await fetch(
-      `https://api.github.com/repos/TRaSH-Guides/Guides/contents/${path}`,
-      { headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'curatarr-scout-sync' } },
-    );
+    const listRes = await fetch(`https://api.github.com/repos/TRaSH-Guides/Guides/contents/${path}`, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'curatarr-scout-sync' },
+    });
     if (!listRes.ok) {
       return { snapshot: null, warning: `upstream_list_failed_${listRes.status}` };
     }
-    const list = await listRes.json() as Array<{
+    const list = (await listRes.json()) as Array<{
       type?: string;
       name?: string;
       size?: number;
       download_url?: string | null;
     }>;
     const jsonFiles = list
-      .filter(f => f.type === 'file' && typeof f.name === 'string' && f.name.endsWith('.json') && typeof f.download_url === 'string')
+      .filter(
+        (f) =>
+          f.type === 'file' &&
+          typeof f.name === 'string' &&
+          f.name.endsWith('.json') &&
+          typeof f.download_url === 'string',
+      )
       .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
     const selected = jsonFiles.slice(0, maxFiles);
     const files: TrashUpstreamFileSnapshot[] = [];
@@ -883,7 +896,7 @@ function buildScoutRefinementDraft(
   }
 
   const scoreCfg = resolveScoutScoreConfig(db);
-  const compactRules = rules.map(r => ({
+  const compactRules = rules.map((r) => ({
     id: r.id,
     name: r.name,
     enabled: r.enabled !== 0,
@@ -941,28 +954,60 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
     audioAac: intSetting(db, 'scoutCfAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
     legacyPenalty: intSetting(db, 'scoutCfLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
     bitrateMin2160Mbps: floatSetting(
-      db, 'scoutCfBitrateMin2160Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin2160Mbps, 0, 200,
+      db,
+      'scoutCfBitrateMin2160Mbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin2160Mbps,
+      0,
+      200,
     ),
     bitrateMax2160Mbps: floatSetting(
-      db, 'scoutCfBitrateMax2160Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax2160Mbps, 1, 300,
+      db,
+      'scoutCfBitrateMax2160Mbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax2160Mbps,
+      1,
+      300,
     ),
     bitrateMin1080Mbps: floatSetting(
-      db, 'scoutCfBitrateMin1080Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin1080Mbps, 0, 120,
+      db,
+      'scoutCfBitrateMin1080Mbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin1080Mbps,
+      0,
+      120,
     ),
     bitrateMax1080Mbps: floatSetting(
-      db, 'scoutCfBitrateMax1080Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax1080Mbps, 1, 200,
+      db,
+      'scoutCfBitrateMax1080Mbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax1080Mbps,
+      1,
+      200,
     ),
     bitrateMin720Mbps: floatSetting(
-      db, 'scoutCfBitrateMin720Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin720Mbps, 0, 80,
+      db,
+      'scoutCfBitrateMin720Mbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMin720Mbps,
+      0,
+      80,
     ),
     bitrateMax720Mbps: floatSetting(
-      db, 'scoutCfBitrateMax720Mbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax720Mbps, 1, 150,
+      db,
+      'scoutCfBitrateMax720Mbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMax720Mbps,
+      1,
+      150,
     ),
     bitrateMinOtherMbps: floatSetting(
-      db, 'scoutCfBitrateMinOtherMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMinOtherMbps, 0, 60,
+      db,
+      'scoutCfBitrateMinOtherMbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMinOtherMbps,
+      0,
+      60,
     ),
     bitrateMaxOtherMbps: floatSetting(
-      db, 'scoutCfBitrateMaxOtherMbps', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxOtherMbps, 1, 120,
+      db,
+      'scoutCfBitrateMaxOtherMbps',
+      DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxOtherMbps,
+      1,
+      120,
     ),
     seedersDivisor: intSetting(db, 'scoutCfSeedersDivisor', DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor, 1, 500),
     seedersBonusCap: intSetting(db, 'scoutCfSeedersBonusCap', DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap, 0, 200),
@@ -971,22 +1016,47 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
   };
 }
 
-function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, customCfRules: ScoutCustomCfRule[]): ScoredRelease {
+function scoreRelease(
+  r: ProwlarrSearchResult,
+  cfg: ScoutScoreConfig,
+  customCfRules: ScoutCustomCfRule[],
+): ScoredRelease {
   const t = r.title.toLowerCase();
   let score = 0;
   const reasons: string[] = [];
 
-  if (/\b2160p\b|\b4k\b/.test(t)) { score += cfg.res2160; reasons.push('2160p'); }
-  else if (/\b1080p\b/.test(t)) { score += cfg.res1080; reasons.push('1080p'); }
-  else if (/\b720p\b/.test(t)) { score += cfg.res720; reasons.push('720p'); }
+  if (/\b2160p\b|\b4k\b/.test(t)) {
+    score += cfg.res2160;
+    reasons.push('2160p');
+  } else if (/\b1080p\b/.test(t)) {
+    score += cfg.res1080;
+    reasons.push('1080p');
+  } else if (/\b720p\b/.test(t)) {
+    score += cfg.res720;
+    reasons.push('720p');
+  }
 
-  if (/\b(remux)\b/.test(t)) { score += cfg.sourceRemux; reasons.push('remux'); }
-  else if (/\bbluray\b|\bbd\b/.test(t)) { score += cfg.sourceBluray; reasons.push('bluray'); }
-  else if (/\bweb-?dl\b/.test(t)) { score += cfg.sourceWebdl; reasons.push('web-dl'); }
+  if (/\b(remux)\b/.test(t)) {
+    score += cfg.sourceRemux;
+    reasons.push('remux');
+  } else if (/\bbluray\b|\bbd\b/.test(t)) {
+    score += cfg.sourceBluray;
+    reasons.push('bluray');
+  } else if (/\bweb-?dl\b/.test(t)) {
+    score += cfg.sourceWebdl;
+    reasons.push('web-dl');
+  }
 
-  if (/\bhevc\b|\bx265\b/.test(t)) { score += cfg.codecHevc; reasons.push('hevc'); }
-  else if (/\bav1\b/.test(t)) { score += cfg.codecAv1; reasons.push('av1'); }
-  else if (/\bh264\b|\bx264\b/.test(t)) { score += cfg.codecH264; reasons.push('h264'); }
+  if (/\bhevc\b|\bx265\b/.test(t)) {
+    score += cfg.codecHevc;
+    reasons.push('hevc');
+  } else if (/\bav1\b/.test(t)) {
+    score += cfg.codecAv1;
+    reasons.push('av1');
+  } else if (/\bh264\b|\bx264\b/.test(t)) {
+    score += cfg.codecH264;
+    reasons.push('h264');
+  }
 
   if (/\batmos\b/.test(t)) {
     score += cfg.audioAtmos;
@@ -1009,7 +1079,10 @@ function scoreRelease(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, customCfRu
     reasons.push('aac');
   }
 
-  if (/\bxvid\b|\bmpeg4\b/.test(t)) { score -= cfg.legacyPenalty; reasons.push('legacy codec penalty'); }
+  if (/\bxvid\b|\bmpeg4\b/.test(t)) {
+    score -= cfg.legacyPenalty;
+    reasons.push('legacy codec penalty');
+  }
 
   if (r.seeders != null) {
     score += Math.min(cfg.seedersBonusCap, Math.max(0, Math.floor(r.seeders / cfg.seedersDivisor)));
@@ -1058,13 +1131,13 @@ function bitrateGate(r: ProwlarrSearchResult, runtimeSec: number | null, cfg: Sc
     '2160p': cfg.bitrateMin2160Mbps,
     '1080p': cfg.bitrateMin1080Mbps,
     '720p': cfg.bitrateMin720Mbps,
-    'other': cfg.bitrateMinOtherMbps,
+    other: cfg.bitrateMinOtherMbps,
   };
   const maxByResMbps: Record<'2160p' | '1080p' | '720p' | 'other', number> = {
     '2160p': Math.max(cfg.bitrateMin2160Mbps, cfg.bitrateMax2160Mbps),
     '1080p': Math.max(cfg.bitrateMin1080Mbps, cfg.bitrateMax1080Mbps),
     '720p': Math.max(cfg.bitrateMin720Mbps, cfg.bitrateMax720Mbps),
-    'other': Math.max(cfg.bitrateMinOtherMbps, cfg.bitrateMaxOtherMbps),
+    other: Math.max(cfg.bitrateMinOtherMbps, cfg.bitrateMaxOtherMbps),
   };
   const codecMultiplier: Record<'av1' | 'hevc' | 'h264' | 'unknown', number> = {
     av1: 0.8,
@@ -1111,7 +1184,12 @@ function recommendationSummary(top: ScoredRelease | null): string {
   return `Best path: "${top.title}" (score ${top.score}) driven by ${reasons}.`;
 }
 
-async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: number, queryOverride?: string): Promise<SearchSuccess> {
+async function searchOneMovie(
+  db: CuratDb,
+  client: ProwlarrClient,
+  movieId: number,
+  queryOverride?: string,
+): Promise<SearchSuccess> {
   const movie = db.getMovieById(movieId);
   if (!movie) throw new Error('movie_not_found');
   const title = movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name;
@@ -1120,12 +1198,12 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
   const scoreCfg = resolveScoutScoreConfig(db);
   const customCfRules = loadScoutCustomCfRules(db);
   const llmRules = loadScoutLlmRules(db);
-  const runtimeSec = db.getFilesForMovie(movieId).find(f => (f.duration ?? 0) > 0)?.duration ?? null;
+  const runtimeSec = db.getFilesForMovie(movieId).find((f) => (f.duration ?? 0) > 0)?.duration ?? null;
 
   const releases = await client.searchMovie(query);
   const excludedReasons: string[] = [];
   const scoredBase = releases
-    .map(r => scoreRelease(r, scoreCfg, customCfRules))
+    .map((r) => scoreRelease(r, scoreCfg, customCfRules))
     .filter((r) => {
       const gate = bitrateGate(r, runtimeSec, scoreCfg);
       if (gate.excluded) {
@@ -1138,9 +1216,10 @@ async function searchOneMovie(db: CuratDb, client: ProwlarrClient, movieId: numb
   const scored = llmResult.finals;
   const dropped = llmResult.dropped;
   const best = scored[0] ?? null;
-  const summary = excludedReasons.length > 0
-    ? `${recommendationSummary(best)} ${excludedReasons.length} release(s) excluded by bitrate gate.${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by LLM ruleset.` : ''}`
-    : recommendationSummary(best);
+  const summary =
+    excludedReasons.length > 0
+      ? `${recommendationSummary(best)} ${excludedReasons.length} release(s) excluded by bitrate gate.${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by LLM ruleset.` : ''}`
+      : recommendationSummary(best);
   return {
     movieId,
     query,
@@ -1178,7 +1257,7 @@ function pickAutoMovieIds(db: CuratDb, cap: number): { ids: number[]; skippedByC
   const now = Date.now();
   const cooldownMs = configuredCooldownMin(db) * 60_000;
   const byPriority = pool
-    .map(c => ({ id: c.id, priority: toPriorityScore(c.critic_rating, c.community_rating) }))
+    .map((c) => ({ id: c.id, priority: toPriorityScore(c.critic_rating, c.community_rating) }))
     .sort((a, b) => b.priority - a.priority);
 
   let skippedByCooldown = 0;
@@ -1199,10 +1278,7 @@ export function getScoutAutoState(): ScoutAutoState {
   return autoState;
 }
 
-export async function runScoutAutoBatch(
-  db: CuratDb,
-  trigger: 'manual' | 'scheduled',
-): Promise<ScoutAutoRunSummary> {
+export async function runScoutAutoBatch(db: CuratDb, trigger: 'manual' | 'scheduled'): Promise<ScoutAutoRunSummary> {
   if (autoState.running) {
     throw new Error('auto_scout_already_running');
   }
@@ -1263,9 +1339,10 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     ensureScoutLlmRulesetBaseline(db);
     const meta = await fetchTrashGuidesRevision();
     const upstream = await fetchTrashGuidesSnapshot();
-    const appliedRules = db.getRules('scout')
-      .filter(r => savedRuleIds.includes(r.id))
-      .map(r => ({
+    const appliedRules = db
+      .getRules('scout')
+      .filter((r) => savedRuleIds.includes(r.id))
+      .map((r) => ({
         id: r.id,
         name: r.name,
         priority: r.priority,
@@ -1320,21 +1397,24 @@ export function makeScoutRoutes(db: CuratDb): Hono {
 
   // POST /api/scout/custom-cf/preview { title: string }
   app.post('/custom-cf/preview', async (c) => {
-    const body = await c.req.json().catch(() => ({})) as { title?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as { title?: unknown };
     const title = toText(body.title).trim();
     if (!title) return c.json({ error: 'title_required' }, 400);
     const rules = loadScoutCustomCfRules(db);
-    const match = applyCustomCfRules({
-      title,
-      indexer: null,
-      protocol: 'unknown',
-      size: null,
-      publishDate: null,
-      guid: null,
-      downloadUrl: null,
-      seeders: null,
-      peers: null,
-    }, rules);
+    const match = applyCustomCfRules(
+      {
+        title,
+        indexer: null,
+        protocol: 'unknown',
+        size: null,
+        publishDate: null,
+        guid: null,
+        downloadUrl: null,
+        seeders: null,
+        peers: null,
+      },
+      rules,
+    );
     return c.json({
       title,
       totalRules: rules.length,
@@ -1346,7 +1426,7 @@ export function makeScoutRoutes(db: CuratDb): Hono {
 
   // POST /api/scout/rules/refine-draft  { objective: string }
   app.post('/rules/refine-draft', async (c) => {
-    const body = await c.req.json().catch(() => ({})) as { objective?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as { objective?: unknown };
     const objective = toText(body.objective).trim();
     const draft = buildScoutRefinementDraft(db, objective);
     return c.json(draft);
@@ -1354,7 +1434,7 @@ export function makeScoutRoutes(db: CuratDb): Hono {
 
   // POST /api/scout/search-one  { movieId: number, query?: string }
   app.post('/search-one', async (c) => {
-    const body = await c.req.json().catch(() => ({})) as { movieId?: unknown; query?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as { movieId?: unknown; query?: unknown };
     const movieId = Number(body.movieId);
     if (!Number.isFinite(movieId) || movieId <= 0) {
       return c.json({ error: 'invalid_movie_id' }, 400);
@@ -1379,11 +1459,9 @@ export function makeScoutRoutes(db: CuratDb): Hono {
 
   // POST /api/scout/search-batch  { movieIds: number[] }
   app.post('/search-batch', async (c) => {
-    const body = await c.req.json().catch(() => ({})) as { movieIds?: unknown; batchSize?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as { movieIds?: unknown; batchSize?: unknown };
     const movieIdsRaw = Array.isArray(body.movieIds) ? body.movieIds : [];
-    const movieIds = Array.from(new Set(
-      movieIdsRaw.map(v => Number(v)).filter(v => Number.isFinite(v) && v > 0)
-    ));
+    const movieIds = Array.from(new Set(movieIdsRaw.map((v) => Number(v)).filter((v) => Number.isFinite(v) && v > 0)));
     if (movieIds.length === 0) return c.json({ error: 'movie_ids_required' }, 400);
     if (movieIds.length > 10) return c.json({ error: 'batch_limit_exceeded', max: 10 }, 400);
 

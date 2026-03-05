@@ -30,7 +30,11 @@ export function StatusDots({ movie }: Props) {
 
   return (
     <span className="inline-flex items-center gap-1.5">
-      <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: scanColor }} title={scanTitle} />
+      <span
+        className="w-2 h-2 rounded-full inline-block shrink-0"
+        style={{ background: scanColor }}
+        title={scanTitle}
+      />
       <span className="w-2 h-2 rounded-full inline-block shrink-0" style={{ background: jfColor }} title={jfTitle} />
     </span>
   );

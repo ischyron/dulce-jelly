@@ -8,8 +8,20 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const VIDEO_EXTENSIONS = new Set([
-  '.mkv', '.mp4', '.avi', '.m4v', '.mov', '.ts', '.m2ts',
-  '.wmv', '.flv', '.webm', '.mpg', '.mpeg', '.divx', '.xvid',
+  '.mkv',
+  '.mp4',
+  '.avi',
+  '.m4v',
+  '.mov',
+  '.ts',
+  '.m2ts',
+  '.wmv',
+  '.flv',
+  '.webm',
+  '.mpg',
+  '.mpeg',
+  '.divx',
+  '.xvid',
 ]);
 
 export interface MovieFolder {
@@ -17,7 +29,7 @@ export interface MovieFolder {
   folderName: string;
   parsedTitle: string;
   parsedYear: number | undefined;
-  videoFiles: string[];   // absolute paths
+  videoFiles: string[]; // absolute paths
 }
 
 /**
@@ -78,8 +90,8 @@ export function* walkLibrary(rootPath: string): Generator<MovieFolder> {
     }
 
     const videoFiles = fileEntries
-      .filter(f => f.isFile() && isMainVideoFile(f.name))
-      .map(f => path.join(folderPath, f.name));
+      .filter((f) => f.isFile() && isMainVideoFile(f.name))
+      .map((f) => path.join(folderPath, f.name));
 
     // A movie folder should have at least one video file
     // (skip pure metadata-only folders)
@@ -100,9 +112,7 @@ export function* walkLibrary(rootPath: string): Generator<MovieFolder> {
  */
 export function countMovieFolders(rootPath: string): number {
   try {
-    return fs.readdirSync(rootPath, { withFileTypes: true })
-      .filter(e => e.isDirectory())
-      .length;
+    return fs.readdirSync(rootPath, { withFileTypes: true }).filter((e) => e.isDirectory()).length;
   } catch {
     return 0;
   }

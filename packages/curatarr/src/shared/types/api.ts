@@ -69,6 +69,7 @@ export interface FileRow {
   video_codec: string | null;
   video_bitrate: number | null;
   bit_depth: number | null;
+  dv_profile: number | null;
   audio_codec: string | null;
   audio_profile: string | null;
   audio_channels: number | null;

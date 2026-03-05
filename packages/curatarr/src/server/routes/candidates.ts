@@ -14,7 +14,10 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const limit = parseInt(c.req.query('limit') ?? '100', 10);
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
     const genre = c.req.query('genre') ?? undefined;
-    const genres = (genre ?? '').split(',').map(v => v.trim()).filter(Boolean);
+    const genres = (genre ?? '')
+      .split(',')
+      .map((v) => v.trim())
+      .filter(Boolean);
 
     const candidates = db.getUpgradeCandidates({
       maxResolution,
@@ -26,7 +29,7 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     });
 
     // Add a composite priority score
-    const withScore = candidates.map(c => {
+    const withScore = candidates.map((c) => {
       const mc = c.critic_rating ?? 0;
       const imdb = c.community_rating ?? 0;
       const base = Math.round(mc * 0.4 + imdb * 6);

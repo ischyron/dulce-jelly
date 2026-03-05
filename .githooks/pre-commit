@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+mapfile -t STAGED_CURATARR_FILES < <(
+  git diff --cached --name-only --diff-filter=ACMRT \
+    | grep '^packages/curatarr/' \
+    | grep -E '\.(ts|tsx|js|mjs|cjs|json|md|yml|yaml)$' || true
+)
+
+if [[ ${#STAGED_CURATARR_FILES[@]} -eq 0 ]]; then
+  echo "[pre-commit] No staged Curatarr files. Skipping."
+  exit 0
+fi
+
+echo "[pre-commit] curatarr lint:fix"
+npm --prefix "$REPO_ROOT/packages/curatarr" run lint:fix
+
+declare -a REL_CURATARR_FILES=()
+for file in "${STAGED_CURATARR_FILES[@]}"; do
+  REL_CURATARR_FILES+=("${file#packages/curatarr/}")
+done
+
+echo "[pre-commit] curatarr biome check (staged files)"
+(
+  cd "$REPO_ROOT/packages/curatarr"
+  npx biome check "${REL_CURATARR_FILES[@]}"
+)
+
+echo "[pre-commit] curatarr typecheck"
+npm --prefix "$REPO_ROOT/packages/curatarr" run typecheck

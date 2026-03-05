@@ -4,12 +4,12 @@
  */
 
 import type { CuratDb } from '../db/client.js';
-import type { DisambiguateRequest, DisambiguateResult } from './types.js';
-import { DisambiguationEngine } from './engine.js';
 import { disEmitter } from '../server/sse.js';
+import { DisambiguationEngine } from './engine.js';
+import type { DisambiguateRequest, DisambiguateResult } from './types.js';
 
 export interface QueueOptions {
-  concurrency?: number;  // default 4
+  concurrency?: number; // default 4
   signal?: AbortSignal;
 }
 
@@ -17,7 +17,7 @@ export async function runDisambiguationQueue(
   jobId: string,
   reqs: DisambiguateRequest[],
   db: CuratDb,
-  opts: QueueOptions = {}
+  opts: QueueOptions = {},
 ): Promise<{ total: number; ambiguous: number }> {
   const concurrency = opts.concurrency ?? 4;
   const signal = opts.signal;

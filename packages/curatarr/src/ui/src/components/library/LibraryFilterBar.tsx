@@ -1,14 +1,21 @@
+import { Library as LibraryIcon, Search } from 'lucide-react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import { Search, Library as LibraryIcon } from 'lucide-react';
-import { PAGE_SIZE_OPTIONS, RESOLUTION_OPTIONS, CODEC_OPTIONS, AUDIO_FORMAT_OPTIONS, AUDIO_LAYOUT_OPTIONS } from './types';
+import { getCodecDescription } from '../shared/utils';
 import { formatTotalSize } from './helpers';
+import {
+  AUDIO_FORMAT_OPTIONS,
+  AUDIO_LAYOUT_OPTIONS,
+  CODEC_OPTIONS,
+  PAGE_SIZE_OPTIONS,
+  RESOLUTION_OPTIONS,
+} from './types';
 
 interface Props {
   isFetching: boolean;
   searchInput: string;
   onSearchInput: (value: string) => void;
 
-  genreFilterRef: RefObject<HTMLDivElement | null>;
+  genreFilterRef: RefObject<HTMLDivElement>;
   genreFilterOpen: boolean;
   setGenreFilterOpen: Dispatch<SetStateAction<boolean>>;
   genres: string[];
@@ -35,7 +42,7 @@ interface Props {
   audioLayout: string;
   onAudioLayoutChange: (value: string) => void;
 
-  tagFilterRef: RefObject<HTMLDivElement | null>;
+  tagFilterRef: RefObject<HTMLDivElement>;
   tagFilterOpen: boolean;
   setTagFilterOpen: Dispatch<SetStateAction<boolean>>;
   tags: string[];
@@ -178,7 +185,11 @@ export function LibraryFilterBar({
             className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
             style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
           >
-            {genres.length === 0 && <div className="text-xs" style={{ color: 'var(--c-muted)' }}>No genres available.</div>}
+            {genres.length === 0 && (
+              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                No genres available.
+              </div>
+            )}
             {genres.map((genre) => (
               <label
                 key={genre}
@@ -213,7 +224,10 @@ export function LibraryFilterBar({
         )}
       </div>
 
-      <div className="flex items-center gap-2 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
+      <div
+        className="flex items-center gap-2 px-2 py-1 rounded-lg border"
+        style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+      >
         <span
           className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
           style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
@@ -225,16 +239,21 @@ export function LibraryFilterBar({
             key={item}
             onClick={() => onToggleResolution(item)}
             className="px-2 py-1 text-xs rounded border transition-colors"
-            style={resolution === item
-              ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
-              : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
+            style={
+              resolution === item
+                ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
+                : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }
+            }
           >
             {item}
           </button>
         ))}
       </div>
 
-      <div className="flex items-center gap-2 px-2 py-1 rounded-lg border" style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}>
+      <div
+        className="flex items-center gap-2 px-2 py-1 rounded-lg border"
+        style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+      >
         <span
           className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
           style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
@@ -246,29 +265,50 @@ export function LibraryFilterBar({
             key={item}
             onClick={() => onToggleCodec(item)}
             className="px-2 py-1 text-xs rounded border transition-colors"
-            style={codec === item
-              ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
-              : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
+            style={
+              codec === item
+                ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
+                : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }
+            }
+            title={getCodecDescription(item) ?? item}
           >
             {item}
           </button>
         ))}
         <span style={{ color: 'var(--c-border)' }}>·</span>
 
-        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" style={{ color: 'var(--c-muted)' }}>
-          <input type="checkbox" checked={hdrOnly} onChange={(e) => onToggleHdrOnly(e.target.checked)} className="accent-violet-600" />
+        <label
+          className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+          style={{ color: 'var(--c-muted)' }}
+          title={getCodecDescription('hdr')}
+        >
+          <input
+            type="checkbox"
+            checked={hdrOnly}
+            onChange={(e) => onToggleHdrOnly(e.target.checked)}
+            className="accent-violet-600"
+          />
           HDR
         </label>
 
-        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none" style={{ color: 'var(--c-muted)' }}>
-          <input type="checkbox" checked={dvOnly} onChange={(e) => onToggleDvOnly(e.target.checked)} className="accent-violet-600" />
+        <label
+          className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+          style={{ color: 'var(--c-muted)' }}
+          title={getCodecDescription('dv')}
+        >
+          <input
+            type="checkbox"
+            checked={dvOnly}
+            onChange={(e) => onToggleDvOnly(e.target.checked)}
+            className="accent-violet-600"
+          />
           DV
         </label>
 
         <label
           className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
           style={{ color: av1CompatOnly ? '#fbbf24' : 'var(--c-muted)' }}
-          title="Show AV1 files that may require transcoding on current client profile"
+          title={getCodecDescription('av1') ?? 'Show AV1 files that may require transcoding on current client profile'}
         >
           <input
             type="checkbox"
@@ -282,7 +322,7 @@ export function LibraryFilterBar({
         <label
           className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
           style={{ color: legacyOnly ? '#fb923c' : 'var(--c-muted)' }}
-          title="Show legacy video codecs (MPEG-4 / MPEG-2 / MSMPEG)"
+          title={getCodecDescription('legacy')}
         >
           <input
             type="checkbox"
@@ -308,24 +348,44 @@ export function LibraryFilterBar({
           value={audioFormat}
           onChange={(e) => onAudioFormatChange(e.target.value)}
           className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-          style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: audioFormat ? 'var(--c-accent)' : 'var(--c-muted)' }}
-          title="Primary audio format filter"
+          style={{
+            background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)',
+            color: audioFormat ? 'var(--c-accent)' : 'var(--c-muted)',
+          }}
+          title={
+            audioFormat
+              ? (getCodecDescription(audioFormat) ?? 'Primary audio format filter')
+              : 'Primary audio format filter'
+          }
         >
           <option value="">Format</option>
           {AUDIO_FORMAT_OPTIONS.map((format) => (
-            <option key={format} value={format}>{format.toUpperCase()}</option>
+            <option key={format} value={format}>
+              {format.toUpperCase()}
+            </option>
           ))}
         </select>
         <select
           value={audioLayout}
           onChange={(e) => onAudioLayoutChange(e.target.value)}
           className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-          style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: audioLayout ? 'var(--c-accent)' : 'var(--c-muted)' }}
-          title="Primary audio channel layout filter"
+          style={{
+            background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)',
+            color: audioLayout ? 'var(--c-accent)' : 'var(--c-muted)',
+          }}
+          title={
+            audioLayout
+              ? (getCodecDescription(audioLayout) ?? 'Primary audio channel layout filter')
+              : 'Primary audio channel layout filter'
+          }
         >
           <option value="">Channels</option>
           {AUDIO_LAYOUT_OPTIONS.map((layout) => (
-            <option key={layout} value={layout}>{layout}</option>
+            <option key={layout} value={layout}>
+              {layout}
+            </option>
           ))}
         </select>
       </div>
@@ -353,7 +413,11 @@ export function LibraryFilterBar({
             className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
             style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
           >
-            {tags.length === 0 && <div className="text-xs" style={{ color: 'var(--c-muted)' }}>No tags available.</div>}
+            {tags.length === 0 && (
+              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                No tags available.
+              </div>
+            )}
             {tags.map((tag) => (
               <label
                 key={tag}
@@ -394,7 +458,12 @@ export function LibraryFilterBar({
           style={{ color: multiOnly ? '#c4b5fd' : 'var(--c-muted)' }}
           title="Show movies that have multiple video files in the same movie folder"
         >
-          <input type="checkbox" checked={multiOnly} onChange={(e) => onToggleMultiOnly(e.target.checked)} className="accent-violet-600" />
+          <input
+            type="checkbox"
+            checked={multiOnly}
+            onChange={(e) => onToggleMultiOnly(e.target.checked)}
+            className="accent-violet-600"
+          />
           Has multi-part/versions
         </label>
         <label
@@ -402,7 +471,12 @@ export function LibraryFilterBar({
           style={{ color: noJf ? '#c4b5fd' : 'var(--c-muted)' }}
           title="Show movies not yet matched in Jellyfin"
         >
-          <input type="checkbox" checked={noJf} onChange={(e) => onToggleNoJf(e.target.checked)} className="accent-violet-600" />
+          <input
+            type="checkbox"
+            checked={noJf}
+            onChange={(e) => onToggleNoJf(e.target.checked)}
+            className="accent-violet-600"
+          />
           Jellyfin Sync Needed
         </label>
       </div>
@@ -416,7 +490,9 @@ export function LibraryFilterBar({
           style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
         >
           {PAGE_SIZE_OPTIONS.map((option) => (
-            <option key={option} value={option}>{option === 'all' ? 'All' : option}</option>
+            <option key={option} value={option}>
+              {option === 'all' ? 'All' : option}
+            </option>
           ))}
         </select>
       </div>
@@ -476,14 +552,23 @@ export function LibraryFilterBar({
           </>
         )}
 
-        {isFetching && <span className="inline-block w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: 'var(--c-accent)' }} />}
+        {isFetching && (
+          <span
+            className="inline-block w-1.5 h-1.5 rounded-full animate-pulse"
+            style={{ background: 'var(--c-accent)' }}
+          />
+        )}
 
         {typeof totalMovies === 'number' ? (
           <>
-            <span className="font-semibold" style={{ color: 'var(--c-text)' }}>{totalMovies.toLocaleString()}</span>
+            <span className="font-semibold" style={{ color: 'var(--c-text)' }}>
+              {totalMovies.toLocaleString()}
+            </span>
             <span>movies</span>
           </>
-        ) : '—'}
+        ) : (
+          '—'
+        )}
 
         {typeof totalLibrarySize === 'number' && totalLibrarySize > 0 ? (
           <>

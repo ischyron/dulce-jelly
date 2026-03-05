@@ -21,7 +21,10 @@ export function BatchConfirmModal({ open, selectedRows, maxBatch, isPending, onC
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="w-full max-w-3xl rounded-xl border p-4" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
+      <div
+        className="w-full max-w-3xl rounded-xl border p-4"
+        style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+      >
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold" style={{ color: 'var(--c-text)' }}>
             Scout Batch Confirmation
@@ -32,7 +35,8 @@ export function BatchConfirmModal({ open, selectedRows, maxBatch, isPending, onC
         </div>
 
         <p className="text-xs mb-3" style={{ color: 'var(--c-muted)' }}>
-          Confirm scouting these titles. Based on current settings and downstream rules, selected titles may be recycled/replaced after approval flow.
+          Confirm scouting these titles. Based on current settings and downstream rules, selected titles may be
+          recycled/replaced after approval flow.
         </p>
 
         <div className="max-h-80 overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>

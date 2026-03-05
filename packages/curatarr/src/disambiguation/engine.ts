@@ -4,22 +4,10 @@
  */
 
 import type { MovieRow } from '../db/client.js';
+import { strategyFuzzy, strategyImdb, strategyPath, strategyTitleOnly, strategyTitleYear } from './strategies.js';
 import type { DisambiguateRequest, DisambiguateResult } from './types.js';
-import {
-  strategyPath,
-  strategyImdb,
-  strategyTitleYear,
-  strategyTitleOnly,
-  strategyFuzzy,
-} from './strategies.js';
 
-const STRATEGIES = [
-  strategyPath,
-  strategyImdb,
-  strategyTitleYear,
-  strategyTitleOnly,
-  strategyFuzzy,
-];
+const STRATEGIES = [strategyPath, strategyImdb, strategyTitleYear, strategyTitleOnly, strategyFuzzy];
 
 export class DisambiguationEngine {
   constructor(private dbMovies: MovieRow[]) {}
@@ -38,6 +26,6 @@ export class DisambiguationEngine {
   }
 
   disambiguateBatch(reqs: DisambiguateRequest[]): DisambiguateResult[] {
-    return reqs.map(r => this.disambiguate(r));
+    return reqs.map((r) => this.disambiguate(r));
   }
 }

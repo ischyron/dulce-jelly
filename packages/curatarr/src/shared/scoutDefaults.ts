@@ -33,7 +33,7 @@ export const SCOUT_SETTING_KEYS = [
   'scoutCfTorrentBonus',
 ] as const;
 
-export type ScoutSettingKey = typeof SCOUT_SETTING_KEYS[number];
+export type ScoutSettingKey = (typeof SCOUT_SETTING_KEYS)[number];
 
 type ScoutYamlDoc = {
   scoutDefaults?: Record<string, string | number>;

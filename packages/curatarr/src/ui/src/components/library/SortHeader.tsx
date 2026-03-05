@@ -1,4 +1,4 @@
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react';
 import { InfoHint } from '../InfoHint';
 import type { SortField } from './types';
 
@@ -22,14 +22,28 @@ export function SortHeader({ field, label, current, dir, onChange, align = 'left
       onClick={() => onChange(field)}
     >
       <span className="inline-flex items-center gap-1">
-        {align === 'right' && (active
-          ? (dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)
-          : <ChevronsUpDown size={11} className="opacity-30" />)}
+        {align === 'right' &&
+          (active ? (
+            dir === 'asc' ? (
+              <ChevronUp size={11} />
+            ) : (
+              <ChevronDown size={11} />
+            )
+          ) : (
+            <ChevronsUpDown size={11} className="opacity-30" />
+          ))}
         {label}
         {infoTitle && <InfoHint label={`${label} info`} text={infoTitle} />}
-        {align !== 'right' && (active
-          ? (dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />)
-          : <ChevronsUpDown size={11} className="opacity-30" />)}
+        {align !== 'right' &&
+          (active ? (
+            dir === 'asc' ? (
+              <ChevronUp size={11} />
+            ) : (
+              <ChevronDown size={11} />
+            )
+          ) : (
+            <ChevronsUpDown size={11} className="opacity-30" />
+          ))}
       </span>
     </th>
   );

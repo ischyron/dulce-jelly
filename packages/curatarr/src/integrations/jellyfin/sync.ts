@@ -8,9 +8,9 @@
 
 import path from 'node:path';
 import type { CuratDb, MovieRow } from '../../db/client.js';
-import type { JellyfinClient, JfMovie } from './client.js';
 import { DisambiguationEngine } from '../../disambiguation/engine.js';
 import type { DisambiguateResult } from '../../disambiguation/types.js';
+import type { JellyfinClient, JfMovie } from './client.js';
 
 export interface SyncOptions {
   onProgress?: (synced: number, total: number, matched: number, unmatched: number) => void;
@@ -74,10 +74,10 @@ interface MatchResult {
 function disResultToMatchResult(
   result: DisambiguateResult,
   dbMovies: MovieRow[],
-  jf: JfMovie
+  jf: JfMovie,
 ): MatchResult | undefined {
   if (!result.match) return undefined;
-  const movie = dbMovies.find(m => m.id === result.match!.movieId);
+  const movie = dbMovies.find((m) => m.id === result.match!.movieId);
   if (!movie) return undefined;
 
   let ambiguous: AmbiguousMatch | undefined;
@@ -99,11 +99,7 @@ function disResultToMatchResult(
 // Main sync function
 // ──────────────────────────────────────────────────────────────────
 
-export async function syncJellyfin(
-  jfClient: JellyfinClient,
-  db: CuratDb,
-  opts: SyncOptions = {}
-): Promise<SyncResult> {
+export async function syncJellyfin(jfClient: JellyfinClient, db: CuratDb, opts: SyncOptions = {}): Promise<SyncResult> {
   const result: SyncResult = {
     total: 0,
     matched: 0,
@@ -116,7 +112,7 @@ export async function syncJellyfin(
 
   // Load all DB movies into memory for matching
   const dbMovies = db.getAllMovies();
-  const dbByFolder = new Map(dbMovies.map(m => [m.folder_path, m]));
+  const dbByFolder = new Map(dbMovies.map((m) => [m.folder_path, m]));
   const engine = new DisambiguationEngine(dbMovies);
 
   console.log(`  DB has ${dbMovies.length} movies to match against`);
@@ -182,8 +178,8 @@ export async function syncJellyfin(
       const filePart = amb.jfFilePath ? path.basename(amb.jfFilePath) : '';
       result.errors.push(
         `[${amb.reason}] folder: "${amb.dbFolderName}" (year:${amb.dbParsedYear ?? '?'})` +
-        ` | jellyfin: "${amb.jfTitle}" (year:${amb.jfYear ?? '?'})` +
-        (filePart ? ` | file: "${filePart}"` : '')
+          ` | jellyfin: "${amb.jfTitle}" (year:${amb.jfYear ?? '?'})` +
+          (filePart ? ` | file: "${filePart}"` : ''),
       );
     }
 

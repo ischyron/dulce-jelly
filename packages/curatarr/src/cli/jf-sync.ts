@@ -3,8 +3,8 @@
  * Read Jellyfin metadata and enrich SQLite movie rows.
  */
 
-import { Command } from 'commander';
 import os from 'node:os';
+import { Command } from 'commander';
 import { CuratDb } from '../db/client.js';
 import { JellyfinClient } from '../integrations/jellyfin/client.js';
 import { syncJellyfin } from '../integrations/jellyfin/sync.js';
@@ -28,7 +28,7 @@ export function makeJfSyncCommand(): Command {
       if (!url || !apiKey) {
         console.error(
           'Jellyfin not configured.\n' +
-          'Set settings.jellyfinUrl and settings.jellyfinApiKey in config/config.yaml, or pass --url / --api-key.'
+            'Set settings.jellyfinUrl and settings.jellyfinApiKey in config/config.yaml, or pass --url / --api-key.',
         );
         process.exit(1);
       }
@@ -46,9 +46,7 @@ export function makeJfSyncCommand(): Command {
           const now = Date.now();
           if (now - lastPrint < 500) return;
           lastPrint = now;
-          process.stdout.write(
-            `\r  ${synced}/${total}  matched=${matched}  unmatched=${unmatched}   `
-          );
+          process.stdout.write(`\r  ${synced}/${total}  matched=${matched}  unmatched=${unmatched}   `);
         },
       });
 

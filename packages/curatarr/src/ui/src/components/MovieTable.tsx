@@ -1,6 +1,6 @@
 import { type Movie } from '../api/client';
-import { ResolutionBadge, CodecBadge, HdrBadge } from './QualityBadge';
 import { InfoHint } from './InfoHint';
+import { CodecBadge, HdrBadge, ResolutionBadge } from './QualityBadge';
 
 interface Props {
   movies: Movie[];
@@ -27,10 +27,7 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
             <th className="px-3 py-2 font-medium">
               <span className="inline-flex items-center gap-1">
                 Group
-                <InfoHint
-                  label="Group info"
-                  text="Torrent/Usenet release group inferred from the filename only."
-                />
+                <InfoHint label="Group info" text="Torrent/Usenet release group inferred from the filename only." />
               </span>
             </th>
             <th className="px-3 py-2 font-medium text-right">
@@ -61,9 +58,7 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
                   {m.jellyfin_title ?? m.parsed_title ?? m.folder_name}
                 </span>
               </td>
-              <td className="px-3 py-2 text-[#8b87aa] whitespace-nowrap">
-                {m.parsed_year ?? '—'}
-              </td>
+              <td className="px-3 py-2 text-[#8b87aa] whitespace-nowrap">{m.parsed_year ?? '—'}</td>
               <td className="px-3 py-2 whitespace-nowrap">
                 <span className="inline-flex gap-1">
                   <ResolutionBadge resolution={m.resolution_cat} />
@@ -73,18 +68,12 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
               <td className="px-3 py-2 whitespace-nowrap">
                 <HdrBadge hdrFormats={m.hdr_formats} dvProfile={m.dv_profile} />
               </td>
-              <td className="px-3 py-2 text-[#8b87aa] text-xs max-w-[100px] truncate">
-                {m.release_group ?? '—'}
-              </td>
-              <td className="px-3 py-2 text-right text-[#c4b5fd]">
-                {m.critic_rating != null ? m.critic_rating : '—'}
-              </td>
+              <td className="px-3 py-2 text-[#8b87aa] text-xs max-w-[100px] truncate">{m.release_group ?? '—'}</td>
+              <td className="px-3 py-2 text-right text-[#c4b5fd]">{m.critic_rating != null ? m.critic_rating : '—'}</td>
               <td className="px-3 py-2 text-right text-[#c4b5fd]">
                 {m.community_rating != null ? m.community_rating.toFixed(1) : '—'}
               </td>
-              <td className="px-3 py-2 text-right text-[#8b87aa] text-xs">
-                {formatSize(m.file_size)}
-              </td>
+              <td className="px-3 py-2 text-right text-[#8b87aa] text-xs">{formatSize(m.file_size)}</td>
             </tr>
           ))}
         </tbody>

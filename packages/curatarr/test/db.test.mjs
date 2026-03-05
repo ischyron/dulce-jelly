@@ -2,11 +2,11 @@
  * DB client tests — uses in-memory SQLite
  */
 
-import { test, describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import fs from 'node:fs';
+import { beforeEach, describe, test } from 'node:test';
 
 const { CuratDb } = await import('../src/server/dist/db/client.js');
 
@@ -22,9 +22,11 @@ describe('CuratDb', () => {
   });
 
   test('creates schema tables', () => {
-    const tables = db.raw().prepare(
-      "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
-    ).all().map(r => r.name);
+    const tables = db
+      .raw()
+      .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
+      .all()
+      .map((r) => r.name);
     assert.ok(tables.includes('movies'));
     assert.ok(tables.includes('files'));
     assert.ok(tables.includes('scan_runs'));
@@ -179,8 +181,8 @@ describe('CuratDb', () => {
 
     const runs = db.getScanRuns(999);
     assert.equal(runs.length, 200);
-    assert.equal(runs[0].id, ids[204]);   // newest kept
-    assert.equal(runs[199].id, ids[5]);   // first 5 rotated out
+    assert.equal(runs[0].id, ids[204]); // newest kept
+    assert.equal(runs[199].id, ids[5]); // first 5 rotated out
 
     const total = db.raw().prepare('SELECT COUNT(*) as n FROM scan_runs').get().n;
     assert.equal(total, 200);

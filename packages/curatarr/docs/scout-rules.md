@@ -10,6 +10,12 @@
   - `POST /api/scout/search-one` and `POST /api/scout/search-batch`
   - `POST /api/scout/rules/refine-draft` (draft a prompt from your objective)
   - UI pages `/scout` and `/settings` display the ruleset and the reasoning for dropped releases.
+- Good defaults (copy/paste into the UI to start):
+  1. "Reject CAM/TS/TELESYNC/HDTS/HDTC/WORKPRINT or any non–studio master sources."
+  2. "Prefer REMUX > WEB-DL > WEBRip > HDTV. Reject Re-Encodes claiming REMUX where bitrate < 12 Mbps for 1080p or < 35 Mbps for UHD."
+  3. "Reject rips missing English audio OR with Atmos flagged but channels < 6."
+  4. "Reject dubbed/voice-over only tracks (e.g., RU, PL lector) unless English present."
+  5. "Flag and deprioritize SDR versions when HDR10 or Dolby Vision is available from the same group."
 
 ## Technical notes
 - Config source of truth lives in `config/scoring.yaml` and mirrors `settings` DB rows. Saving Settings writes both.
@@ -18,3 +24,15 @@
 - The client surfaces the rules in `ExtendedLlmRuleset` (Settings) and displays drop reasons in Scout Queue modals.
 - Limits: batch size for scout searches is clamped (server-side) to 10; LLM ruleset length is effectively bounded by payload size (< 10 KB after serialization).
 - Error handling: if the LLM call fails, Scout falls back to deterministic CF ordering and returns a warning banner to the UI.
+- Prompt assembly (high level):
+  - Context: movie title/year, release list with CF metadata (bitrate, codecs, size, source, tags), and user objective (from Settings).
+  - Rules: serialized as an ordered bullet list; disabled rules are omitted.
+  - Expected output: JSON with `{ keep: boolean, reason: string }` per release; parser is strict and will drop unparsable entries.
+- Failure modes worth alerting:
+  - If the LLM response is malformed, Scout logs `llm_rules_parse_failed` and keeps deterministic ordering.
+  - If payload exceeds model token limit, Scout truncates the candidate list before calling the LLM.
+  - Network/401 errors bubble a warning; downloads are never auto-triggered on LLM errors.
+- QA hooks:
+  - `POST /api/scout/rules/refine-draft` can be hit in CI with canned objectives to ensure prompt structure stays stable.
+  - Use Playwright e2e `scout.spec.cjs` to snapshot the displayed drop reasons; update baselines if rules change intentionally.
+  - For unit-like checks without LLM cost, seed `test/results/scout` fixtures and run `npm run test:e2e` with `SCOUT_SKIP_LLM=1` to exercise the deterministic path.

@@ -88,6 +88,8 @@ export class SseEmitter {
       this.recentEvents = [];
       this.clearTimer = null;
     }, 60_000);
+    // Do not block process exit in short-lived tasks/tests
+    this.clearTimer.unref?.();
   }
 }
 

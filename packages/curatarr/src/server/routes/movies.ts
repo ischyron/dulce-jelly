@@ -433,6 +433,18 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       })
       .filter(Boolean);
 
+    const folderStat = (() => {
+      try {
+        return fs.lstatSync(movie.folder_path);
+      } catch {
+        return null;
+      }
+    })();
+
+    if (folderStat?.isSymbolicLink()) {
+      return c.json({ error: 'forbidden_path', detail: 'Folder is a symlink; deletion aborted.' }, 400);
+    }
+
     const folderReal = (() => {
       try {
         return fs.realpathSync(movie.folder_path);
@@ -446,15 +458,6 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       !allowlist.some((root) => folderReal === root || folderReal.startsWith(`${root}${path.sep}`))
     ) {
       return c.json({ error: 'forbidden_path', detail: 'Folder is outside configured library roots.' }, 400);
-    }
-
-    try {
-      const stat = fs.lstatSync(folderReal);
-      if (stat.isSymbolicLink()) {
-        return c.json({ error: 'forbidden_path', detail: 'Folder is a symlink; deletion aborted.' }, 400);
-      }
-    } catch {
-      /* allow deletion attempt to surface below */
     }
 
     try {

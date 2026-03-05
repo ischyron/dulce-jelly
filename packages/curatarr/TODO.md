@@ -12,6 +12,6 @@
 - ✅ Clamp and validate scheduler settings (`src/cli/serve.ts`, `src/server/routes/settings.ts`).
 
 ### Medium (P2)
-- TODO Add request-level tests for critical routes (`movies`, `scan`, `settings`, `verify`) to cover error paths and path validation.
+- ✅ Add request-level tests for critical routes (`movies`, `scan`, `settings`, `verify`) to cover error paths and path validation.
 - ✅ Tighten SSE lifecycle cap (`src/server/sse.ts`): max subscribers + drop dead listeners.
-- TODO Switch remaining synchronous FS in HTTP handlers beyond movies delete (e.g., `fsRoutes`) to async + symlink checks where user-facing.
+- ✅ Switch remaining synchronous FS in HTTP handlers beyond movies delete (`fsRoutes`) to async + symlink checks where user-facing.

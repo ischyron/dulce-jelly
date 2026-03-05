@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Info } from 'lucide-react';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover.js';
+import { Popover, PopoverContent, PopoverTrigger } from './InfoHint/Popover.js';
 
 interface Props {
   text?: string;

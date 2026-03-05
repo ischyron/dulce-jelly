@@ -30,7 +30,7 @@ depending on Jellyfin's response time.`;
 
 type ModalMode = 'scan' | 'sync' | null;
 
-export function ScanPage() {
+export function Scan() {
   const [modal, setModal] = useState<ModalMode>(null);
   const [scanPath, setScanPath] = useState('');
   const [jobs, setJobs] = useState(4);

@@ -29,7 +29,7 @@ function formatBytes(n: number | null): string {
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
 }
 
-export function VerifyPage() {
+export function Verify() {
   const [concurrency, setConcurrency] = useState(3);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<VerifyProgress>({});

@@ -6,8 +6,8 @@
 import { Command } from 'commander';
 import os from 'node:os';
 import { CuratDb } from '../db/client.js';
-import { JellyfinClient } from '../jellyfin/client.js';
-import { syncJellyfin } from '../jellyfin/sync.js';
+import { JellyfinClient } from '../integrations/jellyfin/client.js';
+import { syncJellyfin } from '../integrations/jellyfin/sync.js';
 import { loadRuntimeConfig } from '../shared/runtimeConfig.js';
 
 export function makeJfSyncCommand(): Command {

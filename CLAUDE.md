@@ -14,6 +14,7 @@
 5a) **Portable paths:** Never hardcode absolute paths containing a username (e.g. `/Users/haaris/`, `/home/alice/`). Use `$HOME` in shell scripts and `bash -c "$HOME/..."` in JSON configs where tilde expansion is unavailable. This repo must stay reusable across machines and users.
 6) **Data mount:** Treat `data/` as mounted state, not code (backup-backed).
 7) **Agent workspace**: Use `temp/` directory for work logs, summaries, and temporary analysis files (gitignored).
+8) **Large changes commit rule:** After any large build-related change or major refactor, commit the completed work to git with a clear, scoped commit message.
 
 ## Host & Storage
 - **Host:** Any system capable of running Docker (tested on macOS/Linux).

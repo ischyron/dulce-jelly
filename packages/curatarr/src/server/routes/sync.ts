@@ -2,8 +2,8 @@ import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import type { CuratDb } from '../../db/client.js';
 import { syncEmitter } from '../sse.js';
-import { JellyfinClient } from '../../jellyfin/client.js';
-import { syncJellyfin } from '../../jellyfin/sync.js';
+import { JellyfinClient } from '../../integrations/jellyfin/client.js';
+import { syncJellyfin } from '../../integrations/jellyfin/sync.js';
 
 export function makeSyncRoutes(db: CuratDb): Hono {
   const app = new Hono();

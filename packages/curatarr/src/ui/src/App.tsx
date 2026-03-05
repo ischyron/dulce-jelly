@@ -3,11 +3,11 @@ import { Sidebar } from './components/Sidebar.js';
 import { Dashboard } from './pages/Dashboard.js';
 import { Library } from './pages/Library.js';
 import { ScoutQueue } from './pages/ScoutQueue.js';
-import { ScanPage } from './pages/ScanPage.js';
+import { Scan } from './pages/ScanPage.js';
 import { Settings } from './pages/Settings.js';
-import { DisambiguatePage } from './pages/DisambiguatePage.js';
-import { VerifyPage } from './pages/VerifyPage.js';
-import { MoviePage } from './pages/MoviePage.js';
+import { Disambiguate } from './pages/DisambiguatePage.js';
+import { Verify } from './pages/VerifyPage.js';
+import { Movie } from './pages/MoviePage.js';
 
 export default function App() {
   return (
@@ -19,10 +19,10 @@ export default function App() {
             <Route path="/" element={<Dashboard />} />
             <Route path="/library" element={<Library />} />
             <Route path="/scout" element={<ScoutQueue />} />
-            <Route path="/scan" element={<ScanPage />} />
-            <Route path="/disambiguate" element={<DisambiguatePage />} />
-            <Route path="/verify" element={<VerifyPage />} />
-            <Route path="/movies/:id" element={<MoviePage />} />
+            <Route path="/scan" element={<Scan />} />
+            <Route path="/disambiguate" element={<Disambiguate />} />
+            <Route path="/verify" element={<Verify />} />
+            <Route path="/movies/:id" element={<Movie />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={
               <div className="p-8 space-y-2">

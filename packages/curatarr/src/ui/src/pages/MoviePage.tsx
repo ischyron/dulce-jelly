@@ -2,7 +2,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { MovieDetailContent } from '../components/MovieDetailContent.js';
 
-export function MoviePage() {
+export function Movie() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const movieId = parseInt(id ?? '0', 10);

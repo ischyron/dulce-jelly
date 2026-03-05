@@ -23,7 +23,7 @@ function ConfidenceBadge({ value }: { value: number | null }) {
   );
 }
 
-export function DisambiguatePage() {
+export function Disambiguate() {
   const queryClient = useQueryClient();
   const [scanModalOpen, setScanModalOpen] = useState(false);
   const [refreshingMovieId, setRefreshingMovieId] = useState<number | null>(null);

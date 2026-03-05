@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import fs from 'node:fs';
 import path from 'node:path';
 import type { CuratDb } from '../../db/client.js';
-import { JellyfinClient } from '../../jellyfin/client.js';
+import { JellyfinClient } from '../../integrations/jellyfin/client.js';
 
 const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.m4v', '.ts', '.m2ts', '.webm']);
 

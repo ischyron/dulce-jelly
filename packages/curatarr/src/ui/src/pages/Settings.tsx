@@ -1,7 +1,7 @@
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect, type DragEvent, type ReactNode } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown, Link2, Bot, Library as LibraryIcon, Plus, Minus, FolderOpen } from 'lucide-react';
+import { Settings2, CheckCircle, AlertCircle, Loader2, Info, Tv2, ScanLine, Eye, EyeOff, Pencil, X, ChevronDown, Link2, Bot, Library as LibraryIcon, Plus, Minus, FolderOpen, GripVertical } from 'lucide-react';
 import { api } from '../api/client.js';
 import { InfoHint } from '../components/InfoHint.js';
 
@@ -222,6 +222,17 @@ const SCOUT_PRESET_SAMPLES: Array<{
       scoutCfSourceRemux: '22',
       scoutCfSeedersBonusCap: '8',
     },
+  },
+];
+
+const LLM_RULESET_SAMPLES: Array<Pick<ScoutLlmRuleDraft, 'name' | 'sentence'>> = [
+  {
+    name: 'Tie-break: prefer -AsRequested',
+    sentence: 'When deterministic scores are tied or near-equal, prefer releases suffixed with -AsRequested.',
+  },
+  {
+    name: 'Tie-break: prefer Atmos',
+    sentence: 'When deterministic scores are close, prefer Atmos audio over non-Atmos releases at the same quality tier.',
   },
 ];
 
@@ -787,6 +798,7 @@ export function Settings() {
   const [customCfError, setCustomCfError] = useState('');
   const [llmRulesSaved, setLlmRulesSaved] = useState(false);
   const [llmRulesError, setLlmRulesError] = useState('');
+  const [llmDragIndex, setLlmDragIndex] = useState<number | null>(null);
   const [refineObjective, setRefineObjective] = useState('');
   const [customCfPreviewTitle, setCustomCfPreviewTitle] = useState('');
   const [bitrateProfileId, setBitrateProfileId] = useState<BitrateProfileId>('webdl');
@@ -1208,20 +1220,53 @@ export function Settings() {
     ]));
   }
 
+  function addLlmSampleRules() {
+    setLlmRulesDraft((prev) => {
+      const seen = new Set(prev.map((r) => r.name.trim().toLowerCase()));
+      const toAdd = LLM_RULESET_SAMPLES
+        .filter((s) => !seen.has(s.name.trim().toLowerCase()))
+        .map((s, i) => ({
+          name: s.name,
+          enabled: false,
+          priority: prev.length + i + 1,
+          sentence: s.sentence,
+        }));
+      if (toAdd.length === 0) return prev;
+      const next = [...prev, ...toAdd];
+      return next.map((row, i) => ({ ...row, priority: i + 1 }));
+    });
+  }
+
   function updateLlmRule(index: number, patch: Partial<ScoutLlmRuleDraft>) {
     setLlmRulesDraft((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   }
 
-  function moveLlmRule(index: number, dir: -1 | 1) {
+  function reorderLlmRules(from: number, to: number) {
     setLlmRulesDraft((prev) => {
+      if (from < 0 || from >= prev.length || to < 0 || to >= prev.length || from === to) return prev;
       const next = [...prev];
-      const target = index + dir;
-      if (target < 0 || target >= next.length) return prev;
-      const tmp = next[index];
-      next[index] = next[target];
-      next[target] = tmp;
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
       return next.map((row, i) => ({ ...row, priority: i + 1 }));
     });
+  }
+
+  function onLlmDragStart(index: number) {
+    setLlmDragIndex(index);
+  }
+
+  function onLlmDragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+  }
+
+  function onLlmDrop(targetIndex: number) {
+    if (llmDragIndex === null) return;
+    reorderLlmRules(llmDragIndex, targetIndex);
+    setLlmDragIndex(null);
+  }
+
+  function onLlmDragEnd() {
+    setLlmDragIndex(null);
   }
 
   function removeLlmRule(index: number) {
@@ -1915,8 +1960,12 @@ export function Settings() {
             Custom Format Scores (Overrides)
           </div>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-            Add filename/title pattern rules (regex or string) and score deltas. These apply after TRaSH baseline scoring.
+            Add your own filename/title pattern rules (regex or string) and score deltas. These apply after TRaSH baseline scoring.
           </p>
+          <div className="rounded border px-2 py-1.5 text-xs" style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
+            Sample: Looking for <span className="font-mono" style={{ color: 'var(--c-text)' }}>FrameStore</span> release group.
+            {' '}Use <span className="font-mono" style={{ color: 'var(--c-text)' }}>string</span> match with pattern <span className="font-mono" style={{ color: 'var(--c-text)' }}>framestor</span>, then set your preferred score.
+          </div>
           <div className="space-y-2">
             {customCfDraft.map((row, idx) => (
               <div key={`${row.id ?? 'new'}-${idx}`} className="rounded border p-2 grid grid-cols-1 sm:grid-cols-12 gap-2" style={{ borderColor: 'var(--c-border)' }}>
@@ -1946,7 +1995,7 @@ export function Settings() {
                     onChange={e => updateCustomCfRule(idx, { pattern: e.target.value })}
                     className="w-full px-2 py-1 rounded text-xs font-mono"
                     style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-                    placeholder={row.matchType === 'regex' ? '\\bDD[P+](?!A)' : 'web-dl'}
+                    placeholder={row.matchType === 'regex' ? '\\bframestor\\b' : 'framestor'}
                   />
                 </div>
                 <div className="sm:col-span-1">
@@ -2122,7 +2171,7 @@ export function Settings() {
 
         <div className="rounded-lg border p-3 space-y-2" style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}>
           <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Extended release filter LLM ruleset
+            Extended release filter (LLM ruleset)
           </div>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
             This is over and above deterministic CF scoring. It builds a final LLM ruleset prompt for dropping weak releases and tie-break scoring.
@@ -2130,11 +2179,29 @@ export function Settings() {
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
             Result intent: Scout output includes stronger finalists, while weaker candidates are expected to move to a dropped-releases section.
           </p>
+          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+            Drag and drop can be used to set rule priority (top runs first).
+          </p>
           <div className="space-y-2">
             {llmRulesDraft.map((rule, idx) => (
-              <div key={`${rule.id ?? 'new'}-${idx}`} className="rounded border p-2 space-y-2" style={{ borderColor: 'var(--c-border)' }}>
+              <div
+                key={`${rule.id ?? 'new'}-${idx}`}
+                className="rounded border p-2 space-y-2"
+                style={{
+                  borderColor: llmDragIndex === idx ? '#7c3aed' : 'var(--c-border)',
+                  background: llmDragIndex === idx ? 'rgba(124,58,237,0.08)' : 'transparent',
+                }}
+                draggable
+                onDragStart={() => onLlmDragStart(idx)}
+                onDragOver={onLlmDragOver}
+                onDrop={() => onLlmDrop(idx)}
+                onDragEnd={onLlmDragEnd}
+              >
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-mono min-w-[2rem]" style={{ color: '#c4b5fd' }}>{idx + 1}.</span>
+                  <span className="inline-flex items-center gap-1.5 text-xs font-mono min-w-[5rem]" style={{ color: '#c4b5fd' }} title="Drag to reorder">
+                    <GripVertical size={14} />
+                    P{idx + 1}
+                  </span>
                   <input
                     value={rule.name}
                     onChange={e => updateLlmRule(idx, { name: e.target.value })}
@@ -2146,8 +2213,6 @@ export function Settings() {
                     <input type="checkbox" checked={rule.enabled} onChange={e => updateLlmRule(idx, { enabled: e.target.checked })} />
                     Enabled
                   </label>
-                  <button type="button" onClick={() => moveLlmRule(idx, -1)} className="px-2 py-1 rounded border text-xs" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>Up</button>
-                  <button type="button" onClick={() => moveLlmRule(idx, 1)} className="px-2 py-1 rounded border text-xs" style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}>Down</button>
                   <button type="button" onClick={() => removeLlmRule(idx)} className="px-2 py-1 rounded border text-xs" style={{ borderColor: 'var(--c-border)', color: '#fda4af' }}>Remove</button>
                 </div>
                 <textarea
@@ -2168,6 +2233,14 @@ export function Settings() {
                 style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
               >
                 Add Rule
+              </button>
+              <button
+                type="button"
+                onClick={addLlmSampleRules}
+                className="px-3 py-1.5 rounded border text-xs"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                Add Disabled Examples
               </button>
               <button
                 type="button"

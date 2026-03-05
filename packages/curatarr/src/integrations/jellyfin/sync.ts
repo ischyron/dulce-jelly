@@ -7,10 +7,10 @@
  */
 
 import path from 'node:path';
-import type { CuratDb, MovieRow } from '../db/client.js';
+import type { CuratDb, MovieRow } from '../../db/client.js';
 import type { JellyfinClient, JfMovie } from './client.js';
-import { DisambiguationEngine } from '../disambiguation/engine.js';
-import type { DisambiguateResult } from '../disambiguation/types.js';
+import { DisambiguationEngine } from '../../disambiguation/engine.js';
+import type { DisambiguateResult } from '../../disambiguation/types.js';
 
 export interface SyncOptions {
   onProgress?: (synced: number, total: number, matched: number, unmatched: number) => void;

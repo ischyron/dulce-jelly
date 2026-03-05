@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
-import { JellyfinClient } from '../../jellyfin/client.js';
+import { JellyfinClient } from '../../integrations/jellyfin/client.js';
 import { syncScoringYamlFromSettings } from '../../shared/scoutDefaults.js';
 import { parseLibraryRootsUnknown, validateLibraryRootsEntries } from '../../shared/libraryRoots.js';
 

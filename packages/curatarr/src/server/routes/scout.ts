@@ -902,6 +902,7 @@ function buildScoutRefinementDraft(
   suggestedRuleToggles: Array<{ id: number; name: string; enabled: boolean }>;
 } {
   const normalized = objective.toLowerCase();
+  const refinedObjective = objective || 'Balance quality, compatibility, and predictable automatic decisions.';
   const proposedSettings: Record<string, string> = {};
   const rules = db.getRules('scout_llm_ruleset');
   const toggles: Array<{ id: number; name: string; enabled: boolean }> = [];
@@ -921,6 +922,18 @@ function buildScoutRefinementDraft(
       if (rule.name.toLowerCase().includes('av1')) toggles.push({ id: rule.id, name: rule.name, enabled: true });
     }
   }
+  if (/\b(remux|exceptional|landmark|criterion|reference)\b/.test(normalized)) {
+    for (const rule of rules) {
+      if (rule.name.toLowerCase().includes('remux')) toggles.push({ id: rule.id, name: rule.name, enabled: true });
+    }
+  }
+  if (/\b(original language|dub|foreign|non-english|native audio)\b/.test(normalized)) {
+    for (const rule of rules) {
+      if (rule.name.toLowerCase().includes('original-language')) {
+        toggles.push({ id: rule.id, name: rule.name, enabled: true });
+      }
+    }
+  }
   if (/\b(torrent)\b/.test(normalized) && !/\b(usenet)\b/.test(normalized)) {
     proposedSettings.scoutPipelineTrashTorrentBonus = '8';
     proposedSettings.scoutPipelineTrashUsenetBonus = '0';
@@ -931,23 +944,89 @@ function buildScoutRefinementDraft(
   }
 
   const scoreCfg = resolveScoutScoreConfig(db);
-  const compactRules = rules.map((r) => ({
-    id: r.id,
-    name: r.name,
-    enabled: r.enabled !== 0,
-    priority: r.priority,
-    config: safeParseJson(r.config),
-  }));
+  const compactRules = rules
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      enabled: r.enabled !== 0,
+      priority: r.priority,
+      config: safeParseJson(r.config),
+    }))
+    .sort((a, b) => a.priority - b.priority || a.id - b.id);
+
+  const allowedSettings = [
+    'scoutPipelineMinCritic',
+    'scoutPipelineMinImdb',
+    'scoutPipelineBatchSize',
+    'scoutPipelineBasicResolutionScore',
+    'scoutPipelineBasicVideoScore',
+    'scoutPipelineBasicAudioScore',
+    'scoutPipelineBitrateTargetMbps',
+    'scoutPipelineBitrateTolerancePct',
+    'scoutPipelineBitrateMaxScore',
+    'scoutPipelineTrashRes2160',
+    'scoutPipelineTrashRes1080',
+    'scoutPipelineTrashRes720',
+    'scoutPipelineTrashSourceRemux',
+    'scoutPipelineTrashSourceBluray',
+    'scoutPipelineTrashSourceWebdl',
+    'scoutPipelineTrashCodecHevc',
+    'scoutPipelineTrashCodecAv1',
+    'scoutPipelineTrashCodecH264',
+    'scoutPipelineTrashAudioAtmos',
+    'scoutPipelineTrashAudioTruehd',
+    'scoutPipelineTrashAudioDts',
+    'scoutPipelineTrashAudioDdp',
+    'scoutPipelineTrashAudioAc3',
+    'scoutPipelineTrashAudioAac',
+    'scoutPipelineTrashLegacyPenalty',
+    'scoutPipelineTrashSeedersDivisor',
+    'scoutPipelineTrashSeedersBonusCap',
+    'scoutPipelineTrashUsenetBonus',
+    'scoutPipelineTrashTorrentBonus',
+    'scoutPipelineLlmTieDelta',
+    'scoutPipelineLlmWeakDropDelta',
+  ];
 
   const prompt = [
-    'You are refining Curatarr Scout rules and CF scoring.',
-    `Goal: ${objective || 'No explicit goal provided; refine for balanced quality + compatibility.'}`,
-    'Current CF settings:',
+    'ROLE',
+    'You are "Scout Rule Engineer", optimizing Curatarr Scout quality decisions.',
+    'Your output must be deterministic, conservative, and directly usable by a backend patch endpoint.',
+    '',
+    'TASK',
+    `Primary objective: ${refinedObjective}`,
+    'Refine only Scout scoring/rules with minimal changes needed to satisfy the objective.',
+    '',
+    'BASELINE CONTEXT',
+    'Scout Quality Pipeline order is fixed: qualifiers -> basic scoring -> TRaSH scoring -> custom overrides/blockers -> final LLM rules -> manual/auto decision.',
+    'Baseline philosophy: deterministic scoring remains primary; LLM layer only drops weak candidates and resolves near ties.',
+    'Safety expectations: no quality downgrade behavior, no unsafe broad drops, no key invention, no schema changes.',
+    '',
+    'CURRENT SCOUT SETTINGS',
     JSON.stringify(scoreCfg, null, 2),
-    'Current Scout rules:',
+    '',
+    'CURRENT LLM RULESET',
     JSON.stringify(compactRules, null, 2),
-    'Return JSON with keys: settingsPatch (string values), rulePatches (id/name/enabled/priority/config), rationale.',
-    'Preserve safety guardrails: no quality downgrades, keep legacy codec penalty non-zero, keep batch safety cap untouched.',
+    '',
+    'ALLOWED SETTING KEYS (string values only)',
+    JSON.stringify(allowedSettings, null, 2),
+    '',
+    'OUTPUT CONTRACT (JSON ONLY, no markdown)',
+    '{',
+    '  "settingsPatch": { "<allowedKey>": "<stringValue>" },',
+    '  "rulePatches": [',
+    '    { "id": <number>, "name": "<string>", "enabled": <boolean>, "priority": <number>, "config": { "sentence": "<string>" } }',
+    '  ],',
+    '  "safetyChecks": [ "<short check>" ],',
+    '  "rationale": "<short explanation>"',
+    '}',
+    '',
+    'GUARDRAILS',
+    '- Use only keys in ALLOWED SETTING KEYS.',
+    '- Keep scoutPipelineBatchSize between 1 and 10.',
+    '- Keep scoutPipelineTrashLegacyPenalty > 0.',
+    '- Do not remove all enabled LLM rules unless objective explicitly requests disabling LLM behavior.',
+    '- Prefer small targeted edits over large rewrites.',
   ].join('\n');
 
   return {

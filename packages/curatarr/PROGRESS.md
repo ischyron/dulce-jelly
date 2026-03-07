@@ -48,6 +48,6 @@
   - Unit/interaction: `npm run typecheck` -> pass; `npm run test` -> pass
   - E2E: `npm run test:e2e` -> pass (44 passed)
   - Chrome MCP: Manually loaded `http://localhost:3270/settings/scout` and verified Scout Quality Funnel sections + settings widgets render correctly after refactor -> pass
-  - Git: `1441aa9`, push pending
+  - Git: `1441aa9`, `aab5235`, push ok
   - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
   - Date: 2026-03-07

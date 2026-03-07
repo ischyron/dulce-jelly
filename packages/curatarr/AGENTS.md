@@ -12,6 +12,10 @@ If `CLAUDE.md` and this file conflict, this file wins.
 - The completion policy is strict. No conditional `DONE` is allowed.
 - Commands must remain portable. Do not hardcode user-specific absolute paths.
 
+## Coding Standards Reference
+- Follow `docs/technical/coding-standards.md` for implementation standards on backend, frontend, API contracts, testing, and commit hygiene.
+- When this file and coding standards guidance appear to conflict, this file still governs task completion gates and status policy.
+
 ## MCP Prerequisites (Required Before Validation Gates)
 Before running validation gates, confirm required MCP servers are configured in Codex user scope.
 

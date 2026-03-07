@@ -3,6 +3,7 @@ import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { ProwlarrClient, type ProwlarrSearchResult } from '../../integrations/prowlarr/client.js';
 import { getScoutDefaultSettings } from '../../shared/scoutDefaults.js';
+import { listScoutRules, replaceScoutRuleCategory } from './scout/rulesDomain.js';
 
 const TRASH_SYNC_MODEL_VERSION = '2026-03-07-v2';
 
@@ -572,63 +573,10 @@ function applyLlmRuleset(
   llmRules: ScoutLlmRule[],
   cfg: ScoutScoreConfig,
 ): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
+  // Step 5 is currently stored/configurable but execution is intentionally disabled
+  // until true provider-backed LLM ranking is implemented.
   if (llmRules.length === 0) return { finals: [...releases].sort((a, b) => b.score - a.score), dropped: [] };
-  const sortedBase = [...releases].sort((a, b) => b.score - a.score);
-  const topScore = sortedBase[0]?.score ?? 0;
-  const tieWindow = sortedBase.filter((r) => topScore - r.score <= cfg.llmTieDelta);
-  const tieSet = new Set(tieWindow.map((r) => r.guid ?? r.title));
-  const dropped: DroppedRelease[] = [];
-  const finals: ScoredRelease[] = [];
-  for (const rel of releases) {
-    if (topScore - rel.score > cfg.llmWeakDropDelta) {
-      dropped.push({ ...rel, droppedReason: 'Dropped by LLM weak candidate threshold.' });
-      continue;
-    }
-    let score = rel.score;
-    const reasons = [...rel.reasons];
-    let dropReason = '';
-    for (const rule of llmRules) {
-      const s = rule.sentence.toLowerCase();
-      const t = rel.title.toLowerCase();
-      if (
-        (s.includes('drop cam') || s.includes('drop telesync') || s.includes('drop ts')) &&
-        /\bcam\b|\bhdts\b|\bts\b|\btelesync\b|\btelecine\b/.test(t)
-      ) {
-        dropReason = `Dropped by LLM rule #${rule.priority}: ${rule.sentence}`;
-        break;
-      }
-      if (s.includes('drop low seed')) {
-        const n = Number(s.match(/(\d+)/)?.[1] ?? '5');
-        if ((rel.seeders ?? 0) < n) {
-          dropReason = `Dropped by LLM rule #${rule.priority}: ${rule.sentence}`;
-          break;
-        }
-      }
-      if (s.includes('avoid av1') && /\bav1\b/.test(t)) {
-        score -= 5;
-        reasons.push(`llm_rule:${rule.priority} avoid av1`);
-      }
-      if (s.includes('prefer usenet') && rel.protocol === 'usenet' && tieSet.has(rel.guid ?? rel.title)) {
-        score += 3;
-        reasons.push(`llm_rule:${rule.priority} prefer usenet`);
-      }
-      if (s.includes('prefer remux') && /\bremux\b/.test(t) && tieSet.has(rel.guid ?? rel.title)) {
-        score += 4;
-        reasons.push(`llm_rule:${rule.priority} prefer remux`);
-      }
-      if (s.includes('prefer web-dl') && /\bweb-?dl\b/.test(t) && tieSet.has(rel.guid ?? rel.title)) {
-        score += 2;
-        reasons.push(`llm_rule:${rule.priority} prefer web-dl`);
-      }
-    }
-    if (dropReason) {
-      dropped.push({ ...rel, droppedReason: dropReason });
-      continue;
-    }
-    finals.push({ ...rel, score, reasons });
-  }
-  finals.sort((a, b) => b.score - a.score);
-  return { finals, dropped };
+  return { finals: [...releases].sort((a, b) => b.score - a.score), dropped: [] };
 }
 
 function applyTopPercentileGate(
@@ -1167,7 +1115,7 @@ function buildScoutConfigRevision(db: CuratDb): string {
     .sort(([a], [b]) => a.localeCompare(b));
   const rules = db
     .getRules()
-    .filter((r) => ['scout', 'scout_custom_cf', 'scout_release_blockers', 'scout_llm_ruleset'].includes(r.category))
+    .filter((r) => ['scout_custom_cf', 'scout_release_blockers', 'scout_llm_ruleset'].includes(r.category))
     .map((r) => ({
       category: r.category,
       name: r.name,
@@ -1237,19 +1185,42 @@ function dedupeScoutReleases(rows: ProwlarrSearchResult[]): ProwlarrSearchResult
   return [...byKey.values()];
 }
 
-async function fetchScoutReleases(client: ProwlarrClient, query: string): Promise<ProwlarrSearchResult[]> {
+async function fetchScoutReleases(
+  client: ProwlarrClient,
+  query: string,
+  ctx?: { imdbId?: string | null; title?: string | null; year?: number | null },
+): Promise<ProwlarrSearchResult[]> {
   try {
     const indexers = await client.listIndexers();
-    const usenetIds = indexers.filter((x) => x.protocol === 'usenet').map((x) => x.id);
+    const usenetIndexers = indexers.filter((x) => x.protocol === 'usenet');
     const torrentIds = indexers.filter((x) => x.protocol === 'torrent').map((x) => x.id);
-    if (usenetIds.length === 0 && torrentIds.length === 0) {
+    if (usenetIndexers.length === 0 && torrentIds.length === 0) {
       return client.searchMovie(query);
     }
     const combined: ProwlarrSearchResult[] = [];
     let fetched = false;
-    if (usenetIds.length > 0) {
+    if (usenetIndexers.length > 0) {
       try {
-        combined.push(...(await client.searchMovie(query, { indexerIds: usenetIds })));
+        const queryForms = Array.from(
+          new Set(
+            [query, [ctx?.title ?? '', ctx?.year ?? ''].filter(Boolean).join(' '), ctx?.title ?? '']
+              .map((x) => x.trim())
+              .filter((x) => x.length > 0),
+          ),
+        );
+        for (const idx of usenetIndexers) {
+          const imdbId = (ctx?.imdbId ?? '').trim().replace(/^tt/i, '');
+          let usenetRows: ProwlarrSearchResult[] = [];
+          for (const q of queryForms) {
+            usenetRows = await client.searchUsenetIndexerFeed(idx.id, idx.name, {
+              query: q,
+              imdbId: imdbId || null,
+              categories: '2000',
+            });
+            if (usenetRows.length > 0) break;
+          }
+          combined.push(...usenetRows);
+        }
         fetched = true;
       } catch {
         // fall through
@@ -1328,7 +1299,11 @@ async function searchOneMovie(
   const blockersEnabled = (db.getSetting('scoutPipelineBlockersEnabled') ?? 'false').toLowerCase() === 'true';
   const runtimeSec = db.getFilesForMovie(movieId).find((f) => (f.duration ?? 0) > 0)?.duration ?? null;
 
-  const releases = await fetchScoutReleases(client, query);
+  const releases = await fetchScoutReleases(client, query, {
+    imdbId: movie.imdb_id ?? null,
+    title,
+    year,
+  });
   const scoredBasic = releases.map((r) => addBasicFormatScore(r, scoreCfg, runtimeSec));
   const scoredWithCustom = scoredBasic.map((r) => {
     const custom = applyCustomCfRules(r, customCfRules);
@@ -1561,6 +1536,22 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     const objective = toText(body.objective).trim();
     const draft = buildScoutRefinementDraft(db, objective);
     return c.json(draft);
+  });
+
+  // GET /api/scout/rules
+  app.get('/rules', (c) => {
+    const grouped = listScoutRules(db);
+    const category = toText(c.req.query('category')).trim();
+    if (!category) return c.json({ rules: grouped });
+    return c.json({ rules: { [category]: grouped[category] ?? [] } });
+  });
+
+  // PUT /api/scout/rules/replace-category
+  app.put('/rules/replace-category', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { category?: unknown; rules?: unknown };
+    const res = replaceScoutRuleCategory(db, body.category, body.rules);
+    if (res.error) return c.json({ error: res.error }, 400);
+    return c.json({ saved: res.saved ?? [] });
   });
 
   // POST /api/scout/search-one  { movieId: number, query?: string }

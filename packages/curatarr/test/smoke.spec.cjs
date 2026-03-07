@@ -239,7 +239,7 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     await customSection.getByRole('button', { name: 'Save Custom CF Rules' }).click();
     await expect(customSection.getByText('Saved')).toBeVisible();
 
-    const list = await request.get('/api/rules?category=scout_custom_cf');
+    const list = await request.get('/api/scout/rules?category=scout_custom_cf');
     const body = await list.json();
     const rows = body?.rules?.scout_custom_cf ?? [];
     const created = rows.find((r) => r.name === ruleName);
@@ -247,7 +247,7 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     expect(created.enabled).toBe(1);
 
     // Cleanup created sample rule from this UI test.
-    const cleanup = await request.put('/api/rules/replace-category', {
+    const cleanup = await request.put('/api/scout/rules/replace-category', {
       data: { category: 'scout_custom_cf', rules: [] },
     });
     expect(cleanup.ok()).toBeTruthy();

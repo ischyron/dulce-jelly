@@ -34,14 +34,6 @@ export type MaskedKeyFieldProps = {
 export type JellyfinHealth = { ok: boolean; libraries?: number; error?: string } | null;
 export type ProwlarrHealth = { ok: boolean; indexers?: number; error?: string } | null;
 
-export interface ScoutRuleDraft {
-  id: number;
-  name: string;
-  enabled: boolean;
-  priority: number;
-  configText: string;
-}
-
 export interface ScoutCustomCfDraft {
   id?: number;
   name: string;
@@ -158,15 +150,6 @@ export interface CustomOverridesSectionProps {
   blockersError: string;
 }
 
-export interface RulesSectionProps {
-  scoutRulesDraft: ScoutRuleDraft[];
-  updateScoutRule: (id: number, patch: Partial<ScoutRuleDraft>) => void;
-  saveScoutRules: () => void;
-  savePending: boolean;
-  scoutRulesSaved: boolean;
-  scoutRulesError: string;
-}
-
 export interface ExtendedLlmRulesetSectionProps {
   form: SettingsForm;
   set: SetField;
@@ -206,7 +189,6 @@ export interface ScoutPanelProps {
   cfScoring: CfScoringSectionProps;
   trashSyncDetails: TrashSyncDetailsSectionProps;
   customOverrides: CustomOverridesSectionProps;
-  rules: RulesSectionProps;
   extendedLlmRuleset: ExtendedLlmRulesetSectionProps;
   automation: AutomationSectionProps;
 }

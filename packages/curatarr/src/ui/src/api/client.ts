@@ -272,4 +272,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+
+  scoutRules: () => req<{ rules: Record<string, QualityRule[]> }>('/scout/rules'),
+
+  scoutReplaceRulesCategory: (category: string, rules: Partial<QualityRule>[]) =>
+    req<{ saved: number[] }>('/scout/rules/replace-category', {
+      method: 'PUT',
+      body: JSON.stringify({ category, rules }),
+    }),
 };

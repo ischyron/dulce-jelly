@@ -89,7 +89,7 @@ test.describe('Scout feature checks', () => {
     expect(badSave.status()).toBe(400);
 
     try {
-      const save = await request.put('/api/rules/replace-category', {
+      const save = await request.put('/api/scout/rules/replace-category', {
         data: {
           category: 'scout_custom_cf',
           rules: [
@@ -118,7 +118,7 @@ test.describe('Scout feature checks', () => {
       expect(body.delta).toBeGreaterThanOrEqual(7);
       expect(Array.isArray(body.reasons)).toBeTruthy();
 
-      const disable = await request.put('/api/rules/replace-category', {
+      const disable = await request.put('/api/scout/rules/replace-category', {
         data: {
           category: 'scout_custom_cf',
           rules: [
@@ -146,11 +146,11 @@ test.describe('Scout feature checks', () => {
       const disabledBody = await disabledPreview.json();
       expect(disabledBody.delta).toBe(0);
     } finally {
-      const cleanup = await request.put('/api/rules/replace-category', {
+      const cleanup = await request.put('/api/scout/rules/replace-category', {
         data: { category: 'scout_custom_cf', rules: [] },
       });
       expect(cleanup.ok()).toBeTruthy();
-      const list = await request.get('/api/rules?category=scout_custom_cf');
+      const list = await request.get('/api/scout/rules?category=scout_custom_cf');
       const listBody = await list.json();
       const rows = listBody?.rules?.scout_custom_cf ?? [];
       expect(rows).toHaveLength(0);
@@ -161,7 +161,7 @@ test.describe('Scout feature checks', () => {
     const ruleName = `Rule ${Date.now()}`;
 
     try {
-      const save = await request.put('/api/rules/replace-category', {
+      const save = await request.put('/api/scout/rules/replace-category', {
         data: {
           category: 'scout_llm_ruleset',
           rules: [
@@ -176,7 +176,7 @@ test.describe('Scout feature checks', () => {
       });
       expect(save.ok()).toBeTruthy();
 
-      const list = await request.get('/api/rules?category=scout_llm_ruleset');
+      const list = await request.get('/api/scout/rules?category=scout_llm_ruleset');
       expect(list.ok()).toBeTruthy();
       const body = await list.json();
       const rows = body?.rules?.scout_llm_ruleset ?? [];
@@ -184,7 +184,7 @@ test.describe('Scout feature checks', () => {
       expect(rows[0].enabled).toBe(1);
       expect(rows[0].name).toBe(ruleName);
 
-      const disable = await request.put('/api/rules/replace-category', {
+      const disable = await request.put('/api/scout/rules/replace-category', {
         data: {
           category: 'scout_llm_ruleset',
           rules: [
@@ -199,17 +199,17 @@ test.describe('Scout feature checks', () => {
       });
       expect(disable.ok()).toBeTruthy();
 
-      const disabledList = await request.get('/api/rules?category=scout_llm_ruleset');
+      const disabledList = await request.get('/api/scout/rules?category=scout_llm_ruleset');
       const disabledBody = await disabledList.json();
       const disabledRows = disabledBody?.rules?.scout_llm_ruleset ?? [];
       expect(disabledRows.length).toBe(1);
       expect(disabledRows[0].enabled).toBe(0);
     } finally {
-      const cleanup = await request.put('/api/rules/replace-category', {
+      const cleanup = await request.put('/api/scout/rules/replace-category', {
         data: { category: 'scout_llm_ruleset', rules: [] },
       });
       expect(cleanup.ok()).toBeTruthy();
-      const list = await request.get('/api/rules?category=scout_llm_ruleset');
+      const list = await request.get('/api/scout/rules?category=scout_llm_ruleset');
       const body = await list.json();
       const rows = body?.rules?.scout_llm_ruleset ?? [];
       expect(rows).toHaveLength(0);
@@ -253,7 +253,7 @@ test.describe('Scout feature checks', () => {
     expect(saveSettingsRes.ok()).toBeTruthy();
 
     // Keep this test self-contained: no LLM rules for the first pass.
-    const clearLlmRes = await request.put('/api/rules/replace-category', {
+    const clearLlmRes = await request.put('/api/scout/rules/replace-category', {
       data: { category: 'scout_llm_ruleset', rules: [] },
     });
     expect(clearLlmRes.ok()).toBeTruthy();
@@ -286,7 +286,7 @@ test.describe('Scout feature checks', () => {
 
     const llmRuleName = `LLM One-Candidate ${Date.now()}`;
     try {
-      const setLlmRes = await request.put('/api/rules/replace-category', {
+      const setLlmRes = await request.put('/api/scout/rules/replace-category', {
         data: {
           category: 'scout_llm_ruleset',
           rules: [
@@ -317,7 +317,7 @@ test.describe('Scout feature checks', () => {
         ),
       ).toBeTruthy();
     } finally {
-      const cleanup = await request.put('/api/rules/replace-category', {
+      const cleanup = await request.put('/api/scout/rules/replace-category', {
         data: { category: 'scout_llm_ruleset', rules: [] },
       });
       expect(cleanup.ok()).toBeTruthy();

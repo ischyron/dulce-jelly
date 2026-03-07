@@ -12,7 +12,6 @@ import type {
   ScoutBlockerDraft,
   ScoutCustomCfDraft,
   ScoutLlmRuleDraft,
-  ScoutRuleDraft,
   SettingsForm,
 } from '../components/settings/types';
 import { normalizeRootPath, parseLibraryRoots, toLibraryRootsJson } from '../components/settings/utils/libraryRoots';
@@ -44,11 +43,8 @@ export function Settings() {
   const [clientProfile, setClientProfile] = useState('android_tv');
   const [saved, setSaved] = useState(false);
   const [showScanPrompt, setShowScanPrompt] = useState(false);
-  const [scoutRulesDraft, setScoutRulesDraft] = useState<ScoutRuleDraft[]>([]);
   const [customCfDraft, setCustomCfDraft] = useState<ScoutCustomCfDraft[]>([]);
   const [llmRulesDraft, setLlmRulesDraft] = useState<ScoutLlmRuleDraft[]>([]);
-  const [scoutRulesSaved, setScoutRulesSaved] = useState(false);
-  const [scoutRulesError, setScoutRulesError] = useState('');
   const [customCfSaved, setCustomCfSaved] = useState(false);
   const [customCfError, setCustomCfError] = useState('');
   const [blockersSaved, setBlockersSaved] = useState(false);
@@ -198,8 +194,8 @@ export function Settings() {
     refetchInterval: 10_000,
   });
   const { data: scoutRulesData, refetch: refetchScoutRules } = useQuery({
-    queryKey: ['rules', 'all'],
-    queryFn: () => api.rules(),
+    queryKey: ['scout-rules', 'all'],
+    queryFn: () => api.scoutRules(),
     staleTime: 60_000,
   });
   const { data: trashSyncDetailsData, refetch: refetchTrashSyncDetails } = useQuery({
@@ -224,29 +220,6 @@ export function Settings() {
   const scoutRefineDraftMutation = useMutation({
     mutationFn: (objective: string) => api.scoutRulesRefineDraft({ objective }),
   });
-  const saveScoutRulesMutation = useMutation({
-    mutationFn: (rules: ScoutRuleDraft[]) => {
-      const payload = rules.map((r) => ({
-        id: r.id,
-        category: 'scout',
-        name: r.name,
-        enabled: r.enabled ? 1 : 0,
-        priority: r.priority,
-        config: JSON.parse(r.configText || '{}'),
-      }));
-      return api.saveRules(payload);
-    },
-    onSuccess: () => {
-      setScoutRulesSaved(true);
-      setScoutRulesError('');
-      setTimeout(() => setScoutRulesSaved(false), 2500);
-      refetchScoutRules();
-    },
-    onError: (err) => {
-      setScoutRulesSaved(false);
-      setScoutRulesError((err as Error).message);
-    },
-  });
   const saveCustomCfMutation = useMutation({
     mutationFn: (rules: ScoutCustomCfDraft[]) => {
       const payload = rules.map((r, idx) => ({
@@ -262,7 +235,7 @@ export function Settings() {
           appliesTo: r.appliesTo,
         },
       }));
-      return api.replaceRulesCategory('scout_custom_cf', payload);
+      return api.scoutReplaceRulesCategory('scout_custom_cf', payload);
     },
     onSuccess: () => {
       setCustomCfSaved(true);
@@ -290,7 +263,7 @@ export function Settings() {
           reason: r.reason || 'Blocked by custom rule',
         },
       }));
-      return api.replaceRulesCategory('scout_release_blockers', payload);
+      return api.scoutReplaceRulesCategory('scout_release_blockers', payload);
     },
     onSuccess: () => {
       setBlockersSaved(true);
@@ -312,7 +285,7 @@ export function Settings() {
         priority: idx + 1,
         config: { sentence: r.sentence },
       }));
-      return api.replaceRulesCategory('scout_llm_ruleset', payload);
+      return api.scoutReplaceRulesCategory('scout_llm_ruleset', payload);
     },
     onSuccess: () => {
       setLlmRulesSaved(true);
@@ -346,15 +319,6 @@ export function Settings() {
   const upstreamSnapshot = syncDetails?.upstream ?? null;
 
   useEffect(() => {
-    const rules = scoutRulesData?.rules?.scout ?? [];
-    const mapped = rules.map((r) => ({
-      id: r.id,
-      name: r.name,
-      enabled: r.enabled !== 0,
-      priority: r.priority,
-      configText: JSON.stringify(r.config, null, 2),
-    }));
-    setScoutRulesDraft(mapped);
     const customMapped = (scoutRulesData?.rules?.scout_custom_cf ?? []).map(parseCustomCfRule);
     setCustomCfDraft(customMapped);
     const blockerMapped = (scoutRulesData?.rules?.scout_release_blockers ?? []).map(parseBlockerRule);
@@ -468,10 +432,6 @@ export function Settings() {
     } catch {
       /* noop */
     }
-  }
-
-  function updateScoutRule(id: number, patch: Partial<ScoutRuleDraft>) {
-    setScoutRulesDraft((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   }
 
   function addCustomCfRule() {
@@ -673,14 +633,6 @@ export function Settings() {
               blockersSavePending: saveBlockersMutation.isPending,
               blockersSaved,
               blockersError,
-            }}
-            rules={{
-              scoutRulesDraft,
-              updateScoutRule,
-              saveScoutRules: () => saveScoutRulesMutation.mutate(scoutRulesDraft),
-              savePending: saveScoutRulesMutation.isPending,
-              scoutRulesSaved,
-              scoutRulesError,
             }}
             extendedLlmRuleset={{
               form,

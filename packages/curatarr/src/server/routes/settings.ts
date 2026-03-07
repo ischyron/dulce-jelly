@@ -4,21 +4,8 @@ import { JellyfinClient } from '../../integrations/jellyfin/client.js';
 import { parseLibraryRootsUnknown, validateLibraryRootsEntries } from '../../shared/libraryRoots.js';
 import { syncScoringYamlFromSettings } from '../../shared/scoutDefaults.js';
 
-const DEPRECATED_SCOUT_SETTINGS = ['scoutCfSmall4kPenalty', 'scoutCfSmall4kMinGiB'] as const;
-
 export function makeSettingsRoutes(db: CuratDb): Hono {
   const app = new Hono();
-  let deprecatedScoutSettingsLogged = false;
-
-  function cleanupDeprecatedScoutSettings(): void {
-    const removed = db.deleteSettings([...DEPRECATED_SCOUT_SETTINGS]);
-    if (removed > 0 && !deprecatedScoutSettingsLogged) {
-      deprecatedScoutSettingsLogged = true;
-      console.info('[scout] removed deprecated small4k settings; bitrate gates are now canonical');
-    }
-  }
-
-  cleanupDeprecatedScoutSettings();
 
   async function testProwlarr(
     url: string,
@@ -132,7 +119,6 @@ export function makeSettingsRoutes(db: CuratDb): Hono {
         db.setSetting(k, v);
       }
     }
-    cleanupDeprecatedScoutSettings();
     let scoringYamlSynced = true;
     try {
       const merged = db.getAllSettings();

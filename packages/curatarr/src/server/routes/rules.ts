@@ -1,51 +1,10 @@
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
+import { SCOUT_RULE_CATEGORIES } from './scout/rulesDomain.js';
 
 function validateRuleConfig(category: string, config: unknown): string | null {
-  if (category === 'scout_custom_cf') {
-    const c = (config ?? {}) as Record<string, unknown>;
-    const matchType = c.matchType === 'regex' ? 'regex' : c.matchType === 'string' ? 'string' : '';
-    const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
-    const score = Number(c.score ?? Number.NaN);
-    if (!matchType) return 'scout_custom_cf requires matchType: regex|string';
-    if (!pattern) return 'scout_custom_cf requires a non-empty pattern';
-    if (!Number.isFinite(score)) return 'scout_custom_cf requires numeric score';
-    if (matchType === 'regex') {
-      const flagsRaw = typeof c.flags === 'string' ? c.flags : 'i';
-      const flags = flagsRaw.replace(/[^gimsuy]/g, '');
-      try {
-        // Validate regex early so scout scoring never crashes at runtime.
-        // eslint-disable-next-line no-new
-        new RegExp(pattern, flags);
-      } catch {
-        return 'scout_custom_cf pattern is not a valid regex';
-      }
-    }
-    return null;
-  }
-
-  if (category === 'scout_release_blockers') {
-    const c = (config ?? {}) as Record<string, unknown>;
-    const matchType = c.matchType === 'regex' ? 'regex' : c.matchType === 'string' ? 'string' : '';
-    const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
-    if (!matchType) return 'scout_release_blockers requires matchType: regex|string';
-    if (!pattern) return 'scout_release_blockers requires a non-empty pattern';
-    if (matchType === 'regex') {
-      const flagsRaw = typeof c.flags === 'string' ? c.flags : 'i';
-      const flags = flagsRaw.includes('i') ? 'i' : '';
-      try {
-        new RegExp(pattern, flags);
-      } catch {
-        return 'scout_release_blockers pattern is not a valid regex';
-      }
-    }
-    return null;
-  }
-  if (category === 'scout_llm_ruleset') {
-    const c = (config ?? {}) as Record<string, unknown>;
-    const sentence = typeof c.sentence === 'string' ? c.sentence.trim() : '';
-    if (!sentence) return 'scout_llm_ruleset requires sentence';
-    return null;
+  if (SCOUT_RULE_CATEGORIES.includes(category as (typeof SCOUT_RULE_CATEGORIES)[number])) {
+    return 'Scout categories are managed via /api/scout/rules endpoints';
   }
   return null;
 }
@@ -76,6 +35,9 @@ export function makeRulesRoutes(db: CuratDb): Hono {
     for (const rule of body.rules) {
       const r = rule as Record<string, unknown>;
       const category = r.category as string;
+      if (SCOUT_RULE_CATEGORIES.includes(category as (typeof SCOUT_RULE_CATEGORIES)[number])) {
+        return c.json({ error: 'Scout categories are managed via /api/scout/rules endpoints' }, 400);
+      }
       const config = r.config as object;
       const configError = validateRuleConfig(category, config);
       if (configError) {
@@ -119,8 +81,8 @@ export function makeRulesRoutes(db: CuratDb): Hono {
     if (!category || incoming == null) {
       return c.json({ error: 'Expected { category, rules: [...] }' }, 400);
     }
-    if (category === 'scout_custom_cf' && incoming.length > 1) {
-      return c.json({ error: 'scout_custom_cf supports exactly one override rule' }, 400);
+    if (SCOUT_RULE_CATEGORIES.includes(category as (typeof SCOUT_RULE_CATEGORIES)[number])) {
+      return c.json({ error: 'Scout categories are managed via /api/scout/rules endpoints' }, 400);
     }
 
     const normalized: Array<{ name: string; enabled: boolean; priority: number; config: Record<string, unknown> }> = [];

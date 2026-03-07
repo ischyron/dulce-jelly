@@ -144,6 +144,15 @@ function releaseMatchesScoutChips(release: ScoutResultRow, selectedChips: string
   return resolutionOk && sourceOk && audioOk && protocolOk && unknownOk;
 }
 
+function recommendationReasonText(release: ScoutRelease | null): string {
+  if (!release) return 'Balanced match';
+  const tags = [...releaseTitleTags(release.title)];
+  const protocol = protocolChipForRelease(release.protocol);
+  if (protocol !== 'Unknown') tags.push(protocol);
+  const uniq = [...new Set(tags)];
+  return uniq.length > 0 ? uniq.join(', ') : 'Balanced match';
+}
+
 function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
   return (
     <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
@@ -949,14 +958,28 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   style={{ borderColor: '#3a3657', background: 'rgba(30,30,46,0.6)' }}
                 >
                   <div style={{ color: '#8b87aa' }} className="uppercase tracking-wider mb-1">
-                    Most Efficient Path
+                    Recommendation
                   </div>
-                  <div style={{ color: '#d4cfff' }}>{scoutSearch.data.recommendation.summary}</div>
-                  {scoutSearch.data.recommendation.best && (
-                    <div className="mt-1" style={{ color: '#8b87aa' }}>
-                      Recommended:{' '}
-                      <span className="text-amber-400 font-semibold">{scoutSearch.data.recommendation.best.title}</span>
+                  {scoutSearch.data.recommendation.best ? (
+                    <div className="space-y-1">
+                      <div style={{ color: '#8b87aa' }}>
+                        Recommended:{' '}
+                        <span className="text-amber-400 font-semibold">
+                          {scoutSearch.data.recommendation.best.title}
+                        </span>
+                      </div>
+                      <div style={{ color: '#8b87aa' }}>
+                        Score: <span style={{ color: '#d4cfff' }}>{scoutSearch.data.recommendation.best.score}</span>
+                      </div>
+                      <div style={{ color: '#8b87aa' }}>
+                        Reason:{' '}
+                        <span style={{ color: '#d4cfff' }}>
+                          {recommendationReasonText(scoutSearch.data.recommendation.best)}
+                        </span>
+                      </div>
                     </div>
+                  ) : (
+                    <div style={{ color: '#8b87aa' }}>No recommendation available.</div>
                   )}
                 </div>
                 {scoutResultView === 'candidates' && <ScoutResultsTable releases={scoutSearch.data.releases} />}

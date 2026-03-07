@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { ProwlarrClient, type ProwlarrSearchResult } from '../../integrations/prowlarr/client.js';
@@ -50,6 +51,16 @@ interface SearchSuccess {
   total: number;
   releases: ScoredRelease[];
   droppedReleases: DroppedRelease[];
+  protocolCounts?: {
+    torrent: number;
+    usenet: number;
+    unknown: number;
+  };
+  cache?: {
+    hit: boolean;
+    ttlSecRemaining: number;
+    revision: string;
+  };
   recommendation: ScoutRecommendation;
 }
 
@@ -90,6 +101,15 @@ const autoState: ScoutAutoState = {
 };
 
 const lastAutoSeenByMovie = new Map<number, number>();
+const SCOUT_CACHE_TTL_MS = 15 * 60 * 1000;
+const SCOUT_CACHE_MAX_ENTRIES = 512;
+
+interface ScoutCacheEntry {
+  expiresAt: number;
+  payload: SearchSuccess;
+}
+
+const scoutSearchCache = new Map<string, ScoutCacheEntry>();
 
 function toText(v: unknown): string {
   return typeof v === 'string' ? v : '';
@@ -1132,6 +1152,124 @@ function configuredBatchCap(db: CuratDb): number {
   return Math.max(1, Math.min(10, raw));
 }
 
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((v) => stableJson(v)).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
+    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableJson(v)}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function buildScoutConfigRevision(db: CuratDb): string {
+  const settings = Object.entries(db.getAllSettings())
+    .filter(([k]) => k.startsWith('scout'))
+    .sort(([a], [b]) => a.localeCompare(b));
+  const rules = db
+    .getRules()
+    .filter((r) => ['scout', 'scout_custom_cf', 'scout_release_blockers', 'scout_llm_ruleset'].includes(r.category))
+    .map((r) => ({
+      category: r.category,
+      name: r.name,
+      enabled: r.enabled,
+      priority: r.priority,
+      config: r.config,
+      updated_at: r.updated_at,
+    }))
+    .sort(
+      (a, b) =>
+        a.category.localeCompare(b.category) ||
+        a.priority - b.priority ||
+        a.name.localeCompare(b.name) ||
+        a.config.localeCompare(b.config),
+    );
+  const raw = stableJson({ settings, rules });
+  return createHash('sha1').update(raw).digest('hex');
+}
+
+function normalizeScoutQuery(query: string): string {
+  return query.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function buildScoutCacheKey(movieId: number, query: string, revision: string): string {
+  return `${movieId}:${normalizeScoutQuery(query)}:${revision}`;
+}
+
+function pruneScoutCache(now = Date.now()): void {
+  for (const [key, entry] of scoutSearchCache.entries()) {
+    if (entry.expiresAt <= now) scoutSearchCache.delete(key);
+  }
+  if (scoutSearchCache.size <= SCOUT_CACHE_MAX_ENTRIES) return;
+  const sorted = [...scoutSearchCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+  const overflow = scoutSearchCache.size - SCOUT_CACHE_MAX_ENTRIES;
+  for (const [key] of sorted.slice(0, overflow)) scoutSearchCache.delete(key);
+}
+
+function withScoutCacheMeta(result: SearchSuccess, hit: boolean, revision: string, expiresAt: number): SearchSuccess {
+  const ttlSecRemaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
+  return {
+    ...result,
+    cache: {
+      hit,
+      ttlSecRemaining,
+      revision,
+    },
+  };
+}
+
+function protocolCounts(rows: ProwlarrSearchResult[]): { torrent: number; usenet: number; unknown: number } {
+  const out = { torrent: 0, usenet: 0, unknown: 0 };
+  for (const row of rows) {
+    if (row.protocol === 'torrent') out.torrent++;
+    else if (row.protocol === 'usenet') out.usenet++;
+    else out.unknown++;
+  }
+  return out;
+}
+
+function dedupeScoutReleases(rows: ProwlarrSearchResult[]): ProwlarrSearchResult[] {
+  const byKey = new Map<string, ProwlarrSearchResult>();
+  for (const row of rows) {
+    const titleKey = row.title.trim().toLowerCase().replace(/\s+/g, ' ');
+    const key = row.guid || row.downloadUrl || `${titleKey}|${row.size ?? 0}`;
+    if (!byKey.has(key)) byKey.set(key, row);
+  }
+  return [...byKey.values()];
+}
+
+async function fetchScoutReleases(client: ProwlarrClient, query: string): Promise<ProwlarrSearchResult[]> {
+  try {
+    const indexers = await client.listIndexers();
+    const usenetIds = indexers.filter((x) => x.protocol === 'usenet').map((x) => x.id);
+    const torrentIds = indexers.filter((x) => x.protocol === 'torrent').map((x) => x.id);
+    if (usenetIds.length === 0 && torrentIds.length === 0) {
+      return client.searchMovie(query);
+    }
+    const combined: ProwlarrSearchResult[] = [];
+    let fetched = false;
+    if (usenetIds.length > 0) {
+      try {
+        combined.push(...(await client.searchMovie(query, { indexerIds: usenetIds })));
+        fetched = true;
+      } catch {
+        // fall through
+      }
+    }
+    if (torrentIds.length > 0) {
+      try {
+        combined.push(...(await client.searchMovie(query, { indexerIds: torrentIds })));
+        fetched = true;
+      } catch {
+        // fall through
+      }
+    }
+    if (!fetched) return client.searchMovie(query);
+    return dedupeScoutReleases(combined);
+  } catch {
+    return client.searchMovie(query);
+  }
+}
+
 function releaseRecencyEpoch(value: string | null | undefined): number {
   if (!value) return 0;
   const ms = Date.parse(value);
@@ -1174,6 +1312,15 @@ async function searchOneMovie(
   const title = movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name;
   const year = movie.jellyfin_year ?? movie.parsed_year;
   const query = toText(queryOverride).trim() || [title, year].filter(Boolean).join(' ');
+  const revision = buildScoutConfigRevision(db);
+  const cacheKey = buildScoutCacheKey(movieId, query, revision);
+  const now = Date.now();
+  const cached = scoutSearchCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return withScoutCacheMeta(cached.payload, true, revision, cached.expiresAt);
+  }
+  if (cached) scoutSearchCache.delete(cacheKey);
+
   const scoreCfg = resolveScoutScoreConfig(db);
   const customCfRules = loadScoutCustomCfRules(db);
   const blockerRules = loadScoutBlockerRules(db);
@@ -1181,7 +1328,7 @@ async function searchOneMovie(
   const blockersEnabled = (db.getSetting('scoutPipelineBlockersEnabled') ?? 'false').toLowerCase() === 'true';
   const runtimeSec = db.getFilesForMovie(movieId).find((f) => (f.duration ?? 0) > 0)?.duration ?? null;
 
-  const releases = await client.searchMovie(query);
+  const releases = await fetchScoutReleases(client, query);
   const scoredBasic = releases.map((r) => addBasicFormatScore(r, scoreCfg, runtimeSec));
   const scoredWithCustom = scoredBasic.map((r) => {
     const custom = applyCustomCfRules(r, customCfRules);
@@ -1206,20 +1353,27 @@ async function searchOneMovie(
     ...llmResult.dropped,
     ...llmSingleResult.dropped,
   ];
+  const allRows = [...scored, ...dropped];
   const best = pickBestRecommendation(scored, scoreCfg);
   const summary = `${recommendationSummary(best, scoreCfg)}${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by gating/rules.` : ''}`;
-  return {
+  const result: SearchSuccess = {
     movieId,
     query,
     total: scored.length,
     releases: scored,
     droppedReleases: dropped,
+    protocolCounts: protocolCounts(allRows),
     recommendation: {
       mode: 'tabulated',
       summary,
       best,
     },
   };
+  const expiresAt = Date.now() + SCOUT_CACHE_TTL_MS;
+  pruneScoutCache();
+  scoutSearchCache.set(cacheKey, { expiresAt, payload: result });
+  pruneScoutCache();
+  return withScoutCacheMeta(result, false, revision, expiresAt);
 }
 
 function toPriorityScore(mc: number | null, imdb: number | null): number {

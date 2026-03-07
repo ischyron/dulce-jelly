@@ -196,6 +196,16 @@ export interface ScoutSearchOneResponse {
   total: number;
   releases: ScoutRelease[];
   droppedReleases: DroppedScoutRelease[];
+  protocolCounts?: {
+    torrent: number;
+    usenet: number;
+    unknown: number;
+  };
+  cache?: {
+    hit: boolean;
+    ttlSecRemaining: number;
+    revision: string;
+  };
   recommendation: {
     mode: 'tabulated';
     summary: string;

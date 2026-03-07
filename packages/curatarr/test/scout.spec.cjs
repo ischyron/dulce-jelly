@@ -324,6 +324,61 @@ test.describe('Scout feature checks', () => {
     }
   });
 
+  test('scout search-one cache hits within TTL and invalidates on scout settings change', async ({ request }) => {
+    test.setTimeout(120_000);
+
+    const settingsRes = await request.get('/api/settings');
+    expect(settingsRes.ok()).toBeTruthy();
+    const settings = (await settingsRes.json())?.settings ?? {};
+    const hasProwlarr = Boolean(settings.prowlarrUrl);
+    test.skip(!hasProwlarr, 'requires configured Prowlarr for live scout search');
+
+    const candidateRes = await request.get('/api/candidates?minCritic=0&minCommunity=0&maxResolution=2160p&limit=1');
+    expect(candidateRes.ok()).toBeTruthy();
+    const candidateJson = await candidateRes.json();
+    const firstMovieId = candidateJson?.candidates?.[0]?.id;
+    expect(firstMovieId).toBeTruthy();
+
+    const query = `First Man 2018 cache-${Date.now()}`;
+    const firstRes = await request.post('/api/scout/search-one', {
+      data: { movieId: firstMovieId, query },
+    });
+    expect(firstRes.ok()).toBeTruthy();
+    const firstBody = await firstRes.json();
+    expect(firstBody?.cache?.hit).toBe(false);
+    expect(typeof firstBody?.cache?.revision).toBe('string');
+
+    const secondRes = await request.post('/api/scout/search-one', {
+      data: { movieId: firstMovieId, query },
+    });
+    expect(secondRes.ok()).toBeTruthy();
+    const secondBody = await secondRes.json();
+    expect(secondBody?.cache?.hit).toBe(true);
+    expect(secondBody?.cache?.revision).toBe(firstBody?.cache?.revision);
+
+    const prevRes1080 = settings.scoutPipelineBasicRes1080 ?? '24';
+    const nextRes1080 = String(Number.parseInt(prevRes1080, 10) === 24 ? 25 : 24);
+    try {
+      const updateRes = await request.put('/api/settings', {
+        data: { scoutPipelineBasicRes1080: nextRes1080 },
+      });
+      expect(updateRes.ok()).toBeTruthy();
+
+      const thirdRes = await request.post('/api/scout/search-one', {
+        data: { movieId: firstMovieId, query },
+      });
+      expect(thirdRes.ok()).toBeTruthy();
+      const thirdBody = await thirdRes.json();
+      expect(thirdBody?.cache?.hit).toBe(false);
+      expect(thirdBody?.cache?.revision).not.toBe(secondBody?.cache?.revision);
+    } finally {
+      const restoreRes = await request.put('/api/settings', {
+        data: { scoutPipelineBasicRes1080: prevRes1080 },
+      });
+      expect(restoreRes.ok()).toBeTruthy();
+    }
+  });
+
   test('scout search-one behavior matches prowlarr config state', async ({ request }) => {
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();

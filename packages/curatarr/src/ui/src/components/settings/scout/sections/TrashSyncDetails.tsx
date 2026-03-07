@@ -12,11 +12,7 @@ export function TrashSyncDetails({
   syncedTrashMappingRevision,
   syncedTrashAt,
   syncedTrashRules,
-  syncedTrashAppliedCount,
   syncedTrashWarning,
-  appliedMappings,
-  appliedChanges,
-  appliedRules,
   upstreamSnapshot,
 }: TrashSyncDetailsSectionProps) {
   return (
@@ -28,9 +24,9 @@ export function TrashSyncDetails({
           disabled={syncingTrash}
           className="px-3 py-1.5 rounded border text-xs disabled:opacity-60"
           style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-          title="Apply Curatarr TRaSH-aligned baseline scoring and refresh Scout rules"
+          title="Refresh read-only TRaSH baseline metadata and upstream snapshot"
         >
-          {syncingTrash ? 'Syncing…' : 'Sync TRaSH Scores'}
+          {syncingTrash ? 'Syncing…' : 'Refresh TRaSH Baseline'}
         </button>
         <a
           href="https://trash-guides.info/"
@@ -50,7 +46,10 @@ export function TrashSyncDetails({
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
         <div className="font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-          TRaSH Sync Details (Read-only)
+          TRaSH Baseline (Read-only)
+        </div>
+        <div style={{ color: 'var(--c-muted)' }}>
+          Informational only. Tune deterministic scoring in Step 2 and overrides/blockers in Step 4.
         </div>
         {!hasTrashSyncDetails && <div style={{ color: 'var(--c-muted)' }}>No TRaSH sync recorded yet.</div>}
         {hasTrashSyncDetails && (
@@ -83,111 +82,12 @@ export function TrashSyncDetails({
               <div style={{ color: 'var(--c-muted)' }}>
                 Rules synced: <span style={{ color: 'var(--c-text)' }}>{syncedTrashRules || 'n/a'}</span>
               </div>
-              <div style={{ color: 'var(--c-muted)' }}>
-                Settings changed: <span style={{ color: 'var(--c-text)' }}>{syncedTrashAppliedCount || '0'}</span>
-              </div>
-              {syncedTrashWarning && <div style={{ color: '#f59e0b' }}>Note: {syncedTrashWarning}</div>}
-            </div>
-
-            <div
-              className="rounded border p-2 space-y-2"
-              style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
-            >
-              <div className="font-semibold" style={{ color: '#d4cfff' }}>
-                Declarative Mapping Set
-              </div>
-              {appliedMappings.length === 0 && (
-                <div style={{ color: 'var(--c-muted)' }}>No mapping snapshot available.</div>
-              )}
-              {appliedMappings.length > 0 && (
-                <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
-                  <table className="w-full text-[11px]">
-                    <thead style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
-                      <tr>
-                        <th className="px-2 py-1 text-left">Setting</th>
-                        <th className="px-2 py-1 text-left">TRaSH label</th>
-                        <th className="px-2 py-1 text-right">Value</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appliedMappings.map((row) => (
-                        <tr key={`${row.key}-${row.trashLabel}`} style={{ borderTop: '1px solid var(--c-border)' }}>
-                          <td className="px-2 py-1 font-mono" style={{ color: 'var(--c-text)' }}>
-                            {row.key}
-                          </td>
-                          <td className="px-2 py-1" style={{ color: 'var(--c-muted)' }}>
-                            {row.trashLabel}
-                          </td>
-                          <td className="px-2 py-1 text-right" style={{ color: '#c4b5fd' }}>
-                            {row.value}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+              {syncedTrashWarning ? (
+                <div style={{ color: '#f59e0b' }}>
+                  Note: {syncedTrashWarning} (sync completed; upstream snapshot preview is truncated)
                 </div>
-              )}
-              {appliedChanges.length > 0 && (
-                <div className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
-                  Changed keys: {appliedChanges.map((c) => c.key).join(', ')}
-                </div>
-              )}
-            </div>
-
-            <div
-              className="rounded border p-2 space-y-2"
-              style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
-            >
-              <div className="font-semibold" style={{ color: '#d4cfff' }}>
-                Imported Into Curatarr (Rules)
-              </div>
-              <div className="text-[11px]" style={{ color: 'var(--c-muted)' }}>
-                Scout rules applied by the most recent TRaSH sync.
-              </div>
-              {appliedRules.length === 0 && (
-                <div style={{ color: 'var(--c-muted)' }}>No applied snapshot available yet.</div>
-              )}
-              {appliedRules.length > 0 && (
-                <div className="overflow-auto rounded border" style={{ borderColor: 'var(--c-border)' }}>
-                  <table className="w-full text-[11px]">
-                    <thead style={{ background: 'var(--c-bg)', color: 'var(--c-muted)' }}>
-                      <tr>
-                        <th className="px-2 py-1 text-left">Rule</th>
-                        <th className="px-2 py-1 text-right">Priority</th>
-                        <th className="px-2 py-1 text-center">Enabled</th>
-                        <th className="px-2 py-1 text-left">JSON</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {appliedRules.map((rule) => (
-                        <tr key={rule.id} style={{ borderTop: '1px solid var(--c-border)' }}>
-                          <td className="px-2 py-1" style={{ color: 'var(--c-text)' }}>
-                            {rule.name}
-                          </td>
-                          <td className="px-2 py-1 text-right" style={{ color: '#c4b5fd' }}>
-                            {rule.priority}
-                          </td>
-                          <td className="px-2 py-1 text-center" style={{ color: rule.enabled ? '#4ade80' : '#f87171' }}>
-                            {rule.enabled ? 'Yes' : 'No'}
-                          </td>
-                          <td className="px-2 py-1">
-                            <details>
-                              <summary className="cursor-pointer" style={{ color: '#c4b5fd' }}>
-                                View JSON
-                              </summary>
-                              <pre
-                                className="mt-1 p-2 rounded overflow-auto"
-                                style={{ background: 'var(--c-bg)', color: '#d4cfff' }}
-                              >
-                                {toPrettyJson(rule.config)}
-                              </pre>
-                            </details>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+              ) : (
+                <div style={{ color: '#4ade80' }}>Status: Sync completed normally.</div>
               )}
             </div>
 

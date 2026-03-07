@@ -211,6 +211,11 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     await expect(page.getByRole('heading', { name: /Scout Quality Pipeline/i })).toBeVisible();
     await expect(page.getByText(/Final LLM ruleset/i).first()).toBeVisible();
     await expect(page.getByText(/New installs start with 2 disabled examples/i)).toBeVisible();
+    await expect(page.getByText('Source', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('Usenet Bonus').first()).toBeVisible();
+    await expect(page.getByText('Torrent Bonus').first()).toBeVisible();
+    await expect(page.getByText('TRaSH Baseline (Read-only)').first()).toBeVisible();
+    await expect(page.getByText('Declarative Mapping Set')).toHaveCount(0);
     await expect(page.getByRole('button', { name: 'Save', exact: true })).toBeVisible();
     await expect(page.getByText('Max Resolution')).toHaveCount(0);
   });
@@ -220,7 +225,10 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     const ruleName = `UI E2E CF ${Date.now()}`;
     await page.goto('/settings/scout');
 
-    const customSection = page.locator('section').filter({ hasText: 'Custom CF + blockers' }).first();
+    const customSection = page
+      .locator('section')
+      .filter({ hasText: 'Additional Custom Format Scores & Blocking Rules' })
+      .first();
     if ((await customSection.locator('input[placeholder="Rule name"]').count()) === 0) {
       await customSection.getByRole('button', { name: 'Add Rule' }).first().click();
     }

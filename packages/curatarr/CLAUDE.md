@@ -15,7 +15,9 @@ For task completion rules and feature gating, follow `packages/curatarr/AGENTS.m
 - Unit/interaction: `npm run test`
 - E2E: `npm run test:e2e`
 - E2E cleanup: remove temporary test entities/artifacts created during validation before task completion
+- E2E resource hygiene: keep worker concurrency bounded for local runs and prune transient Playwright artifacts to prevent multi-GB buildup
 - Manual verification: Chrome MCP for UI/user-visible API behavior changes
+- Chrome MCP hygiene: close unused pages/tabs after verification to prevent browser memory bloat
 - MCP preflight: `codex mcp list` (must include enabled `playwright` and `chrome`)
 - Deploy Gate:
   - Build and deploy Curatarr service.

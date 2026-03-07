@@ -3,7 +3,6 @@ import type {
   ScoutAutoStatusResponse,
   ScoutCustomCfPreviewResponse,
   ScoutRulesRefineDraftResponse,
-  ScoutTrashParityResponse,
   ScoutTrashSyncDetailsResponse,
 } from '../../../../shared/types/api';
 import type { OrderedScoreField } from './content';
@@ -129,18 +128,8 @@ export interface TrashSyncDetailsSectionProps {
   syncedTrashMappingRevision: string;
   syncedTrashAt: string;
   syncedTrashRules: string;
-  syncedTrashAppliedCount: string;
   syncedTrashWarning: string;
-  appliedSettingsEntries: Array<[string, string]>;
-  appliedMappings: ScoutTrashSyncDetailsResponse['applied']['mappings'];
-  appliedChanges: ScoutTrashSyncDetailsResponse['applied']['changes'];
-  appliedRules: ScoutTrashSyncDetailsResponse['applied']['rules'];
   upstreamSnapshot: ScoutTrashSyncDetailsResponse['upstream'] | null;
-}
-
-export interface TrashBaselineSectionProps {
-  trashParityData?: ScoutTrashParityResponse;
-  onRefreshBaseline: () => void;
 }
 
 export interface CustomOverridesSectionProps {
@@ -216,7 +205,6 @@ export interface ScoutPanelProps {
   minimumQualifiers: MinimumQualifiersSectionProps;
   cfScoring: CfScoringSectionProps;
   trashSyncDetails: TrashSyncDetailsSectionProps;
-  trashBaseline: TrashBaselineSectionProps;
   customOverrides: CustomOverridesSectionProps;
   rules: RulesSectionProps;
   extendedLlmRuleset: ExtendedLlmRulesetSectionProps;

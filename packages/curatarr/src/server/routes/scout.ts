@@ -2,11 +2,8 @@ import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { ProwlarrClient, type ProwlarrSearchResult } from '../../integrations/prowlarr/client.js';
 import { getScoutDefaultSettings } from '../../shared/scoutDefaults.js';
-import {
-  TRASH_DECLARATIVE_MODEL_VERSION,
-  buildTrashDeclarativeMappingSnapshot,
-  buildTrashDeclarativeSettings,
-} from '../scout/trashDeclarativeModel.js';
+
+const TRASH_SYNC_MODEL_VERSION = '2026-03-07-v2';
 
 interface ScoredRelease extends ProwlarrSearchResult {
   score: number;
@@ -20,9 +17,6 @@ interface DroppedRelease extends ProwlarrSearchResult {
 }
 
 interface ScoutScoreConfig {
-  basicResolutionScore: number;
-  basicVideoScore: number;
-  basicAudioScore: number;
   bitrateTargetMbps: number;
   bitrateTolerancePct: number;
   bitrateMaxScore: number;
@@ -114,37 +108,32 @@ function toFloat(raw: string | undefined, fallback: number): number {
 const SCOUT_DEFAULT_SETTINGS = getScoutDefaultSettings();
 
 const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
-  basicResolutionScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicResolutionScore, 6),
-  basicVideoScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoScore, 5),
-  basicAudioScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioScore, 4),
   bitrateTargetMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateTargetMbps, 18),
   bitrateTolerancePct: toFloat(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateTolerancePct, 40),
   bitrateMaxScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateMaxScore, 12),
-  res2160: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashRes2160, 46),
-  res1080: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashRes1080, 24),
-  res720: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashRes720, 8),
-  sourceRemux: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSourceRemux, 30),
-  sourceBluray: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSourceBluray, 20),
-  sourceWebdl: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSourceWebdl, 14),
-  codecHevc: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashCodecHevc, 22),
-  codecAv1: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashCodecAv1, 10),
-  codecH264: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashCodecH264, 8),
-  audioAtmos: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioAtmos, 10),
-  audioTruehd: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioTruehd, 8),
-  audioDts: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioDts, 6),
-  audioDdp: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioDdp, 5),
-  audioAc3: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioAc3, 2),
-  audioAac: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashAudioAac, 1),
-  legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashLegacyPenalty, 40),
-  seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSeedersDivisor, 25),
-  seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashSeedersBonusCap, 10),
-  usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashUsenetBonus, 10),
-  torrentBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineTrashTorrentBonus, 0),
+  res2160: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicRes2160, 46),
+  res1080: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicRes1080, 24),
+  res720: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicRes720, 8),
+  sourceRemux: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSourceRemux, 30),
+  sourceBluray: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSourceBluray, 20),
+  sourceWebdl: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSourceWebdl, 14),
+  codecHevc: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoHevc, 22),
+  codecAv1: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoAv1, 10),
+  codecH264: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoH264, 8),
+  audioAtmos: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioAtmos, 10),
+  audioTruehd: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioTruehd, 8),
+  audioDts: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioDts, 6),
+  audioDdp: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioDdp, 5),
+  audioAc3: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioAc3, 2),
+  audioAac: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioAac, 1),
+  legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicLegacyPenalty, 40),
+  seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSeedersDivisor, 25),
+  seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSeedersBonusCap, 10),
+  usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicUsenetBonus, 10),
+  torrentBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicTorrentBonus, 0),
   llmTieDelta: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineLlmTieDelta, 10),
   llmWeakDropDelta: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineLlmWeakDropDelta, 40),
 };
-
-const TRASH_SCOUT_BASELINE_SETTINGS = buildTrashDeclarativeSettings();
 
 interface ScoutRuleSeed {
   name: string;
@@ -174,14 +163,6 @@ const SCOUT_LLM_RULESET_BASELINE: ScoutRuleSeed[] = [
   },
 ];
 
-interface TrashAppliedRuleSnapshot {
-  id: number;
-  name: string;
-  priority: number;
-  enabled: boolean;
-  config: unknown;
-}
-
 interface TrashUpstreamFileSnapshot {
   name: string;
   size: number;
@@ -205,14 +186,7 @@ interface TrashSyncDetailsResponse {
     mappingRevision: string;
     syncedAt: string | null;
     rulesSynced: number;
-    appliedCount: number;
     warning?: string;
-  };
-  applied: {
-    settings: Record<string, string>;
-    mappings: Array<{ key: string; trashLabel: string; value: string }>;
-    changes: Array<{ key: string; before: string | null; after: string }>;
-    rules: TrashAppliedRuleSnapshot[];
   };
   upstream: TrashUpstreamSnapshot | null;
 }
@@ -252,48 +226,6 @@ interface ScoutLlmRule {
   priority: number;
   sentence: string;
 }
-
-const SCOUT_RULE_BASELINE: ScoutRuleSeed[] = [
-  {
-    name: 'Avoid quality downgrade',
-    priority: 10,
-    config: {
-      kind: 'hard_filter',
-      description: 'Drop results whose resolution tier is lower than current file tier.',
-      enabledWhen: { sameMovie: true },
-    },
-  },
-  {
-    name: 'Prefer WEB-DL over WEBRip at same tier',
-    priority: 11,
-    config: {
-      kind: 'tiebreaker',
-      when: 'same_resolution',
-      prefer: 'webdl',
-      over: 'webrip',
-      reason: 'WEB-DL is direct source; WEBRip is re-encode.',
-    },
-  },
-  {
-    name: 'Prefer original-language releases over dub-only',
-    priority: 12,
-    config: {
-      kind: 'hard_filter',
-      description: 'Drop releases that do not include original-language audio when original-language options exist.',
-    },
-  },
-  {
-    name: 'Usenet-first within comparable quality bands',
-    priority: 13,
-    config: {
-      kind: 'tiebreaker',
-      thresholdDelta: 200,
-      prefer: 'usenet',
-      over: 'torrent',
-      reason: 'Improves reliability in typical stacks.',
-    },
-  },
-];
 
 const SCOUT_CUSTOM_CF_BASELINE: ScoutRuleSeed[] = [
   {
@@ -704,10 +636,6 @@ function upsertRuleSeedCategory(db: CuratDb, category: string, seeds: ScoutRuleS
   return saved;
 }
 
-function ensureScoutRuleBaseline(db: CuratDb): number[] {
-  return upsertRuleSeedCategory(db, 'scout', SCOUT_RULE_BASELINE);
-}
-
 function ensureScoutLlmRulesetBaseline(db: CuratDb): number[] {
   return upsertRuleSeedCategory(db, 'scout_llm_ruleset', SCOUT_LLM_RULESET_BASELINE);
 }
@@ -840,28 +768,13 @@ function parseJsonSetting<T>(db: CuratDb, key: string, fallback: T): T {
   }
 }
 
-function buildSettingChanges(
-  db: CuratDb,
-  nextValues: Record<string, string>,
-): Array<{ key: string; before: string | null; after: string }> {
-  const changes: Array<{ key: string; before: string | null; after: string }> = [];
-  for (const [key, after] of Object.entries(nextValues)) {
-    const before = db.getSetting(key);
-    if (before !== after) {
-      changes.push({ key, before: before ?? null, after });
-    }
-  }
-  return changes.sort((a, b) => a.key.localeCompare(b.key));
-}
-
 function getTrashSyncDetails(db: CuratDb): TrashSyncDetailsResponse {
   const source = db.getSetting('scoutTrashSyncSource') ?? '';
   const revisionRaw = db.getSetting('scoutTrashSyncRevision') ?? '';
-  const modelVersion = db.getSetting('scoutTrashSyncModelVersion') ?? TRASH_DECLARATIVE_MODEL_VERSION;
-  const mappingRevision = db.getSetting('scoutTrashMappingRevision') ?? TRASH_DECLARATIVE_MODEL_VERSION;
+  const modelVersion = db.getSetting('scoutTrashSyncModelVersion') ?? TRASH_SYNC_MODEL_VERSION;
+  const mappingRevision = db.getSetting('scoutTrashMappingRevision') ?? TRASH_SYNC_MODEL_VERSION;
   const syncedAtRaw = db.getSetting('scoutTrashSyncedAt') ?? '';
   const rulesSyncedRaw = Number.parseInt(db.getSetting('scoutTrashSyncedRules') ?? '0', 10);
-  const appliedCountRaw = Number.parseInt(db.getSetting('scoutTrashAppliedCount') ?? '0', 10);
   const warning = db.getSetting('scoutTrashSyncWarning') ?? '';
   return {
     meta: {
@@ -871,22 +784,7 @@ function getTrashSyncDetails(db: CuratDb): TrashSyncDetailsResponse {
       mappingRevision,
       syncedAt: syncedAtRaw || null,
       rulesSynced: Number.isFinite(rulesSyncedRaw) ? rulesSyncedRaw : 0,
-      appliedCount: Number.isFinite(appliedCountRaw) ? appliedCountRaw : 0,
       warning: warning || undefined,
-    },
-    applied: {
-      settings: parseJsonSetting<Record<string, string>>(db, 'scoutTrashAppliedSettingsJson', {}),
-      mappings: parseJsonSetting<Array<{ key: string; trashLabel: string; value: string }>>(
-        db,
-        'scoutTrashAppliedMappingsJson',
-        [],
-      ),
-      changes: parseJsonSetting<Array<{ key: string; before: string | null; after: string }>>(
-        db,
-        'scoutTrashAppliedChangesJson',
-        [],
-      ),
-      rules: parseJsonSetting<TrashAppliedRuleSnapshot[]>(db, 'scoutTrashAppliedRulesJson', []),
     },
     upstream: parseJsonSetting<TrashUpstreamSnapshot | null>(db, 'scoutTrashUpstreamSnapshotJson', null),
   };
@@ -908,16 +806,16 @@ function buildScoutRefinementDraft(
   const toggles: Array<{ id: number; name: string; enabled: boolean }> = [];
 
   if (/\b(storage|size|efficient|space|compact)\b/.test(normalized)) {
-    proposedSettings.scoutPipelineTrashSourceRemux = '24';
+    proposedSettings.scoutPipelineBasicSourceRemux = '24';
   }
   if (/\b(quality|cinema|reference|best|archive)\b/.test(normalized)) {
-    proposedSettings.scoutPipelineTrashSourceRemux = '40';
-    proposedSettings.scoutPipelineTrashSourceBluray = '26';
-    proposedSettings.scoutPipelineTrashRes2160 = '52';
+    proposedSettings.scoutPipelineBasicSourceRemux = '40';
+    proposedSettings.scoutPipelineBasicSourceBluray = '26';
+    proposedSettings.scoutPipelineBasicRes2160 = '52';
   }
   if (/\b(compat|android|chromecast|transcode|playback)\b/.test(normalized)) {
-    proposedSettings.scoutPipelineTrashCodecAv1 = '6';
-    proposedSettings.scoutPipelineTrashCodecH264 = '14';
+    proposedSettings.scoutPipelineBasicVideoAv1 = '6';
+    proposedSettings.scoutPipelineBasicVideoH264 = '14';
     for (const rule of rules) {
       if (rule.name.toLowerCase().includes('av1')) toggles.push({ id: rule.id, name: rule.name, enabled: true });
     }
@@ -935,12 +833,12 @@ function buildScoutRefinementDraft(
     }
   }
   if (/\b(torrent)\b/.test(normalized) && !/\b(usenet)\b/.test(normalized)) {
-    proposedSettings.scoutPipelineTrashTorrentBonus = '8';
-    proposedSettings.scoutPipelineTrashUsenetBonus = '0';
+    proposedSettings.scoutPipelineBasicTorrentBonus = '8';
+    proposedSettings.scoutPipelineBasicUsenetBonus = '0';
   }
   if (/\b(usenet)\b/.test(normalized) && !/\b(torrent)\b/.test(normalized)) {
-    proposedSettings.scoutPipelineTrashUsenetBonus = '12';
-    proposedSettings.scoutPipelineTrashTorrentBonus = '-2';
+    proposedSettings.scoutPipelineBasicUsenetBonus = '12';
+    proposedSettings.scoutPipelineBasicTorrentBonus = '-2';
   }
 
   const scoreCfg = resolveScoutScoreConfig(db);
@@ -958,32 +856,29 @@ function buildScoutRefinementDraft(
     'scoutPipelineMinCritic',
     'scoutPipelineMinImdb',
     'scoutPipelineBatchSize',
-    'scoutPipelineBasicResolutionScore',
-    'scoutPipelineBasicVideoScore',
-    'scoutPipelineBasicAudioScore',
     'scoutPipelineBitrateTargetMbps',
     'scoutPipelineBitrateTolerancePct',
     'scoutPipelineBitrateMaxScore',
-    'scoutPipelineTrashRes2160',
-    'scoutPipelineTrashRes1080',
-    'scoutPipelineTrashRes720',
-    'scoutPipelineTrashSourceRemux',
-    'scoutPipelineTrashSourceBluray',
-    'scoutPipelineTrashSourceWebdl',
-    'scoutPipelineTrashCodecHevc',
-    'scoutPipelineTrashCodecAv1',
-    'scoutPipelineTrashCodecH264',
-    'scoutPipelineTrashAudioAtmos',
-    'scoutPipelineTrashAudioTruehd',
-    'scoutPipelineTrashAudioDts',
-    'scoutPipelineTrashAudioDdp',
-    'scoutPipelineTrashAudioAc3',
-    'scoutPipelineTrashAudioAac',
-    'scoutPipelineTrashLegacyPenalty',
-    'scoutPipelineTrashSeedersDivisor',
-    'scoutPipelineTrashSeedersBonusCap',
-    'scoutPipelineTrashUsenetBonus',
-    'scoutPipelineTrashTorrentBonus',
+    'scoutPipelineBasicRes2160',
+    'scoutPipelineBasicRes1080',
+    'scoutPipelineBasicRes720',
+    'scoutPipelineBasicSourceRemux',
+    'scoutPipelineBasicSourceBluray',
+    'scoutPipelineBasicSourceWebdl',
+    'scoutPipelineBasicVideoHevc',
+    'scoutPipelineBasicVideoAv1',
+    'scoutPipelineBasicVideoH264',
+    'scoutPipelineBasicAudioAtmos',
+    'scoutPipelineBasicAudioTruehd',
+    'scoutPipelineBasicAudioDts',
+    'scoutPipelineBasicAudioDdp',
+    'scoutPipelineBasicAudioAc3',
+    'scoutPipelineBasicAudioAac',
+    'scoutPipelineBasicLegacyPenalty',
+    'scoutPipelineBasicSeedersDivisor',
+    'scoutPipelineBasicSeedersBonusCap',
+    'scoutPipelineBasicUsenetBonus',
+    'scoutPipelineBasicTorrentBonus',
     'scoutPipelineLlmTieDelta',
     'scoutPipelineLlmWeakDropDelta',
   ];
@@ -998,7 +893,7 @@ function buildScoutRefinementDraft(
     'Refine only Scout scoring/rules with minimal changes needed to satisfy the objective.',
     '',
     'BASELINE CONTEXT',
-    'Scout Quality Pipeline order is fixed: qualifiers -> basic scoring -> TRaSH scoring -> custom overrides/blockers -> final LLM rules -> manual/auto decision.',
+    'Scout Quality Pipeline order is fixed: qualifiers -> basic scoring -> TRaSH baseline (read-only) -> custom overrides/blockers -> final LLM rules -> manual/auto decision.',
     'Baseline philosophy: deterministic scoring remains primary; LLM layer only drops weak candidates and resolves near ties.',
     'Safety expectations: no quality downgrade behavior, no unsafe broad drops, no key invention, no schema changes.',
     '',
@@ -1024,7 +919,7 @@ function buildScoutRefinementDraft(
     'GUARDRAILS',
     '- Use only keys in ALLOWED SETTING KEYS.',
     '- Keep scoutPipelineBatchSize between 1 and 10.',
-    '- Keep scoutPipelineTrashLegacyPenalty > 0.',
+    '- Keep scoutPipelineBasicLegacyPenalty > 0.',
     '- Do not remove all enabled LLM rules unless objective explicitly requests disabling LLM behavior.',
     '- Prefer small targeted edits over large rewrites.',
   ].join('\n');
@@ -1051,15 +946,6 @@ function floatSetting(db: CuratDb, key: string, fallback: number, min: number, m
 
 function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
   return {
-    basicResolutionScore: intSetting(
-      db,
-      'scoutPipelineBasicResolutionScore',
-      DEFAULT_SCOUT_SCORE_CONFIG.basicResolutionScore,
-      0,
-      200,
-    ),
-    basicVideoScore: intSetting(db, 'scoutPipelineBasicVideoScore', DEFAULT_SCOUT_SCORE_CONFIG.basicVideoScore, 0, 200),
-    basicAudioScore: intSetting(db, 'scoutPipelineBasicAudioScore', DEFAULT_SCOUT_SCORE_CONFIG.basicAudioScore, 0, 200),
     bitrateTargetMbps: floatSetting(
       db,
       'scoutPipelineBitrateTargetMbps',
@@ -1075,38 +961,38 @@ function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
       200,
     ),
     bitrateMaxScore: intSetting(db, 'scoutPipelineBitrateMaxScore', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxScore, 0, 200),
-    res2160: intSetting(db, 'scoutPipelineTrashRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
-    res1080: intSetting(db, 'scoutPipelineTrashRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
-    res720: intSetting(db, 'scoutPipelineTrashRes720', DEFAULT_SCOUT_SCORE_CONFIG.res720, -200, 200),
-    sourceRemux: intSetting(db, 'scoutPipelineTrashSourceRemux', DEFAULT_SCOUT_SCORE_CONFIG.sourceRemux, -200, 200),
-    sourceBluray: intSetting(db, 'scoutPipelineTrashSourceBluray', DEFAULT_SCOUT_SCORE_CONFIG.sourceBluray, -200, 200),
-    sourceWebdl: intSetting(db, 'scoutPipelineTrashSourceWebdl', DEFAULT_SCOUT_SCORE_CONFIG.sourceWebdl, -200, 200),
-    codecHevc: intSetting(db, 'scoutPipelineTrashCodecHevc', DEFAULT_SCOUT_SCORE_CONFIG.codecHevc, -200, 200),
-    codecAv1: intSetting(db, 'scoutPipelineTrashCodecAv1', DEFAULT_SCOUT_SCORE_CONFIG.codecAv1, -200, 200),
-    codecH264: intSetting(db, 'scoutPipelineTrashCodecH264', DEFAULT_SCOUT_SCORE_CONFIG.codecH264, -200, 200),
-    audioAtmos: intSetting(db, 'scoutPipelineTrashAudioAtmos', DEFAULT_SCOUT_SCORE_CONFIG.audioAtmos, -200, 200),
-    audioTruehd: intSetting(db, 'scoutPipelineTrashAudioTruehd', DEFAULT_SCOUT_SCORE_CONFIG.audioTruehd, -200, 200),
-    audioDts: intSetting(db, 'scoutPipelineTrashAudioDts', DEFAULT_SCOUT_SCORE_CONFIG.audioDts, -200, 200),
-    audioDdp: intSetting(db, 'scoutPipelineTrashAudioDdp', DEFAULT_SCOUT_SCORE_CONFIG.audioDdp, -200, 200),
-    audioAc3: intSetting(db, 'scoutPipelineTrashAudioAc3', DEFAULT_SCOUT_SCORE_CONFIG.audioAc3, -200, 200),
-    audioAac: intSetting(db, 'scoutPipelineTrashAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
-    legacyPenalty: intSetting(db, 'scoutPipelineTrashLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
+    res2160: intSetting(db, 'scoutPipelineBasicRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
+    res1080: intSetting(db, 'scoutPipelineBasicRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
+    res720: intSetting(db, 'scoutPipelineBasicRes720', DEFAULT_SCOUT_SCORE_CONFIG.res720, -200, 200),
+    sourceRemux: intSetting(db, 'scoutPipelineBasicSourceRemux', DEFAULT_SCOUT_SCORE_CONFIG.sourceRemux, -200, 200),
+    sourceBluray: intSetting(db, 'scoutPipelineBasicSourceBluray', DEFAULT_SCOUT_SCORE_CONFIG.sourceBluray, -200, 200),
+    sourceWebdl: intSetting(db, 'scoutPipelineBasicSourceWebdl', DEFAULT_SCOUT_SCORE_CONFIG.sourceWebdl, -200, 200),
+    codecHevc: intSetting(db, 'scoutPipelineBasicVideoHevc', DEFAULT_SCOUT_SCORE_CONFIG.codecHevc, -200, 200),
+    codecAv1: intSetting(db, 'scoutPipelineBasicVideoAv1', DEFAULT_SCOUT_SCORE_CONFIG.codecAv1, -200, 200),
+    codecH264: intSetting(db, 'scoutPipelineBasicVideoH264', DEFAULT_SCOUT_SCORE_CONFIG.codecH264, -200, 200),
+    audioAtmos: intSetting(db, 'scoutPipelineBasicAudioAtmos', DEFAULT_SCOUT_SCORE_CONFIG.audioAtmos, -200, 200),
+    audioTruehd: intSetting(db, 'scoutPipelineBasicAudioTruehd', DEFAULT_SCOUT_SCORE_CONFIG.audioTruehd, -200, 200),
+    audioDts: intSetting(db, 'scoutPipelineBasicAudioDts', DEFAULT_SCOUT_SCORE_CONFIG.audioDts, -200, 200),
+    audioDdp: intSetting(db, 'scoutPipelineBasicAudioDdp', DEFAULT_SCOUT_SCORE_CONFIG.audioDdp, -200, 200),
+    audioAc3: intSetting(db, 'scoutPipelineBasicAudioAc3', DEFAULT_SCOUT_SCORE_CONFIG.audioAc3, -200, 200),
+    audioAac: intSetting(db, 'scoutPipelineBasicAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
+    legacyPenalty: intSetting(db, 'scoutPipelineBasicLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
     seedersDivisor: intSetting(
       db,
-      'scoutPipelineTrashSeedersDivisor',
+      'scoutPipelineBasicSeedersDivisor',
       DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor,
       1,
       500,
     ),
     seedersBonusCap: intSetting(
       db,
-      'scoutPipelineTrashSeedersBonusCap',
+      'scoutPipelineBasicSeedersBonusCap',
       DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap,
       0,
       200,
     ),
-    usenetBonus: intSetting(db, 'scoutPipelineTrashUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
-    torrentBonus: intSetting(db, 'scoutPipelineTrashTorrentBonus', DEFAULT_SCOUT_SCORE_CONFIG.torrentBonus, -200, 200),
+    usenetBonus: intSetting(db, 'scoutPipelineBasicUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
+    torrentBonus: intSetting(db, 'scoutPipelineBasicTorrentBonus', DEFAULT_SCOUT_SCORE_CONFIG.torrentBonus, -200, 200),
     llmTieDelta: intSetting(db, 'scoutPipelineLlmTieDelta', DEFAULT_SCOUT_SCORE_CONFIG.llmTieDelta, 0, 100),
     llmWeakDropDelta: intSetting(
       db,
@@ -1124,30 +1010,56 @@ function addBasicFormatScore(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, run
   const reasons: string[] = [];
 
   if (/\b2160p\b|\b4k\b/.test(t)) {
-    score += cfg.basicResolutionScore;
-    reasons.push('basic:resolution');
+    score += cfg.res2160;
+    reasons.push('basic:resolution:2160p');
   } else if (/\b1080p\b/.test(t)) {
-    score += cfg.basicResolutionScore;
-    reasons.push('basic:resolution');
+    score += cfg.res1080;
+    reasons.push('basic:resolution:1080p');
   } else if (/\b720p\b/.test(t)) {
-    score += cfg.basicResolutionScore;
-    reasons.push('basic:resolution');
+    score += cfg.res720;
+    reasons.push('basic:resolution:720p');
   }
 
   if (/\bhevc\b|\bx265\b/.test(t)) {
-    score += cfg.basicVideoScore;
-    reasons.push('basic:video');
+    score += cfg.codecHevc;
+    reasons.push('basic:video:hevc');
   } else if (/\bav1\b/.test(t)) {
-    score += cfg.basicVideoScore;
-    reasons.push('basic:video');
+    score += cfg.codecAv1;
+    reasons.push('basic:video:av1');
   } else if (/\bh264\b|\bx264\b/.test(t)) {
-    score += cfg.basicVideoScore;
-    reasons.push('basic:video');
+    score += cfg.codecH264;
+    reasons.push('basic:video:h264');
   }
 
-  if (/\batmos\b|\btruehd\b|\bdts(?:-?hd|-?x)?\b|\be-?ac-?3\b|\bddp\b|\bdd\+\b|\bac-?3\b|\baac\b/.test(t)) {
-    score += cfg.basicAudioScore;
-    reasons.push('basic:audio');
+  if (/\batmos\b/.test(t)) {
+    score += cfg.audioAtmos;
+    reasons.push('basic:audio:atmos');
+  } else if (/\btruehd\b/.test(t)) {
+    score += cfg.audioTruehd;
+    reasons.push('basic:audio:truehd');
+  } else if (/\bdts(?:-?hd|-?x)?\b/.test(t)) {
+    score += cfg.audioDts;
+    reasons.push('basic:audio:dts');
+  } else if (/\be-?ac-?3\b|\bddp\b|\bdd\+\b/.test(t)) {
+    score += cfg.audioDdp;
+    reasons.push('basic:audio:ddp/eac3');
+  } else if (/\bac-?3\b/.test(t)) {
+    score += cfg.audioAc3;
+    reasons.push('basic:audio:ac3');
+  } else if (/\baac\b/.test(t)) {
+    score += cfg.audioAac;
+    reasons.push('basic:audio:aac');
+  }
+
+  if (/\b(remux)\b/.test(t)) {
+    score += cfg.sourceRemux;
+    reasons.push('basic:source:remux');
+  } else if (/\bbluray\b|\bbd\b/.test(t)) {
+    score += cfg.sourceBluray;
+    reasons.push('basic:source:bluray');
+  } else if (/\bweb-?dl\b/.test(t)) {
+    score += cfg.sourceWebdl;
+    reasons.push('basic:source:web-dl');
   }
 
   if (runtimeSec && runtimeSec > 0 && r.size && r.size > 0) {
@@ -1160,85 +1072,6 @@ function addBasicFormatScore(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, run
       score += bitrateScore;
       reasons.push(`basic:bitrate(${bitrateScore})`);
     }
-  }
-
-  return { ...r, score, reasons };
-}
-
-function addTrashScore(r: ScoredRelease, cfg: ScoutScoreConfig): ScoredRelease {
-  const t = r.title.toLowerCase();
-  let score = r.score;
-  const reasons = [...r.reasons];
-
-  if (/\b2160p\b|\b4k\b/.test(t)) {
-    score += cfg.res2160;
-    reasons.push('trash:2160p');
-  } else if (/\b1080p\b/.test(t)) {
-    score += cfg.res1080;
-    reasons.push('trash:1080p');
-  } else if (/\b720p\b/.test(t)) {
-    score += cfg.res720;
-    reasons.push('trash:720p');
-  }
-
-  if (/\b(remux)\b/.test(t)) {
-    score += cfg.sourceRemux;
-    reasons.push('trash:remux');
-  } else if (/\bbluray\b|\bbd\b/.test(t)) {
-    score += cfg.sourceBluray;
-    reasons.push('trash:bluray');
-  } else if (/\bweb-?dl\b/.test(t)) {
-    score += cfg.sourceWebdl;
-    reasons.push('trash:web-dl');
-  }
-
-  if (/\bhevc\b|\bx265\b/.test(t)) {
-    score += cfg.codecHevc;
-    reasons.push('trash:hevc');
-  } else if (/\bav1\b/.test(t)) {
-    score += cfg.codecAv1;
-    reasons.push('trash:av1');
-  } else if (/\bh264\b|\bx264\b/.test(t)) {
-    score += cfg.codecH264;
-    reasons.push('trash:h264');
-  }
-
-  if (/\batmos\b/.test(t)) {
-    score += cfg.audioAtmos;
-    reasons.push('trash:atmos');
-  }
-  if (/\btruehd\b/.test(t)) {
-    score += cfg.audioTruehd;
-    reasons.push('trash:truehd');
-  } else if (/\bdts(?:-?hd|-?x)?\b/.test(t)) {
-    score += cfg.audioDts;
-    reasons.push('trash:dts');
-  } else if (/\be-?ac-?3\b|\bddp\b|\bdd\+\b/.test(t)) {
-    score += cfg.audioDdp;
-    reasons.push('trash:ddp/eac3');
-  } else if (/\bac-?3\b/.test(t)) {
-    score += cfg.audioAc3;
-    reasons.push('trash:ac3');
-  } else if (/\baac\b/.test(t)) {
-    score += cfg.audioAac;
-    reasons.push('trash:aac');
-  }
-
-  if (/\bxvid\b|\bmpeg4\b/.test(t)) {
-    score -= cfg.legacyPenalty;
-    reasons.push('trash:legacy codec penalty');
-  }
-
-  if (r.seeders != null) {
-    score += Math.min(cfg.seedersBonusCap, Math.max(0, Math.floor(r.seeders / cfg.seedersDivisor)));
-  }
-
-  if (r.protocol === 'usenet') {
-    score += cfg.usenetBonus;
-    reasons.push('trash:usenet preference');
-  } else if (r.protocol === 'torrent') {
-    score += cfg.torrentBonus;
-    reasons.push('trash:torrent preference');
   }
 
   return { ...r, score, reasons };
@@ -1295,8 +1128,7 @@ async function searchOneMovie(
 
   const releases = await client.searchMovie(query);
   const scoredBasic = releases.map((r) => addBasicFormatScore(r, scoreCfg, runtimeSec));
-  const scoredTrash = scoredBasic.map((r) => addTrashScore(r, scoreCfg));
-  const scoredWithCustom = scoredTrash.map((r) => {
+  const scoredWithCustom = scoredBasic.map((r) => {
     const custom = applyCustomCfRules(r, customCfRules);
     if (custom.delta === 0) return r;
     return {
@@ -1428,23 +1260,9 @@ export function makeScoutRoutes(db: CuratDb): Hono {
 
   // POST /api/scout/sync-trash-scores
   app.post('/sync-trash-scores', async (c) => {
-    const settingChanges = buildSettingChanges(db, TRASH_SCOUT_BASELINE_SETTINGS);
-    applySettings(db, TRASH_SCOUT_BASELINE_SETTINGS);
-    const savedRuleIds = ensureScoutRuleBaseline(db);
     const meta = await fetchTrashGuidesRevision();
     const upstream = await fetchTrashGuidesSnapshot();
-    const mappingSnapshot = buildTrashDeclarativeMappingSnapshot();
-    const mappingRevision = TRASH_DECLARATIVE_MODEL_VERSION;
-    const appliedRules = db
-      .getRules('scout')
-      .filter((r) => savedRuleIds.includes(r.id))
-      .map((r) => ({
-        id: r.id,
-        name: r.name,
-        priority: r.priority,
-        enabled: r.enabled !== 0,
-        config: safeParseJson(r.config),
-      }));
+    const mappingRevision = TRASH_SYNC_MODEL_VERSION;
     const warningCombined = [meta.warning, upstream.warning].filter(Boolean).join('; ');
     const radarrCfg = resolveRadarrConfig(db);
     let radarrSnapshot: RadarrCfScoreItem[] = [];
@@ -1458,15 +1276,10 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     applySettings(db, {
       scoutTrashSyncSource: meta.source,
       scoutTrashSyncRevision: meta.revision ?? '',
-      scoutTrashSyncModelVersion: TRASH_DECLARATIVE_MODEL_VERSION,
+      scoutTrashSyncModelVersion: TRASH_SYNC_MODEL_VERSION,
       scoutTrashMappingRevision: mappingRevision,
       scoutTrashSyncedAt: meta.fetchedAt,
-      scoutTrashSyncedRules: String(savedRuleIds.length),
-      scoutTrashAppliedCount: String(settingChanges.length),
-      scoutTrashAppliedSettingsJson: JSON.stringify(TRASH_SCOUT_BASELINE_SETTINGS),
-      scoutTrashAppliedMappingsJson: JSON.stringify(mappingSnapshot),
-      scoutTrashAppliedChangesJson: JSON.stringify(settingChanges),
-      scoutTrashAppliedRulesJson: JSON.stringify(appliedRules),
+      scoutTrashSyncedRules: '0',
       scoutTrashUpstreamSnapshotJson: JSON.stringify(upstream.snapshot),
       scoutTrashSyncWarning: warningCombined,
       scoutTrashRadarrSnapshotJson: JSON.stringify(radarrSnapshot),
@@ -1474,11 +1287,8 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     await refreshTrashParity(db);
     const details = getTrashSyncDetails(db);
     return c.json({
-      applied: TRASH_SCOUT_BASELINE_SETTINGS,
-      syncedRules: savedRuleIds.length,
-      appliedCount: settingChanges.length,
-      changes: settingChanges,
-      syncModelVersion: TRASH_DECLARATIVE_MODEL_VERSION,
+      syncedRules: 0,
+      syncModelVersion: TRASH_SYNC_MODEL_VERSION,
       mappingRevision,
       meta: { ...meta, warning: warningCombined || meta.warning },
       details,

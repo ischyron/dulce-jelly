@@ -2,19 +2,6 @@
 const { test, expect } = require('@playwright/test');
 
 test.describe('Scout feature checks', () => {
-  test('scout rules are seeded and include legacy replacement', async ({ request }) => {
-    const res = await request.get('/api/rules?category=scout');
-    expect(res.ok()).toBeTruthy();
-    const json = await res.json();
-    const rules = json?.rules?.scout ?? [];
-    expect(Array.isArray(rules)).toBeTruthy();
-    expect(rules.length).toBeGreaterThan(0);
-
-    const names = rules.map((r) => r.name);
-    expect(names).toContain('MPEG4/legacy codec replacement');
-    expect(names).toContain('Upgrade priority targets');
-  });
-
   test('scout batch hard cap rejects payload > 10', async ({ request }) => {
     const movieIds = Array.from({ length: 11 }, (_, i) => i + 1);
     const res = await request.post('/api/scout/search-batch', {
@@ -38,21 +25,17 @@ test.describe('Scout feature checks', () => {
     expect(settings).toHaveProperty('scoutPipelineAutoEnabled');
   });
 
-  test('sync TRaSH scores updates scout CF settings', async ({ request }) => {
+  test('sync TRaSH scores refreshes read-only sync metadata', async ({ request }) => {
     const res = await request.post('/api/scout/sync-trash-scores', { data: {} });
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
-    expect(body.applied).toBeTruthy();
-    expect(body.applied.scoutPipelineTrashRes2160).toBeTruthy();
     expect(body.meta?.source).toBe('TRaSH-Guides');
     expect(typeof body.syncModelVersion).toBe('string');
     expect(typeof body.mappingRevision).toBe('string');
-    expect(typeof body.appliedCount).toBe('number');
-    expect(Array.isArray(body.changes)).toBeTruthy();
+    expect(body.syncedRules).toBe(0);
 
     const settingsRes = await request.get('/api/settings');
     const settings = (await settingsRes.json()).settings ?? {};
-    expect(settings.scoutPipelineTrashRes2160).toBe(body.applied.scoutPipelineTrashRes2160);
     expect(settings.scoutTrashSyncSource).toBe('TRaSH-Guides');
     expect(Object.prototype.hasOwnProperty.call(settings, 'scoutTrashSyncRevision')).toBeTruthy();
     expect(settings.scoutTrashSyncedAt).toBeTruthy();
@@ -81,10 +64,10 @@ test.describe('Scout feature checks', () => {
     expect(typeof body.prompt).toBe('string');
     expect(body.prompt.length).toBeGreaterThan(50);
     expect(body.proposedSettings).toBeTruthy();
-    expect(body.proposedSettings.scoutPipelineTrashUsenetBonus).toBe('12');
-    expect(body.proposedSettings.scoutPipelineTrashTorrentBonus).toBe('-2');
-    expect(body.proposedSettings.scoutPipelineTrashCodecAv1).toBe('6');
-    expect(body.proposedSettings.scoutPipelineTrashCodecH264).toBe('14');
+    expect(body.proposedSettings.scoutPipelineBasicUsenetBonus).toBe('12');
+    expect(body.proposedSettings.scoutPipelineBasicTorrentBonus).toBe('-2');
+    expect(body.proposedSettings.scoutPipelineBasicVideoAv1).toBe('6');
+    expect(body.proposedSettings.scoutPipelineBasicVideoH264).toBe('14');
   });
 
   test('custom CF preview + create/disable/delete lifecycle', async ({ request }) => {

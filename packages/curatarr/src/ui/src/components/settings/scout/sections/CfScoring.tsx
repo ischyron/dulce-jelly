@@ -4,30 +4,30 @@ import { OrderedScoreRow } from '../../shared/OrderedScoreRow';
 import type { CfScoringSectionProps } from '../../types';
 
 const RESOLUTION_FIELDS = [
-  { key: 'scoutPipelineTrashRes2160', label: '2160p' },
-  { key: 'scoutPipelineTrashRes1080', label: '1080p' },
-  { key: 'scoutPipelineTrashRes720', label: '720p' },
+  { key: 'scoutPipelineBasicRes2160', label: '2160p' },
+  { key: 'scoutPipelineBasicRes1080', label: '1080p' },
+  { key: 'scoutPipelineBasicRes720', label: '720p' },
 ];
 
-const SOURCE_FIELDS = [
-  { key: 'scoutPipelineTrashSourceRemux', label: 'Remux' },
-  { key: 'scoutPipelineTrashSourceBluray', label: 'BluRay' },
-  { key: 'scoutPipelineTrashSourceWebdl', label: 'WEB-DL' },
+const SOURCE_QUALITY_FIELDS = [
+  { key: 'scoutPipelineBasicSourceRemux', label: 'Remux' },
+  { key: 'scoutPipelineBasicSourceBluray', label: 'BluRay' },
+  { key: 'scoutPipelineBasicSourceWebdl', label: 'WEB-DL' },
 ];
 
 const VIDEO_FIELDS = [
-  { key: 'scoutPipelineTrashCodecHevc', label: 'HEVC' },
-  { key: 'scoutPipelineTrashCodecAv1', label: 'AV1' },
-  { key: 'scoutPipelineTrashCodecH264', label: 'H264' },
+  { key: 'scoutPipelineBasicVideoHevc', label: 'HEVC' },
+  { key: 'scoutPipelineBasicVideoAv1', label: 'AV1' },
+  { key: 'scoutPipelineBasicVideoH264', label: 'H264' },
 ];
 
 const AUDIO_FIELDS = [
-  { key: 'scoutPipelineTrashAudioAtmos', label: 'Atmos' },
-  { key: 'scoutPipelineTrashAudioTruehd', label: 'TrueHD' },
-  { key: 'scoutPipelineTrashAudioDts', label: 'DTS' },
-  { key: 'scoutPipelineTrashAudioDdp', label: 'DD+ / EAC3' },
-  { key: 'scoutPipelineTrashAudioAc3', label: 'AC3' },
-  { key: 'scoutPipelineTrashAudioAac', label: 'AAC' },
+  { key: 'scoutPipelineBasicAudioAtmos', label: 'Atmos' },
+  { key: 'scoutPipelineBasicAudioTruehd', label: 'TrueHD' },
+  { key: 'scoutPipelineBasicAudioDts', label: 'DTS' },
+  { key: 'scoutPipelineBasicAudioDdp', label: 'DD+ / EAC3' },
+  { key: 'scoutPipelineBasicAudioAc3', label: 'AC3' },
+  { key: 'scoutPipelineBasicAudioAac', label: 'AAC' },
 ];
 
 function StepBadge({ value, tone }: { value: string; tone: string }) {
@@ -48,7 +48,11 @@ const PIPELINE_STEPS = [
     tone: 'linear-gradient(135deg, rgba(99,102,241,0.55), rgba(129,140,248,0.35))',
   },
   { n: '2', label: 'Basic Format Score', tone: 'linear-gradient(135deg, rgba(34,197,94,0.55), rgba(74,222,128,0.35))' },
-  { n: '3', label: 'TRaSH CF Score', tone: 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))' },
+  {
+    n: '3',
+    label: 'TRaSH Baseline (Read-only)',
+    tone: 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))',
+  },
   {
     n: '4',
     label: 'Additional Custom Format Scores & Blocking Rules',
@@ -73,7 +77,7 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
         Scout Quality Pipeline
         <InfoHint
           label="Scout pipeline info"
-          text="Curatarr runs this pipeline top-to-bottom: minimum qualifiers (auto-run queue only), basic format scoring, TRaSH CF scoring, custom format overrides and blocking rules, final LLM ruleset, then manual/auto decision."
+          text="Curatarr runs this pipeline top-to-bottom: minimum qualifiers (auto-run queue only), deterministic basic format scoring, TRaSH baseline sync (read-only), custom format overrides/blockers, final LLM ruleset, then manual/auto decision."
         />
       </h2>
 
@@ -178,51 +182,123 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
           Scout Basic Format Scoring
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Baseline deterministic scoring for resolution/video/audio plus a generic bitrate alignment score.
+          Deterministic scoring using ordered ladders for resolution/source/video/audio plus bitrate alignment and
+          source preference controls.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <Field
-            label="Resolution Match Score"
-            name="scoutPipelineBasicResolutionScore"
-            value={form.scoutPipelineBasicResolutionScore ?? '6'}
-            onChange={(v) => set('scoutPipelineBasicResolutionScore', v)}
-          />
-          <Field
-            label="Video Match Score"
-            name="scoutPipelineBasicVideoScore"
-            value={form.scoutPipelineBasicVideoScore ?? '5'}
-            onChange={(v) => set('scoutPipelineBasicVideoScore', v)}
-          />
-          <Field
-            label="Audio Match Score"
-            name="scoutPipelineBasicAudioScore"
-            value={form.scoutPipelineBasicAudioScore ?? '4'}
-            onChange={(v) => set('scoutPipelineBasicAudioScore', v)}
-          />
-          <Field
-            label="Target Bitrate (Mbps)"
-            name="scoutPipelineBitrateTargetMbps"
-            value={form.scoutPipelineBitrateTargetMbps ?? '18'}
-            onChange={(v) => set('scoutPipelineBitrateTargetMbps', v)}
-          />
-          <Field
-            label="Tolerance (%)"
-            name="scoutPipelineBitrateTolerancePct"
-            value={form.scoutPipelineBitrateTolerancePct ?? '40'}
-            onChange={(v) => set('scoutPipelineBitrateTolerancePct', v)}
-            hint="Closer to target bitrate yields higher alignment score."
-          />
-          <Field
-            label="Bitrate Max Score"
-            name="scoutPipelineBitrateMaxScore"
-            value={form.scoutPipelineBitrateMaxScore ?? '12'}
-            onChange={(v) => set('scoutPipelineBitrateMaxScore', v)}
-          />
+
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Resolution
+          </div>
+          <OrderedScoreRow fields={RESOLUTION_FIELDS} form={form} onChange={set} />
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Quality Source
+          </div>
+          <OrderedScoreRow fields={SOURCE_QUALITY_FIELDS} form={form} onChange={set} />
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Video
+          </div>
+          <OrderedScoreRow fields={VIDEO_FIELDS} form={form} onChange={set} />
+        </div>
+
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Audio
+          </div>
+          <OrderedScoreRow fields={AUDIO_FIELDS} form={form} onChange={set} />
+        </div>
+
+        <div
+          className="rounded border p-2 space-y-2"
+          style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
+        >
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Bitrate Alignment
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Field
+              label="Target Bitrate (Mbps)"
+              name="scoutPipelineBitrateTargetMbps"
+              value={form.scoutPipelineBitrateTargetMbps ?? '18'}
+              onChange={(v) => set('scoutPipelineBitrateTargetMbps', v)}
+            />
+            <Field
+              label="Tolerance (%)"
+              name="scoutPipelineBitrateTolerancePct"
+              value={form.scoutPipelineBitrateTolerancePct ?? '40'}
+              onChange={(v) => set('scoutPipelineBitrateTolerancePct', v)}
+              hint="Closer to target bitrate yields higher alignment score."
+            />
+            <Field
+              label="Bitrate Max Score"
+              name="scoutPipelineBitrateMaxScore"
+              value={form.scoutPipelineBitrateMaxScore ?? '12'}
+              onChange={(v) => set('scoutPipelineBitrateMaxScore', v)}
+            />
+          </div>
+        </div>
+
+        <div
+          className="rounded border p-2 space-y-2"
+          style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
+        >
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Compatibility & Availability
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field
+              label="Legacy Penalty"
+              name="scoutPipelineBasicLegacyPenalty"
+              value={form.scoutPipelineBasicLegacyPenalty ?? '40'}
+              onChange={(v) => set('scoutPipelineBasicLegacyPenalty', v)}
+            />
+            <Field
+              label="Seeder Divisor"
+              name="scoutPipelineBasicSeedersDivisor"
+              value={form.scoutPipelineBasicSeedersDivisor ?? '25'}
+              onChange={(v) => set('scoutPipelineBasicSeedersDivisor', v)}
+            />
+            <Field
+              label="Seeder Bonus Cap"
+              name="scoutPipelineBasicSeedersBonusCap"
+              value={form.scoutPipelineBasicSeedersBonusCap ?? '10'}
+              onChange={(v) => set('scoutPipelineBasicSeedersBonusCap', v)}
+            />
+          </div>
+        </div>
+
+        <div
+          className="rounded border p-2 space-y-2"
+          style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
+        >
+          <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+            Source
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field
+              label="Usenet Bonus"
+              name="scoutPipelineBasicUsenetBonus"
+              value={form.scoutPipelineBasicUsenetBonus ?? '10'}
+              onChange={(v) => set('scoutPipelineBasicUsenetBonus', v)}
+            />
+            <Field
+              label="Torrent Bonus"
+              name="scoutPipelineBasicTorrentBonus"
+              value={form.scoutPipelineBasicTorrentBonus ?? '0'}
+              onChange={(v) => set('scoutPipelineBasicTorrentBonus', v)}
+            />
+          </div>
         </div>
       </div>
 
       <div
-        className="rounded-lg border p-3 space-y-3"
+        className="rounded-lg border p-3 space-y-2"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
         <div
@@ -230,47 +306,12 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
           style={{ color: '#8b87aa' }}
         >
           <StepBadge value="3" tone="linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))" />
-          TRaSH Guide CF Scoring
+          TRaSH Baseline (Read-only)
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Apply deterministic TRaSH-aligned scoring after baseline format scoring.
+          Step 3 is informational only. Use the collapsed TRaSH section below to review sync metadata and baseline
+          status.
         </p>
-        <OrderedScoreRow fields={RESOLUTION_FIELDS} form={form} onChange={set} />
-        <OrderedScoreRow fields={SOURCE_FIELDS} form={form} onChange={set} />
-        <OrderedScoreRow fields={VIDEO_FIELDS} form={form} onChange={set} />
-        <OrderedScoreRow fields={AUDIO_FIELDS} form={form} onChange={set} />
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Field
-            label="Legacy Penalty"
-            name="scoutPipelineTrashLegacyPenalty"
-            value={form.scoutPipelineTrashLegacyPenalty ?? '40'}
-            onChange={(v) => set('scoutPipelineTrashLegacyPenalty', v)}
-          />
-          <Field
-            label="Usenet Bonus"
-            name="scoutPipelineTrashUsenetBonus"
-            value={form.scoutPipelineTrashUsenetBonus ?? '10'}
-            onChange={(v) => set('scoutPipelineTrashUsenetBonus', v)}
-          />
-          <Field
-            label="Torrent Bonus"
-            name="scoutPipelineTrashTorrentBonus"
-            value={form.scoutPipelineTrashTorrentBonus ?? '0'}
-            onChange={(v) => set('scoutPipelineTrashTorrentBonus', v)}
-          />
-          <Field
-            label="Seeder Divisor"
-            name="scoutPipelineTrashSeedersDivisor"
-            value={form.scoutPipelineTrashSeedersDivisor ?? '25'}
-            onChange={(v) => set('scoutPipelineTrashSeedersDivisor', v)}
-          />
-          <Field
-            label="Seeder Bonus Cap"
-            name="scoutPipelineTrashSeedersBonusCap"
-            value={form.scoutPipelineTrashSeedersBonusCap ?? '10'}
-            onChange={(v) => set('scoutPipelineTrashSeedersBonusCap', v)}
-          />
-        </div>
       </div>
     </section>
   );

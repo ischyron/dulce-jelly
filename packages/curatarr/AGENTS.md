@@ -44,10 +44,12 @@ A task can be marked `DONE` only after all gates below pass.
 - Required command: `npm run test:e2e`
 - E2E-created temporary entities/artifacts must be cleaned up in the same task before marking `DONE`.
 - Cleanup must include UI-created sample rules/items used for validation (create -> test -> disable if applicable -> delete).
+- E2E must not leak resources: close extra pages/contexts, and ensure transient Playwright artifacts are pruned between runs.
 
 4. Manual Verification (Chrome MCP)
 - Mandatory when UI behavior or user-visible API behavior changes.
 - Validate the changed flow manually using Chrome MCP and record what was verified.
+- Close Chrome MCP pages/tabs that are no longer needed to avoid long-lived browser memory growth.
 - Minimum manual verification record must include:
   - flow exercised
   - expected vs actual behavior

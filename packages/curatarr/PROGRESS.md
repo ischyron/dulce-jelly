@@ -73,3 +73,5 @@
     Create a thorough approach document in `temp/` and complete implementation after review.~~
 
 - [TODO] Setting > General and Settings > Seperation heirachy is not visually clear in Side panel. Settings is sleft open. Ideally user opens settings as it would hacve "Setttings >" and 2 Settigns section  sub menu appears "General" and "Scout" 
+
+- [IN-PROGRESS] Add e2e/Chrome MCP memory hygiene guardrails (prevent multi-GB growth via teardown + artifact pruning).

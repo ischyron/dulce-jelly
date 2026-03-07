@@ -25,7 +25,7 @@
     "typecheck:server": "tsc -p . --noEmit",
     "typecheck:ui": "cd src/ui && tsc -p tsconfig.json --noEmit",
     "test": "node --test test/*.test.mjs",
-    "test:e2e": "npx playwright test --config=playwright.config.cjs --reporter=line",
+    "test:e2e": "node scripts/run-e2e.mjs",
     "clean": "rm -rf dist dist-ui src/dist-ui src/server/dist src/ui/dist",
     "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"tsc -w --preserveWatchOutput\" \"node --watch src/server/dist/index.js serve\" \"cd src/ui && npm run dev\"",
     "dev:server": "concurrently -n tsc,api -c cyan,magenta \"tsc -w --preserveWatchOutput\" \"node --watch src/server/dist/index.js serve\"",

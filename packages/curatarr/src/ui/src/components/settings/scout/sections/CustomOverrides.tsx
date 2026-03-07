@@ -58,13 +58,13 @@ export function CustomOverrides({
             checked={(form.scoutPipelineBlockersEnabled ?? 'false') === 'true'}
             onChange={(e) => set('scoutPipelineBlockersEnabled', e.target.checked ? 'true' : 'false')}
           />
-          Enable blocking rules (feature-flagged)
+          Enable Release Blockers
         </label>
         <div
           className="rounded border px-2 py-1.5 text-xs"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)', color: 'var(--c-muted)' }}
         >
-          Example: To prefer the{' '}
+          Example Override: To prefer the{' '}
           <span className="font-mono" style={{ color: 'var(--c-text)' }}>
             FrameStore
           </span>{' '}
@@ -77,6 +77,16 @@ export function CustomOverrides({
             framestor
           </span>
           , then set your preferred score delta.
+          <br />
+          Example Blocker: word match{' '}
+          <span className="font-mono" style={{ color: 'var(--c-text)' }}>
+            WEBRip
+          </span>{' '}
+          or regex{' '}
+          <span className="font-mono" style={{ color: 'var(--c-text)' }}>
+            \bweb[- .]?rip\b
+          </span>
+          .
         </div>
         <div className="space-y-2">
           {customCfDraft.map((row, idx) =>

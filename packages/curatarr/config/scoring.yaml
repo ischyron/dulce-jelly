@@ -1,29 +1,26 @@
 scoutDefaults:
-  scoutPipelineBasicResolutionScore: 6
-  scoutPipelineBasicVideoScore: 5
-  scoutPipelineBasicAudioScore: 4
+  scoutPipelineBasicRes2160: 46
+  scoutPipelineBasicRes1080: 24
+  scoutPipelineBasicRes720: 8
+  scoutPipelineBasicSourceRemux: 30
+  scoutPipelineBasicSourceBluray: 20
+  scoutPipelineBasicSourceWebdl: 14
+  scoutPipelineBasicVideoHevc: 22
+  scoutPipelineBasicVideoAv1: 10
+  scoutPipelineBasicVideoH264: 8
+  scoutPipelineBasicAudioAtmos: 10
+  scoutPipelineBasicAudioTruehd: 8
+  scoutPipelineBasicAudioDts: 6
+  scoutPipelineBasicAudioDdp: 5
+  scoutPipelineBasicAudioAc3: 2
+  scoutPipelineBasicAudioAac: 1
   scoutPipelineBitrateTargetMbps: 18
   scoutPipelineBitrateTolerancePct: 40
   scoutPipelineBitrateMaxScore: 12
-  scoutPipelineTrashRes2160: 46
-  scoutPipelineTrashRes1080: 24
-  scoutPipelineTrashRes720: 8
-  scoutPipelineTrashSourceRemux: 30
-  scoutPipelineTrashSourceBluray: 20
-  scoutPipelineTrashSourceWebdl: 14
-  scoutPipelineTrashCodecHevc: 22
-  scoutPipelineTrashCodecAv1: 10
-  scoutPipelineTrashCodecH264: 8
-  scoutPipelineTrashAudioAtmos: 10
-  scoutPipelineTrashAudioTruehd: 8
-  scoutPipelineTrashAudioDts: 6
-  scoutPipelineTrashAudioDdp: 5
-  scoutPipelineTrashAudioAc3: 2
-  scoutPipelineTrashAudioAac: 1
-  scoutPipelineTrashLegacyPenalty: 40
-  scoutPipelineTrashSeedersDivisor: 25
-  scoutPipelineTrashSeedersBonusCap: 10
-  scoutPipelineTrashUsenetBonus: 10
-  scoutPipelineTrashTorrentBonus: 0
+  scoutPipelineBasicLegacyPenalty: 40
+  scoutPipelineBasicSeedersDivisor: 25
+  scoutPipelineBasicSeedersBonusCap: 10
+  scoutPipelineBasicUsenetBonus: 10
+  scoutPipelineBasicTorrentBonus: 0
   scoutPipelineLlmTieDelta: 10
   scoutPipelineLlmWeakDropDelta: 40

@@ -92,32 +92,29 @@ export function Settings() {
         scoutPipelineAutoEnabled: withDefault('scoutPipelineAutoEnabled'),
         scoutPipelineAutoIntervalMin: withDefault('scoutPipelineAutoIntervalMin'),
         scoutPipelineAutoCooldownMin: withDefault('scoutPipelineAutoCooldownMin'),
-        scoutPipelineBasicResolutionScore: withDefault('scoutPipelineBasicResolutionScore'),
-        scoutPipelineBasicVideoScore: withDefault('scoutPipelineBasicVideoScore'),
-        scoutPipelineBasicAudioScore: withDefault('scoutPipelineBasicAudioScore'),
+        scoutPipelineBasicRes2160: withDefault('scoutPipelineBasicRes2160'),
+        scoutPipelineBasicRes1080: withDefault('scoutPipelineBasicRes1080'),
+        scoutPipelineBasicRes720: withDefault('scoutPipelineBasicRes720'),
+        scoutPipelineBasicSourceRemux: withDefault('scoutPipelineBasicSourceRemux'),
+        scoutPipelineBasicSourceBluray: withDefault('scoutPipelineBasicSourceBluray'),
+        scoutPipelineBasicSourceWebdl: withDefault('scoutPipelineBasicSourceWebdl'),
+        scoutPipelineBasicVideoHevc: withDefault('scoutPipelineBasicVideoHevc'),
+        scoutPipelineBasicVideoAv1: withDefault('scoutPipelineBasicVideoAv1'),
+        scoutPipelineBasicVideoH264: withDefault('scoutPipelineBasicVideoH264'),
+        scoutPipelineBasicAudioAtmos: withDefault('scoutPipelineBasicAudioAtmos'),
+        scoutPipelineBasicAudioTruehd: withDefault('scoutPipelineBasicAudioTruehd'),
+        scoutPipelineBasicAudioDts: withDefault('scoutPipelineBasicAudioDts'),
+        scoutPipelineBasicAudioDdp: withDefault('scoutPipelineBasicAudioDdp'),
+        scoutPipelineBasicAudioAc3: withDefault('scoutPipelineBasicAudioAc3'),
+        scoutPipelineBasicAudioAac: withDefault('scoutPipelineBasicAudioAac'),
         scoutPipelineBitrateTargetMbps: withDefault('scoutPipelineBitrateTargetMbps'),
         scoutPipelineBitrateTolerancePct: withDefault('scoutPipelineBitrateTolerancePct'),
         scoutPipelineBitrateMaxScore: withDefault('scoutPipelineBitrateMaxScore'),
-        scoutPipelineTrashRes2160: withDefault('scoutPipelineTrashRes2160'),
-        scoutPipelineTrashRes1080: withDefault('scoutPipelineTrashRes1080'),
-        scoutPipelineTrashRes720: withDefault('scoutPipelineTrashRes720'),
-        scoutPipelineTrashSourceRemux: withDefault('scoutPipelineTrashSourceRemux'),
-        scoutPipelineTrashSourceBluray: withDefault('scoutPipelineTrashSourceBluray'),
-        scoutPipelineTrashSourceWebdl: withDefault('scoutPipelineTrashSourceWebdl'),
-        scoutPipelineTrashCodecHevc: withDefault('scoutPipelineTrashCodecHevc'),
-        scoutPipelineTrashCodecAv1: withDefault('scoutPipelineTrashCodecAv1'),
-        scoutPipelineTrashCodecH264: withDefault('scoutPipelineTrashCodecH264'),
-        scoutPipelineTrashAudioAtmos: withDefault('scoutPipelineTrashAudioAtmos'),
-        scoutPipelineTrashAudioTruehd: withDefault('scoutPipelineTrashAudioTruehd'),
-        scoutPipelineTrashAudioDts: withDefault('scoutPipelineTrashAudioDts'),
-        scoutPipelineTrashAudioDdp: withDefault('scoutPipelineTrashAudioDdp'),
-        scoutPipelineTrashAudioAc3: withDefault('scoutPipelineTrashAudioAc3'),
-        scoutPipelineTrashAudioAac: withDefault('scoutPipelineTrashAudioAac'),
-        scoutPipelineTrashLegacyPenalty: withDefault('scoutPipelineTrashLegacyPenalty'),
-        scoutPipelineTrashSeedersDivisor: withDefault('scoutPipelineTrashSeedersDivisor'),
-        scoutPipelineTrashSeedersBonusCap: withDefault('scoutPipelineTrashSeedersBonusCap'),
-        scoutPipelineTrashUsenetBonus: withDefault('scoutPipelineTrashUsenetBonus'),
-        scoutPipelineTrashTorrentBonus: withDefault('scoutPipelineTrashTorrentBonus'),
+        scoutPipelineBasicLegacyPenalty: withDefault('scoutPipelineBasicLegacyPenalty'),
+        scoutPipelineBasicSeedersDivisor: withDefault('scoutPipelineBasicSeedersDivisor'),
+        scoutPipelineBasicSeedersBonusCap: withDefault('scoutPipelineBasicSeedersBonusCap'),
+        scoutPipelineBasicUsenetBonus: withDefault('scoutPipelineBasicUsenetBonus'),
+        scoutPipelineBasicTorrentBonus: withDefault('scoutPipelineBasicTorrentBonus'),
         scoutPipelineBlockersEnabled: withDefault('scoutPipelineBlockersEnabled'),
         scoutPipelineLlmTieDelta: withDefault('scoutPipelineLlmTieDelta'),
         scoutPipelineLlmWeakDropDelta: withDefault('scoutPipelineLlmWeakDropDelta'),
@@ -210,11 +207,6 @@ export function Settings() {
     queryFn: api.scoutTrashSyncDetails,
     staleTime: 60_000,
   });
-  const { data: trashParityData, refetch: refetchTrashParity } = useQuery({
-    queryKey: ['scout-trash-parity'],
-    queryFn: () => api.scoutTrashParity(false),
-    staleTime: 60_000,
-  });
 
   const scoutAutoRunMutation = useMutation({
     mutationFn: () => api.scoutAutoRun(),
@@ -224,12 +216,9 @@ export function Settings() {
   });
   const scoutSyncTrashMutation = useMutation({
     mutationFn: () => api.scoutSyncTrashScores(),
-    onSuccess: (res) => {
-      setForm((prev) => ({ ...prev, ...res.applied }));
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['settings'] });
-      refetchScoutRules();
       refetchTrashSyncDetails();
-      refetchTrashParity();
     },
   });
   const scoutRefineDraftMutation = useMutation({
@@ -352,25 +341,8 @@ export function Settings() {
     syncDetails?.meta.rulesSynced != null
       ? String(syncDetails.meta.rulesSynced)
       : (data?.settings?.scoutTrashSyncedRules ?? '');
-  const syncedTrashAppliedCount =
-    syncDetails?.meta.appliedCount != null
-      ? String(syncDetails.meta.appliedCount)
-      : (data?.settings?.scoutTrashAppliedCount ?? '0');
   const syncedTrashWarning = syncDetails?.meta.warning ?? scoutSyncTrashMutation.data?.meta.warning ?? '';
-  const hasTrashSyncDetails = Boolean(
-    syncedTrashSource ||
-      syncedTrashRevision ||
-      syncedTrashAt ||
-      syncedTrashRules ||
-      (syncDetails?.applied.rules.length ?? 0) > 0 ||
-      Object.keys(syncDetails?.applied.settings ?? {}).length > 0,
-  );
-  const appliedSettingsEntries = Object.entries(syncDetails?.applied.settings ?? {}).sort(([a], [b]) =>
-    a.localeCompare(b),
-  );
-  const appliedMappings = syncDetails?.applied.mappings ?? [];
-  const appliedChanges = syncDetails?.applied.changes ?? [];
-  const appliedRules = syncDetails?.applied.rules ?? [];
+  const hasTrashSyncDetails = Boolean(syncedTrashSource || syncedTrashRevision || syncedTrashAt || syncedTrashRules);
   const upstreamSnapshot = syncDetails?.upstream ?? null;
 
   useEffect(() => {
@@ -674,20 +646,8 @@ export function Settings() {
               syncedTrashMappingRevision,
               syncedTrashAt,
               syncedTrashRules,
-              syncedTrashAppliedCount,
               syncedTrashWarning,
-              appliedSettingsEntries,
-              appliedMappings,
-              appliedChanges,
-              appliedRules,
               upstreamSnapshot,
-            }}
-            trashBaseline={{
-              trashParityData,
-              onRefreshBaseline: () => {
-                void refetchTrashParity();
-                void api.scoutTrashParity(true).then(() => refetchTrashParity());
-              },
             }}
             customOverrides={{
               form,

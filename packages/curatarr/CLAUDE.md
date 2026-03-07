@@ -10,6 +10,11 @@ For task completion rules and feature gating, follow `packages/curatarr/AGENTS.m
 - Completion requires runnable proof (tests, e2e, manual verification, git, deploy) recorded in `PROGRESS.md`.
 - If a required gate cannot run, status must be `BLOCKED` or `IN-PROGRESS`, not `DONE`.
 
+## Coding Standards Reference
+
+- Follow `docs/technical/coding-standards.md` for implementation standards across backend, frontend, API contracts, testing, accessibility, i18n readiness, and commit hygiene.
+- If coding standards guidance conflicts with completion workflow policy, `AGENTS.md` remains authoritative for gate/status decisions.
+
 ## Validation Stack (Reference)
 
 - Unit/interaction: `npm run test`
@@ -18,7 +23,7 @@ For task completion rules and feature gating, follow `packages/curatarr/AGENTS.m
 - E2E resource hygiene: keep worker concurrency bounded for local runs and prune transient Playwright artifacts to prevent multi-GB buildup
 - Manual verification: Chrome MCP for UI/user-visible API behavior changes
 - Chrome MCP hygiene: close unused pages/tabs after verification to prevent browser memory bloat
-- MCP preflight: `codex mcp list` (must include enabled `playwright` and `chrome`)
+- MCP preflight (generic): verify required MCP servers are configured and enabled for the active environment before validation (e.g., browser automation + Playwright MCP servers).
 - Deploy Gate:
   - Build and deploy Curatarr service.
   - Curatarr currently uses the parent-stack Docker Compose file. So invoke Docker deployments from parent repo.

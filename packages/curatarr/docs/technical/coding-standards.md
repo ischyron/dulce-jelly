@@ -1,43 +1,54 @@
 # Curatarr Coding Standards
 
-This guide defines baseline engineering standards for changes under `packages/curatarr`.
+Baseline standards for all changes under `packages/curatarr`.
 
-## Core Principles
-- Prefer clear, maintainable code over clever one-liners.
-- Keep behavior deterministic and portable for self-hosted/community use.
-- Make changes auditable: small diffs, explicit naming, and testable outcomes.
+## 1) Core Rules
+- Optimize for clarity, maintainability, and deterministic behavior.
+- Keep changes auditable: small diffs, explicit naming, and testable outcomes.
+- Prefer portable behavior suitable for self-hosted/community deployments.
 
-## TypeScript and API Contracts
-- Use strict, explicit types for external boundaries (routes, client responses, DB mapping).
-- Update shared API contracts in `src/shared/types/api.ts` whenever response/request shapes change.
-- Avoid `any`; use narrow unions and typed helpers instead.
+## 2) TypeScript and API Contracts
+- Use explicit types at boundaries (routes, API client, DB mapping).
+- Avoid `any`; use narrow unions and typed helpers.
+- When API shapes change, update `src/shared/types/api.ts` in the same change.
 
-## Backend
-- Keep filtering, pagination, and aggregate calculations in backend routes/queries.
-- Avoid moving correctness-critical logic to client-only computation.
-- Use parameterized SQL/bindings; never concatenate untrusted user input into SQL.
-- Preserve route behavior stability unless change is intentional and documented.
+## 3) Backend
+- Keep filtering, pagination, and aggregates in backend queries/routes.
+- Do not move correctness-critical logic to ad-hoc client computation.
+- Use parameterized SQL bindings only; never concatenate untrusted input.
+- Keep route behavior stable unless the change is intentional and documented.
 
-## Frontend
-- UI should render from API truth, not duplicated ad-hoc client derivations when server can provide canonical values.
-- Keep components focused: move reusable formatting/filter logic into helper modules.
-- Maintain accessible labels and clear user-visible text for controls.
+## 4) Frontend Architecture
+- Render from API truth; avoid duplicate client-side derivations where server values exist.
+- Prefer shared components for repeated patterns; check `src/ui/src/components/shared` first.
+- Keep components focused; move reusable logic to helpers/hooks.
+- Reuse design tokens and established interaction patterns across pages.
 
-## Database and Data Safety
-- Do not introduce destructive behavior without explicit confirmation paths.
-- Prefer additive schema and migration-safe changes.
-- Keep filesystem operations safe and auditable.
+## 5) Accessibility (A11y)
+- Follow WCAG-aligned practices for all user-facing UI.
+- Ensure keyboard accessibility, visible focus states, and semantic structure.
+- Provide accessible names for interactive controls (`label`, `aria-label`, `aria-labelledby`).
+- Maintain sufficient contrast and do not rely on color alone for meaning.
+- Ensure errors/status updates are perceivable by assistive technologies.
+- Add/update accessibility coverage where relevant (including existing axe checks).
 
-## Testing Expectations
-- Add or update tests for behavior changes, especially route filters, aggregations, and pagination semantics.
-- Ensure test intent matches real user behavior (not implementation trivia).
-- Prevent regressions with targeted tests in `test/*.test.mjs` and e2e where applicable.
+## 6) Content and Code Separation (i18n-Ready)
+- Keep user-facing copy separate from component logic so localization is possible.
+- Avoid hardcoding repeated UI strings directly inside components.
+- Prefer centralized/localized message sources (feature-scoped or shared) over inline literals.
+- Reuse shared terms consistently (status labels, actions, hints) to simplify translation.
+- New UI features should be added in a way that can be localized without refactoring logic.
 
-## Documentation Expectations
-- When behavior changes, update relevant docs in `docs/technical` and/or API docs.
-- Keep terminology consistent across code, UI labels, and documentation.
+## 7) Refactor As You Go
+- After feature completion, run a quick cleanup pass on touched files.
+- Remove dead code, stale branches, unused imports/helpers, and obsolete comments.
+- Apply behavior-preserving cleanups that reduce complexity.
+- If a module receives many feature changes, include modularization in the first cut, not later.
+- For meaningful cleanup scope, use a dedicated `refactor:` commit.
 
-## Commit Hygiene
-- Keep commits scoped to one concern.
-- Do not include unrelated local edits.
-- Commit messages should describe behavior change clearly.
+## 8) Testing, Docs, and Commits
+- Update tests for behavior changes (especially filters, aggregates, pagination semantics).
+- Keep tests aligned with user-visible behavior, not implementation trivia.
+- Update docs when behavior/contracts change.
+- Keep commits scoped to one concern and avoid unrelated edits.
+- Use Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, etc.).

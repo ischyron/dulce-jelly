@@ -37,6 +37,6 @@
   - Unit/interaction: `npm run test` -> pass; `npm run typecheck` -> pass
   - E2E: `npm run test:e2e` -> pass (44 passed)
   - Chrome MCP: `/settings/scout` verified custom CF create/save via new Scout rules route path and success badge; temporary rule cleaned up via API (`scout_custom_cf` reset to empty) -> pass
-  - Git: `63586d6`, push pending
+  - Git: `63586d6`, `9d61b4c`, push ok
   - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
   - Date: 2026-03-07

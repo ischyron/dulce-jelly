@@ -64,6 +64,12 @@ type ScoutResultRow = (ScoutRelease | DroppedScoutRelease) & {
   droppedReason?: string;
 };
 
+const SCOUT_CHIP_GROUPS: Record<'Resolution' | 'Source' | 'Audio', string[]> = {
+  Resolution: ['2160p', '1080p', '720p'],
+  Source: ['Remux', 'BluRay', 'WEB-DL'],
+  Audio: ['DTS-MA', 'DTS', 'TrueHD', 'Atmos', 'DDP', 'AC3', 'AAC'],
+};
+
 function releaseTitleTags(title: string): string[] {
   const t = title.toLowerCase();
   const out = new Set<string>();
@@ -91,10 +97,34 @@ function resultChipGroups(rows: ScoutResultRow[]): Array<{ label: string; chips:
   const has = new Set(rows.flatMap((r) => releaseTitleTags(r.title)));
   const pick = (chips: string[]) => chips.filter((c) => has.has(c));
   return [
-    { label: 'Resolution', chips: pick(['2160p', '1080p', '720p']) },
-    { label: 'Source', chips: pick(['Remux', 'BluRay', 'WEB-DL']) },
-    { label: 'Audio', chips: pick(['DTS-MA', 'DTS', 'TrueHD', 'Atmos', 'DDP', 'AC3', 'AAC']) },
+    { label: 'Resolution', chips: pick([...SCOUT_CHIP_GROUPS.Resolution]) },
+    { label: 'Source', chips: pick([...SCOUT_CHIP_GROUPS.Source]) },
+    { label: 'Audio', chips: pick([...SCOUT_CHIP_GROUPS.Audio]) },
   ].filter((g) => g.chips.length > 0);
+}
+
+function releaseMatchesScoutChips(title: string, selectedChips: string[]): boolean {
+  if (selectedChips.length === 0) return true;
+
+  const tags = releaseTitleTags(title);
+  const selected = new Set(selectedChips);
+  const selectedResolution = SCOUT_CHIP_GROUPS.Resolution.filter((chip) => selected.has(chip));
+  const selectedSource = SCOUT_CHIP_GROUPS.Source.filter((chip) => selected.has(chip));
+  const selectedAudio = SCOUT_CHIP_GROUPS.Audio.filter((chip) => selected.has(chip));
+  const selectedKnown = selectedResolution.length + selectedSource.length + selectedAudio.length;
+  const unknown = selectedChips.filter(
+    (chip) =>
+      !SCOUT_CHIP_GROUPS.Resolution.includes(chip) &&
+      !SCOUT_CHIP_GROUPS.Source.includes(chip) &&
+      !SCOUT_CHIP_GROUPS.Audio.includes(chip),
+  );
+
+  const resolutionOk = selectedResolution.length === 0 || selectedResolution.some((chip) => tags.includes(chip));
+  const sourceOk = selectedSource.length === 0 || selectedSource.some((chip) => tags.includes(chip));
+  const audioOk = selectedAudio.length === 0 || selectedAudio.every((chip) => tags.includes(chip));
+  const unknownOk = selectedKnown === selectedChips.length || unknown.every((chip) => tags.includes(chip));
+
+  return resolutionOk && sourceOk && audioOk && unknownOk;
 }
 
 function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
@@ -803,10 +833,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   const filteredAll =
                     scoutResultView !== 'all' || scoutFilterChips.length === 0
                       ? allResults
-                      : allResults.filter((r) => {
-                          const tags = releaseTitleTags(r.title);
-                          return scoutFilterChips.every((chip) => tags.includes(chip));
-                        });
+                      : allResults.filter((r) => releaseMatchesScoutChips(r.title, scoutFilterChips));
                   return (
                     <>
                       <div className="flex flex-wrap items-center gap-2">
@@ -930,11 +957,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                       })),
                     ]
                       .sort((a, b) => b.score - a.score)
-                      .filter((r) => {
-                        if (scoutFilterChips.length === 0) return true;
-                        const tags = releaseTitleTags(r.title);
-                        return scoutFilterChips.every((chip) => tags.includes(chip));
-                      })}
+                      .filter((r) => releaseMatchesScoutChips(r.title, scoutFilterChips))}
                   />
                 )}
               </div>

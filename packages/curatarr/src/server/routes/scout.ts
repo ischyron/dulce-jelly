@@ -552,7 +552,7 @@ function applyLlmRuleset(
   llmRules: ScoutLlmRule[],
   cfg: ScoutScoreConfig,
 ): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
-  if (llmRules.length === 0) return { finals: releases, dropped: [] };
+  if (llmRules.length === 0) return { finals: [...releases].sort((a, b) => b.score - a.score), dropped: [] };
   const sortedBase = [...releases].sort((a, b) => b.score - a.score);
   const topScore = sortedBase[0]?.score ?? 0;
   const tieWindow = sortedBase.filter((r) => topScore - r.score <= cfg.llmTieDelta);
@@ -1054,10 +1054,10 @@ function addBasicFormatScore(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, run
   if (/\b(remux)\b/.test(t)) {
     score += cfg.sourceRemux;
     reasons.push('basic:source:remux');
-  } else if (/\bbluray\b|\bbd\b/.test(t)) {
+  } else if (/\bblu[- .]?ray\b|\bbd(?:rip)?\b|\bbrrip\b/.test(t)) {
     score += cfg.sourceBluray;
     reasons.push('basic:source:bluray');
-  } else if (/\bweb-?dl\b/.test(t)) {
+  } else if (/\bweb-?dl\b|\bweb[- .]?rip\b/.test(t)) {
     score += cfg.sourceWebdl;
     reasons.push('basic:source:web-dl');
   }
@@ -1102,10 +1102,35 @@ function configuredBatchCap(db: CuratDb): number {
   return Math.max(1, Math.min(10, raw));
 }
 
-function recommendationSummary(top: ScoredRelease | null): string {
+function releaseRecencyEpoch(value: string | null | undefined): number {
+  if (!value) return 0;
+  const ms = Date.parse(value);
+  return Number.isFinite(ms) ? ms : 0;
+}
+
+function pickBestRecommendation(releases: ScoredRelease[], cfg: ScoutScoreConfig): ScoredRelease | null {
+  if (releases.length === 0) return null;
+  const sorted = [...releases].sort((a, b) => b.score - a.score);
+  const topScore = sorted[0].score;
+  const tieDelta = Math.max(0, cfg.llmTieDelta);
+  const shortlist = sorted.filter((r) => topScore - r.score <= tieDelta);
+  shortlist.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    const seedA = a.seeders ?? 0;
+    const seedB = b.seeders ?? 0;
+    if (seedB !== seedA) return seedB - seedA;
+    const recencyA = releaseRecencyEpoch(a.publishDate);
+    const recencyB = releaseRecencyEpoch(b.publishDate);
+    if (recencyB !== recencyA) return recencyB - recencyA;
+    return a.title.localeCompare(b.title);
+  });
+  return shortlist[0] ?? null;
+}
+
+function recommendationSummary(top: ScoredRelease | null, cfg: ScoutScoreConfig): string {
   if (!top) return 'No efficient path could be computed from the available releases.';
   const reasons = top.reasons.length > 0 ? top.reasons.join(', ') : 'balanced quality and availability';
-  return `Best path: "${top.title}" (score ${top.score}) driven by ${reasons}.`;
+  return `Recommended release (top score ±${cfg.llmTieDelta}): "${top.title}" (score ${top.score}) driven by ${reasons}.`;
 }
 
 async function searchOneMovie(
@@ -1144,8 +1169,8 @@ async function searchOneMovie(
   const llmResult = applyLlmRuleset(blockerResult.finals, llmRules, scoreCfg);
   const scored = llmResult.finals;
   const dropped = [...blockerResult.dropped, ...llmResult.dropped];
-  const best = scored[0] ?? null;
-  const summary = `${recommendationSummary(best)}${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by blockers/LLM rules.` : ''}`;
+  const best = pickBestRecommendation(scored, scoreCfg);
+  const summary = `${recommendationSummary(best, scoreCfg)}${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by blockers/LLM rules.` : ''}`;
   return {
     movieId,
     query,

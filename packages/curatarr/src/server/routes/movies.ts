@@ -212,14 +212,19 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       bindings.push(pat, pat, pat);
     }
 
-    // Count total for pagination
-    const countSql = `SELECT COUNT(*) as n FROM (${sql})`;
-    const total = (
-      db
-        .raw()
-        .prepare(countSql)
-        .get(...bindings) as { n: number }
-    ).n;
+    // Count total and compute filtered size aggregate before sort/pagination.
+    const aggregateSql = `
+      SELECT
+        COUNT(*) as total,
+        COALESCE(SUM(COALESCE(file_size, 0)), 0) as total_size
+      FROM (${sql})
+    `;
+    const aggregate = db
+      .raw()
+      .prepare(aggregateSql)
+      .get(...bindings) as { total: number; total_size: number };
+    const total = aggregate.total;
+    const totalSize = aggregate.total_size;
 
     // Sort (search-aware relevance ranking first when query is present)
     const titleExpr = "LOWER(COALESCE(m.jellyfin_title, m.parsed_title, m.folder_name, ''))";
@@ -264,6 +269,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
 
     return c.json({
       total,
+      totalSize,
       page,
       limit,
       movies: rows,

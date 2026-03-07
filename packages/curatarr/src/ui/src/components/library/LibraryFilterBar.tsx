@@ -148,6 +148,7 @@ export function LibraryFilterBar({
         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--c-muted)' }} />
         <input
           type="text"
+          aria-label="Search titles"
           placeholder="Search titles…"
           value={searchInput}
           onChange={(e) => onSearchInput(e.target.value)}
@@ -351,6 +352,7 @@ export function LibraryFilterBar({
         <select
           value={audioFormat}
           onChange={(e) => onAudioFormatChange(e.target.value)}
+          aria-label="Audio format filter"
           className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
           style={{
             background: 'var(--c-surface)',
@@ -373,6 +375,7 @@ export function LibraryFilterBar({
         <select
           value={audioLayout}
           onChange={(e) => onAudioLayoutChange(e.target.value)}
+          aria-label="Audio channel layout filter"
           className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
           style={{
             background: 'var(--c-surface)',
@@ -492,6 +495,7 @@ export function LibraryFilterBar({
         <select
           value={showAll ? 'all' : String(limit)}
           onChange={(e) => onPageSizeChange(e.target.value)}
+          aria-label="Rows per page"
           className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
           style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-accent)' }}
         >
@@ -583,7 +587,9 @@ export function LibraryFilterBar({
         {typeof totalLibrarySize === 'number' && totalLibrarySize > 0 ? (
           <>
             <span style={{ color: 'var(--c-border)' }}>·</span>
-            <span title="Total size on disk (all scanned files)">{formatTotalSize(totalLibrarySize)}</span>
+            <span title="Total size on disk for current filtered results">
+              Total Size: {formatTotalSize(totalLibrarySize)}
+            </span>
           </>
         ) : null}
       </span>

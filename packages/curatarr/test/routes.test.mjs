@@ -113,6 +113,63 @@ test('settings validation rejects invalid libraryRoots and numeric bounds', asyn
   assert.match(badNumberBody.error, /between 0 and 1440/);
 });
 
+test('movies listing returns filtered totalSize for full result set, not current page', async (t) => {
+  const tmp = await makeTempDir('movies-total-size');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const movieA = db.upsertMovie({ folderPath: '/m/A', folderName: 'A' });
+  db.upsertFile({
+    movieId: movieA,
+    filePath: '/m/A/a-1080p.mkv',
+    filename: 'a-1080p.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const movieB = db.upsertMovie({ folderPath: '/m/B', folderName: 'B' });
+  db.upsertFile({
+    movieId: movieB,
+    filePath: '/m/B/b-4k.mkv',
+    filename: 'b-4k.mkv',
+    resolutionCat: '2160p',
+    videoCodec: 'h264',
+    fileSize: 200,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const movieC = db.upsertMovie({ folderPath: '/m/C', folderName: 'C' });
+  db.upsertFile({
+    movieId: movieC,
+    filePath: '/m/C/c-4k.mkv',
+    filename: 'c-4k.mkv',
+    resolutionCat: '2160p',
+    videoCodec: 'hevc',
+    fileSize: 300,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const filtered = await app.request('http://localhost/api/movies?codec=h264&page=1&limit=1');
+  assert.equal(filtered.status, 200);
+  const filteredBody = await filtered.json();
+  assert.equal(filteredBody.total, 2);
+  assert.equal(filteredBody.movies.length, 1);
+  assert.equal(filteredBody.totalSize, 300);
+
+  const unfiltered = await app.request('http://localhost/api/movies?page=1&limit=1');
+  assert.equal(unfiltered.status, 200);
+  const unfilteredBody = await unfiltered.json();
+  assert.equal(unfilteredBody.total, 3);
+  assert.equal(unfilteredBody.movies.length, 1);
+  assert.equal(unfilteredBody.totalSize, 600);
+});
+
 test('verify start returns 409 when a verify job is already running', async (t) => {
   const tmp = await makeTempDir('verify-running');
   t.after(async () => fs.rm(tmp, { recursive: true, force: true }));

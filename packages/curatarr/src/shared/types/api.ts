@@ -331,6 +331,7 @@ export interface ScanHistoryRun {
 
 export interface MoviesResponse {
   total: number;
+  totalSize: number;
   page: number;
   limit: number;
   movies: Movie[];

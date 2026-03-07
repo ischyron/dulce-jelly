@@ -424,7 +424,7 @@ export function Library() {
         onRemoveSelectedFromIndex={removeSelectedFromIndex}
         removePending={removeSelectedMutation.isPending}
         totalMovies={data?.total}
-        totalLibrarySize={statsData?.totalLibrarySize}
+        totalLibrarySize={data?.totalSize}
       />
 
       <div className="overflow-x-auto">

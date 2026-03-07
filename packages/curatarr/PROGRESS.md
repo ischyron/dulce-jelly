@@ -92,6 +92,6 @@
   - Unit/interaction: `npm run test` -> pass
   - E2E: `npm run test:e2e` -> pass (42 passed)
   - Chrome MCP: `/movies/3` manual scout run verified `View All` mode appears, `Filter Chips` panel renders (Resolution/Source/Audio chips), and full scored table is visible with row-level reasons -> pass
-  - Git: `<pending>`, push <pending>
+  - Git: `bc2f3c0`, push ok
   - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
   - Date: 2026-03-07

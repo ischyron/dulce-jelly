@@ -74,4 +74,24 @@
 
 - [TODO] Setting > General and Settings > Seperation heirachy is not visually clear in Side panel. Settings is sleft open. Ideally user opens settings as it would hacve "Setttings >" and 2 Settigns section  sub menu appears "General" and "Scout" 
 
-- [IN-PROGRESS] Add e2e/Chrome MCP memory hygiene guardrails (prevent multi-GB growth via teardown + artifact pruning).
+- [DONE] ~~Add e2e/Chrome MCP memory hygiene guardrails (prevent multi-GB growth via teardown + artifact pruning).~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: Removed stale Scout TRaSH parity widget and applied-count plumbing, kept Step 3 read-only baseline metadata only, added e2e wrapper (`scripts/run-e2e.mjs`) that prunes transient Playwright artifacts before/after successful runs, bounded Playwright workers (`PW_E2E_WORKERS`, default 1), added launch memory-safety flags, documented Chrome MCP tab/page close hygiene in `AGENTS.md` + `CLAUDE.md`, reorganized Scout Basic Format Scoring by category, and removed Resolution `Other` scoring from UI/defaults/backend.
+  - Unit/interaction: `npm run test` -> pass
+  - E2E: `npm run test:e2e` -> pass (42 passed)
+  - Chrome MCP: `/settings/scout` verified category-grouped Basic Format Scoring and no Resolution `Other`; verified Step 3 remains read-only/collapsible -> pass
+  - Git: `12b7163`, push ok
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
+  - Date: 2026-03-07
+
+- [DONE] ~~Add Scout results "View All" table mode with chip-based filtering for quick full-list scoring review.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: Added Scout result view toggle (`Candidates`, `Dropped`, `View All`) in movie detail Scout section; implemented combined all-results table with candidate/dropped state labels and per-row score/reasons; added dynamic chip filters grouped by Resolution/Source/Audio based on parsed release title tags; retained existing recommendation block and candidate/dropped focused views.
+  - Unit/interaction: `npm run test` -> pass
+  - E2E: `npm run test:e2e` -> pass (42 passed)
+  - Chrome MCP: `/movies/3` manual scout run verified `View All` mode appears, `Filter Chips` panel renders (Resolution/Source/Audio chips), and full scored table is visible with row-level reasons -> pass
+  - Git: `<pending>`, push <pending>
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
+  - Date: 2026-03-07

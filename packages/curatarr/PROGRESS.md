@@ -40,3 +40,14 @@
   - Git: `63586d6`, `9d61b4c`, push ok
   - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
   - Date: 2026-03-07
+
+- [DONE] ~~Decompose `src/server/routes/scout.ts` into semantic modules and remove dead duplicate helpers.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: Extracted Scout cache logic into `src/server/routes/scout/cache.ts`, scoring/rule gates into `src/server/routes/scout/scoring.ts`, shared Scout route types into `src/server/routes/scout/types.ts`, rewired `scout.ts` to use extracted modules, and removed redundant in-file implementations (score config resolver, basic format scorer, cache revision/key/prune/meta helpers, duplicated rule type block).
+  - Unit/interaction: `npm run typecheck` -> pass; `npm run test` -> pass
+  - E2E: `npm run test:e2e` -> pass (44 passed)
+  - Chrome MCP: Manually loaded `http://localhost:3270/settings/scout` and verified Scout Quality Funnel sections + settings widgets render correctly after refactor -> pass
+  - Git: `1441aa9`, push pending
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok
+  - Date: 2026-03-07

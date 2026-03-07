@@ -24,6 +24,8 @@ For task completion rules and feature gating, follow `packages/curatarr/AGENTS.m
 - Manual verification: Chrome MCP for UI/user-visible API behavior changes
 - Chrome MCP hygiene: close unused pages/tabs after verification to prevent browser memory bloat
 - MCP preflight (generic): verify required MCP servers are configured and enabled for the active environment before validation (e.g., browser automation + Playwright MCP servers).
+- Git push policy: do not bypass hooks with `git push --no-verify`.
+- Push behavior: standard `git push` runs the local pre-push pipeline for this repo and it must pass.
 - Deploy Gate:
   - Build and deploy Curatarr service.
   - Curatarr currently uses the parent-stack Docker Compose file. So invoke Docker deployments from parent repo.

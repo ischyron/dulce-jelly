@@ -25,12 +25,15 @@ Baseline standards for all changes under `packages/curatarr`.
 - Reuse design tokens and established interaction patterns across pages.
 
 ## 5) Accessibility (A11y)
-- Follow WCAG-aligned practices for all user-facing UI.
+- Follow WCAG-aligned practices for all user-facing UI. See [a11y.md](./a11y.md) for the full developer guide.
 - Ensure keyboard accessibility, visible focus states, and semantic structure.
-- Provide accessible names for interactive controls (`label`, `aria-label`, `aria-labelledby`).
+- Provide accessible names for interactive controls — inline strings for genuine exceptions (icon-only controls, unlabelled inputs); do NOT add `aria-label` to controls that already have visible text content.
+- Disclosure buttons must carry `aria-expanded` + `aria-haspopup`.
+- Progress indicators must use `role="progressbar"` with `aria-valuenow/min/max`.
+- Charts (SVG/canvas) must be wrapped with `role="img"` + `aria-label`.
 - Maintain sufficient contrast and do not rely on color alone for meaning.
 - Ensure errors/status updates are perceivable by assistive technologies.
-- Add/update accessibility coverage where relevant (including existing axe checks).
+- Add/update accessibility coverage where relevant (axe suite: `npm run test:e2e`).
 
 ## 6) Content and Code Separation (i18n-Ready)
 - Keep user-facing copy separate from component logic so localization is possible.

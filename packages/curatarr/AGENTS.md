@@ -62,6 +62,8 @@ A task can be marked `DONE` only after all gates below pass.
 5. Git Gate
 - Commit the change on the working branch.
 - Push must succeed.
+- Do not bypass hooks with `git push --no-verify`.
+- Standard `git push` triggers the local pre-push pipeline (including deploy steps in this repo); this pipeline must pass.
 - Missing commit or missing push blocks `DONE`.
 
 6. Deploy Gate

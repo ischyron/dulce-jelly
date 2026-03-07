@@ -42,6 +42,8 @@ A task can be marked `DONE` only after all gates below pass.
 - Run Curatarr Playwright e2e suite.
 - Any failing e2e gate blocks `DONE`.
 - Required command: `npm run test:e2e`
+- E2E-created temporary entities/artifacts must be cleaned up in the same task before marking `DONE`.
+- Cleanup must include UI-created sample rules/items used for validation (create -> test -> disable if applicable -> delete).
 
 4. Manual Verification (Chrome MCP)
 - Mandatory when UI behavior or user-visible API behavior changes.
@@ -87,6 +89,7 @@ Evidence:
 
 ## Operational Notes
 - Keep temporary notes/logs under `temp/`.
+- Do not leave E2E/manual-test temporary data behind in DB or UI state; clean test artifacts before completion.
 - Prefer safe, auditable behavior for file operations and integrations.
 - Do not close work items early with unresolved required gates.
 - Prefer code-first truth for behavior checks: run system, test, and verify rather than relying on roadmap text.

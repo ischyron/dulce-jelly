@@ -37,15 +37,32 @@ import type {
 
 const BASE = '/api';
 
+export class ApiError extends Error {
+  status: number;
+  code?: string;
+  detail?: string;
+
+  constructor(message: string, opts: { status: number; code?: string; detail?: string }) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = opts.status;
+    this.code = opts.code;
+    this.detail = opts.detail;
+  }
+}
+
 async function req<T>(path: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     headers: { 'Content-Type': 'application/json', ...opts?.headers },
     ...opts,
   });
   if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    const msg = (body as { error?: string } | null)?.error ?? (await res.text().catch(() => res.statusText));
-    throw new Error(msg);
+    const body = (await res.json().catch(() => null)) as { error?: string; detail?: string } | null;
+    const code = body?.error;
+    const detail = body?.detail;
+    const text = await res.text().catch(() => res.statusText);
+    const message = code ?? detail ?? text;
+    throw new ApiError(message, { status: res.status, code, detail });
   }
   return res.json() as Promise<T>;
 }
@@ -230,7 +247,7 @@ export const api = {
     return req<VerifyFailuresResponse>(`/verify/failures${qs}`);
   },
 
-  scoutSearchOne: (body: { movieId: number; query?: string }) =>
+  scoutSearchOne: (body: { movieId: number; query?: string; forceRefresh?: boolean }) =>
     req<ScoutSearchOneResponse>('/scout/search-one', {
       method: 'POST',
       body: JSON.stringify(body),

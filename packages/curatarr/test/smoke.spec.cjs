@@ -313,6 +313,10 @@ test.describe('MoviePage', () => {
     await expect(page.getByRole('button', { name: 'Sync from Jellyfin' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();
     await expect(page.getByTestId('movie-scout-section')).toBeVisible();
+    await expect(
+      page.getByTestId('movie-scout-section').getByRole('button', { name: 'Force Refresh Results' }),
+    ).toBeVisible();
+    await expect(page.getByText('No scout results yet. Run Scout Releases to fetch candidates.')).toBeVisible();
 
     const notesHeading = page.getByText('Notes', { exact: true }).first();
     const scoutHeading = page.getByTestId('movie-scout-section').getByText('Scout Releases', { exact: true }).first();

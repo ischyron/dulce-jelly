@@ -770,6 +770,7 @@ async function searchOneMovie(
   client: ProwlarrClient,
   movieId: number,
   queryOverride?: string,
+  forceRefresh = false,
 ): Promise<SearchSuccess> {
   const movie = db.getMovieById(movieId);
   if (!movie) throw new Error('movie_not_found');
@@ -780,7 +781,7 @@ async function searchOneMovie(
   const cacheKey = scoutCache.buildScoutCacheKey(movieId, query, revision);
   const now = Date.now();
   const cached = scoutSearchCache.get(cacheKey);
-  if (cached && cached.expiresAt > now) {
+  if (!forceRefresh && cached && cached.expiresAt > now) {
     return scoutCache.withScoutCacheMeta(cached.payload, true, revision, cached.expiresAt);
   }
   if (cached) scoutSearchCache.delete(cacheKey);
@@ -1047,10 +1048,15 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     return c.json({ saved: res.saved ?? [] });
   });
 
-  // POST /api/scout/search-one  { movieId: number, query?: string }
+  // POST /api/scout/search-one  { movieId: number, query?: string, forceRefresh?: boolean }
   app.post('/search-one', async (c) => {
-    const body = (await c.req.json().catch(() => ({}))) as { movieId?: unknown; query?: unknown };
+    const body = (await c.req.json().catch(() => ({}))) as {
+      movieId?: unknown;
+      query?: unknown;
+      forceRefresh?: unknown;
+    };
     const movieId = Number(body.movieId);
+    const forceRefresh = body.forceRefresh === true;
     if (!Number.isFinite(movieId) || movieId <= 0) {
       return c.json({ error: 'invalid_movie_id' }, 400);
     }
@@ -1062,7 +1068,7 @@ export function makeScoutRoutes(db: CuratDb): Hono {
 
     try {
       const client = new ProwlarrClient(cfg.url, cfg.apiKey);
-      const result = await searchOneMovie(db, client, movieId, toText(body.query));
+      const result = await searchOneMovie(db, client, movieId, toText(body.query), forceRefresh);
       return c.json(result);
     } catch (err) {
       if ((err as Error).message === 'movie_not_found') {

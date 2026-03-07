@@ -355,6 +355,22 @@ test.describe('Scout feature checks', () => {
     const secondBody = await secondRes.json();
     expect(secondBody?.cache?.hit).toBe(true);
     expect(secondBody?.cache?.revision).toBe(firstBody?.cache?.revision);
+    expect(secondBody?.releases?.length).toBe(firstBody?.releases?.length);
+    expect(secondBody?.droppedReleases?.length).toBe(firstBody?.droppedReleases?.length);
+
+    const forcedRes = await request.post('/api/scout/search-one', {
+      data: { movieId: firstMovieId, query, forceRefresh: true },
+    });
+    expect(forcedRes.ok()).toBeTruthy();
+    const forcedBody = await forcedRes.json();
+    expect(forcedBody?.cache?.hit).toBe(false);
+
+    const postForceRes = await request.post('/api/scout/search-one', {
+      data: { movieId: firstMovieId, query },
+    });
+    expect(postForceRes.ok()).toBeTruthy();
+    const postForceBody = await postForceRes.json();
+    expect(postForceBody?.cache?.hit).toBe(true);
 
     const prevRes1080 = settings.scoutPipelineBasicRes1080 ?? '24';
     const nextRes1080 = String(Number.parseInt(prevRes1080, 10) === 24 ? 25 : 24);

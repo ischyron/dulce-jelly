@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { type DroppedScoutRelease, type FileRow, type ScoutRelease, api } from '../../../api/client';
+import { ApiError, type DroppedScoutRelease, type FileRow, type ScoutRelease, api } from '../../../api/client';
 import { CodecBadge, CriticScoreBadge, HdrBadge, ResolutionBadge } from '../../QualityBadge';
 import { DeleteConfirmModal } from '../modals';
 import { formatSyncDate } from '../utils';
@@ -365,6 +365,8 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
           <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
             <th className="px-2 py-2 text-left">Score</th>
             <th className="px-2 py-2 text-left">Release</th>
+            <th className="px-2 py-2 text-left">Indexer</th>
+            <th className="px-2 py-2 text-left">Protocol</th>
             <th className="px-2 py-2 text-left">Dropped Reason</th>
           </tr>
         </thead>
@@ -376,6 +378,12 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
                 <div className="truncate" style={{ color: '#d4cfff' }} title={r.title}>
                   {r.title}
                 </div>
+              </td>
+              <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>
+                {r.indexer ?? '—'}
+              </td>
+              <td className="px-2 py-1.5 uppercase" style={{ color: 'var(--c-muted)' }}>
+                {r.protocol}
               </td>
               <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>
                 {r.droppedReason}
@@ -399,6 +407,8 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   const [notes, setNotes] = useState('');
   const [notesSaved, setNotesSaved] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [hasScoutSearchRun, setHasScoutSearchRun] = useState(false);
+  const [jellyfinSyncError, setJellyfinSyncError] = useState<string | null>(null);
   const [scoutResultView, setScoutResultView] = useState<ScoutResultView>('candidates');
   const [scoutFilterChips, setScoutFilterChips] = useState<string[]>([]);
   const scoutSectionRef = useRef<HTMLDivElement | null>(null);
@@ -418,17 +428,34 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   });
 
   const scoutSearch = useMutation({
-    mutationFn: () => api.scoutSearchOne({ movieId }),
+    mutationFn: (forceRefresh: boolean) => api.scoutSearchOne({ movieId, forceRefresh }),
     onSuccess: () => {
+      setHasScoutSearchRun(true);
       setScoutResultView('candidates');
       setScoutFilterChips([]);
     },
   });
   const jfRefreshMutation = useMutation({
-    mutationFn: () => api.jfRefreshMovie(movieId),
+    mutationFn: async () => {
+      setJellyfinSyncError(null);
+      return api.jfRefreshMovie(movieId);
+    },
     onSuccess: async () => {
+      setJellyfinSyncError(null);
       await queryClient.invalidateQueries({ queryKey: ['movie', movieId] });
       await queryClient.invalidateQueries({ queryKey: ['movies'] });
+    },
+    onError: (err) => {
+      if (err instanceof ApiError) {
+        const detail = err.detail?.trim();
+        setJellyfinSyncError(
+          detail
+            ? `Something went wrong while syncing from Jellyfin. ${detail}`
+            : 'Something went wrong while syncing from Jellyfin.',
+        );
+        return;
+      }
+      setJellyfinSyncError('Something went wrong while syncing from Jellyfin.');
     },
   });
 
@@ -490,7 +517,8 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   function triggerScoutAndJump() {
     scoutSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     setTimeout(() => scoutHeadingRef.current?.focus(), 120);
-    scoutSearch.mutate();
+    setHasScoutSearchRun(true);
+    scoutSearch.mutate(false);
   }
 
   return (
@@ -819,30 +847,46 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             </h3>
             <button
               type="button"
-              onClick={() => scoutSearch.mutate()}
+              onClick={() => {
+                setHasScoutSearchRun(true);
+                scoutSearch.mutate(true);
+              }}
               disabled={scoutSearch.isPending}
               className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-              title="Search live releases from Prowlarr"
+              title="Force a fresh Prowlarr lookup and bypass Scout cache"
             >
               {scoutSearch.isPending ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-              Scout Releases
+              Force Refresh Results
             </button>
           </div>
+          {jellyfinSyncError && (
+            <div className="text-xs text-red-400 inline-flex items-start gap-1">
+              <AlertCircle size={12} className="mt-[1px]" />
+              <span>{jellyfinSyncError}</span>
+            </div>
+          )}
+          {!hasScoutSearchRun && !scoutSearch.isPending && (
+            <div className="text-xs" style={{ color: '#8b87aa' }}>
+              No scout results yet. Run Scout Releases to fetch candidates.
+            </div>
+          )}
           {scoutSearch.isError && (
             <div className="text-xs text-red-400 inline-flex items-center gap-1">
               <AlertCircle size={12} />
               {(scoutSearch.error as Error).message}
             </div>
           )}
-          {scoutSearch.data &&
+          {hasScoutSearchRun &&
+            scoutSearch.data &&
             scoutSearch.data.releases.length === 0 &&
             (scoutSearch.data.droppedReleases?.length ?? 0) === 0 && (
               <div className="text-xs" style={{ color: '#8b87aa' }}>
                 No releases found.
               </div>
             )}
-          {scoutSearch.data &&
+          {hasScoutSearchRun &&
+            scoutSearch.data &&
             (scoutSearch.data.releases.length > 0 || (scoutSearch.data.droppedReleases?.length ?? 0) > 0) && (
               <div className="space-y-2">
                 {(() => {

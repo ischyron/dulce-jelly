@@ -1,0 +1,43 @@
+{
+  "pageTitle": "Disambiguate",
+  "pendingBadge": "{{count}} pending",
+  "folderNaming": {
+    "title": "Folder Naming Support",
+    "bodyPrefix": "Curatarr currently supports movie folders named ",
+    "bodyExample": "Movie Title (year)",
+    "renameNote": "File names can be anything. Rename helper coming soon."
+  },
+  "pendingReview": {
+    "title": "Pending Review",
+    "loading": "Loading…",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items",
+    "empty": "No ambiguous matches pending review.",
+    "colInputTitle": "Input Title",
+    "colYear": "Year",
+    "colMatchedFolder": "Matched Folder",
+    "colReason": "Reason",
+    "colConfidence": "Confidence",
+    "colActions": "Actions",
+    "confirm": "Confirm",
+    "reject": "Reject"
+  },
+  "unmatched": {
+    "title": "Unmatched Movie Folders",
+    "hint": "Rename folder to match Jellyfin title/year or adjust Jellyfin metadata, then click Refresh.",
+    "itemCount_one": "{{count}} item",
+    "itemCount_other": "{{count}} items",
+    "empty": "No unmatched folders.",
+    "colFolder": "Folder",
+    "colParsed": "Parsed",
+    "colActions": "Actions",
+    "refresh": "Refresh",
+    "open": "Open",
+    "afterFixTip": "Tip: After fixing names or metadata, click Refresh."
+  },
+  "reasons": {
+    "year_mismatch": "Year mismatch",
+    "title_fuzzy": "Fuzzy title",
+    "year_and_title_fuzzy": "Fuzzy title + year"
+  }
+}

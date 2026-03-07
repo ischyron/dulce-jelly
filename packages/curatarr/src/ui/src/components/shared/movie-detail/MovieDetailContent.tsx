@@ -190,7 +190,7 @@ function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
                   {r.title}
                 </div>
                 {r.reasons.length > 0 && (
-                  <div className="text-[10px] truncate" style={{ color: '#6b6888' }}>
+                  <div className="text-[10px] truncate" style={{ color: '#8b87aa' }}>
                     {r.reasons.join(', ')}
                   </div>
                 )}
@@ -290,13 +290,13 @@ function FileCard({ file }: { file: FileRow }) {
         )}
       </div>
       {audioTracks.length > 1 && (
-        <div className="text-xs" style={{ color: '#6b6888' }}>
+        <div className="text-xs" style={{ color: '#8b87aa' }}>
           Tracks:{' '}
           {audioTracks.map((t) => `${t.codec} ${t.channels}ch${t.language ? ` [${t.language}]` : ''}`).join(', ')}
         </div>
       )}
       {subtitles.length > 0 && (
-        <div className="text-xs" style={{ color: '#6b6888' }}>
+        <div className="text-xs" style={{ color: '#8b87aa' }}>
           Subs: {subtitles.join(', ')}
         </div>
       )}
@@ -329,7 +329,7 @@ function ScoutResultsTable({ releases }: { releases: ScoutRelease[] }) {
                   {r.title}
                 </div>
                 {r.reasons.length > 0 && (
-                  <div className="text-[10px] truncate" style={{ color: '#6b6888' }}>
+                  <div className="text-[10px] truncate" style={{ color: '#8b87aa' }}>
                     {r.reasons.join(', ')}
                   </div>
                 )}
@@ -523,7 +523,8 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
     scoutSearch.mutate(false);
   }
 
-  const showScoutSection = hasScoutSearchRun || scoutSearch.isPending || scoutSearch.isError || Boolean(scoutSearch.data);
+  const showScoutSection =
+    hasScoutSearchRun || scoutSearch.isPending || scoutSearch.isError || Boolean(scoutSearch.data);
 
   return (
     <>
@@ -756,7 +757,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               </span>
             ))}
             {tags.length === 0 && (
-              <span className="text-xs" style={{ color: '#6b6888' }}>
+              <span className="text-xs" style={{ color: '#8b87aa' }}>
                 No tags
               </span>
             )}
@@ -841,211 +842,211 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
 
         {showScoutSection && (
           <div ref={scoutSectionRef} className="space-y-2" data-testid="movie-scout-section">
-          <div className="flex items-center justify-between">
-            <h3
-              ref={scoutHeadingRef}
-              tabIndex={-1}
-              className="text-xs font-semibold uppercase tracking-wider focus:outline-none"
-              style={{ color: '#8b87aa' }}
-            >
-              Scout Results
-            </h3>
-            <button
-              type="button"
-              onClick={() => {
-                setHasScoutSearchRun(true);
-                scoutSearch.mutate(true);
-              }}
-              disabled={scoutSearch.isPending}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50"
-              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-              title="Force a fresh Prowlarr lookup and bypass Scout cache"
-            >
-              {scoutSearch.isPending ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
-              Force Refresh Results
-            </button>
-          </div>
-          {jellyfinSyncError && (
-            <div className="text-xs text-red-400 inline-flex items-start gap-1">
-              <AlertCircle size={12} className="mt-[1px]" />
-              <span>{jellyfinSyncError}</span>
+            <div className="flex items-center justify-between">
+              <h3
+                ref={scoutHeadingRef}
+                tabIndex={-1}
+                className="text-xs font-semibold uppercase tracking-wider focus:outline-none"
+                style={{ color: '#8b87aa' }}
+              >
+                Scout Results
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setHasScoutSearchRun(true);
+                  scoutSearch.mutate(true);
+                }}
+                disabled={scoutSearch.isPending}
+                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+                title="Force a fresh Prowlarr lookup and bypass Scout cache"
+              >
+                {scoutSearch.isPending ? <Loader2 size={12} className="animate-spin" /> : <Search size={12} />}
+                Force Refresh Results
+              </button>
             </div>
-          )}
-          {scoutSearch.isError && (
-            <div className="text-xs text-red-400 inline-flex items-center gap-1">
-              <AlertCircle size={12} />
-              {(scoutSearch.error as Error).message}
-            </div>
-          )}
-          {hasScoutSearchRun &&
-            scoutSearch.data &&
-            scoutSearch.data.releases.length === 0 &&
-            (scoutSearch.data.droppedReleases?.length ?? 0) === 0 && (
-              <div className="text-xs" style={{ color: '#8b87aa' }}>
-                No releases found.
+            {jellyfinSyncError && (
+              <div className="text-xs text-red-400 inline-flex items-start gap-1">
+                <AlertCircle size={12} className="mt-[1px]" />
+                <span>{jellyfinSyncError}</span>
               </div>
             )}
-          {hasScoutSearchRun &&
-            scoutSearch.data &&
-            (scoutSearch.data.releases.length > 0 || (scoutSearch.data.droppedReleases?.length ?? 0) > 0) && (
-              <div className="space-y-2">
-                {(() => {
-                  const allResults: ScoutResultRow[] = [
-                    ...scoutSearch.data.releases.map((r) => ({ ...r, kind: 'candidate' as const })),
-                    ...(scoutSearch.data.droppedReleases ?? []).map((r) => ({
-                      ...r,
-                      kind: 'dropped' as const,
-                      droppedReason: r.droppedReason,
-                    })),
-                  ].sort((a, b) => b.score - a.score);
-                  const chipGroups = resultChipGroups(allResults);
-                  const chipFilterActive = scoutResultView === 'all' && scoutFilterChips.length > 0;
-                  const filteredAll =
-                    scoutResultView !== 'all' || scoutFilterChips.length === 0
-                      ? allResults
-                      : allResults.filter((r) => releaseMatchesScoutChips(r, scoutFilterChips));
-                  return (
-                    <>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {[
-                          { key: 'candidates', label: `Candidates (${scoutSearch.data.releases.length})` },
-                          {
-                            key: 'dropped',
-                            label: `Dropped (${scoutSearch.data.droppedReleases?.length ?? 0})`,
-                          },
-                          { key: 'all', label: `View All (${allResults.length})` },
-                        ].map((view) => (
-                          <button
-                            key={view.key}
-                            type="button"
-                            onClick={() => setScoutResultView(view.key as ScoutResultView)}
-                            className="px-2 py-1 rounded border text-xs"
-                            style={{
-                              borderColor: scoutResultView === view.key ? '#a78bfa' : 'var(--c-border)',
-                              color: scoutResultView === view.key ? '#d4cfff' : 'var(--c-muted)',
-                              background: scoutResultView === view.key ? 'rgba(124,58,237,0.18)' : 'transparent',
-                            }}
-                          >
-                            {view.label}
-                          </button>
-                        ))}
-                      </div>
-
-                      {scoutResultView === 'all' && (
-                        <div
-                          className="rounded-lg border p-2 space-y-2"
-                          style={{ borderColor: 'var(--c-border)', background: 'rgba(30,30,46,0.6)' }}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-                              Filter Chips
-                            </div>
-                            {scoutFilterChips.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setScoutFilterChips([])}
-                                className="text-xs underline"
-                                style={{ color: '#c4b5fd' }}
-                              >
-                                Clear filters
-                              </button>
-                            )}
-                          </div>
-                          {chipGroups.length === 0 && (
-                            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                              No detected tags for chip filters.
-                            </div>
-                          )}
-                          {chipGroups.map((group) => (
-                            <div key={group.label} className="space-y-1">
-                              <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-                                {group.label}
-                              </div>
-                              <div className="flex flex-wrap gap-1.5">
-                                {group.chips.map((chip) => {
-                                  const active = scoutFilterChips.includes(chip);
-                                  return (
-                                    <button
-                                      key={`${group.label}-${chip}`}
-                                      type="button"
-                                      onClick={() =>
-                                        setScoutFilterChips((prev) =>
-                                          prev.includes(chip) ? prev.filter((v) => v !== chip) : [...prev, chip],
-                                        )
-                                      }
-                                      className="px-2 py-0.5 rounded-full text-[11px] border"
-                                      style={{
-                                        borderColor: active ? '#a78bfa' : 'var(--c-border)',
-                                        color: active ? '#d4cfff' : 'var(--c-muted)',
-                                        background: active ? 'rgba(124,58,237,0.2)' : 'transparent',
-                                      }}
-                                    >
-                                      {chip}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          ))}
-                          <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                            Showing {filteredAll.length} of {allResults.length} releases
-                            {chipFilterActive ? ` (filters: ${scoutFilterChips.join(', ')})` : ''}.
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  );
-                })()}
-
-                <div
-                  className="rounded-lg border px-3 py-2 text-xs"
-                  style={{ borderColor: '#3a3657', background: 'rgba(30,30,46,0.6)' }}
-                >
-                  <div style={{ color: '#8b87aa' }} className="uppercase tracking-wider mb-1">
-                    Recommendation
-                  </div>
-                  {scoutSearch.data.recommendation.best ? (
-                    <div className="space-y-1">
-                      <div style={{ color: '#8b87aa' }}>
-                        Recommended:{' '}
-                        <span className="text-amber-400 font-semibold">
-                          {scoutSearch.data.recommendation.best.title}
-                        </span>
-                      </div>
-                      <div style={{ color: '#8b87aa' }}>
-                        Score: <span style={{ color: '#d4cfff' }}>{scoutSearch.data.recommendation.best.score}</span>
-                      </div>
-                      <div style={{ color: '#8b87aa' }}>
-                        Reason:{' '}
-                        <span style={{ color: '#d4cfff' }}>
-                          {recommendationReasonText(scoutSearch.data.recommendation.best)}
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ color: '#8b87aa' }}>No recommendation available.</div>
-                  )}
+            {scoutSearch.isError && (
+              <div className="text-xs text-red-400 inline-flex items-center gap-1">
+                <AlertCircle size={12} />
+                {(scoutSearch.error as Error).message}
+              </div>
+            )}
+            {hasScoutSearchRun &&
+              scoutSearch.data &&
+              scoutSearch.data.releases.length === 0 &&
+              (scoutSearch.data.droppedReleases?.length ?? 0) === 0 && (
+                <div className="text-xs" style={{ color: '#8b87aa' }}>
+                  No releases found.
                 </div>
-                {scoutResultView === 'candidates' && <ScoutResultsTable releases={scoutSearch.data.releases} />}
-                {scoutResultView === 'dropped' && (
-                  <DroppedScoutResultsTable releases={scoutSearch.data.droppedReleases ?? []} />
-                )}
-                {scoutResultView === 'all' && (
-                  <ScoutResultsAllTable
-                    releases={[
+              )}
+            {hasScoutSearchRun &&
+              scoutSearch.data &&
+              (scoutSearch.data.releases.length > 0 || (scoutSearch.data.droppedReleases?.length ?? 0) > 0) && (
+                <div className="space-y-2">
+                  {(() => {
+                    const allResults: ScoutResultRow[] = [
                       ...scoutSearch.data.releases.map((r) => ({ ...r, kind: 'candidate' as const })),
                       ...(scoutSearch.data.droppedReleases ?? []).map((r) => ({
                         ...r,
                         kind: 'dropped' as const,
                         droppedReason: r.droppedReason,
                       })),
-                    ]
-                      .sort((a, b) => b.score - a.score)
-                      .filter((r) => releaseMatchesScoutChips(r, scoutFilterChips))}
-                  />
-                )}
-              </div>
-            )}
+                    ].sort((a, b) => b.score - a.score);
+                    const chipGroups = resultChipGroups(allResults);
+                    const chipFilterActive = scoutResultView === 'all' && scoutFilterChips.length > 0;
+                    const filteredAll =
+                      scoutResultView !== 'all' || scoutFilterChips.length === 0
+                        ? allResults
+                        : allResults.filter((r) => releaseMatchesScoutChips(r, scoutFilterChips));
+                    return (
+                      <>
+                        <div className="flex flex-wrap items-center gap-2">
+                          {[
+                            { key: 'candidates', label: `Candidates (${scoutSearch.data.releases.length})` },
+                            {
+                              key: 'dropped',
+                              label: `Dropped (${scoutSearch.data.droppedReleases?.length ?? 0})`,
+                            },
+                            { key: 'all', label: `View All (${allResults.length})` },
+                          ].map((view) => (
+                            <button
+                              key={view.key}
+                              type="button"
+                              onClick={() => setScoutResultView(view.key as ScoutResultView)}
+                              className="px-2 py-1 rounded border text-xs"
+                              style={{
+                                borderColor: scoutResultView === view.key ? '#a78bfa' : 'var(--c-border)',
+                                color: scoutResultView === view.key ? '#d4cfff' : 'var(--c-muted)',
+                                background: scoutResultView === view.key ? 'rgba(124,58,237,0.18)' : 'transparent',
+                              }}
+                            >
+                              {view.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        {scoutResultView === 'all' && (
+                          <div
+                            className="rounded-lg border p-2 space-y-2"
+                            style={{ borderColor: 'var(--c-border)', background: 'rgba(30,30,46,0.6)' }}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+                                Filter Chips
+                              </div>
+                              {scoutFilterChips.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setScoutFilterChips([])}
+                                  className="text-xs underline"
+                                  style={{ color: '#c4b5fd' }}
+                                >
+                                  Clear filters
+                                </button>
+                              )}
+                            </div>
+                            {chipGroups.length === 0 && (
+                              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                                No detected tags for chip filters.
+                              </div>
+                            )}
+                            {chipGroups.map((group) => (
+                              <div key={group.label} className="space-y-1">
+                                <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+                                  {group.label}
+                                </div>
+                                <div className="flex flex-wrap gap-1.5">
+                                  {group.chips.map((chip) => {
+                                    const active = scoutFilterChips.includes(chip);
+                                    return (
+                                      <button
+                                        key={`${group.label}-${chip}`}
+                                        type="button"
+                                        onClick={() =>
+                                          setScoutFilterChips((prev) =>
+                                            prev.includes(chip) ? prev.filter((v) => v !== chip) : [...prev, chip],
+                                          )
+                                        }
+                                        className="px-2 py-0.5 rounded-full text-[11px] border"
+                                        style={{
+                                          borderColor: active ? '#a78bfa' : 'var(--c-border)',
+                                          color: active ? '#d4cfff' : 'var(--c-muted)',
+                                          background: active ? 'rgba(124,58,237,0.2)' : 'transparent',
+                                        }}
+                                      >
+                                        {chip}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                              Showing {filteredAll.length} of {allResults.length} releases
+                              {chipFilterActive ? ` (filters: ${scoutFilterChips.join(', ')})` : ''}.
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+
+                  <div
+                    className="rounded-lg border px-3 py-2 text-xs"
+                    style={{ borderColor: '#3a3657', background: 'rgba(30,30,46,0.6)' }}
+                  >
+                    <div style={{ color: '#8b87aa' }} className="uppercase tracking-wider mb-1">
+                      Recommendation
+                    </div>
+                    {scoutSearch.data.recommendation.best ? (
+                      <div className="space-y-1">
+                        <div style={{ color: '#8b87aa' }}>
+                          Recommended:{' '}
+                          <span className="text-amber-400 font-semibold">
+                            {scoutSearch.data.recommendation.best.title}
+                          </span>
+                        </div>
+                        <div style={{ color: '#8b87aa' }}>
+                          Score: <span style={{ color: '#d4cfff' }}>{scoutSearch.data.recommendation.best.score}</span>
+                        </div>
+                        <div style={{ color: '#8b87aa' }}>
+                          Reason:{' '}
+                          <span style={{ color: '#d4cfff' }}>
+                            {recommendationReasonText(scoutSearch.data.recommendation.best)}
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#8b87aa' }}>No recommendation available.</div>
+                    )}
+                  </div>
+                  {scoutResultView === 'candidates' && <ScoutResultsTable releases={scoutSearch.data.releases} />}
+                  {scoutResultView === 'dropped' && (
+                    <DroppedScoutResultsTable releases={scoutSearch.data.droppedReleases ?? []} />
+                  )}
+                  {scoutResultView === 'all' && (
+                    <ScoutResultsAllTable
+                      releases={[
+                        ...scoutSearch.data.releases.map((r) => ({ ...r, kind: 'candidate' as const })),
+                        ...(scoutSearch.data.droppedReleases ?? []).map((r) => ({
+                          ...r,
+                          kind: 'dropped' as const,
+                          droppedReason: r.droppedReason,
+                        })),
+                      ]
+                        .sort((a, b) => b.score - a.score)
+                        .filter((r) => releaseMatchesScoutChips(r, scoutFilterChips))}
+                    />
+                  )}
+                </div>
+              )}
           </div>
         )}
       </div>

@@ -19,12 +19,12 @@
 
 ## TODO Items
 
-- [TODO] Verify if A11y is run with 2e2 and reports are created.
-- [TODO]  Automated axe-based accessibility auditing is  added (`test/a11y.spec.cjs`), but full UI compliance need to be chaoved thoughexisting app-wide contrast and form-label violations across widgets.
-- [TODO] Setting > General and Settings > Seperation heirachy is not visually clear in Side panel. Settings is sleft open. Ideally user opens settings as it would hacve "Setttings >" and 2 Settigns section  sub menu appears "General" and "Scout" 
-- [TODO] Content should be isolated from code to allow internationalization (i18n).  
-    Content labels locally scoped to component folders can be useful.  
-    Adopt a framework that supports both localization at the component level and a shared content space for common terms.  
-    Choose a popular i18n tool suitable for large-scale open source projects with multi-language support—do not create a custom solution or reinvent existing approaches over community practices.  
-    Need to see how evey agent run can enforce cotent and code seperation popose edits to agents.md and claude.md
-    Create a thorough approach document in `temp/` and complete implementation after review.
+-- [TODO] Verify  `Array.isArray(results.violations)` Serious/critical counts are logged per route for review. Need fixes
+
+- [TODO] Automated axe-based accessibility auditing : Suggest a color change for following and move ahead 
+Color contrast: `--c-muted: #8b87aa` on `--c-bg: #0f0f14` may fail 4.5:1 ratio for small text. Axe live run needed to enumerate affected nodes before fixing.  E2E, Chrome MCP, git, deploy gates: pending.
+
+
+- [IN-PROGRESS] Content should be isolated from code to allow internationalization (i18n).
+  - react-i18next is already in use with `common`, `scan`, `settings` namespaces.
+  - Approach document created: `temp/i18n-approach.md` — covers namespace strategy, component audit, enforcement rules for AGENTS.md/CLAUDE.md, and phased implementation plan.

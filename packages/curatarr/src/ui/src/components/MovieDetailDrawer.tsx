@@ -88,9 +88,9 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
           <div className="flex items-center gap-2">
             <Link
               to={`/movies/${movieId}`}
+              aria-label="Open full movie page"
               className="inline-flex items-center gap-1 text-xs hover:underline"
               style={{ color: '#a78bfa' }}
-              title="Open full page"
             >
               <ExternalLink size={13} />
             </Link>

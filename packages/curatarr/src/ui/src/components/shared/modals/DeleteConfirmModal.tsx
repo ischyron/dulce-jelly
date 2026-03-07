@@ -67,7 +67,7 @@ export function DeleteConfirmModal({ movieId, movieTitle, onDeleted, onClose }: 
             <Trash2 size={16} />
             Delete Movie
           </div>
-          <button type="button" onClick={onClose} style={{ color: 'var(--c-muted)' }}>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ color: 'var(--c-muted)' }}>
             <X size={18} />
           </button>
         </div>

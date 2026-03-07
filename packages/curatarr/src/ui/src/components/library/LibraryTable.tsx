@@ -71,8 +71,8 @@ export function LibraryTable({
                 type="checkbox"
                 checked={allPageSelected}
                 onChange={(e) => onToggleSelectAllOnPage(e.target.checked)}
+                aria-label="Select all rows on this page"
                 className="w-5 h-5 accent-violet-600 cursor-pointer"
-                title="Select all rows on this page"
               />
             </label>
           </th>
@@ -247,8 +247,8 @@ export function LibraryTable({
                   checked={selectedIds.includes(movie.id)}
                   onChange={(e) => onToggleSelected(movie.id, e.target.checked)}
                   onClick={(e) => e.stopPropagation()}
+                  aria-label={`Select ${movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name}`}
                   className="w-5 h-5 accent-violet-600 cursor-pointer"
-                  title="Select row"
                 />
               </label>
             </td>

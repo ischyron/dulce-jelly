@@ -1,5 +1,6 @@
 import { AlertCircle, CheckCircle, Loader2, Square, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { api } from '../../../api/client';
 
 interface FolderStatus {
@@ -37,6 +38,7 @@ interface Props {
 }
 
 export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
+  const { t } = useTranslation('scan');
   const [done, setDone] = useState(false);
   const [cancelled, setCancelled] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +96,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
       const msg = (e as MessageEvent).data;
       if (!msg) return; // native EventSource connection drop — stream just closed, not a server error
       const data = JSON.parse(msg || '{}') as { message?: string };
-      setError(String(data.message ?? 'Unknown error'));
+      setError(String(data.message ?? t('progressModal.unknownError')));
       setDone(true);
       es.close();
     });
@@ -105,7 +107,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
     });
 
     return () => es.close();
-  }, [endpoint, onCompleted]);
+  }, [endpoint, onCompleted, t]);
 
   async function stopScan() {
     setStopping(true);
@@ -139,10 +141,17 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
         <div className="flex items-center justify-between p-4 border-b border-[#26263a] shrink-0">
           <h2 className="font-semibold text-[#f0eeff] flex items-center gap-2">
             {!done && <Loader2 size={15} className="animate-spin text-[#a78bfa]" />}
-            {mode === 'scan' ? 'Library Scan' : 'Jellyfin Sync'}
-            {cancelled && <span className="text-amber-400 text-sm font-normal ml-2">— cancelled</span>}
+            {mode === 'scan' ? t('progressModal.libraryScan') : t('progressModal.jellyfinSync')}
+            {cancelled && (
+              <span className="text-amber-400 text-sm font-normal ml-2">{t('progressModal.cancelledSuffix')}</span>
+            )}
           </h2>
-          <button type="button" onClick={onClose} className="text-[#8b87aa] hover:text-[#f0eeff]">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t('progressModal.close')}
+            className="text-[#8b87aa] hover:text-[#f0eeff]"
+          >
             <X size={18} />
           </button>
         </div>
@@ -152,13 +161,26 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
           {!done && (
             <div>
               <div className="flex justify-between text-xs text-[#8b87aa] mb-1">
-                <span>{mode === 'scan' ? 'Scanning…' : 'Syncing…'}</span>
+                <span>{mode === 'scan' ? t('scanSection.scanning') : t('syncSection.syncing')}</span>
                 <span>
-                  {foldersTotal > 0 ? `${foldersDone} / ${foldersTotal} folders` : ''} {pct > 0 ? `(${pct}%)` : ''}
+                  {foldersTotal > 0
+                    ? t('progressModal.foldersProgress', { done: foldersDone, total: foldersTotal })
+                    : ''}{' '}
+                  {pct > 0 ? `(${pct}%)` : ''}
                 </span>
               </div>
               <div className="h-2 bg-[#1e1e2e] rounded-full overflow-hidden">
                 <div
+                  role="progressbar"
+                  tabIndex={0}
+                  aria-valuenow={pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  aria-label={
+                    mode === 'scan'
+                      ? t('progressModal.libraryScanProgressAria')
+                      : t('progressModal.jellyfinSyncProgressAria')
+                  }
                   className="h-full bg-[#7c3aed] transition-all duration-300 rounded-full"
                   style={{ width: `${pct}%` }}
                 />
@@ -169,7 +191,9 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
           {done && !error && (
             <div className="flex items-center gap-2 text-green-400">
               <CheckCircle size={18} />
-              <span className="font-medium">{cancelled ? 'Cancelled' : 'Complete'}</span>
+              <span className="font-medium">
+                {cancelled ? t('progressModal.cancelled') : t('progressModal.complete')}
+              </span>
             </div>
           )}
           {error && (
@@ -182,32 +206,38 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
           {/* Stats grid */}
           {mode === 'scan' && (filesProcessed > 0 || done) && (
             <div className="grid grid-cols-3 gap-3 text-center">
-              <Stat label="Processed" value={filesProcessed} />
-              <Stat label="OK" value={filesOk} color="text-green-400" />
-              <Stat label="Errors" value={filesErrored} color={filesErrored > 0 ? 'text-red-400' : 'text-[#6b6888]'} />
+              <Stat label={t('progressModal.stats.processed')} value={filesProcessed} />
+              <Stat label={t('progressModal.stats.ok')} value={filesOk} color="text-green-400" />
+              <Stat
+                label={t('progressModal.stats.errors')}
+                value={filesErrored}
+                color={filesErrored > 0 ? 'text-red-400' : 'text-[#8b87aa]'}
+              />
             </div>
           )}
 
           {mode === 'scan' && done && !cancelled && !error && (
-            <p className="text-xs text-[#8b87aa]">{complete?.notes?.trim() || 'Completed.'}</p>
+            <p className="text-xs text-[#8b87aa]">{complete?.notes?.trim() || t('progressModal.completedFallback')}</p>
           )}
 
-          {rate > 0 && <p className="text-xs text-[#6b6888] text-center">{rate.toFixed(1)} files/sec</p>}
+          {rate > 0 && (
+            <p className="text-xs text-[#8b87aa] text-center">{t('progressModal.rate', { rate: rate.toFixed(1) })}</p>
+          )}
 
-          {progress.file && <p className="text-xs text-[#6b6888] truncate font-mono">{String(progress.file)}</p>}
+          {progress.file && <p className="text-xs text-[#8b87aa] truncate font-mono">{String(progress.file)}</p>}
 
           {/* Completed folders list */}
           {completedFolders.length > 0 && (
             <div>
-              <h3 className="text-xs font-semibold text-[#6b6888] uppercase tracking-wider mb-2">
-                Completed Folders ({completedFolders.length})
+              <h3 className="text-xs font-semibold text-[#8b87aa] uppercase tracking-wider mb-2">
+                {t('progressModal.completedFolders', { count: completedFolders.length })}
               </h3>
               <div ref={folderListRef} className="h-40 overflow-y-auto bg-[#1e1e2e]/50 rounded-lg p-2 space-y-1">
                 {completedFolders.map((f) => (
                   <div key={`${f.name}:${f.fileCount}`} className="flex items-center gap-2 text-xs">
                     <CheckCircle size={11} className="text-green-500 shrink-0" />
                     <span className="text-[#c4b5fd] truncate">{f.name}</span>
-                    <span className="text-[#6b6888] ml-auto shrink-0">{f.fileCount}f</span>
+                    <span className="text-[#8b87aa] ml-auto shrink-0">{f.fileCount}f</span>
                   </div>
                 ))}
               </div>
@@ -216,14 +246,16 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
 
           {/* Pending folders count */}
           {foldersTotal > 0 && foldersDone < foldersTotal && !done && (
-            <p className="text-xs text-[#6b6888]">{foldersTotal - foldersDone} folders pending…</p>
+            <p className="text-xs text-[#8b87aa]">
+              {t('progressModal.pendingFolders', { count: foldersTotal - foldersDone })}
+            </p>
           )}
 
           {/* Ambiguous matches (sync) */}
           {ambiguous.length > 0 && (
             <div>
               <h3 className="text-xs font-semibold text-amber-500 uppercase tracking-wider mb-2">
-                Ambiguous Matches ({ambiguous.length})
+                {t('progressModal.ambiguousMatches', { count: ambiguous.length })}
               </h3>
               <div className="h-32 overflow-y-auto bg-[#1e1e2e]/50 rounded-lg p-2 space-y-1">
                 {(ambiguous as Record<string, unknown>[]).map((a) => (
@@ -254,11 +286,11 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
             >
               {stopping ? (
                 <>
-                  <Loader2 size={13} className="animate-spin" /> Stopping…
+                  <Loader2 size={13} className="animate-spin" /> {t('progressModal.stopping')}
                 </>
               ) : (
                 <>
-                  <Square size={13} /> Stop {mode === 'scan' ? 'Scan' : 'Sync'}
+                  <Square size={13} /> {mode === 'scan' ? t('progressModal.stopScan') : t('progressModal.stopSync')}
                 </>
               )}
             </button>
@@ -269,7 +301,7 @@ export function ScanProgressModal({ mode, onClose, onCompleted }: Props) {
               onClick={onClose}
               className="ml-auto px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-sm font-medium"
             >
-              Close
+              {t('progressModal.close')}
             </button>
           )}
           {!done && <div />}
@@ -283,7 +315,7 @@ function Stat({ label, value, color = 'text-[#f0eeff]' }: { label: string; value
   return (
     <div className="bg-[#1e1e2e] rounded-lg p-2">
       <div className={`text-xl font-bold ${color}`}>{value.toLocaleString()}</div>
-      <div className="text-xs text-[#6b6888]">{label}</div>
+      <div className="text-xs text-[#8b87aa]">{label}</div>
     </div>
   );
 }

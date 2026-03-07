@@ -109,30 +109,32 @@ export function Sidebar() {
             </>
           )}
         </NavLink>
-        <div className="ml-7 mt-1 mb-1 space-y-0.5">
-          <NavLink
-            to="/settings/general"
-            className={({ isActive }) =>
-              `block text-xs px-3 py-1.5 rounded-md transition-colors ${isActive ? 'font-semibold' : ''}`
-            }
-            style={({ isActive }) =>
-              isActive ? { color: '#ddd6fe', background: 'rgba(124,58,237,0.22)' } : { color: 'var(--c-muted)' }
-            }
-          >
-            {t('nav.general')}
-          </NavLink>
-          <NavLink
-            to="/settings/scout"
-            className={({ isActive }) =>
-              `block text-xs px-3 py-1.5 rounded-md transition-colors ${isActive ? 'font-semibold' : ''}`
-            }
-            style={({ isActive }) =>
-              isActive ? { color: '#ddd6fe', background: 'rgba(124,58,237,0.22)' } : { color: 'var(--c-muted)' }
-            }
-          >
-            {t('nav.scout')}
-          </NavLink>
-        </div>
+        {inSettings && (
+          <div className="ml-7 mt-1 mb-1 space-y-0.5">
+            <NavLink
+              to="/settings/general"
+              className={({ isActive }) =>
+                `block text-xs px-3 py-1.5 rounded-md transition-colors ${isActive ? 'font-semibold' : ''}`
+              }
+              style={({ isActive }) =>
+                isActive ? { color: '#ddd6fe', background: 'rgba(124,58,237,0.22)' } : { color: 'var(--c-muted)' }
+              }
+            >
+              {t('nav.general')}
+            </NavLink>
+            <NavLink
+              to="/settings/scout"
+              className={({ isActive }) =>
+                `block text-xs px-3 py-1.5 rounded-md transition-colors ${isActive ? 'font-semibold' : ''}`
+              }
+              style={({ isActive }) =>
+                isActive ? { color: '#ddd6fe', background: 'rgba(124,58,237,0.22)' } : { color: 'var(--c-muted)' }
+              }
+            >
+              {t('nav.scout')}
+            </NavLink>
+          </div>
+        )}
       </nav>
 
       <div className="px-4 py-3 text-xs border-t" style={{ color: 'var(--c-muted)', borderColor: 'var(--c-border)' }}>

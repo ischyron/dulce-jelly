@@ -1,0 +1,81 @@
+{
+  "pageTitle": "Library",
+  "search": {
+    "placeholder": "Search titles…",
+    "ariaLabel": "Search titles"
+  },
+  "filters": {
+    "genre": "Genre",
+    "genreSelect": "Select genres",
+    "genreSelected": "{{count}} selected",
+    "noGenres": "No genres available.",
+    "resolution": "Resolution",
+    "videoCodecHdr": "Video Codec / HDR",
+    "hdr": "HDR",
+    "dv": "DV",
+    "av1Compat": "AV1 compat",
+    "legacy": "Legacy",
+    "audio": "Audio",
+    "audioFormatPlaceholder": "Format",
+    "audioLayoutPlaceholder": "Channels",
+    "tag": "Tag",
+    "tagSelect": "Select tags",
+    "noTags": "No tags available.",
+    "multiPart": "Has multi-part/versions",
+    "jellyfinSyncNeeded": "Jellyfin Sync Needed",
+    "show": "Show",
+    "showAll": "All",
+    "resetView": "reset view",
+    "removeFilter": "Remove {{name}} filter",
+    "transcodeProne": "⚠ transcode-prone"
+  },
+  "table": {
+    "loading": "Loading…",
+    "noMovies": "No movies found.",
+    "noMoviesFiltered": "No movies match the current filters.",
+    "noMoviesYet": "No movies scanned yet — go to Scan & Sync to analyse your library.",
+    "colTitle": "Title",
+    "colYear": "Year",
+    "colQuality": "Quality",
+    "colHdr": "HDR",
+    "colGroup": "Group",
+    "colCritic": "Critic",
+    "colImdb": "IMDb",
+    "colSize": "Size",
+    "colIssues": "Issues",
+    "colStatus": "Status",
+    "groupHint": "Torrent/Usenet release group inferred from the filename only.",
+    "criticHint": "Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin.",
+    "imdbTitle": "IMDb community rating (0–10) from Jellyfin CommunityRating",
+    "issuesTitle": "Quality analytics — populated after Deep Verify. FLAG = playback issue. WARN = quality concern. Click badge for details + docs.",
+    "selectAll": "Select all rows on this page",
+    "selectRow": "Select {{title}}"
+  },
+  "stats": {
+    "movies": "movies",
+    "totalSize": "Total Size: {{size}}"
+  },
+  "actions": {
+    "tagsAdd": "Tags + ({{count}})",
+    "tagsRemove": "Tags -",
+    "removeSelected": "Remove {{count}}",
+    "removing": "Removing…"
+  },
+  "batch": {
+    "addTitle": "Add Tags to {{count}} Selected Movies",
+    "removeTitle": "Remove Tags from {{count}} Selected Movies",
+    "removeHint": "Select existing tags and keep adding them to the remove list.",
+    "selectExisting": "Select existing tag",
+    "addPicked": "Add",
+    "addToRemoveList": "Add to remove list",
+    "newTagAriaLabel": "New tag name",
+    "newTagPlaceholder": "new tag",
+    "addNew": "Add new",
+    "noTagsAdd": "No tags selected.",
+    "noTagsRemove": "No tags selected for removal.",
+    "cancel": "Cancel",
+    "apply": "Apply Tags",
+    "remove": "Remove Tags",
+    "applying": "Applying…"
+  }
+}

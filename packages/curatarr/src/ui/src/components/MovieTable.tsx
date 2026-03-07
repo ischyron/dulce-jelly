@@ -19,7 +19,7 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
     <div className="overflow-auto">
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="border-b border-[#26263a] text-left text-xs text-[#6b6888] uppercase tracking-wider">
+          <tr className="border-b border-[#26263a] text-left text-xs text-[#8b87aa] uppercase tracking-wider">
             <th className="px-3 py-2 font-medium">Title</th>
             <th className="px-3 py-2 font-medium">Year</th>
             <th className="px-3 py-2 font-medium">Quality</th>

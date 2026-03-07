@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Loader2, ShieldCheck, Square, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { type VerifyFailure, api } from '../api/client';
 
 interface VerifyProgress {
@@ -30,6 +31,7 @@ function formatBytes(n: number | null): string {
 }
 
 export function Verify() {
+  const { t } = useTranslation('verify');
   const [concurrency, setConcurrency] = useState(3);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<VerifyProgress>({});
@@ -73,7 +75,7 @@ export function Verify() {
       const d = JSON.parse(e.data || '{}') as VerifyProgress;
       setProgress(d);
       setRunning(false);
-      setStatusMsg(d.cancelled ? 'Cancelled.' : 'Complete.');
+      setStatusMsg(d.cancelled ? t('controls.cancelled') : t('controls.complete'));
       refetchStatus();
       refetchFailures();
       es.close();
@@ -83,7 +85,7 @@ export function Verify() {
       setRunning(false);
       es.close();
     });
-  }, [refetchFailures, refetchStatus]);
+  }, [refetchFailures, refetchStatus, t]);
 
   // Sync running state from server on mount / status refresh.
   useEffect(() => {
@@ -120,17 +122,17 @@ export function Verify() {
     <div className="p-6 space-y-6 max-w-5xl">
       <div className="flex items-center gap-2">
         <ShieldCheck size={20} style={{ color: 'var(--c-accent)' }} />
-        <h1 className="text-xl font-bold">Deep Verify</h1>
+        <h1 className="text-xl font-bold">{t('pageTitle')}</h1>
       </div>
 
       {/* Status summary */}
       {statusData && (
         <div className="grid grid-cols-4 gap-3">
           {[
-            { label: 'Unverified', value: statusData.unverified, color: 'var(--c-muted)' },
-            { label: 'Passed', value: statusData.pass, color: '#4ade80' },
-            { label: 'Failed', value: statusData.fail, color: '#f87171' },
-            { label: 'Errors', value: statusData.error, color: '#fbbf24' },
+            { label: t('stats.unverified'), value: statusData.unverified, color: 'var(--c-muted)' },
+            { label: t('stats.passed'), value: statusData.pass, color: '#4ade80' },
+            { label: t('stats.failed'), value: statusData.fail, color: '#f87171' },
+            { label: t('stats.errors'), value: statusData.error, color: '#fbbf24' },
           ].map(({ label, value, color }) => (
             <div
               key={label}
@@ -153,18 +155,18 @@ export function Verify() {
         className="rounded-xl border p-5 space-y-4"
         style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
       >
-        <h2 className="font-semibold text-sm">Deep Check Controls</h2>
+        <h2 className="font-semibold text-sm">{t('controls.title')}</h2>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Runs{' '}
+          {t('controls.descriptionPrefix')}
           <code className="font-mono text-xs px-1 rounded" style={{ background: 'var(--c-border)' }}>
             ffmpeg -v error -f null -
-          </code>{' '}
-          on each file to detect corruption or truncation.
+          </code>
+          {t('controls.descriptionSuffix')}
         </p>
 
         <div className="flex items-center gap-4">
           <label className="flex items-center gap-2 text-sm">
-            <span style={{ color: 'var(--c-muted)' }}>Concurrency</span>
+            <span style={{ color: 'var(--c-muted)' }}>{t('controls.concurrency')}</span>
             <input
               type="range"
               min={1}
@@ -185,7 +187,7 @@ export function Verify() {
               style={{ background: 'var(--c-accent)' }}
             >
               <ShieldCheck size={15} />
-              Start Deep Check
+              {t('controls.start')}
             </button>
           ) : (
             <button
@@ -195,7 +197,7 @@ export function Verify() {
               style={{ background: 'rgba(248,113,113,0.15)', color: '#f87171', borderColor: 'rgba(248,113,113,0.3)' }}
             >
               <Square size={13} />
-              Stop
+              {t('controls.stop')}
             </button>
           )}
 
@@ -211,7 +213,7 @@ export function Verify() {
           <div className="space-y-2">
             <div className="flex justify-between text-xs" style={{ color: 'var(--c-muted)' }}>
               <span className="flex items-center gap-1">
-                <Loader2 size={12} className="animate-spin" /> Checking…
+                <Loader2 size={12} className="animate-spin" /> {t('controls.checking')}
               </span>
               <span>
                 {checked} / {total} ({pct}%)
@@ -219,6 +221,12 @@ export function Verify() {
             </div>
             <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--c-border)' }}>
               <div
+                role="progressbar"
+                tabIndex={0}
+                aria-valuenow={pct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-label={t('controls.progressAriaLabel')}
                 className="h-full rounded-full transition-all duration-300"
                 style={{ width: `${pct}%`, background: 'var(--c-accent)' }}
               />
@@ -228,19 +236,19 @@ export function Verify() {
                 <div className="font-bold" style={{ color: '#4ade80' }}>
                   {progress.passed ?? 0}
                 </div>
-                <div style={{ color: 'var(--c-muted)' }}>Passed</div>
+                <div style={{ color: 'var(--c-muted)' }}>{t('stats.passed')}</div>
               </div>
               <div className="rounded p-2" style={{ background: 'var(--c-bg)' }}>
                 <div className="font-bold" style={{ color: '#f87171' }}>
                   {progress.failed ?? 0}
                 </div>
-                <div style={{ color: 'var(--c-muted)' }}>Failed</div>
+                <div style={{ color: 'var(--c-muted)' }}>{t('stats.failed')}</div>
               </div>
               <div className="rounded p-2" style={{ background: 'var(--c-bg)' }}>
                 <div className="font-bold" style={{ color: '#fbbf24' }}>
                   {progress.errors ?? 0}
                 </div>
-                <div style={{ color: 'var(--c-muted)' }}>Errors</div>
+                <div style={{ color: 'var(--c-muted)' }}>{t('stats.errors')}</div>
               </div>
             </div>
           </div>
@@ -250,7 +258,7 @@ export function Verify() {
         {recentResults.length > 0 && (
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--c-muted)' }}>
-              Live Results (last {recentResults.length})
+              {t('live.title', { count: recentResults.length })}
             </h3>
             <div
               className="rounded p-2 space-y-0.5 max-h-40 overflow-y-auto text-xs font-mono"
@@ -288,10 +296,10 @@ export function Verify() {
           >
             <h2 className="font-semibold text-sm flex items-center gap-2">
               <AlertCircle size={15} style={{ color: '#f87171' }} />
-              Verification Failures
+              {t('failures.title')}
             </h2>
             <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              {failData?.total} total
+              {t('failures.total', { count: failData?.total })}
             </span>
           </div>
           <div className="overflow-auto">
@@ -301,10 +309,10 @@ export function Verify() {
                   className="text-xs border-b text-left"
                   style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
                 >
-                  <th className="px-4 py-2">Filename</th>
-                  <th className="px-4 py-2">Size</th>
-                  <th className="px-4 py-2">Errors</th>
-                  <th className="px-4 py-2">Verified At</th>
+                  <th className="px-4 py-2">{t('failures.colFilename')}</th>
+                  <th className="px-4 py-2">{t('failures.colSize')}</th>
+                  <th className="px-4 py-2">{t('failures.colErrors')}</th>
+                  <th className="px-4 py-2">{t('failures.colVerifiedAt')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -344,7 +352,7 @@ export function Verify() {
               style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
             >
               <span>
-                Page {failPage} of {Math.ceil(failData.total / failData.limit)}
+                {t('failures.page', { current: failPage, total: Math.ceil(failData.total / failData.limit) })}
               </span>
               <div className="flex gap-2">
                 <button
@@ -354,7 +362,7 @@ export function Verify() {
                   className="px-2 py-1 rounded disabled:opacity-40"
                   style={{ background: 'var(--c-border)' }}
                 >
-                  Prev
+                  {t('failures.prev')}
                 </button>
                 <button
                   type="button"
@@ -363,7 +371,7 @@ export function Verify() {
                   className="px-2 py-1 rounded disabled:opacity-40"
                   style={{ background: 'var(--c-border)' }}
                 >
-                  Next
+                  {t('failures.next')}
                 </button>
               </div>
             </div>

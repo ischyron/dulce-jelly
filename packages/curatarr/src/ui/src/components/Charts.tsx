@@ -19,6 +19,7 @@ const CODEC_COLORS: Record<string, string> = {
 
 interface DistChartProps {
   data: Record<string, number>;
+  label?: string;
 }
 
 export function ResolutionPieChart({ data }: DistChartProps) {
@@ -28,11 +29,11 @@ export function ResolutionPieChart({ data }: DistChartProps) {
   const total = entries.reduce((s, e) => s + e.value, 0);
 
   if (entries.length === 0 || total === 0) {
-    return <div className="text-sm text-[#6b6888] py-6">No resolution data yet.</div>;
+    return <div className="text-sm text-[#8b87aa] py-6">No resolution data yet.</div>;
   }
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+    <div role="img" aria-label="Resolution distribution" className="flex flex-col sm:flex-row sm:items-center gap-5">
       <div className="w-full sm:w-[220px] h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
@@ -81,7 +82,7 @@ export function ResolutionPieChart({ data }: DistChartProps) {
                   <span className="text-[#9f9abf]">{e.name}</span>
                 </div>
                 <span className="text-[#f0eeff] tabular-nums">
-                  {e.value} <span className="text-[#6b6888]">({pct}%)</span>
+                  {e.value} <span className="text-[#8b87aa]">({pct}%)</span>
                 </span>
               </div>
               <div className="h-1.5 rounded-full bg-[#1f2030] overflow-hidden">
@@ -101,28 +102,30 @@ export function ResolutionPieChart({ data }: DistChartProps) {
   );
 }
 
-export function CodecBarChart({ data }: DistChartProps) {
+export function CodecBarChart({ data, label = 'Video codec distribution' }: DistChartProps) {
   const entries = Object.entries(data)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 8)
     .map(([name, value]) => ({ name, count: value }));
 
   return (
-    <ResponsiveContainer width="100%" height={220}>
-      <BarChart data={entries} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} />
-        <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
-        <Tooltip
-          contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6 }}
-          labelStyle={{ color: '#e5e7eb' }}
-          itemStyle={{ color: '#d1d5db' }}
-        />
-        <Bar dataKey="count" radius={[3, 3, 0, 0]}>
-          {entries.map((e) => (
-            <Cell key={e.name} fill={CODEC_COLORS[e.name] ?? '#6366f1'} />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
+    <div role="img" aria-label={label}>
+      <ResponsiveContainer width="100%" height={220}>
+        <BarChart data={entries} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} />
+          <YAxis tick={{ fontSize: 11, fill: '#9ca3af' }} />
+          <Tooltip
+            contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 6 }}
+            labelStyle={{ color: '#e5e7eb' }}
+            itemStyle={{ color: '#d1d5db' }}
+          />
+          <Bar dataKey="count" radius={[3, 3, 0, 0]}>
+            {entries.map((e) => (
+              <Cell key={e.name} fill={CODEC_COLORS[e.name] ?? '#6366f1'} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }

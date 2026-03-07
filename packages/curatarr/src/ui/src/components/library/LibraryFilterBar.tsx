@@ -177,6 +177,8 @@ export function LibraryFilterBar({
         <button
           type="button"
           onClick={() => setGenreFilterOpen((v) => !v)}
+          aria-expanded={genreFilterOpen}
+          aria-haspopup="listbox"
           className="px-2 py-1 text-xs rounded border"
           style={{ borderColor: 'var(--c-border)', color: selectedGenres.length ? '#c4b5fd' : 'var(--c-muted)' }}
         >
@@ -216,9 +218,9 @@ export function LibraryFilterBar({
                 key={genre}
                 type="button"
                 onClick={() => onRemoveGenreFilter(genre)}
+                aria-label={`Remove ${genre} filter`}
                 className="px-2 py-0.5 rounded-full text-xs border"
                 style={{ color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }}
-                title="Remove genre filter"
               >
                 {genre} ×
               </button>
@@ -411,6 +413,8 @@ export function LibraryFilterBar({
         <button
           type="button"
           onClick={() => setTagFilterOpen((v) => !v)}
+          aria-expanded={tagFilterOpen}
+          aria-haspopup="listbox"
           className="px-2 py-1 text-xs rounded border"
           style={{ borderColor: 'var(--c-border)', color: selectedTags.length ? '#c4b5fd' : 'var(--c-muted)' }}
         >
@@ -450,9 +454,9 @@ export function LibraryFilterBar({
                 key={tag}
                 type="button"
                 onClick={() => onRemoveFilterTag(tag)}
+                aria-label={`Remove ${tag} filter`}
                 className="px-2 py-0.5 rounded-full text-xs border"
                 style={{ color: '#c4b5fd', borderColor: 'rgba(124,58,237,0.35)', background: 'rgba(124,58,237,0.12)' }}
-                title="Remove tag filter"
               >
                 {tag} ×
               </button>

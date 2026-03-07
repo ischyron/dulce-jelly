@@ -1,0 +1,35 @@
+{
+  "pageTitle": "Scout Queue",
+  "filters": {
+    "genre": "Genre",
+    "genreSelect": "Select genres",
+    "genreSelected": "{{count}} selected",
+    "removeFilter": "Remove {{name}} filter",
+    "minMc": "Min MC",
+    "minImdb": "Min IMDb",
+    "resetDefaults": "Reset defaults",
+    "scoutBatch": "Scout Batch"
+  },
+  "table": {
+    "colScore": "Score",
+    "colTitle": "Title",
+    "colYear": "Year",
+    "colQuality": "Quality",
+    "colHdr": "HDR",
+    "colGroup": "Group",
+    "colFlags": "Flags",
+    "colCritic": "Critic",
+    "colImdb": "IMDb",
+    "colSize": "Size",
+    "selectAll": "Select all rows on this page",
+    "groupHint": "Torrent/Usenet release group inferred from the filename only.",
+    "scoreHintLabel": "Scout score info",
+    "scoreHint": "Scout queue candidate score uses library priority logic: round((CriticRating * 0.4) + (IMDbRating * 6)). Release CF scoring rules are configurable in Settings → CF Scoring, Rules, Scout."
+  },
+  "status": {
+    "summary": "{{total}} candidates · {{selected}}/{{max}} selected",
+    "loading": "Loading…",
+    "noCandidates": "No upgrade candidates with current filters.",
+    "noCandidatesDetail": "Scout Queue requires Metacritic and IMDb ratings — these come from Jellyfin Sync (Scan & Sync page). If you haven't synced yet, all ratings are null and no movies will appear here. Try setting Min MC and Min IMDb to 0 to see all scanned movies regardless of ratings."
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "pageTitle": "Dashboard",
+  "loading": "Loading stats…",
+  "error": "Failed to load stats. Is the server running?",
+  "scanLibrary": "Scan Library",
+  "starting": "Starting…",
+  "onboarding": {
+    "title": "Welcome to Curatarr!",
+    "subtitle": "Your library is empty. To get started:",
+    "step1Prefix": "Go to ",
+    "step1Link": "Settings",
+    "step1Suffix": " and set your Library Root Folders (Movies).",
+    "step2Prefix": "Return here and click ",
+    "step2Action": "Scan Library",
+    "step2Suffix": " to analyse your files with ffprobe.",
+    "step3Prefix": "Optionally run ",
+    "step3Link": "Jellyfin Sync",
+    "step3Suffix": " to enrich metadata from Jellyfin."
+  },
+  "stats": {
+    "movies": "Movies",
+    "moviesHint": "Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc.",
+    "scannedFiles": "Scanned Files",
+    "scannedFilesHint": "File-level ffprobe scan coverage. This is per video file, not per movie folder.",
+    "jellyfinSynced": "Jellyfin Synced",
+    "jellyfinSyncedHint": "Movie-level status. Curatarr maps one folder to one movie; multi-version files stay inside that movie record and are shown in Movie details as Files (2), Files (3), etc.",
+    "scanErrors": "Scan Errors",
+    "scanErrorsHint": "Basic file sanity/metadata scan failures from ffprobe during library scan. This is separate from Disambiguate and Deep Verify errors.",
+    "matched": "matched",
+    "unmatched": "unmatched",
+    "total": "total",
+    "pending_one": "{{count}} pending",
+    "pending_other": "{{count}} pending"
+  },
+  "views": {
+    "title": "Library Views",
+    "video": "Video",
+    "audio": "Audio",
+    "hdr": "HDR",
+    "dolbyVision": "Dolby Vision",
+    "av1": "AV1",
+    "av1Compat": "⚠ compat",
+    "legacyCodec": "legacy codec",
+    "noAudioData": "No audio codec data yet."
+  },
+  "analytics": {
+    "title": "Analytics",
+    "resolutionDist": "Resolution Distribution",
+    "videoCodecDist": "Video Codec Distribution",
+    "audioCodecDist": "Audio Codec Distribution"
+  }
+}

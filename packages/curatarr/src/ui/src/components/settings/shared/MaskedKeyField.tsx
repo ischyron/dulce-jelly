@@ -78,6 +78,7 @@ export function MaskedKeyField({ label, name, maskedValue, value, onChange, hint
             <button
               type="button"
               onClick={() => setRevealed((v) => !v)}
+              aria-label={revealed ? 'Hide key' : 'Reveal key'}
               className="absolute right-2 top-1/2 -translate-y-1/2 opacity-50 hover:opacity-100"
               style={{ color: 'var(--c-muted)' }}
             >

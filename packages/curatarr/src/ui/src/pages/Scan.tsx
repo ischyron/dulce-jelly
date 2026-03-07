@@ -87,7 +87,7 @@ export function Scan() {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="sm:col-span-2">
-            <label htmlFor="scan-library-path" className="text-xs text-[#6b6888] block mb-1">
+            <label htmlFor="scan-library-path" className="text-xs text-[#8b87aa] block mb-1">
               {t('scanSection.libraryPathLabel')}
             </label>
             <input
@@ -100,7 +100,7 @@ export function Scan() {
             />
           </div>
           <div>
-            <label htmlFor="scan-workers" className="text-xs text-[#6b6888] block mb-1">
+            <label htmlFor="scan-workers" className="text-xs text-[#8b87aa] block mb-1">
               {t('scanSection.workersLabel')}
             </label>
             <input
@@ -175,7 +175,7 @@ export function Scan() {
           <div className="overflow-auto max-h-[26rem]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-[#6b6888] border-b border-[#26263a]">
+                <tr className="text-left text-xs text-[#8b87aa] border-b border-[#26263a]">
                   <th className="pb-2 pr-4">{t('history.started')}</th>
                   <th className="pb-2 pr-4">{t('history.folders')}</th>
                   <th className="pb-2 pr-4">{t('history.files')}</th>

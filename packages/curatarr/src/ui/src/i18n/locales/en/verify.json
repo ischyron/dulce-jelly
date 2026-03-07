@@ -1,0 +1,35 @@
+{
+  "pageTitle": "Deep Verify",
+  "stats": {
+    "unverified": "Unverified",
+    "passed": "Passed",
+    "failed": "Failed",
+    "errors": "Errors"
+  },
+  "controls": {
+    "title": "Deep Check Controls",
+    "descriptionPrefix": "Runs ",
+    "descriptionSuffix": " on each file to detect corruption or truncation.",
+    "concurrency": "Concurrency",
+    "start": "Start Deep Check",
+    "stop": "Stop",
+    "progressAriaLabel": "Deep verify progress",
+    "checking": "Checking…",
+    "complete": "Complete.",
+    "cancelled": "Cancelled."
+  },
+  "live": {
+    "title": "Live Results (last {{count}})"
+  },
+  "failures": {
+    "title": "Verification Failures",
+    "total": "{{count}} total",
+    "colFilename": "Filename",
+    "colSize": "Size",
+    "colErrors": "Errors",
+    "colVerifiedAt": "Verified At",
+    "prev": "Prev",
+    "next": "Next",
+    "page": "Page {{current}} of {{total}}"
+  }
+}

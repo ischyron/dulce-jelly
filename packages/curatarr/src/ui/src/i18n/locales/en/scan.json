@@ -32,5 +32,30 @@
     "completed": "Completed",
     "inProgress": "In progress",
     "noChanges": "No changes detected - all files already scanned"
+  },
+  "progressModal": {
+    "libraryScan": "Library Scan",
+    "jellyfinSync": "Jellyfin Sync",
+    "cancelledSuffix": "— cancelled",
+    "close": "Close",
+    "foldersProgress": "{{done}} / {{total}} folders",
+    "libraryScanProgressAria": "Library scan progress",
+    "jellyfinSyncProgressAria": "Jellyfin sync progress",
+    "cancelled": "Cancelled",
+    "complete": "Complete",
+    "unknownError": "Unknown error",
+    "completedFallback": "Completed.",
+    "rate": "{{rate}} files/sec",
+    "completedFolders": "Completed Folders ({{count}})",
+    "pendingFolders": "{{count}} folders pending…",
+    "ambiguousMatches": "Ambiguous Matches ({{count}})",
+    "stopping": "Stopping…",
+    "stopScan": "Stop Scan",
+    "stopSync": "Stop Sync",
+    "stats": {
+      "processed": "Processed",
+      "ok": "OK",
+      "errors": "Errors"
+    }
   }
 }

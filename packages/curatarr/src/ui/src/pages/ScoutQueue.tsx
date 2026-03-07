@@ -1,6 +1,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Bot, Star } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { type Candidate, api } from '../api/client';
 import { InfoHint } from '../components/InfoHint';
@@ -21,6 +22,7 @@ function clampBatchSize(raw: string | undefined): number {
 }
 
 export function ScoutQueue() {
+  const { t } = useTranslation('scout');
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Load seeded defaults from settings API
@@ -206,6 +208,8 @@ export function ScoutQueue() {
           <button
             type="button"
             onClick={() => setGenreOpen((v) => !v)}
+            aria-expanded={genreOpen}
+            aria-haspopup="listbox"
             className="px-2 py-1 rounded text-sm focus:outline-none"
             style={{
               background: 'var(--c-surface)',
@@ -255,7 +259,7 @@ export function ScoutQueue() {
                     borderColor: 'rgba(124,58,237,0.35)',
                     background: 'rgba(124,58,237,0.12)',
                   }}
-                  title="Remove genre filter"
+                  aria-label={`Remove ${g} filter`}
                 >
                   {g} ×
                 </button>
@@ -374,8 +378,8 @@ export function ScoutQueue() {
                       type="checkbox"
                       checked={allPageSelected}
                       onChange={(e) => toggleSelectAllOnPage(e.target.checked)}
+                      aria-label="Select all rows on this page"
                       className="w-5 h-5 accent-violet-600 cursor-pointer"
-                      title="Select all rows on this page"
                     />
                   </label>
                 </th>

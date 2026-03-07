@@ -29,7 +29,7 @@ export function StatCard({
       </div>
       <div className="text-2xl font-bold text-[#f0eeff]">{value}</div>
       <div
-        className={`text-xs text-[#6b6888] mt-0.5 min-h-[16px] ${subWrap ? 'leading-5 whitespace-normal break-words' : 'truncate'}`}
+        className={`text-xs text-[#8b87aa] mt-0.5 min-h-[16px] ${subWrap ? 'leading-5 whitespace-normal break-words' : 'truncate'}`}
         title={typeof sub === 'string' ? sub : undefined}
       >
         {sub ?? ''}

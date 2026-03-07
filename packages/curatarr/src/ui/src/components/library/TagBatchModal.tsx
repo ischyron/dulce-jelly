@@ -101,6 +101,7 @@ export function TagBatchModal({
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') onAddInput();
                 }}
+                aria-label="New tag name"
                 placeholder="new tag"
                 className="px-2 py-1 rounded text-xs focus:outline-none"
                 style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}

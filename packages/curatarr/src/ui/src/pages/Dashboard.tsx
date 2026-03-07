@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle, Film, LayoutDashboard, Loader2, Rocket, ScanLine } from 'lucide-react';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { CodecBarChart, ResolutionPieChart } from '../components/Charts';
@@ -11,6 +12,7 @@ import { ScanProgressModal } from '../components/shared/modals';
 import { formatSyncDate } from '../components/shared/utils';
 
 export function Dashboard() {
+  const { t } = useTranslation('dashboard');
   const { data, isLoading, error } = useQuery({
     queryKey: ['stats'],
     queryFn: api.stats,
@@ -35,10 +37,10 @@ export function Dashboard() {
   }
 
   if (isLoading) {
-    return <div className="p-8 text-[#6b6888]">Loading stats…</div>;
+    return <div className="p-8 text-[#8b87aa]">{t('loading')}</div>;
   }
   if (error || !data) {
-    return <div className="p-8 text-red-400">Failed to load stats. Is the server running?</div>;
+    return <div className="p-8 text-red-400">{t('error')}</div>;
   }
 
   const jellyfinSyncPercentage = data.totalMovies > 0 ? Math.round((data.jfEnriched / data.totalMovies) * 100) : 0;
@@ -83,7 +85,7 @@ export function Dashboard() {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold text-[#f0eeff] flex items-center gap-2">
           <LayoutDashboard size={20} style={{ color: 'var(--c-accent)' }} />
-          Dashboard
+          {t('pageTitle')}
         </h1>
         <div className="flex flex-col items-end gap-1">
           <button
@@ -94,11 +96,11 @@ export function Dashboard() {
           >
             {scanLaunching ? (
               <>
-                <Loader2 size={16} className="animate-spin" /> Starting…
+                <Loader2 size={16} className="animate-spin" /> {t('starting')}
               </>
             ) : (
               <>
-                <ScanLine size={16} /> Scan Library
+                <ScanLine size={16} /> {t('scanLibrary')}
               </>
             )}
           </button>
@@ -111,26 +113,27 @@ export function Dashboard() {
         <div className="bg-[#1a1030] border border-[#7c3aed]/40 rounded-xl p-5 flex gap-4 items-start">
           <Rocket size={22} className="text-[#a78bfa] shrink-0 mt-0.5" />
           <div className="space-y-1">
-            <p className="font-semibold text-[#d4cfff]">Welcome to Curatarr!</p>
-            <p className="text-sm text-[#8b87aa]">Your library is empty. To get started:</p>
+            <p className="font-semibold text-[#d4cfff]">{t('onboarding.title')}</p>
+            <p className="text-sm text-[#8b87aa]">{t('onboarding.subtitle')}</p>
             <ol className="text-sm text-[#8b87aa] list-decimal list-inside space-y-0.5 mt-1">
               <li>
-                Go to{' '}
+                {t('onboarding.step1Prefix')}
                 <Link to="/settings" className="text-[#a78bfa] hover:underline">
-                  Settings
-                </Link>{' '}
-                and set your Library Root Folders (Movies).
+                  {t('onboarding.step1Link')}
+                </Link>
+                {t('onboarding.step1Suffix')}
               </li>
               <li>
-                Return here and click <strong className="text-[#c4b5fd]">Scan Library</strong> to analyse your files
-                with ffprobe.
+                {t('onboarding.step2Prefix')}
+                <strong className="text-[#c4b5fd]">{t('onboarding.step2Action')}</strong>
+                {t('onboarding.step2Suffix')}
               </li>
               <li>
-                Optionally run{' '}
+                {t('onboarding.step3Prefix')}
                 <Link to="/scan" className="text-[#a78bfa] hover:underline">
-                  Jellyfin Sync
-                </Link>{' '}
-                to enrich metadata from Jellyfin.
+                  {t('onboarding.step3Link')}
+                </Link>
+                {t('onboarding.step3Suffix')}
               </li>
             </ol>
           </div>
@@ -140,15 +143,11 @@ export function Dashboard() {
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="relative h-full">
-          <Link
-            to="/library?reset=1"
-            className="absolute inset-0 rounded-xl z-10"
-            aria-label="Open library from Movies card"
-          />
+          <Link to="/library?reset=1" className="absolute inset-0 rounded-xl z-10" aria-label={t('stats.movies')} />
           <div className="relative z-20 pointer-events-none bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
             <div className="flex items-center gap-2 mb-2 text-sm text-[#a78bfa]">
               <Film size={16} />
-              <span>Movies</span>
+              <span>{t('stats.movies')}</span>
               <span
                 className="pointer-events-auto"
                 role="presentation"
@@ -162,12 +161,12 @@ export function Dashboard() {
               </span>
             </div>
             <div className="text-2xl font-bold text-[#f0eeff]">{data.totalMovies.toLocaleString()}</div>
-            <div className="text-xs text-[#6b6888] mt-0.5 min-h-[16px]" />
+            <div className="text-xs text-[#8b87aa] mt-0.5 min-h-[16px]" />
           </div>
         </div>
         <StatCard
           icon={CheckCircle}
-          label="Scanned Files"
+          label={t('stats.scannedFiles')}
           value={`${data.scannedFiles.toLocaleString()} / ${data.totalFiles.toLocaleString()}`}
           sub={
             lastScanSummary ??
@@ -177,43 +176,45 @@ export function Dashboard() {
           }
           subWrap
           color="text-green-400"
-          infoText="File-level ffprobe scan coverage. This is per video file, not per movie folder."
+          infoText={t('stats.scannedFilesHint')}
         />
         <StatCard
           icon={JellyfinIcon}
-          label="Jellyfin Synced"
+          label={t('stats.jellyfinSynced')}
           value={`${jellyfinSyncPercentage}%`}
           sub={
             <span className="inline-flex items-center gap-1 text-sm">
               <span className="text-[#d4cfff] font-semibold">{data.jfEnriched}</span>
-              <span className="text-[#6b6888]">matched</span>
-              <span className="text-[#6b6888]">·</span>
+              <span className="text-[#8b87aa]">{t('stats.matched')}</span>
+              <span className="text-[#8b87aa]">·</span>
               <span className="text-amber-400 font-semibold">{data.totalMovies - data.jfEnriched}</span>
-              <span className="text-[#6b6888]">unmatched</span>
-              <span className="text-[#6b6888]">·</span>
-              <span className="text-[#6b6888]">{data.totalMovies} total</span>
+              <span className="text-[#8b87aa]">{t('stats.unmatched')}</span>
+              <span className="text-[#8b87aa]">·</span>
+              <span className="text-[#8b87aa]">
+                {data.totalMovies} {t('stats.total')}
+              </span>
             </span>
           }
           color="text-cyan-400"
-          infoText="Movie-level status. Curatarr maps one folder to one movie; multi-version files stay inside that movie record and are shown in Movie details as Files (2), Files (3), etc."
+          infoText={t('stats.jellyfinSyncedHint')}
         />
         <StatCard
           icon={AlertCircle}
-          label="Scan Errors"
+          label={t('stats.scanErrors')}
           value={data.errorFiles}
-          color={data.errorFiles > 0 ? 'text-red-400' : 'text-[#6b6888]'}
-          infoText="Basic file sanity/metadata scan failures from ffprobe during library scan. This is separate from Disambiguate and Deep Verify errors."
+          color={data.errorFiles > 0 ? 'text-red-400' : 'text-[#8b87aa]'}
+          infoText={t('stats.scanErrorsHint')}
         />
       </div>
 
       <div>
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Library Views</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.title')}</h2>
       </div>
 
       {/* Library views quick links */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Video</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.video')}</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-1 items-center text-sm">
             <Link
               to="/library?hdr=1"
@@ -221,7 +222,7 @@ export function Dashboard() {
               title="Show HDR files in Library"
             >
               <span className="text-amber-400 font-semibold">{data.hdrCount}</span>
-              <span className="text-[#8b87aa]">HDR</span>
+              <span className="text-[#8b87aa]">{t('views.hdr')}</span>
             </Link>
             <span className="text-[#26263a]">·</span>
             <Link
@@ -230,7 +231,7 @@ export function Dashboard() {
               title="Show Dolby Vision files in Library"
             >
               <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
-              <span className="text-[#8b87aa]">Dolby Vision</span>
+              <span className="text-[#8b87aa]">{t('views.dolbyVision')}</span>
             </Link>
             {(data.codecDist.av1 ?? 0) > 0 && (
               <>
@@ -241,8 +242,8 @@ export function Dashboard() {
                   title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library"
                 >
                   <span className="text-emerald-400 font-semibold">{data.codecDist.av1}</span>
-                  <span className="text-[#8b87aa]">AV1</span>
-                  <span className="text-amber-400 text-xs">⚠ compat</span>
+                  <span className="text-[#8b87aa]">{t('views.av1')}</span>
+                  <span className="text-amber-400 text-xs">{t('views.av1Compat')}</span>
                 </Link>
               </>
             )}
@@ -257,16 +258,16 @@ export function Dashboard() {
                   <span className="text-orange-400 font-semibold">
                     {(data.codecDist.mpeg4 ?? 0) + (data.codecDist.mpeg2video ?? 0)}
                   </span>
-                  <span className="text-[#8b87aa]">legacy codec</span>
+                  <span className="text-[#8b87aa]">{t('views.legacyCodec')}</span>
                 </Link>
               </>
             )}
           </div>
         </div>
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Audio</h2>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.audio')}</h2>
           <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-            {audioQuickLinks.length === 0 && <span className="text-[#6b6888]">No audio codec data yet.</span>}
+            {audioQuickLinks.length === 0 && <span className="text-[#8b87aa]">{t('views.noAudioData')}</span>}
             {audioQuickLinks.map((row) => (
               <Link
                 key={row.codec}
@@ -283,24 +284,24 @@ export function Dashboard() {
       </div>
 
       <div>
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">Analytics</h2>
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('analytics.title')}</h2>
       </div>
 
       {/* Analytics charts */}
       <div className="space-y-6">
         <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-          <h2 className="text-sm font-medium text-[#8b87aa] mb-3">Resolution Distribution</h2>
+          <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.resolutionDist')}</h2>
           <ResolutionPieChart data={data.resolutionDist} />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">Video Codec Distribution</h2>
+            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.videoCodecDist')}</h2>
             <CodecBarChart data={data.codecDist} />
           </div>
           <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">Audio Codec Distribution</h2>
-            <CodecBarChart data={data.audioCodecDist ?? {}} />
+            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.audioCodecDist')}</h2>
+            <CodecBarChart data={data.audioCodecDist ?? {}} label={t('analytics.audioCodecDist')} />
           </div>
         </div>
       </div>

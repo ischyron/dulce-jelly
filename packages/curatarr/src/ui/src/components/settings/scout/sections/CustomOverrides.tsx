@@ -41,7 +41,7 @@ export function CustomOverrides({
           >
             4
           </span>
-          Custom CF + blockers
+          Addtional Custom Format Scores & Blcoking rules
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Add your own filename/title pattern rules (regex or string) and score deltas. These apply after TRaSH baseline

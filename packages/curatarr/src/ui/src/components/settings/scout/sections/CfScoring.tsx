@@ -51,7 +51,7 @@ const PIPELINE_STEPS = [
   { n: '3', label: 'TRaSH CF Score', tone: 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))' },
   {
     n: '4',
-    label: 'Custom CF + Blockers',
+    label: 'Addtional Custom Format Scores & Blcoking rules',
     tone: 'linear-gradient(135deg, rgba(124,58,237,0.55), rgba(167,139,250,0.35))',
   },
   {
@@ -73,7 +73,7 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
         Scout Quality Pipeline
         <InfoHint
           label="Scout pipeline info"
-          text="Curatarr runs this pipeline top-to-bottom: minimum qualifiers, basic format scoring, TRaSH CF scoring, custom overrides/blockers, final LLM ruleset, then manual/auto decision."
+          text="Curatarr runs this pipeline top-to-bottom: minimum qualifiers (auto-run queue only), basic format scoring, TRaSH CF scoring, custom overrides/blockers, final LLM ruleset, then manual/auto decision."
         />
       </h2>
 
@@ -87,25 +87,37 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
         <div className="text-[11px] uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
           Quality Funnel
         </div>
-        <div className="space-y-0">
+        <div className="space-y-1">
           {PIPELINE_STEPS.map((step, idx) => (
-            <div key={step.n} className="relative pl-8 pb-3">
+            <div key={step.n} className="flex flex-col items-center">
+              {(() => {
+                const widthPct = Math.max(62, 100 - idx * 8);
+                return (
+                  <div
+                    className="rounded-md px-3 py-1.5 text-xs font-semibold flex items-center gap-2"
+                    style={{
+                      width: `${widthPct}%`,
+                      color: '#d4cfff',
+                      border: '1px solid rgba(196,181,253,0.35)',
+                      background: step.tone,
+                    }}
+                  >
+                    <StepBadge value={step.n} tone="rgba(15,23,42,0.55)" />
+                    <span>{step.label}</span>
+                  </div>
+                );
+              })()}
               {idx < PIPELINE_STEPS.length - 1 && (
-                <span
+                <div
                   aria-hidden
-                  className="absolute left-[11px] top-6 w-[2px] h-[calc(100%-8px)]"
-                  style={{ background: 'linear-gradient(180deg, rgba(196,181,253,0.65), rgba(196,181,253,0.2))' }}
+                  className="h-3"
+                  style={{
+                    width: `${Math.max(58, 92 - idx * 8)}%`,
+                    background: 'linear-gradient(180deg, rgba(196,181,253,0.45), rgba(139,92,246,0.24))',
+                    clipPath: 'polygon(8% 0, 92% 0, 78% 100%, 22% 100%)',
+                  }}
                 />
               )}
-              <div className="absolute left-0 top-0">
-                <StepBadge value={step.n} tone={step.tone} />
-              </div>
-              <div
-                className="rounded border px-2 py-1.5 text-xs font-semibold"
-                style={{ borderColor: 'var(--c-border)', color: '#d4cfff', background: 'var(--c-surface)' }}
-              >
-                {step.label}
-              </div>
             </div>
           ))}
         </div>
@@ -124,6 +136,9 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Gate the candidate pool with MC/IMDb thresholds and batch size.
+        </p>
+        <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+          Applies to AutoRun queue only. You can manually scout releases for any item.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field

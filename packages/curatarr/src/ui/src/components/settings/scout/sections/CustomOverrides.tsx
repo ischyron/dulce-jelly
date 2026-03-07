@@ -41,11 +41,11 @@ export function CustomOverrides({
           >
             4
           </span>
-          Addtional Custom Format Scores & Blcoking rules
+          Additional Custom Format Scores & Blocking Rules
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Add your own filename/title pattern rules (regex or string) and score deltas. These apply after TRaSH baseline
-          scoring.
+          Add custom filename/title pattern rules (regex or string) with score deltas. These are applied after TRaSH
+          baseline scoring.
         </p>
         <label
           htmlFor="scout-blockers-enabled"
@@ -58,25 +58,25 @@ export function CustomOverrides({
             checked={(form.scoutPipelineBlockersEnabled ?? 'false') === 'true'}
             onChange={(e) => set('scoutPipelineBlockersEnabled', e.target.checked ? 'true' : 'false')}
           />
-          Enable blocker enforcement (feature-flagged path)
+          Enable blocking rules (feature-flagged)
         </label>
         <div
           className="rounded border px-2 py-1.5 text-xs"
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)', color: 'var(--c-muted)' }}
         >
-          Sample: Looking for{' '}
+          Example: To prefer the{' '}
           <span className="font-mono" style={{ color: 'var(--c-text)' }}>
             FrameStore
           </span>{' '}
-          release group. Use{' '}
+          release group, use{' '}
           <span className="font-mono" style={{ color: 'var(--c-text)' }}>
             string
           </span>{' '}
-          match with pattern{' '}
+          match with the pattern{' '}
           <span className="font-mono" style={{ color: 'var(--c-text)' }}>
             framestor
           </span>
-          , then set your preferred score.
+          , then set your preferred score delta.
         </div>
         <div className="space-y-2">
           {customCfDraft.map((row, idx) =>
@@ -265,7 +265,7 @@ export function CustomOverrides({
           style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
         >
           <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-            Release blockers
+            Release Blockers
           </div>
           {blockerDraft.map((row, idx) => {
             const rowId = `${row.id ?? 'new'}-${idx}`;

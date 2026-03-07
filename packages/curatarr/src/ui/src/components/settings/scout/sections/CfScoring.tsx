@@ -51,7 +51,7 @@ const PIPELINE_STEPS = [
   { n: '3', label: 'TRaSH CF Score', tone: 'linear-gradient(135deg, rgba(59,130,246,0.55), rgba(56,189,248,0.35))' },
   {
     n: '4',
-    label: 'Addtional Custom Format Scores & Blcoking rules',
+    label: 'Additional Custom Format Scores & Blocking Rules',
     tone: 'linear-gradient(135deg, rgba(124,58,237,0.55), rgba(167,139,250,0.35))',
   },
   {
@@ -61,7 +61,7 @@ const PIPELINE_STEPS = [
   },
   {
     n: '6',
-    label: 'Decision Manual/Auto',
+    label: 'Manual/Auto Decision',
     tone: 'linear-gradient(135deg, rgba(244,63,94,0.55), rgba(251,113,133,0.35))',
   },
 ];
@@ -73,7 +73,7 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
         Scout Quality Pipeline
         <InfoHint
           label="Scout pipeline info"
-          text="Curatarr runs this pipeline top-to-bottom: minimum qualifiers (auto-run queue only), basic format scoring, TRaSH CF scoring, custom overrides/blockers, final LLM ruleset, then manual/auto decision."
+          text="Curatarr runs this pipeline top-to-bottom: minimum qualifiers (auto-run queue only), basic format scoring, TRaSH CF scoring, custom format overrides and blocking rules, final LLM ruleset, then manual/auto decision."
         />
       </h2>
 
@@ -138,7 +138,7 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
           Gate the candidate pool with MC/IMDb thresholds and batch size.
         </p>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Applies to AutoRun queue only. You can manually scout releases for any item.
+          Applies to the auto-run queue only. You can manually scout releases for any item.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field

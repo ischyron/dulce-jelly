@@ -16,7 +16,7 @@ export function Automation({ form, set, autoStatusData, runAutoScout, runPending
         >
           6
         </span>
-        Decision Manual/Auto
+        Manual/Auto Decision
       </h2>
       <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
         Enable automation to run Scout on a schedule. Manual run is always available.

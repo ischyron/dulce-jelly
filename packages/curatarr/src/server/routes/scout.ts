@@ -1,75 +1,12 @@
-import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { ProwlarrClient, type ProwlarrSearchResult } from '../../integrations/prowlarr/client.js';
-import { getScoutDefaultSettings } from '../../shared/scoutDefaults.js';
+import * as scoutCache from './scout/cache.js';
 import { listScoutRules, replaceScoutRuleCategory } from './scout/rulesDomain.js';
+import * as scoutScoring from './scout/scoring.js';
+import type { DroppedRelease, ScoredRelease, ScoutScoreConfig, SearchSuccess } from './scout/types.js';
 
 const TRASH_SYNC_MODEL_VERSION = '2026-03-07-v2';
-
-interface ScoredRelease extends ProwlarrSearchResult {
-  score: number;
-  reasons: string[];
-}
-
-interface DroppedRelease extends ProwlarrSearchResult {
-  score: number;
-  reasons: string[];
-  droppedReason: string;
-}
-
-interface ScoutScoreConfig {
-  bitrateTargetMbps: number;
-  bitrateTolerancePct: number;
-  bitrateMaxScore: number;
-  res2160: number;
-  res1080: number;
-  res720: number;
-  sourceRemux: number;
-  sourceBluray: number;
-  sourceWebdl: number;
-  codecHevc: number;
-  codecAv1: number;
-  codecH264: number;
-  audioAtmos: number;
-  audioTruehd: number;
-  audioDts: number;
-  audioDdp: number;
-  audioAc3: number;
-  audioAac: number;
-  legacyPenalty: number;
-  seedersDivisor: number;
-  seedersBonusCap: number;
-  usenetBonus: number;
-  torrentBonus: number;
-  llmTieDelta: number;
-  llmWeakDropDelta: number;
-}
-
-interface SearchSuccess {
-  movieId: number;
-  query: string;
-  total: number;
-  releases: ScoredRelease[];
-  droppedReleases: DroppedRelease[];
-  protocolCounts?: {
-    torrent: number;
-    usenet: number;
-    unknown: number;
-  };
-  cache?: {
-    hit: boolean;
-    ttlSecRemaining: number;
-    revision: string;
-  };
-  recommendation: ScoutRecommendation;
-}
-
-interface ScoutRecommendation {
-  mode: 'tabulated';
-  summary: string;
-  best: ScoredRelease | null;
-}
 
 interface ScoutAutoRunResult {
   movieId: number;
@@ -102,59 +39,11 @@ const autoState: ScoutAutoState = {
 };
 
 const lastAutoSeenByMovie = new Map<number, number>();
-const SCOUT_CACHE_TTL_MS = 15 * 60 * 1000;
-const SCOUT_CACHE_MAX_ENTRIES = 512;
-
-interface ScoutCacheEntry {
-  expiresAt: number;
-  payload: SearchSuccess;
-}
-
-const scoutSearchCache = new Map<string, ScoutCacheEntry>();
+const scoutSearchCache = new Map<string, scoutCache.ScoutCacheEntry>();
 
 function toText(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
-
-function toInt(raw: string | undefined, fallback: number): number {
-  const v = Number.parseInt(raw ?? '', 10);
-  return Number.isFinite(v) ? v : fallback;
-}
-
-function toFloat(raw: string | undefined, fallback: number): number {
-  const v = Number.parseFloat(raw ?? '');
-  return Number.isFinite(v) ? v : fallback;
-}
-
-const SCOUT_DEFAULT_SETTINGS = getScoutDefaultSettings();
-
-const DEFAULT_SCOUT_SCORE_CONFIG: ScoutScoreConfig = {
-  bitrateTargetMbps: toFloat(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateTargetMbps, 18),
-  bitrateTolerancePct: toFloat(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateTolerancePct, 40),
-  bitrateMaxScore: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBitrateMaxScore, 12),
-  res2160: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicRes2160, 46),
-  res1080: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicRes1080, 24),
-  res720: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicRes720, 8),
-  sourceRemux: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSourceRemux, 30),
-  sourceBluray: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSourceBluray, 20),
-  sourceWebdl: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSourceWebdl, 14),
-  codecHevc: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoHevc, 22),
-  codecAv1: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoAv1, 10),
-  codecH264: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicVideoH264, 8),
-  audioAtmos: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioAtmos, 10),
-  audioTruehd: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioTruehd, 8),
-  audioDts: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioDts, 6),
-  audioDdp: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioDdp, 5),
-  audioAc3: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioAc3, 2),
-  audioAac: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicAudioAac, 1),
-  legacyPenalty: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicLegacyPenalty, 40),
-  seedersDivisor: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSeedersDivisor, 25),
-  seedersBonusCap: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicSeedersBonusCap, 10),
-  usenetBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicUsenetBonus, 10),
-  torrentBonus: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineBasicTorrentBonus, 0),
-  llmTieDelta: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineLlmTieDelta, 10),
-  llmWeakDropDelta: toInt(SCOUT_DEFAULT_SETTINGS.scoutPipelineLlmWeakDropDelta, 40),
-};
 
 interface ScoutRuleSeed {
   name: string;
@@ -435,180 +324,6 @@ function getTrashParity(db: CuratDb): ScoutTrashParityResponse {
   };
 }
 
-function loadScoutCustomCfRules(db: CuratDb): ScoutCustomCfRule[] {
-  const rows = db.getRules('scout_custom_cf').filter((r) => r.enabled !== 0);
-  const out: ScoutCustomCfRule[] = [];
-  for (const row of rows) {
-    const cfg = safeParseJson(row.config) as Record<string, unknown>;
-    const matchType = cfg.matchType === 'regex' ? 'regex' : 'string';
-    const pattern = typeof cfg.pattern === 'string' ? cfg.pattern : '';
-    const score = Number(cfg.score ?? 0);
-    const flagsRaw = typeof cfg.flags === 'string' ? cfg.flags : 'i';
-    const flags = flagsRaw.includes('i') ? 'i' : '';
-    const appliesTo = cfg.appliesTo === 'full' ? 'full' : 'title';
-    if (!pattern.trim() || !Number.isFinite(score)) continue;
-    out.push({
-      id: row.id,
-      name: row.name,
-      pattern: pattern.trim(),
-      score,
-      matchType,
-      flags,
-      appliesTo,
-    });
-  }
-  return out.sort((a, b) => a.id - b.id);
-}
-
-function applyCustomCfRules(
-  release: ProwlarrSearchResult,
-  rules: ScoutCustomCfRule[],
-): { delta: number; reasons: string[]; matchedRuleIds: number[] } {
-  let delta = 0;
-  const reasons: string[] = [];
-  const matchedRuleIds: number[] = [];
-  const text = release.title ?? '';
-  for (const rule of rules) {
-    const target = rule.appliesTo === 'full' ? text : text;
-    let matched = false;
-    if (rule.matchType === 'regex') {
-      try {
-        matched = new RegExp(rule.pattern, rule.flags).test(target);
-      } catch {
-        matched = false;
-      }
-    } else {
-      matched = target.toLowerCase().includes(rule.pattern.toLowerCase());
-    }
-    if (!matched) continue;
-    delta += rule.score;
-    matchedRuleIds.push(rule.id);
-    reasons.push(`custom_cf:${rule.name} (${rule.score >= 0 ? '+' : ''}${rule.score})`);
-  }
-  return { delta, reasons, matchedRuleIds };
-}
-
-function loadScoutLlmRules(db: CuratDb): ScoutLlmRule[] {
-  return db
-    .getRules('scout_llm_ruleset')
-    .filter((r) => r.enabled !== 0)
-    .map((r) => {
-      const cfg = safeParseJson(r.config) as Record<string, unknown>;
-      const sentence =
-        typeof cfg.sentence === 'string'
-          ? cfg.sentence
-          : typeof cfg.description === 'string'
-            ? cfg.description
-            : r.name;
-      return {
-        id: r.id,
-        priority: r.priority,
-        sentence: sentence.trim(),
-      };
-    })
-    .filter((r) => r.sentence.length > 0)
-    .sort((a, b) => a.priority - b.priority || a.id - b.id);
-}
-
-function loadScoutBlockerRules(db: CuratDb): ScoutBlockerRule[] {
-  const rows = db.getRules('scout_release_blockers').filter((r) => r.enabled !== 0);
-  const out: ScoutBlockerRule[] = [];
-  for (const row of rows) {
-    const cfg = safeParseJson(row.config) as Record<string, unknown>;
-    const matchType = cfg.matchType === 'regex' ? 'regex' : 'string';
-    const pattern = typeof cfg.pattern === 'string' ? cfg.pattern.trim() : '';
-    if (!pattern) continue;
-    out.push({
-      id: row.id,
-      name: row.name,
-      enabled: row.enabled !== 0,
-      priority: row.priority,
-      matchType,
-      flags: typeof cfg.flags === 'string' ? cfg.flags : 'i',
-      appliesTo: cfg.appliesTo === 'full' ? 'full' : 'title',
-      pattern,
-      reason: typeof cfg.reason === 'string' && cfg.reason.trim() ? cfg.reason.trim() : 'Blocked by custom rule',
-    });
-  }
-  return out.sort((a, b) => a.priority - b.priority || a.id - b.id);
-}
-
-function applyBlockerRules(
-  releases: ScoredRelease[],
-  blockers: ScoutBlockerRule[],
-): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
-  if (blockers.length === 0) return { finals: releases, dropped: [] };
-  const finals: ScoredRelease[] = [];
-  const dropped: DroppedRelease[] = [];
-  for (const rel of releases) {
-    let dropReason: string | null = null;
-    for (const rule of blockers) {
-      const target = rule.appliesTo === 'full' ? rel.title : rel.title;
-      let matched = false;
-      if (rule.matchType === 'regex') {
-        try {
-          matched = new RegExp(rule.pattern, rule.flags.includes('i') ? 'i' : '').test(target);
-        } catch {
-          matched = false;
-        }
-      } else {
-        matched = target.toLowerCase().includes(rule.pattern.toLowerCase());
-      }
-      if (matched) {
-        dropReason = `Blocked: ${rule.reason}`;
-        break;
-      }
-    }
-    if (dropReason) {
-      dropped.push({ ...rel, droppedReason: dropReason });
-    } else {
-      finals.push(rel);
-    }
-  }
-  return { finals, dropped };
-}
-
-function applyLlmRuleset(
-  releases: ScoredRelease[],
-  llmRules: ScoutLlmRule[],
-  cfg: ScoutScoreConfig,
-): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
-  // Step 5 is currently stored/configurable but execution is intentionally disabled
-  // until true provider-backed LLM ranking is implemented.
-  if (llmRules.length === 0) return { finals: [...releases].sort((a, b) => b.score - a.score), dropped: [] };
-  return { finals: [...releases].sort((a, b) => b.score - a.score), dropped: [] };
-}
-
-function applyTopPercentileGate(
-  releases: ScoredRelease[],
-  keepRatio: number,
-): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
-  if (releases.length === 0) return { finals: [], dropped: [] };
-  const ratio = Math.max(0, Math.min(1, keepRatio));
-  const keepCount = Math.max(1, Math.ceil(releases.length * ratio));
-  const sorted = [...releases].sort((a, b) => b.score - a.score);
-  const finals = sorted.slice(0, keepCount);
-  const dropped = sorted.slice(keepCount).map((r) => ({
-    ...r,
-    droppedReason: 'Dropped by percentile gate (outside top 10%).',
-  }));
-  return { finals, dropped };
-}
-
-function applyLlmSingleCandidateGate(
-  releases: ScoredRelease[],
-  llmRules: ScoutLlmRule[],
-): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
-  if (llmRules.length === 0 || releases.length <= 1) return { finals: releases, dropped: [] };
-  const sorted = [...releases].sort((a, b) => b.score - a.score);
-  const finals = sorted.slice(0, 1);
-  const dropped = sorted.slice(1).map((r) => ({
-    ...r,
-    droppedReason: 'Dropped by LLM single-candidate enforcement.',
-  }));
-  return { finals, dropped };
-}
-
 function applySettings(db: CuratDb, values: Record<string, string>): void {
   for (const [key, value] of Object.entries(values)) {
     db.setSetting(key, value);
@@ -839,7 +554,7 @@ function buildScoutRefinementDraft(
     proposedSettings.scoutPipelineBasicTorrentBonus = '-2';
   }
 
-  const scoreCfg = resolveScoutScoreConfig(db);
+  const scoreCfg = scoutScoring.resolveScoutScoreConfig(db);
   const compactRules = rules
     .map((r) => ({
       id: r.id,
@@ -930,163 +645,6 @@ function buildScoutRefinementDraft(
   };
 }
 
-function intSetting(db: CuratDb, key: string, fallback: number, min: number, max: number): number {
-  const raw = Number.parseInt(db.getSetting(key) ?? '', 10);
-  if (!Number.isFinite(raw)) return fallback;
-  return Math.max(min, Math.min(max, raw));
-}
-
-function floatSetting(db: CuratDb, key: string, fallback: number, min: number, max: number): number {
-  const raw = Number.parseFloat(db.getSetting(key) ?? '');
-  if (!Number.isFinite(raw)) return fallback;
-  return Math.max(min, Math.min(max, raw));
-}
-
-function resolveScoutScoreConfig(db: CuratDb): ScoutScoreConfig {
-  return {
-    bitrateTargetMbps: floatSetting(
-      db,
-      'scoutPipelineBitrateTargetMbps',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateTargetMbps,
-      1,
-      200,
-    ),
-    bitrateTolerancePct: floatSetting(
-      db,
-      'scoutPipelineBitrateTolerancePct',
-      DEFAULT_SCOUT_SCORE_CONFIG.bitrateTolerancePct,
-      1,
-      200,
-    ),
-    bitrateMaxScore: intSetting(db, 'scoutPipelineBitrateMaxScore', DEFAULT_SCOUT_SCORE_CONFIG.bitrateMaxScore, 0, 200),
-    res2160: intSetting(db, 'scoutPipelineBasicRes2160', DEFAULT_SCOUT_SCORE_CONFIG.res2160, -200, 200),
-    res1080: intSetting(db, 'scoutPipelineBasicRes1080', DEFAULT_SCOUT_SCORE_CONFIG.res1080, -200, 200),
-    res720: intSetting(db, 'scoutPipelineBasicRes720', DEFAULT_SCOUT_SCORE_CONFIG.res720, -200, 200),
-    sourceRemux: intSetting(db, 'scoutPipelineBasicSourceRemux', DEFAULT_SCOUT_SCORE_CONFIG.sourceRemux, -200, 200),
-    sourceBluray: intSetting(db, 'scoutPipelineBasicSourceBluray', DEFAULT_SCOUT_SCORE_CONFIG.sourceBluray, -200, 200),
-    sourceWebdl: intSetting(db, 'scoutPipelineBasicSourceWebdl', DEFAULT_SCOUT_SCORE_CONFIG.sourceWebdl, -200, 200),
-    codecHevc: intSetting(db, 'scoutPipelineBasicVideoHevc', DEFAULT_SCOUT_SCORE_CONFIG.codecHevc, -200, 200),
-    codecAv1: intSetting(db, 'scoutPipelineBasicVideoAv1', DEFAULT_SCOUT_SCORE_CONFIG.codecAv1, -200, 200),
-    codecH264: intSetting(db, 'scoutPipelineBasicVideoH264', DEFAULT_SCOUT_SCORE_CONFIG.codecH264, -200, 200),
-    audioAtmos: intSetting(db, 'scoutPipelineBasicAudioAtmos', DEFAULT_SCOUT_SCORE_CONFIG.audioAtmos, -200, 200),
-    audioTruehd: intSetting(db, 'scoutPipelineBasicAudioTruehd', DEFAULT_SCOUT_SCORE_CONFIG.audioTruehd, -200, 200),
-    audioDts: intSetting(db, 'scoutPipelineBasicAudioDts', DEFAULT_SCOUT_SCORE_CONFIG.audioDts, -200, 200),
-    audioDdp: intSetting(db, 'scoutPipelineBasicAudioDdp', DEFAULT_SCOUT_SCORE_CONFIG.audioDdp, -200, 200),
-    audioAc3: intSetting(db, 'scoutPipelineBasicAudioAc3', DEFAULT_SCOUT_SCORE_CONFIG.audioAc3, -200, 200),
-    audioAac: intSetting(db, 'scoutPipelineBasicAudioAac', DEFAULT_SCOUT_SCORE_CONFIG.audioAac, -200, 200),
-    legacyPenalty: intSetting(db, 'scoutPipelineBasicLegacyPenalty', DEFAULT_SCOUT_SCORE_CONFIG.legacyPenalty, 0, 400),
-    seedersDivisor: intSetting(
-      db,
-      'scoutPipelineBasicSeedersDivisor',
-      DEFAULT_SCOUT_SCORE_CONFIG.seedersDivisor,
-      1,
-      500,
-    ),
-    seedersBonusCap: intSetting(
-      db,
-      'scoutPipelineBasicSeedersBonusCap',
-      DEFAULT_SCOUT_SCORE_CONFIG.seedersBonusCap,
-      0,
-      200,
-    ),
-    usenetBonus: intSetting(db, 'scoutPipelineBasicUsenetBonus', DEFAULT_SCOUT_SCORE_CONFIG.usenetBonus, -200, 200),
-    torrentBonus: intSetting(db, 'scoutPipelineBasicTorrentBonus', DEFAULT_SCOUT_SCORE_CONFIG.torrentBonus, -200, 200),
-    llmTieDelta: intSetting(db, 'scoutPipelineLlmTieDelta', DEFAULT_SCOUT_SCORE_CONFIG.llmTieDelta, 0, 100),
-    llmWeakDropDelta: intSetting(
-      db,
-      'scoutPipelineLlmWeakDropDelta',
-      DEFAULT_SCOUT_SCORE_CONFIG.llmWeakDropDelta,
-      0,
-      300,
-    ),
-  };
-}
-
-function addBasicFormatScore(r: ProwlarrSearchResult, cfg: ScoutScoreConfig, runtimeSec: number | null): ScoredRelease {
-  const t = r.title.toLowerCase();
-  let score = 0;
-  const reasons: string[] = [];
-
-  if (/\b2160p\b|\b4k\b/.test(t)) {
-    score += cfg.res2160;
-    reasons.push('basic:resolution:2160p');
-  } else if (/\b1080p\b/.test(t)) {
-    score += cfg.res1080;
-    reasons.push('basic:resolution:1080p');
-  } else if (/\b720p\b/.test(t)) {
-    score += cfg.res720;
-    reasons.push('basic:resolution:720p');
-  }
-
-  if (/\bhevc\b|\bx265\b/.test(t)) {
-    score += cfg.codecHevc;
-    reasons.push('basic:video:hevc');
-  } else if (/\bav1\b/.test(t)) {
-    score += cfg.codecAv1;
-    reasons.push('basic:video:av1');
-  } else if (/\bh264\b|\bx264\b/.test(t)) {
-    score += cfg.codecH264;
-    reasons.push('basic:video:h264');
-  }
-
-  if (/\batmos\b/.test(t)) {
-    score += cfg.audioAtmos;
-    reasons.push('basic:audio:atmos');
-  } else if (/\btruehd\b/.test(t)) {
-    score += cfg.audioTruehd;
-    reasons.push('basic:audio:truehd');
-  } else if (/\bdts(?:-?hd|-?x)?\b/.test(t)) {
-    score += cfg.audioDts;
-    reasons.push('basic:audio:dts');
-  } else if (/\be-?ac-?3\b|\bddp\b|\bdd\+\b/.test(t)) {
-    score += cfg.audioDdp;
-    reasons.push('basic:audio:ddp/eac3');
-  } else if (/\bac-?3\b/.test(t)) {
-    score += cfg.audioAc3;
-    reasons.push('basic:audio:ac3');
-  } else if (/\baac\b/.test(t)) {
-    score += cfg.audioAac;
-    reasons.push('basic:audio:aac');
-  }
-
-  if (/\b(remux)\b/.test(t)) {
-    score += cfg.sourceRemux;
-    reasons.push('basic:source:remux');
-  } else if (/\bblu[- .]?ray\b|\bbd(?:rip)?\b|\bbrrip\b/.test(t)) {
-    score += cfg.sourceBluray;
-    reasons.push('basic:source:bluray');
-  } else if (/\bweb-?dl\b|\bweb[- .]?rip\b/.test(t)) {
-    score += cfg.sourceWebdl;
-    reasons.push('basic:source:web-dl');
-  }
-
-  if (runtimeSec && runtimeSec > 0 && r.size && r.size > 0) {
-    const estimatedMbps = (r.size * 8) / runtimeSec / 1_000_000;
-    const distanceRatio = Math.abs(estimatedMbps - cfg.bitrateTargetMbps) / Math.max(cfg.bitrateTargetMbps, 0.1);
-    const toleranceRatio = Math.max(0.01, cfg.bitrateTolerancePct / 100);
-    const alignment = Math.max(0, 1 - Math.min(1, distanceRatio / toleranceRatio));
-    const bitrateScore = Math.round(cfg.bitrateMaxScore * alignment);
-    if (bitrateScore > 0) {
-      score += bitrateScore;
-      reasons.push(`basic:bitrate(${bitrateScore})`);
-    }
-  }
-
-  return { ...r, score, reasons };
-}
-
-interface ScoutBlockerRule {
-  id: number;
-  name: string;
-  enabled: boolean;
-  priority: number;
-  matchType: 'regex' | 'string';
-  pattern: string;
-  flags: string;
-  appliesTo: 'title' | 'full';
-  reason: string;
-}
-
 function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | null {
   const url = db.getSetting('prowlarrUrl') ?? '';
   const apiKey = db.getSetting('prowlarrApiKey') ?? '';
@@ -1098,71 +656,6 @@ function configuredBatchCap(db: CuratDb): number {
   const raw = Number.parseInt(db.getSetting('scoutPipelineBatchSize') ?? '10', 10);
   if (!Number.isFinite(raw)) return 10;
   return Math.max(1, Math.min(10, raw));
-}
-
-function stableJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map((v) => stableJson(v)).join(',')}]`;
-  if (value && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b));
-    return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${stableJson(v)}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function buildScoutConfigRevision(db: CuratDb): string {
-  const settings = Object.entries(db.getAllSettings())
-    .filter(([k]) => k.startsWith('scout'))
-    .sort(([a], [b]) => a.localeCompare(b));
-  const rules = db
-    .getRules()
-    .filter((r) => ['scout_custom_cf', 'scout_release_blockers', 'scout_llm_ruleset'].includes(r.category))
-    .map((r) => ({
-      category: r.category,
-      name: r.name,
-      enabled: r.enabled,
-      priority: r.priority,
-      config: r.config,
-      updated_at: r.updated_at,
-    }))
-    .sort(
-      (a, b) =>
-        a.category.localeCompare(b.category) ||
-        a.priority - b.priority ||
-        a.name.localeCompare(b.name) ||
-        a.config.localeCompare(b.config),
-    );
-  const raw = stableJson({ settings, rules });
-  return createHash('sha1').update(raw).digest('hex');
-}
-
-function normalizeScoutQuery(query: string): string {
-  return query.trim().toLowerCase().replace(/\s+/g, ' ');
-}
-
-function buildScoutCacheKey(movieId: number, query: string, revision: string): string {
-  return `${movieId}:${normalizeScoutQuery(query)}:${revision}`;
-}
-
-function pruneScoutCache(now = Date.now()): void {
-  for (const [key, entry] of scoutSearchCache.entries()) {
-    if (entry.expiresAt <= now) scoutSearchCache.delete(key);
-  }
-  if (scoutSearchCache.size <= SCOUT_CACHE_MAX_ENTRIES) return;
-  const sorted = [...scoutSearchCache.entries()].sort((a, b) => a[1].expiresAt - b[1].expiresAt);
-  const overflow = scoutSearchCache.size - SCOUT_CACHE_MAX_ENTRIES;
-  for (const [key] of sorted.slice(0, overflow)) scoutSearchCache.delete(key);
-}
-
-function withScoutCacheMeta(result: SearchSuccess, hit: boolean, revision: string, expiresAt: number): SearchSuccess {
-  const ttlSecRemaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-  return {
-    ...result,
-    cache: {
-      hit,
-      ttlSecRemaining,
-      revision,
-    },
-  };
 }
 
 function protocolCounts(rows: ProwlarrSearchResult[]): { torrent: number; usenet: number; unknown: number } {
@@ -1283,19 +776,19 @@ async function searchOneMovie(
   const title = movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name;
   const year = movie.jellyfin_year ?? movie.parsed_year;
   const query = toText(queryOverride).trim() || [title, year].filter(Boolean).join(' ');
-  const revision = buildScoutConfigRevision(db);
-  const cacheKey = buildScoutCacheKey(movieId, query, revision);
+  const revision = scoutCache.buildScoutConfigRevision(db);
+  const cacheKey = scoutCache.buildScoutCacheKey(movieId, query, revision);
   const now = Date.now();
   const cached = scoutSearchCache.get(cacheKey);
   if (cached && cached.expiresAt > now) {
-    return withScoutCacheMeta(cached.payload, true, revision, cached.expiresAt);
+    return scoutCache.withScoutCacheMeta(cached.payload, true, revision, cached.expiresAt);
   }
   if (cached) scoutSearchCache.delete(cacheKey);
 
-  const scoreCfg = resolveScoutScoreConfig(db);
-  const customCfRules = loadScoutCustomCfRules(db);
-  const blockerRules = loadScoutBlockerRules(db);
-  const llmRules = loadScoutLlmRules(db);
+  const scoreCfg = scoutScoring.resolveScoutScoreConfig(db);
+  const customCfRules = scoutScoring.loadScoutCustomCfRules(db);
+  const blockerRules = scoutScoring.loadScoutBlockerRules(db);
+  const llmRules = scoutScoring.loadScoutLlmRules(db);
   const blockersEnabled = (db.getSetting('scoutPipelineBlockersEnabled') ?? 'false').toLowerCase() === 'true';
   const runtimeSec = db.getFilesForMovie(movieId).find((f) => (f.duration ?? 0) > 0)?.duration ?? null;
 
@@ -1304,9 +797,9 @@ async function searchOneMovie(
     title,
     year,
   });
-  const scoredBasic = releases.map((r) => addBasicFormatScore(r, scoreCfg, runtimeSec));
+  const scoredBasic = releases.map((r) => scoutScoring.addBasicFormatScore(r, scoreCfg, runtimeSec));
   const scoredWithCustom = scoredBasic.map((r) => {
-    const custom = applyCustomCfRules(r, customCfRules);
+    const custom = scoutScoring.applyCustomCfRules(r, customCfRules);
     if (custom.delta === 0) return r;
     return {
       ...r,
@@ -1316,11 +809,11 @@ async function searchOneMovie(
   });
 
   const blockerResult = blockersEnabled
-    ? applyBlockerRules(scoredWithCustom, blockerRules)
+    ? scoutScoring.applyBlockerRules(scoredWithCustom, blockerRules)
     : { finals: scoredWithCustom, dropped: [] as DroppedRelease[] };
-  const percentileResult = applyTopPercentileGate(blockerResult.finals, 0.1);
-  const llmResult = applyLlmRuleset(percentileResult.finals, llmRules, scoreCfg);
-  const llmSingleResult = applyLlmSingleCandidateGate(llmResult.finals, llmRules);
+  const percentileResult = scoutScoring.applyTopPercentileGate(blockerResult.finals, 0.1);
+  const llmResult = scoutScoring.applyLlmRuleset(percentileResult.finals, llmRules, scoreCfg);
+  const llmSingleResult = scoutScoring.applyLlmSingleCandidateGate(llmResult.finals, llmRules);
   const scored = llmSingleResult.finals;
   const dropped = [
     ...blockerResult.dropped,
@@ -1344,11 +837,11 @@ async function searchOneMovie(
       best,
     },
   };
-  const expiresAt = Date.now() + SCOUT_CACHE_TTL_MS;
-  pruneScoutCache();
+  const expiresAt = Date.now() + scoutCache.SCOUT_CACHE_TTL_MS;
+  scoutCache.pruneScoutCache(scoutSearchCache);
   scoutSearchCache.set(cacheKey, { expiresAt, payload: result });
-  pruneScoutCache();
-  return withScoutCacheMeta(result, false, revision, expiresAt);
+  scoutCache.pruneScoutCache(scoutSearchCache);
+  return scoutCache.withScoutCacheMeta(result, false, revision, expiresAt);
 }
 
 function toPriorityScore(mc: number | null, imdb: number | null): number {
@@ -1506,8 +999,8 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     const body = (await c.req.json().catch(() => ({}))) as { title?: unknown };
     const title = toText(body.title).trim();
     if (!title) return c.json({ error: 'title_required' }, 400);
-    const rules = loadScoutCustomCfRules(db);
-    const match = applyCustomCfRules(
+    const rules = scoutScoring.loadScoutCustomCfRules(db);
+    const match = scoutScoring.applyCustomCfRules(
       {
         title,
         indexer: null,

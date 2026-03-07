@@ -512,18 +512,29 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     try {
       const client = new JellyfinClient(url, apiKey);
       let jf: JfMovie | undefined;
+      const searchTitle = movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name;
+      const searchYear = movie.jellyfin_year ?? movie.parsed_year ?? undefined;
+      const unresolvedIdLookup = (err: Error): boolean => {
+        if (err.name === 'JellyfinItemNotFoundError') return true;
+        return /HTTP 400\b|HTTP 404\b/i.test(err.message);
+      };
+
       if (movie.jellyfin_id) {
-        jf = await client.getMovie(movie.jellyfin_id);
-      } else {
-        const searchTitle = movie.jellyfin_title ?? movie.parsed_title ?? movie.folder_name;
-        const searchYear = movie.jellyfin_year ?? movie.parsed_year ?? undefined;
+        try {
+          jf = await client.getMovie(movie.jellyfin_id);
+        } catch (err) {
+          if (!unresolvedIdLookup(err as Error)) throw err;
+        }
+      }
+
+      if (!jf) {
         const candidates = await client.searchMovies(searchTitle, searchYear ?? undefined);
         const expected = normTitle(searchTitle);
-        const strictMatches = candidates.filter((c) => {
-          const t = normTitle(c.Name ?? '');
-          return t === expected && (searchYear == null || c.ProductionYear === searchYear);
+        const strictMatches = candidates.filter((candidate) => {
+          const candidateTitle = normTitle(candidate.Name ?? '');
+          return candidateTitle === expected && (searchYear == null || candidate.ProductionYear === searchYear);
         });
-        const titleMatches = candidates.filter((c) => normTitle(c.Name ?? '') === expected);
+        const titleMatches = candidates.filter((candidate) => normTitle(candidate.Name ?? '') === expected);
 
         if (strictMatches.length === 1) {
           jf = strictMatches[0];
@@ -539,17 +550,17 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
         } else if (titleMatches.length === 1) {
           jf = titleMatches[0];
         }
+      }
 
-        if (!jf) {
-          flagDisambiguationNeeded(id, searchTitle, searchYear ?? null, 'no_jellyfin_match');
-          return c.json(
-            {
-              error: 'disambiguation_required',
-              detail: `No reliable Jellyfin match found for "${searchTitle}".`,
-            },
-            409,
-          );
-        }
+      if (!jf) {
+        flagDisambiguationNeeded(id, searchTitle, searchYear ?? null, 'no_jellyfin_match');
+        return c.json(
+          {
+            error: 'disambiguation_required',
+            detail: `No reliable Jellyfin match found for "${searchTitle}".`,
+          },
+          409,
+        );
       }
 
       const validation = validateJellyfinCandidateAgainstFolder(movie, jf);

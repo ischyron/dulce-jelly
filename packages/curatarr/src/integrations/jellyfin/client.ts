@@ -134,13 +134,23 @@ export class JellyfinClient {
     return { movies: allMovies, errors };
   }
 
-  /** Fetch a single movie by Jellyfin ID (cached 30s) */
+  /** Fetch a single movie by Jellyfin ID (cached 30s). */
   async getMovie(jellyfinId: string): Promise<JfMovie> {
-    return this.get<JfMovie>(
-      `/Items/${jellyfinId}?Fields=Path,ProviderIds,CriticRating,CommunityRating,Genres,Overview`,
-      DEFAULT_TIMEOUT_MS,
-      true,
-    );
+    const qs = new URLSearchParams({
+      Ids: jellyfinId,
+      IncludeItemTypes: 'Movie',
+      Recursive: 'true',
+      Limit: '1',
+      Fields: 'Path,ProviderIds,CriticRating,CommunityRating,Genres,Overview',
+    });
+    const data = await this.get<{ Items: JfMovie[] }>(`/Items?${qs}`, DEFAULT_TIMEOUT_MS, true);
+    const movie = data.Items?.[0];
+    if (!movie) {
+      const err = new Error(`Jellyfin movie not found for id: ${jellyfinId}`);
+      err.name = 'JellyfinItemNotFoundError';
+      throw err;
+    }
+    return movie;
   }
 
   /** Search by title — returns candidates (not always exact) */

@@ -230,6 +230,100 @@ test.describe('Scout feature checks', () => {
     expect(Array.isArray(multiJson.movies)).toBeTruthy();
   });
 
+  test('scout percentile gate drops bottom 90%, and LLM-active flow returns one candidate', async ({ request }) => {
+    test.setTimeout(120_000);
+
+    const settingsRes = await request.get('/api/settings');
+    expect(settingsRes.ok()).toBeTruthy();
+    const settings = (await settingsRes.json())?.settings ?? {};
+    const hasProwlarr = Boolean(settings.prowlarrUrl);
+    test.skip(!hasProwlarr, 'requires configured Prowlarr for live scout search');
+
+    const candidateRes = await request.get('/api/candidates?minCritic=0&minCommunity=0&maxResolution=2160p&limit=1');
+    expect(candidateRes.ok()).toBeTruthy();
+    const candidateJson = await candidateRes.json();
+    const firstMovieId = candidateJson?.candidates?.[0]?.id;
+    expect(firstMovieId).toBeTruthy();
+
+    const saveSettingsRes = await request.put('/api/settings', {
+      data: {
+        scoutPipelineBlockersEnabled: 'false',
+      },
+    });
+    expect(saveSettingsRes.ok()).toBeTruthy();
+
+    // Keep this test self-contained: no LLM rules for the first pass.
+    const clearLlmRes = await request.put('/api/rules/replace-category', {
+      data: { category: 'scout_llm_ruleset', rules: [] },
+    });
+    expect(clearLlmRes.ok()).toBeTruthy();
+
+    const queries = ['first man 2018', 'inception 2010', 'matrix 1999', 'batman 2022'];
+    let baseline = null;
+    for (const q of queries) {
+      const res = await request.post('/api/scout/search-one', {
+        data: { movieId: firstMovieId, query: q },
+      });
+      if (!res.ok()) continue;
+      const body = await res.json();
+      const totalSeen = (body?.releases?.length ?? 0) + (body?.droppedReleases?.length ?? 0);
+      if (totalSeen >= 10) {
+        baseline = body;
+        break;
+      }
+    }
+    test.skip(!baseline, 'no sufficiently large scout result set available to validate percentile gating');
+
+    const baselineCandidates = baseline.releases ?? [];
+    const baselineDropped = baseline.droppedReleases ?? [];
+    const baselineTotal = baselineCandidates.length + baselineDropped.length;
+    const expectedKeep = Math.max(1, Math.ceil(baselineTotal * 0.1));
+    expect(baselineCandidates.length).toBe(expectedKeep);
+    expect(baselineDropped.length).toBe(baselineTotal - expectedKeep);
+    expect(
+      baselineDropped.every((r) => typeof r?.droppedReason === 'string' && r.droppedReason.includes('percentile gate')),
+    ).toBeTruthy();
+
+    const llmRuleName = `LLM One-Candidate ${Date.now()}`;
+    try {
+      const setLlmRes = await request.put('/api/rules/replace-category', {
+        data: {
+          category: 'scout_llm_ruleset',
+          rules: [
+            {
+              name: llmRuleName,
+              enabled: true,
+              priority: 1,
+              config: { sentence: 'Prefer usenet in close ties.' },
+            },
+          ],
+        },
+      });
+      expect(setLlmRes.ok()).toBeTruthy();
+
+      const llmSearchRes = await request.post('/api/scout/search-one', {
+        data: { movieId: firstMovieId, query: baseline.query },
+      });
+      expect(llmSearchRes.ok()).toBeTruthy();
+      const llmBody = await llmSearchRes.json();
+      const llmCandidates = llmBody?.releases ?? [];
+      const llmDropped = llmBody?.droppedReleases ?? [];
+      const llmTotal = llmCandidates.length + llmDropped.length;
+      expect(llmTotal).toBeGreaterThan(0);
+      expect(llmCandidates.length).toBe(1);
+      expect(
+        llmDropped.some(
+          (r) => typeof r?.droppedReason === 'string' && r.droppedReason.includes('single-candidate enforcement'),
+        ),
+      ).toBeTruthy();
+    } finally {
+      const cleanup = await request.put('/api/rules/replace-category', {
+        data: { category: 'scout_llm_ruleset', rules: [] },
+      });
+      expect(cleanup.ok()).toBeTruthy();
+    }
+  });
+
   test('scout search-one behavior matches prowlarr config state', async ({ request }) => {
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();

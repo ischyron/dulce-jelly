@@ -70,6 +70,8 @@ const SCOUT_CHIP_GROUPS: Record<'Resolution' | 'Source' | 'Audio', string[]> = {
   Audio: ['DTS-MA', 'DTS', 'TrueHD', 'Atmos', 'DDP', 'AC3', 'AAC'],
 };
 
+const SCOUT_PROTOCOL_CHIPS = ['Torrent', 'Usenet', 'Unknown'];
+
 function releaseTitleTags(title: string): string[] {
   const t = title.toLowerCase();
   const out = new Set<string>();
@@ -93,38 +95,53 @@ function releaseTitleTags(title: string): string[] {
   return [...out];
 }
 
+function protocolChipForRelease(protocol: string | null | undefined): string {
+  const value = (protocol ?? '').toLowerCase();
+  if (value === 'torrent') return 'Torrent';
+  if (value === 'usenet') return 'Usenet';
+  return 'Unknown';
+}
+
 function resultChipGroups(rows: ScoutResultRow[]): Array<{ label: string; chips: string[] }> {
   const has = new Set(rows.flatMap((r) => releaseTitleTags(r.title)));
+  const hasProtocol = new Set(rows.map((r) => protocolChipForRelease(r.protocol)));
   const pick = (chips: string[]) => chips.filter((c) => has.has(c));
+  const pickProtocol = (chips: string[]) => chips.filter((c) => hasProtocol.has(c));
   return [
     { label: 'Resolution', chips: pick([...SCOUT_CHIP_GROUPS.Resolution]) },
     { label: 'Source', chips: pick([...SCOUT_CHIP_GROUPS.Source]) },
     { label: 'Audio', chips: pick([...SCOUT_CHIP_GROUPS.Audio]) },
+    { label: 'Protocol', chips: pickProtocol(SCOUT_PROTOCOL_CHIPS) },
   ].filter((g) => g.chips.length > 0);
 }
 
-function releaseMatchesScoutChips(title: string, selectedChips: string[]): boolean {
+function releaseMatchesScoutChips(release: ScoutResultRow, selectedChips: string[]): boolean {
   if (selectedChips.length === 0) return true;
 
-  const tags = releaseTitleTags(title);
+  const tags = releaseTitleTags(release.title);
+  const protocolChip = protocolChipForRelease(release.protocol);
   const selected = new Set(selectedChips);
   const selectedResolution = SCOUT_CHIP_GROUPS.Resolution.filter((chip) => selected.has(chip));
   const selectedSource = SCOUT_CHIP_GROUPS.Source.filter((chip) => selected.has(chip));
   const selectedAudio = SCOUT_CHIP_GROUPS.Audio.filter((chip) => selected.has(chip));
-  const selectedKnown = selectedResolution.length + selectedSource.length + selectedAudio.length;
+  const selectedProtocol = SCOUT_PROTOCOL_CHIPS.filter((chip) => selected.has(chip));
+  const selectedKnown =
+    selectedResolution.length + selectedSource.length + selectedAudio.length + selectedProtocol.length;
   const unknown = selectedChips.filter(
     (chip) =>
       !SCOUT_CHIP_GROUPS.Resolution.includes(chip) &&
       !SCOUT_CHIP_GROUPS.Source.includes(chip) &&
-      !SCOUT_CHIP_GROUPS.Audio.includes(chip),
+      !SCOUT_CHIP_GROUPS.Audio.includes(chip) &&
+      !SCOUT_PROTOCOL_CHIPS.includes(chip),
   );
 
   const resolutionOk = selectedResolution.length === 0 || selectedResolution.some((chip) => tags.includes(chip));
   const sourceOk = selectedSource.length === 0 || selectedSource.some((chip) => tags.includes(chip));
   const audioOk = selectedAudio.length === 0 || selectedAudio.every((chip) => tags.includes(chip));
+  const protocolOk = selectedProtocol.length === 0 || selectedProtocol.some((chip) => chip === protocolChip);
   const unknownOk = selectedKnown === selectedChips.length || unknown.every((chip) => tags.includes(chip));
 
-  return resolutionOk && sourceOk && audioOk && unknownOk;
+  return resolutionOk && sourceOk && audioOk && protocolOk && unknownOk;
 }
 
 function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
@@ -137,7 +154,7 @@ function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
             <th className="px-2 py-2 text-left">Score</th>
             <th className="px-2 py-2 text-left">Release</th>
             <th className="px-2 py-2 text-left">Indexer</th>
-            <th className="px-2 py-2 text-left">Proto</th>
+            <th className="px-2 py-2 text-left">Protocol</th>
             <th className="px-2 py-2 text-right">Size</th>
             <th className="px-2 py-2 text-right">Age</th>
             <th className="px-2 py-2 text-right">S/P</th>
@@ -288,7 +305,7 @@ function ScoutResultsTable({ releases }: { releases: ScoutRelease[] }) {
             <th className="px-2 py-2 text-left">Score</th>
             <th className="px-2 py-2 text-left">Release</th>
             <th className="px-2 py-2 text-left">Indexer</th>
-            <th className="px-2 py-2 text-left">Proto</th>
+            <th className="px-2 py-2 text-left">Protocol</th>
             <th className="px-2 py-2 text-right">Size</th>
             <th className="px-2 py-2 text-right">Age</th>
             <th className="px-2 py-2 text-right">S/P</th>
@@ -833,7 +850,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   const filteredAll =
                     scoutResultView !== 'all' || scoutFilterChips.length === 0
                       ? allResults
-                      : allResults.filter((r) => releaseMatchesScoutChips(r.title, scoutFilterChips));
+                      : allResults.filter((r) => releaseMatchesScoutChips(r, scoutFilterChips));
                   return (
                     <>
                       <div className="flex flex-wrap items-center gap-2">
@@ -957,7 +974,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                       })),
                     ]
                       .sort((a, b) => b.score - a.score)
-                      .filter((r) => releaseMatchesScoutChips(r.title, scoutFilterChips))}
+                      .filter((r) => releaseMatchesScoutChips(r, scoutFilterChips))}
                   />
                 )}
               </div>

@@ -611,6 +611,36 @@ function applyLlmRuleset(
   return { finals, dropped };
 }
 
+function applyTopPercentileGate(
+  releases: ScoredRelease[],
+  keepRatio: number,
+): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
+  if (releases.length === 0) return { finals: [], dropped: [] };
+  const ratio = Math.max(0, Math.min(1, keepRatio));
+  const keepCount = Math.max(1, Math.ceil(releases.length * ratio));
+  const sorted = [...releases].sort((a, b) => b.score - a.score);
+  const finals = sorted.slice(0, keepCount);
+  const dropped = sorted.slice(keepCount).map((r) => ({
+    ...r,
+    droppedReason: 'Dropped by percentile gate (outside top 10%).',
+  }));
+  return { finals, dropped };
+}
+
+function applyLlmSingleCandidateGate(
+  releases: ScoredRelease[],
+  llmRules: ScoutLlmRule[],
+): { finals: ScoredRelease[]; dropped: DroppedRelease[] } {
+  if (llmRules.length === 0 || releases.length <= 1) return { finals: releases, dropped: [] };
+  const sorted = [...releases].sort((a, b) => b.score - a.score);
+  const finals = sorted.slice(0, 1);
+  const dropped = sorted.slice(1).map((r) => ({
+    ...r,
+    droppedReason: 'Dropped by LLM single-candidate enforcement.',
+  }));
+  return { finals, dropped };
+}
+
 function applySettings(db: CuratDb, values: Record<string, string>): void {
   for (const [key, value] of Object.entries(values)) {
     db.setSetting(key, value);
@@ -1166,11 +1196,18 @@ async function searchOneMovie(
   const blockerResult = blockersEnabled
     ? applyBlockerRules(scoredWithCustom, blockerRules)
     : { finals: scoredWithCustom, dropped: [] as DroppedRelease[] };
-  const llmResult = applyLlmRuleset(blockerResult.finals, llmRules, scoreCfg);
-  const scored = llmResult.finals;
-  const dropped = [...blockerResult.dropped, ...llmResult.dropped];
+  const percentileResult = applyTopPercentileGate(blockerResult.finals, 0.1);
+  const llmResult = applyLlmRuleset(percentileResult.finals, llmRules, scoreCfg);
+  const llmSingleResult = applyLlmSingleCandidateGate(llmResult.finals, llmRules);
+  const scored = llmSingleResult.finals;
+  const dropped = [
+    ...blockerResult.dropped,
+    ...percentileResult.dropped,
+    ...llmResult.dropped,
+    ...llmSingleResult.dropped,
+  ];
   const best = pickBestRecommendation(scored, scoreCfg);
-  const summary = `${recommendationSummary(best, scoreCfg)}${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by blockers/LLM rules.` : ''}`;
+  const summary = `${recommendationSummary(best, scoreCfg)}${dropped.length > 0 ? ` ${dropped.length} release(s) dropped by gating/rules.` : ''}`;
   return {
     movieId,
     query,

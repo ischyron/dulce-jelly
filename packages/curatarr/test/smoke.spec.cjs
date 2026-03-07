@@ -312,17 +312,10 @@ test.describe('MoviePage', () => {
     await expect(page.getByTestId('movie-actions-row').getByRole('button', { name: 'Scout Releases' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Sync from Jellyfin' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();
-    await expect(page.getByTestId('movie-scout-section')).toBeVisible();
-    await expect(
-      page.getByTestId('movie-scout-section').getByRole('button', { name: 'Force Refresh Results' }),
-    ).toBeVisible();
-    await expect(page.getByText('No scout results yet. Run Scout Releases to fetch candidates.')).toBeVisible();
+    await expect(page.getByTestId('movie-scout-section')).toHaveCount(0);
 
-    const notesHeading = page.getByText('Notes', { exact: true }).first();
-    const scoutHeading = page.getByTestId('movie-scout-section').getByText('Scout Results', { exact: true }).first();
-    const notesBox = await notesHeading.boundingBox();
-    const scoutBox = await scoutHeading.boundingBox();
-    expect(notesBox && scoutBox && scoutBox.y > notesBox.y).toBeTruthy();
+    await expect(page.getByText('Notes', { exact: true }).first()).toBeVisible();
+    await expect(page.getByTestId('movie-actions-row')).toBeVisible();
   });
 
   test('top scout action runs search and keeps scout section visible', async ({ page, request }) => {
@@ -338,6 +331,9 @@ test.describe('MoviePage', () => {
     await topScoutBtn.click();
 
     await expect(page.getByTestId('movie-scout-section')).toBeVisible();
+    await expect(
+      page.getByTestId('movie-scout-section').getByRole('button', { name: 'Force Refresh Results' }),
+    ).toBeVisible();
   });
 });
 

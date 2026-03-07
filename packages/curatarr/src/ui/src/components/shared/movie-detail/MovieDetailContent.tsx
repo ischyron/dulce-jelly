@@ -515,11 +515,15 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   }
 
   function triggerScoutAndJump() {
-    scoutSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    setTimeout(() => scoutHeadingRef.current?.focus(), 120);
     setHasScoutSearchRun(true);
+    setTimeout(() => {
+      scoutSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      scoutHeadingRef.current?.focus();
+    }, 120);
     scoutSearch.mutate(false);
   }
+
+  const showScoutSection = hasScoutSearchRun || scoutSearch.isPending || scoutSearch.isError || Boolean(scoutSearch.data);
 
   return (
     <>
@@ -757,11 +761,11 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-2 items-center">
+          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
             <select
               value={selectedTag}
               onChange={(e) => setSelectedTag(e.target.value)}
-              className="px-2 py-1 rounded text-xs focus:outline-none min-w-[10rem]"
+              className="w-full sm:w-auto px-2 py-1 rounded text-xs focus:outline-none sm:min-w-[10rem]"
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
             >
               <option value="">Select existing tag</option>
@@ -775,7 +779,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               type="button"
               onClick={addExistingTag}
               disabled={!selectedTag || patchMutation.isPending}
-              className="px-2 py-1 rounded text-xs border disabled:opacity-50"
+              className="w-full sm:w-auto px-2 py-1 rounded text-xs border disabled:opacity-50"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
               Add tag
@@ -787,14 +791,14 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 if (e.key === 'Enter') addNewTag();
               }}
               placeholder="new tag"
-              className="px-2 py-1 rounded text-xs focus:outline-none"
+              className="w-full sm:w-auto px-2 py-1 rounded text-xs focus:outline-none"
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
             />
             <button
               type="button"
               onClick={addNewTag}
               disabled={!addableTag || patchMutation.isPending}
-              className="px-2 py-1 rounded text-xs border disabled:opacity-50"
+              className="w-full sm:w-auto px-2 py-1 rounded text-xs border disabled:opacity-50"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
               Add new
@@ -835,7 +839,8 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
           </div>
         </div>
 
-        <div ref={scoutSectionRef} className="space-y-2" data-testid="movie-scout-section">
+        {showScoutSection && (
+          <div ref={scoutSectionRef} className="space-y-2" data-testid="movie-scout-section">
           <div className="flex items-center justify-between">
             <h3
               ref={scoutHeadingRef}
@@ -864,11 +869,6 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             <div className="text-xs text-red-400 inline-flex items-start gap-1">
               <AlertCircle size={12} className="mt-[1px]" />
               <span>{jellyfinSyncError}</span>
-            </div>
-          )}
-          {!hasScoutSearchRun && !scoutSearch.isPending && (
-            <div className="text-xs" style={{ color: '#8b87aa' }}>
-              No scout results yet. Run Scout Releases to fetch candidates.
             </div>
           )}
           {scoutSearch.isError && (
@@ -1046,7 +1046,8 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 )}
               </div>
             )}
-        </div>
+          </div>
+        )}
       </div>
       {showDelete && (
         <DeleteConfirmModal

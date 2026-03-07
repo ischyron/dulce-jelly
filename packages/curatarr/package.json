@@ -1,7 +1,7 @@
 {
   "name": "curatarr",
-  "version": "0.2.0",
-  "description": "LLM-backed intelligent media library management",
+  "version": "0.2.1",
+  "description": "Intelligent Media library Curation",
   "private": true,
   "type": "module",
   "engines": {
@@ -30,8 +30,10 @@
     "test:e2e:report:open": "npm run test:e2e:report && npm run test:e2e:show-report",
     "test:e2e:show-report": "npx playwright show-report playwright-report",
     "clean": "rm -rf dist dist-ui src/dist-ui src/server/dist src/ui/dist",
-    "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"tsc -w --preserveWatchOutput\" \"node --watch src/server/dist/index.js serve\" \"cd src/ui && npm run dev\"",
-    "dev:server": "concurrently -n tsc,api -c cyan,magenta \"tsc -w --preserveWatchOutput\" \"node --watch src/server/dist/index.js serve\"",
+    "tsc:watch": "tsc -w --preserveWatchOutput",
+    "serve:watch": "node --watch src/server/dist/index.js serve",
+    "dev": "concurrently -n tsc,api,ui -c cyan,magenta,yellow \"npm run tsc:watch\" \"npm run serve:watch\" \"npm run dev:ui\"",
+    "dev:server": "concurrently -n tsc,api -c cyan,magenta \"npm run tsc:watch\" \"npm run serve:watch\"",
     "dev:ui": "cd src/ui && npm run dev",
     "serve": "node src/server/dist/index.js serve"
   },

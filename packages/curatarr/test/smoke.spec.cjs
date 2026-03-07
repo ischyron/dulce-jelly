@@ -319,7 +319,7 @@ test.describe('MoviePage', () => {
     await expect(page.getByText('No scout results yet. Run Scout Releases to fetch candidates.')).toBeVisible();
 
     const notesHeading = page.getByText('Notes', { exact: true }).first();
-    const scoutHeading = page.getByTestId('movie-scout-section').getByText('Scout Releases', { exact: true }).first();
+    const scoutHeading = page.getByTestId('movie-scout-section').getByText('Scout Results', { exact: true }).first();
     const notesBox = await notesHeading.boundingBox();
     const scoutBox = await scoutHeading.boundingBox();
     expect(notesBox && scoutBox && scoutBox.y > notesBox.y).toBeTruthy();

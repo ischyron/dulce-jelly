@@ -843,7 +843,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               className="text-xs font-semibold uppercase tracking-wider focus:outline-none"
               style={{ color: '#8b87aa' }}
             >
-              Scout Releases
+              Scout Results
             </h3>
             <button
               type="button"

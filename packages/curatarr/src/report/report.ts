@@ -60,8 +60,6 @@ export function printStatus(db: CuratDb): void {
 // Upgrade candidates
 // ──────────────────────────────────────────────────────────────────
 
-const LQ_GROUPS = ['YTS.MX', 'YTS', 'YTS.AG', 'YTS.LT', 'YTS.AM', 'YIFY', 'EVO', 'FGT'];
-
 export function printUpgradeCandidates(
   db: CuratDb,
   opts: {
@@ -69,13 +67,11 @@ export function printUpgradeCandidates(
     minCriticRating?: number;
     minCommunityRating?: number;
     maxResolution?: string;
-    lqGroupsOnly?: boolean;
-    skipRatingFilter?: boolean; // useful before jf-sync; shows LQ groups regardless of rating
+    skipRatingFilter?: boolean; // useful before jf-sync; shows candidates regardless of rating
   } = {},
 ): void {
   const candidates = db.getUpgradeCandidates({
     maxResolution: opts.maxResolution ?? '1080p',
-    releaseGroups: opts.lqGroupsOnly !== false ? LQ_GROUPS : undefined,
     minCriticRating: opts.skipRatingFilter ? undefined : opts.minCriticRating,
     minCommunityRating: opts.skipRatingFilter ? undefined : (opts.minCommunityRating ?? 7.0),
     limit: opts.limit ?? 50,
@@ -87,7 +83,9 @@ export function printUpgradeCandidates(
   }
 
   console.log(`\n── Upgrade Candidates (${candidates.length}) ────────────────────────────────`);
-  console.log('  (LQ release groups + community rating ≥ 7.0, resolution ≤ 1080p)');
+  console.log('  (community rating ≥ 7.0, resolution ≤ 1080p)');
+  // TODO(scoring): re-introduce an explicit "LQ-only" report mode once scout classification
+  // is persisted per-library item (e.g. DB tags or normalized TRaSH-backed score snapshots).
   console.log('');
   console.log(
     `  ${'Title'.padEnd(42)}${'Year'.padEnd(6)}${'Res'.padEnd(8)}${'Codec'.padEnd(8)}${'Group'.padEnd(14)}${'MC'.padEnd(6)}IMDb`,
@@ -122,7 +120,7 @@ interface SuspiciousFile {
 
 const MIN_MB_PER_MIN: Record<string, number> = {
   // Thresholds tuned for detecting TRUE fakes (upscale claiming higher res).
-  // Efficient HEVC encodes (YTS 4K) legitimately sit at 40-50 MB/min.
+  // Efficient HEVC encodes can legitimately sit far below remux bitrates.
   // Only files claiming a resolution but encoded at 1-2x the next tier down are suspicious.
   '2160p': 4, // < 4 MB/min at 4K = almost certainly a 1080p upscale
   '1080p': 1.5, // < 1.5 MB/min at 1080p = likely a 720p encode

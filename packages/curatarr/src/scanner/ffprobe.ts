@@ -333,7 +333,7 @@ export async function probeFile(filePath: string): Promise<ProbeResult | { error
 // Handles: Name.Year.Quality.Codec-GROUP, Name (Year) [GROUP]
 // ──────────────────────────────────────────────────────────────────
 
-// Technical tokens that appear after dashes/underscores but are NOT release groups
+// Technical tokens that appear near the end of filenames but are NOT release groups
 const NON_GROUP_TOKENS = new Set([
   'DL',
   'HD',
@@ -386,38 +386,128 @@ const NON_GROUP_TOKENS = new Set([
   '480P',
   '4K',
   '2K',
+  'NF',
+  'AMZN',
+  'PCOK',
+  'ATV',
+  'PMTP',
+  'ENG',
+  'ENGLISH',
+  'ESP',
+  'MULTI',
+  'SUB',
+  'SUBS',
+  'DUAL',
+  'AUDIO',
+  'ATMOS',
+  'TRUEHD',
+  'MA',
+  'DDP',
+  'DD',
+  'REMUX',
 ]);
 
 // Matches resolution tokens like "1080p", "720P", "4k" (digits + optional p/i/k)
 const RESOLUTION_RE = /^\d+[pPiIkK]?$/;
+const INVALID_GROUP_RE = /^([sSeE]\d+|[0-9a-fA-F]{8})$/;
+const YEAR_RE = /^(18|19|20)\d{2}$/;
+const DATEISH_RE = /^\d{4}-\d{2}(?:-\d{2})?$/;
+const WEBSITE_PREFIX_RE =
+  /^(?:(?:\[|\()\s*)?(?:www\.)?[-a-z0-9-]{1,256}\.(?:[a-z]{2,6}\.[a-z]{2,6}|xn--[a-z0-9-]{4,}|[a-z]{2,})(?:\s*(?:\]|\))|[ -]{2,})[ -]*/i;
+const CLEAN_TORRENT_SUFFIX_RE = /\[(?:ettv|rartv|rarbg|cttv|publichd)\]$/i;
+const BAD_SUFFIX_RE =
+  /(?:[-_. ](?:RP|1|NZBGEEK|OBFUSCATED|OBFUSCATION|SCRAMBLED|SAMPLE|PRE|POSTBOT|XPOST|RAKUV[A-Z0-9]*|WHITEREV|BUYMORE|ASREQUESTED|ALTERNATIVETOREQUESTED|GEROV|Z0IDS3N|CHAMELE0N|4P|4PLANET|ALTEZACHEN|REPACKPOST))+$/i;
 
-export function extractReleaseGroup(filename: string): string | undefined {
-  // Remove extension
-  const base = filename.replace(/\.[^.]+$/, '');
+function isLikelyGroupToken(token: string): boolean {
+  const candidate = token.trim();
+  if (!candidate || candidate.length < 2 || candidate.length > 40) return false;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._ -]*[A-Za-z0-9]$/.test(candidate)) return false;
+  if (!/[A-Za-z]/.test(candidate) && !/^\d{5,}$/.test(candidate)) return false;
+  if (RESOLUTION_RE.test(candidate) || YEAR_RE.test(candidate) || DATEISH_RE.test(candidate)) return false;
+  if (INVALID_GROUP_RE.test(candidate)) return false;
 
-  // 1. Bracket match: [GROUP] at end — highest confidence (YTS.MX, YTS.AG, etc.)
-  const bracketMatch = base.match(/\[([A-Za-z0-9._-]{2,20})\]\s*$/);
-  if (bracketMatch) return bracketMatch[1];
+  const parts = candidate.split(/[._ -]+/).filter(Boolean);
+  if (parts.length === 0) return false;
 
-  // 2. Dash match: -GROUP at end
-  //    Require min 3 chars to skip 2-char tech abbreviations like -DL, -HD
-  const dashMatch = base.match(/-([A-Za-z0-9]{3,20})$/);
-  if (dashMatch) {
-    const candidate = dashMatch[1];
-    const upper = candidate.toUpperCase();
-    if (!NON_GROUP_TOKENS.has(upper) && !RESOLUTION_RE.test(candidate)) return candidate;
+  for (const part of parts) {
+    const upper = part.toUpperCase();
+    if (NON_GROUP_TOKENS.has(upper) || RESOLUTION_RE.test(part) || YEAR_RE.test(part) || /^\d{1,4}$/.test(part)) {
+      return false;
+    }
   }
 
-  // 3. Underscore-delimited: last _TOKEN at end
-  //    Handles filenames like: Movie_Title_2012_WEBDL-1080p_GROUPNAME.mkv
-  const underscoreMatch = base.match(/_([A-Za-z0-9]{2,20})$/);
-  if (underscoreMatch) {
-    const candidate = underscoreMatch[1];
-    const upper = candidate.toUpperCase();
-    // Skip pure numbers (years), resolution tokens, and known tech tokens
-    if (!NON_GROUP_TOKENS.has(upper) && !RESOLUTION_RE.test(candidate) && !/^\d+$/.test(candidate)) {
-      return candidate;
-    }
+  return true;
+}
+
+function selectGroupFromCandidate(raw: string): string | undefined {
+  const candidate = raw
+    .trim()
+    .replace(/^[\[\(]+|[\]\)]+$/g, '')
+    .trim();
+  if (!candidate) return undefined;
+
+  if (isLikelyGroupToken(candidate)) return candidate;
+
+  const parts = candidate.split(/[._ -]+/).filter(Boolean);
+
+  // Prefer a dotted tail (e.g. x264.YTS.MX -> YTS.MX) before falling back to a single token.
+  for (let len = Math.min(3, parts.length); len >= 2; len -= 1) {
+    const dotted = parts.slice(parts.length - len).join('.');
+    if (isLikelyGroupToken(dotted)) return dotted;
+  }
+
+  for (let i = parts.length - 1; i >= 0; i -= 1) {
+    if (isLikelyGroupToken(parts[i])) return parts[i];
+  }
+
+  return undefined;
+}
+
+export function extractReleaseGroup(filename: string): string | undefined {
+  let title = filename.replace(/\.[^.]+$/, '').trim();
+  title = title.replaceAll('【', '[').replaceAll('】', ']');
+  title = title.replace(WEBSITE_PREFIX_RE, '');
+  title = title.replace(CLEAN_TORRENT_SUFFIX_RE, '');
+  title = title.replace(BAD_SUFFIX_RE, '').trim();
+  title = title.replace(/[-_. ]+$/g, '').trim();
+
+  const animePrefix = title.match(/^\[(?!\s)(.+?)(?<!\s)\](?:_|-|\s|\.|$)/);
+  if (animePrefix) {
+    const parsed = selectGroupFromCandidate(animePrefix[1]);
+    if (parsed) return parsed;
+  }
+
+  const bracketTail = title.match(/\[([^\]]+)\]\s*$/);
+  if (bracketTail) {
+    const parsed = selectGroupFromCandidate(bracketTail[1]);
+    if (parsed) return parsed;
+  }
+
+  const parenTail = title.match(/\(([^)]+)\)\s*$/);
+  if (parenTail) {
+    const parsed = selectGroupFromCandidate(parenTail[1]);
+    if (parsed) return parsed;
+  }
+
+  const tailCandidates: string[] = [];
+  const dashTail = title.match(/-([^-/\\]+)$/);
+  if (dashTail) tailCandidates.push(dashTail[1]);
+
+  const underscoreTail = title.match(/_([^_/\\]+)$/);
+  if (underscoreTail) tailCandidates.push(underscoreTail[1]);
+
+  const spacedTail = title.match(/\s([^\s]+(?:\s+[^\s]+)?)$/);
+  if (spacedTail) tailCandidates.push(spacedTail[1]);
+
+  const dottedTail = title.match(/([A-Za-z0-9]+(?:\.[A-Za-z0-9]+)+)$/);
+  if (dottedTail) tailCandidates.push(dottedTail[1]);
+
+  const plainTail = title.match(/([A-Za-z0-9][A-Za-z0-9._-]{1,39})$/);
+  if (plainTail) tailCandidates.push(plainTail[1]);
+
+  for (const candidate of tailCandidates) {
+    const parsed = selectGroupFromCandidate(candidate);
+    if (parsed) return parsed;
   }
 
   return undefined;

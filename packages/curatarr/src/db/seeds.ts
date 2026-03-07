@@ -5,7 +5,6 @@
  * - Primary clients are Android TV / Google TV → codec compat matters
  * - AV1 is emerging but not universally decoded in hardware on TV sticks
  * - HEVC is preferred for 4K/HDR; H264 is the safe universal fallback
- * - YTS groups produce small web-optimised encodes — good candidates for upgrade
  * - Dolby Vision P5/P8 need profile-aware clients; P7 requires FEL-capable hardware
  * - Scout targets: well-rated films currently at 1080p or below → upgrade to 2160p HEVC
  *
@@ -131,57 +130,6 @@ const DEFAULT_RULES: RuleSeed[] = [
     },
   },
 
-  // ── Release group tiers ───────────────────────────────────────────
-  {
-    category: 'groups',
-    name: 'YTS / YIFY — Web-optimised',
-    enabled: true,
-    priority: 0,
-    config: {
-      groups: ['YTS.MX', 'YTS.AG', 'YTS.AM', 'YTS.LT', 'YIFY', 'YTS'],
-      tier: 'web-opt',
-      upgradeDesirable: true,
-      notes:
-        'Small H264 encodes (typically 700MB–2GB). Good for 1080p viewing; prime candidates for 4K/HEVC upgrade when available.',
-    },
-  },
-  {
-    category: 'groups',
-    name: '2160p scene groups',
-    enabled: true,
-    priority: 1,
-    config: {
-      groups: ['2160p_PiRaTeS', 'PAPARANDAZZO', 'iFT', 'MTeam', 'WiKi', 'FGT'],
-      tier: '4k-scene',
-      upgradeDesirable: false,
-      notes: 'High-quality UHD encodes. Usually HEVC + HDR10. Keep if present.',
-    },
-  },
-  {
-    category: 'groups',
-    name: 'Remux groups',
-    enabled: true,
-    priority: 2,
-    config: {
-      groups: ['FraMeSToR', 'SURCODE', 'decibeL', 'BMF', 'BeyondHD', 'KRaLiMaRKo'],
-      tier: 'remux',
-      upgradeDesirable: false,
-      notes: 'Lossless disc remux — highest quality. Preserve always.',
-    },
-  },
-  {
-    category: 'groups',
-    name: 'Streaming service groups',
-    enabled: true,
-    priority: 3,
-    config: {
-      groups: ['NTb', 'TEPES', 'playWEB', 'FLUX', 'MZABI', 'HANDJOB', 'TOMMY'],
-      tier: 'web-dl',
-      upgradeDesirable: false,
-      notes: 'WEB-DL from NF/AMZN/ATVP — good quality HEVC, often HDR.',
-    },
-  },
-
   // ── Codec scoring ─────────────────────────────────────────────────
   {
     category: 'scoring',
@@ -260,12 +208,11 @@ const DEFAULT_RULES: RuleSeed[] = [
       minCriticRating: 65,
       minCommunityRating: 7.0,
       maxCurrentResolution: '1080p', // currently ≤ 1080p → upgrade candidate
-      targetGroups: ['YTS.MX', 'YTS.AG', 'YTS.AM', 'YIFY', 'YTS'],
       // Desired upgrade target
       targetResolution: '2160p',
       targetCodec: 'hevc',
       limit: 200,
-      notes: 'High-rated YTS movies currently at 1080p or lower. Prime candidates for 4K HEVC upgrade.',
+      notes: 'High-rated movies currently at 1080p or lower. Prime candidates for 4K HEVC upgrade.',
     },
   },
   {

@@ -40,6 +40,26 @@ describe('extractReleaseGroup', () => {
     const g = extractReleaseGroup('12.Angry.Men.1957.2160p.4K.BluRay.x265.10bit.AAC5.1-[YTS.MX].mkv');
     assert.equal(g, 'YTS.MX');
   });
+
+  test('extracts unbracketed dotted group', () => {
+    const g = extractReleaseGroup('Movie.Title.2010.1080p.BluRay.x264.YTS.MX.mkv');
+    assert.equal(g, 'YTS.MX');
+  });
+
+  test('extracts underscore suffix group', () => {
+    const g = extractReleaseGroup('Movie.Title.2024.1080p.BluRay.x265_Tasokare.mkv');
+    assert.equal(g, 'Tasokare');
+  });
+
+  test('extracts trailing dotted YIFY group', () => {
+    const g = extractReleaseGroup('101.Dalmatians.II.Patchs.London.Adventure.2003.720p.BRrip.x264.YIFY.mp4');
+    assert.equal(g, 'YIFY');
+  });
+
+  test('ignores trailing non-group noise and keeps upstream group', () => {
+    const g = extractReleaseGroup('Movie.Name.2018.720p.WEBRip.DDP5.1.x264-NTb-postbot.mkv');
+    assert.equal(g, 'NTb');
+  });
 });
 
 // ──────────────────────────────────────────────────────────────────

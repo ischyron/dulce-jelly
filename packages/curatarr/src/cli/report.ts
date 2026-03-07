@@ -19,14 +19,14 @@ export function makeReportCommand(): Command {
   return new Command('report')
     .description('Print library quality analysis from DB')
     .option('-d, --db <path>', 'SQLite DB path', defaultDbPath())
-    .option('--upgrades', 'Show upgrade candidates (LQ groups + good ratings)')
+    .option('--upgrades', 'Show upgrade candidates (resolution/rating based)')
     .option('--suspicious', 'Show files with suspicious size vs quality claims')
     .option('--hdr', 'Show HDR format breakdown')
     .option('--audio', 'Show audio codec breakdown')
     .option('--all', 'Show all sections')
     .option('--min-mc <n>', 'Min Metacritic rating for upgrade candidates', '70')
     .option('--min-imdb <n>', 'Min IMDb rating for upgrade candidates', '7.0')
-    .option('--no-rating-filter', 'Show LQ upgrade candidates without requiring Jellyfin ratings')
+    .option('--no-rating-filter', 'Show upgrade candidates without requiring Jellyfin ratings')
     .option('--limit <n>', 'Max rows per section', '50')
     .action((opts) => {
       const dbPath = opts.db.replace(/^~/, os.homedir());
@@ -45,7 +45,6 @@ export function makeReportCommand(): Command {
           minCriticRating: minMc,
           minCommunityRating: minImdb,
           limit,
-          lqGroupsOnly: true,
           skipRatingFilter: opts.ratingFilter === false,
         });
       }

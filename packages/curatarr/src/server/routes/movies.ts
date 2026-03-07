@@ -3,6 +3,7 @@ import path from 'node:path';
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { JellyfinClient, type JfMovie } from '../../integrations/jellyfin/client.js';
+import { extractReleaseGroup } from '../../scanner/ffprobe.js';
 import { movieLibraryPaths, parseLibraryRootsJson } from '../../shared/libraryRoots.js';
 
 const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.m4v', '.ts', '.m2ts', '.webm']);
@@ -119,6 +120,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     let sql = `
       SELECT m.*,
              f.id as file_id,
+             f.filename as file_name,
              f.resolution_cat, f.video_codec, f.audio_codec, f.audio_profile,
              f.audio_channels, f.audio_layout,
              f.file_size, f.mb_per_minute, f.release_group, f.hdr_formats,
@@ -265,14 +267,24 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const rows = db
       .raw()
       .prepare(sql)
-      .all(...bindings);
+      .all(...bindings) as Array<Record<string, unknown>>;
+
+    const movies = rows.map((row) => {
+      const currentGroup = typeof row.release_group === 'string' ? row.release_group.trim() : '';
+      const fileName = typeof row.file_name === 'string' ? row.file_name : '';
+      if (!currentGroup && fileName) {
+        row.release_group = extractReleaseGroup(fileName) ?? null;
+      }
+      delete row.file_name;
+      return row;
+    });
 
     return c.json({
       total,
       totalSize,
       page,
       limit,
-      movies: rows,
+      movies,
     });
   });
 

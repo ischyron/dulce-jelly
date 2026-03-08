@@ -47,6 +47,14 @@ export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): P
       const file = queue.shift();
       if (!file) break;
 
+      verifyEmitter.emit('file_start', {
+        fileId: file.id,
+        filePath: file.file_path,
+        filename: file.filename,
+        movieId: file.movie_id,
+        startedAt: new Date().toISOString(),
+      });
+
       const result = await deepCheck(file.file_path, signal);
       if (signal?.aborted) break;
 

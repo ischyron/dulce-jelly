@@ -22,6 +22,12 @@ interface FileResult {
   durationMs: number;
 }
 
+interface FileStart {
+  fileId: number;
+  filename: string;
+  startedAt?: string;
+}
+
 function formatBytes(n: number | null): string {
   if (!n) return '—';
   if (n < 1024) return `${n} B`;
@@ -35,6 +41,7 @@ export function Verify() {
   const [concurrency, setConcurrency] = useState(3);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<VerifyProgress>({});
+  const [activeFiles, setActiveFiles] = useState<FileStart[]>([]);
   const [recentResults, setRecentResults] = useState<FileResult[]>([]);
   const [statusMsg, setStatusMsg] = useState('');
   const [failPage, setFailPage] = useState(1);
@@ -53,6 +60,7 @@ export function Verify() {
 
   const connectSse = useCallback(() => {
     esRef.current?.close();
+    setActiveFiles([]);
     setRecentResults([]);
     setProgress({});
     setRunning(true);
@@ -68,12 +76,22 @@ export function Verify() {
 
     es.addEventListener('file_result', (e: MessageEvent) => {
       const d = JSON.parse(e.data || '{}') as FileResult;
+      setActiveFiles((prev) => prev.filter((f) => f.fileId !== d.fileId));
       setRecentResults((prev) => [...prev.slice(-200), d]);
+    });
+
+    es.addEventListener('file_start', (e: MessageEvent) => {
+      const d = JSON.parse(e.data || '{}') as FileStart;
+      setActiveFiles((prev) => {
+        const next = prev.filter((f) => f.fileId !== d.fileId);
+        return [...next, d];
+      });
     });
 
     es.addEventListener('complete', (e: MessageEvent) => {
       const d = JSON.parse(e.data || '{}') as VerifyProgress;
       setProgress(d);
+      setActiveFiles([]);
       setRunning(false);
       setStatusMsg(d.cancelled ? t('controls.cancelled') : t('controls.complete'));
       refetchStatus();
@@ -82,6 +100,7 @@ export function Verify() {
     });
 
     es.addEventListener('error', () => {
+      setActiveFiles([]);
       setRunning(false);
       es.close();
     });
@@ -250,6 +269,30 @@ export function Verify() {
                 </div>
                 <div style={{ color: 'var(--c-muted)' }}>{t('stats.errors')}</div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Live started/running file stream */}
+        {running && (
+          <div>
+            <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--c-muted)' }}>
+              {t('live.runningTitle', { count: activeFiles.length })}
+            </h3>
+            <div
+              className="rounded p-2 space-y-0.5 max-h-32 overflow-y-auto text-xs font-mono"
+              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)' }}
+            >
+              {activeFiles.length === 0 ? (
+                <div style={{ color: 'var(--c-muted)' }}>{t('live.waiting')}</div>
+              ) : (
+                activeFiles.map((f) => (
+                  <div key={`${f.fileId}:${f.startedAt ?? ''}`} className="flex items-center gap-2 truncate">
+                    <Loader2 size={10} className="animate-spin" style={{ color: 'var(--c-accent)', flexShrink: 0 }} />
+                    <span className="truncate">{f.filename}</span>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}

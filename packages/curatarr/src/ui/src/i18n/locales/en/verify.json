@@ -19,6 +19,8 @@
     "cancelled": "Cancelled."
   },
   "live": {
+    "runningTitle": "Running Now ({{count}})",
+    "waiting": "Waiting for workers to start files…",
     "title": "Live Results (last {{count}})"
   },
   "failures": {

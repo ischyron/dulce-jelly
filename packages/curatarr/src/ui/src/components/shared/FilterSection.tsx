@@ -1,9 +1,9 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, ComponentPropsWithoutRef, ReactNode } from 'react';
 import { forwardRef } from 'react';
 
 type FilterLabelTone = 'blue' | 'pink';
 
-interface FilterSectionProps {
+interface FilterSectionProps extends ComponentPropsWithoutRef<'div'> {
   label: string;
   labelTone?: FilterLabelTone;
   className?: string;

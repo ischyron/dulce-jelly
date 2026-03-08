@@ -322,7 +322,7 @@ test.describe('MoviePage', () => {
 
     await expect(page.getByTestId('movie-actions-row')).toBeVisible();
     await expect(page.getByTestId('movie-actions-row').getByRole('button', { name: 'Scout Releases' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Sync from Jellyfin' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Sync' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible();
     await expect(page.getByTestId('movie-scout-section')).toHaveCount(0);
 

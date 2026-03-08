@@ -7,6 +7,7 @@ import {
   Film,
   Filter,
   Loader2,
+  Magnet,
   RefreshCw,
   Search,
   Tag,
@@ -68,6 +69,7 @@ type ScoutResultRow = (ScoutRelease | DroppedScoutRelease) & {
 interface ScoutActionState {
   sendingKey: string | null;
   onSendToSab: (release: ScoutRelease) => void;
+  onCopyMagnet: (magnetUrl: string) => void;
 }
 
 const SCOUT_CHIP_GROUPS: Record<'Resolution' | 'Source' | 'Audio', string[]> = {
@@ -233,13 +235,11 @@ function ScoutResultsAllTable({
               </td>
               <td className="px-2 py-1.5">
                 <div className="flex items-center justify-end gap-1.5">
-                  {r.kind === 'candidate' ? (
+                  {r.kind === 'candidate' && r.protocol === 'usenet' && (
                     <button
                       type="button"
                       aria-label={`Send ${r.title} to SABnzbd`}
-                      title={
-                        canSendToSab(r) ? 'Send to SABnzbd' : 'Only usenet releases with a download URL can be sent'
-                      }
+                      title="Send to SABnzbd"
                       disabled={!canSendToSab(r) || actionState.sendingKey === releaseKeyForAction(r)}
                       onClick={() => actionState.onSendToSab(r)}
                       className="inline-flex h-7 w-7 items-center justify-center rounded border disabled:opacity-40"
@@ -252,14 +252,21 @@ function ScoutResultsAllTable({
                         <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
                       )}
                     </button>
-                  ) : (
-                    <span
-                      className="inline-flex h-7 w-7 items-center justify-center rounded border opacity-40"
-                      style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.2)' }}
-                      title="Dropped releases cannot be sent"
+                  )}
+                  {r.kind === 'candidate' && r.protocol === 'torrent' && r.magnetUrl && (
+                    <button
+                      type="button"
+                      aria-label={`Copy magnet link for ${r.title}`}
+                      title="Copy magnet link"
+                      onClick={() => {
+                        if (r.magnetUrl) actionState.onCopyMagnet(r.magnetUrl);
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border"
+                      style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)', color: '#c4b5fd' }}
+                      data-testid="scout-magnet-copy"
                     >
-                      <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
-                    </span>
+                      <Magnet size={13} />
+                    </button>
                   )}
                 </div>
               </td>
@@ -396,22 +403,39 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
               </td>
               <td className="px-2 py-1.5">
                 <div className="flex items-center justify-end gap-1.5">
-                  <button
-                    type="button"
-                    aria-label={`Send ${r.title} to SABnzbd`}
-                    title={canSendToSab(r) ? 'Send to SABnzbd' : 'Only usenet releases with a download URL can be sent'}
-                    disabled={!canSendToSab(r) || actionState.sendingKey === releaseKeyForAction(r)}
-                    onClick={() => actionState.onSendToSab(r)}
-                    className="inline-flex h-7 w-7 items-center justify-center rounded border disabled:opacity-40"
-                    style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
-                    data-testid="scout-send-sab"
-                  >
-                    {actionState.sendingKey === releaseKeyForAction(r) ? (
-                      <Loader2 size={13} className="animate-spin" style={{ color: '#86efac' }} />
-                    ) : (
-                      <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
-                    )}
-                  </button>
+                  {r.protocol === 'usenet' && (
+                    <button
+                      type="button"
+                      aria-label={`Send ${r.title} to SABnzbd`}
+                      title="Send to SABnzbd"
+                      disabled={!canSendToSab(r) || actionState.sendingKey === releaseKeyForAction(r)}
+                      onClick={() => actionState.onSendToSab(r)}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border disabled:opacity-40"
+                      style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
+                      data-testid="scout-send-sab"
+                    >
+                      {actionState.sendingKey === releaseKeyForAction(r) ? (
+                        <Loader2 size={13} className="animate-spin" style={{ color: '#86efac' }} />
+                      ) : (
+                        <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
+                      )}
+                    </button>
+                  )}
+                  {r.protocol === 'torrent' && r.magnetUrl && (
+                    <button
+                      type="button"
+                      aria-label={`Copy magnet link for ${r.title}`}
+                      title="Copy magnet link"
+                      onClick={() => {
+                        if (r.magnetUrl) actionState.onCopyMagnet(r.magnetUrl);
+                      }}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border"
+                      style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)', color: '#c4b5fd' }}
+                      data-testid="scout-magnet-copy"
+                    >
+                      <Magnet size={13} />
+                    </button>
+                  )}
                 </div>
               </td>
             </tr>
@@ -433,7 +457,6 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
             <th className="px-2 py-2 text-left">Indexer</th>
             <th className="px-2 py-2 text-left">Protocol</th>
             <th className="px-2 py-2 text-left">Dropped Reason</th>
-            <th className="px-2 py-2 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -454,17 +477,6 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
               </td>
               <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>
                 {r.droppedReason}
-              </td>
-              <td className="px-2 py-1.5">
-                <div className="flex items-center justify-end gap-1.5">
-                  <span
-                    className="inline-flex h-7 w-7 items-center justify-center rounded border opacity-40"
-                    style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.2)' }}
-                    title="Dropped releases cannot be sent"
-                  >
-                    <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
-                  </span>
-                </div>
               </td>
             </tr>
           ))}
@@ -648,6 +660,10 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
       return;
     }
     sendToSabMutation.mutate(release);
+  }
+
+  function handleCopyMagnet(magnetUrl: string) {
+    navigator.clipboard.writeText(magnetUrl).then(() => setSabStatus('Magnet link copied'));
   }
 
   const showScoutSection =
@@ -1030,7 +1046,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 className="text-sm inline-flex items-center gap-1"
                 style={{ color: sabStatus.startsWith('Error:') ? '#fca5a5' : '#86efac' }}
               >
-                <AlertCircle size={12} />
+                {sabStatus.startsWith('Error:') ? <AlertCircle size={12} /> : <Check size={12} />}
                 {sabStatus}
               </div>
             )}
@@ -1171,33 +1187,52 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                             {scoutSearch.data.recommendation.best.title}
                           </span>
                           <span className="inline-flex items-center gap-1.5 shrink-0">
-                            <button
-                              type="button"
-                              aria-label={`Send ${scoutSearch.data.recommendation.best.title} to SABnzbd`}
-                              title={
-                                canSendToSab(scoutSearch.data.recommendation.best)
-                                  ? 'Send to SABnzbd'
-                                  : 'Only usenet releases with a download URL can be sent'
-                              }
-                              disabled={
-                                !canSendToSab(scoutSearch.data.recommendation.best) ||
-                                sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best)
-                              }
-                              onClick={() => {
-                                const best = scoutSearch.data.recommendation.best;
-                                if (!best) return;
-                                handleSendToSab(best);
-                              }}
-                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border disabled:opacity-40"
-                              style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
-                              data-testid="scout-recommendation-send-sab"
-                            >
-                              {sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best) ? (
-                                <Loader2 size={15} className="animate-spin" style={{ color: '#86efac' }} />
-                              ) : (
-                                <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-5 w-5" />
+                            {scoutSearch.data.recommendation.best.protocol === 'usenet' && (
+                              <button
+                                type="button"
+                                aria-label={`Send ${scoutSearch.data.recommendation.best.title} to SABnzbd`}
+                                title="Send to SABnzbd"
+                                disabled={
+                                  !canSendToSab(scoutSearch.data.recommendation.best) ||
+                                  sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best)
+                                }
+                                onClick={() => {
+                                  const best = scoutSearch.data.recommendation.best;
+                                  if (!best) return;
+                                  handleSendToSab(best);
+                                }}
+                                className="inline-flex items-center justify-center px-3.5 py-2 rounded-lg border disabled:opacity-40"
+                                style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
+                                data-testid="scout-recommendation-send-sab"
+                              >
+                                {sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best) ? (
+                                  <Loader2 size={15} className="animate-spin" style={{ color: '#86efac' }} />
+                                ) : (
+                                  <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-5 w-5" />
+                                )}
+                              </button>
+                            )}
+                            {scoutSearch.data.recommendation.best.protocol === 'torrent' &&
+                              scoutSearch.data.recommendation.best.magnetUrl && (
+                                <button
+                                  type="button"
+                                  aria-label={`Copy magnet link for ${scoutSearch.data.recommendation.best.title}`}
+                                  title="Copy magnet link"
+                                  onClick={() => {
+                                    const url = scoutSearch.data.recommendation.best?.magnetUrl;
+                                    if (url) handleCopyMagnet(url);
+                                  }}
+                                  className="inline-flex items-center justify-center px-3.5 py-2 rounded-lg border"
+                                  style={{
+                                    borderColor: 'var(--c-border)',
+                                    background: 'rgba(33,37,41,0.45)',
+                                    color: '#c4b5fd',
+                                  }}
+                                  data-testid="scout-recommendation-magnet"
+                                >
+                                  <Magnet size={16} />
+                                </button>
                               )}
-                            </button>
                           </span>
                         </div>
                         <div style={{ color: '#8b87aa' }}>
@@ -1217,16 +1252,19 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   {scoutResultView === 'candidates' && (
                     <ScoutResultsTable
                       releases={scoutSearch.data.releases}
-                      actionState={{ sendingKey: sendingSabKey, onSendToSab: handleSendToSab }}
+                      actionState={{
+                        sendingKey: sendingSabKey,
+                        onSendToSab: handleSendToSab,
+                        onCopyMagnet: handleCopyMagnet,
+                      }}
                     />
                   )}
                   {scoutResultView === 'dropped' && (
                     <DroppedScoutResultsTable releases={scoutSearch.data.droppedReleases ?? []} />
                   )}
-                  {scoutResultView === 'all' && (
-                    <ScoutResultsAllTable
-                      actionState={{ sendingKey: sendingSabKey, onSendToSab: handleSendToSab }}
-                      releases={[
+                  {scoutResultView === 'all' &&
+                    (() => {
+                      const allFiltered = [
                         ...scoutSearch.data.releases.map((r) => ({ ...r, kind: 'candidate' as const })),
                         ...(scoutSearch.data.droppedReleases ?? []).map((r) => ({
                           ...r,
@@ -1235,9 +1273,28 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                         })),
                       ]
                         .sort((a, b) => b.score - a.score)
-                        .filter((r) => releaseMatchesScoutChips(r, scoutFilterChips))}
-                    />
-                  )}
+                        .filter((r) => releaseMatchesScoutChips(r, scoutFilterChips));
+                      if (allFiltered.length === 0) {
+                        return (
+                          <div
+                            className="rounded-lg border px-4 py-6 text-sm text-center"
+                            style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
+                          >
+                            No releases match the selected filters.
+                          </div>
+                        );
+                      }
+                      return (
+                        <ScoutResultsAllTable
+                          actionState={{
+                            sendingKey: sendingSabKey,
+                            onSendToSab: handleSendToSab,
+                            onCopyMagnet: handleCopyMagnet,
+                          }}
+                          releases={allFiltered}
+                        />
+                      );
+                    })()}
                 </div>
               )}
           </div>

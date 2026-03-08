@@ -70,7 +70,7 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="movie-detail-drawer-title"
-        className="relative z-10 w-[700px] max-w-full border-l flex flex-col overflow-hidden lg:w-[50vw] lg:max-w-[50vw]"
+        className="relative z-10 w-full border-l flex flex-col overflow-hidden md:w-[70vw] md:max-w-[70vw]"
         style={{ background: 'var(--c-bg)', borderColor: 'var(--c-border)' }}
       >
         <div

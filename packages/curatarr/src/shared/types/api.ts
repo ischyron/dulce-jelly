@@ -175,6 +175,7 @@ export interface ScoutRelease {
   publishDate: string | null;
   guid: string | null;
   downloadUrl: string | null;
+  magnetUrl: string | null;
   seeders: number | null;
   peers: number | null;
   score: number;
@@ -238,17 +239,6 @@ export interface ScoutSendToSabRequest {
 export interface ScoutSendToSabResponse {
   queued: boolean;
   via: 'prowlarr';
-}
-
-export interface ScoutSendToSabRequest {
-  title: string;
-  protocol: 'torrent' | 'usenet' | 'unknown';
-  downloadUrl: string;
-}
-
-export interface ScoutSendToSabResponse {
-  queued: boolean;
-  nzoIds: string[];
 }
 
 export interface ScoutAutoStatusResponse {

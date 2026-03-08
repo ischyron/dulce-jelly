@@ -170,6 +170,78 @@ test('movies listing returns filtered totalSize for full result set, not current
   assert.equal(unfilteredBody.totalSize, 600);
 });
 
+test('movies genre filter supports OR default and AND mode', async (t) => {
+  const tmp = await makeTempDir('movies-genre-and-or');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const bothId = db.upsertMovie({
+    folderPath: '/m/Both',
+    folderName: 'Both (2020)',
+    parsedTitle: 'Both',
+    parsedYear: 2020,
+  });
+  db.enrichMovieById(bothId, { genres: ['Action', 'Drama'] });
+  db.upsertFile({
+    movieId: bothId,
+    filePath: '/m/Both/both.mkv',
+    filename: 'Both.2020.1080p.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const actionOnlyId = db.upsertMovie({
+    folderPath: '/m/ActionOnly',
+    folderName: 'ActionOnly (2021)',
+    parsedTitle: 'ActionOnly',
+    parsedYear: 2021,
+  });
+  db.enrichMovieById(actionOnlyId, { genres: ['Action'] });
+  db.upsertFile({
+    movieId: actionOnlyId,
+    filePath: '/m/ActionOnly/action.mkv',
+    filename: 'ActionOnly.2021.1080p.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 110,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const dramaOnlyId = db.upsertMovie({
+    folderPath: '/m/DramaOnly',
+    folderName: 'DramaOnly (2022)',
+    parsedTitle: 'DramaOnly',
+    parsedYear: 2022,
+  });
+  db.enrichMovieById(dramaOnlyId, { genres: ['Drama'] });
+  db.upsertFile({
+    movieId: dramaOnlyId,
+    filePath: '/m/DramaOnly/drama.mkv',
+    filename: 'DramaOnly.2022.1080p.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 120,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const orRes = await app.request('http://localhost/api/movies?genre=Action,Drama&page=1&limit=50');
+  assert.equal(orRes.status, 200);
+  const orBody = await orRes.json();
+  assert.equal(orBody.total, 3);
+
+  const andRes = await app.request('http://localhost/api/movies?genre=Action,Drama&genreAnd=1&page=1&limit=50');
+  assert.equal(andRes.status, 200);
+  const andBody = await andRes.json();
+  assert.equal(andBody.total, 1);
+  assert.equal(andBody.movies[0].id, bothId);
+});
+
 test('candidates total reflects filtered result set before limit', async (t) => {
   const tmp = await makeTempDir('candidates-total-before-limit');
   t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
@@ -323,6 +395,82 @@ test('candidates applies library-equivalent filters for tags, codec, hdr, noJf a
   const body = await res.json();
   assert.equal(body.total, 1);
   assert.equal(body.candidates[0].id, keepId);
+});
+
+test('candidates genre filter supports OR default and AND mode', async (t) => {
+  const tmp = await makeTempDir('candidates-genre-and-or');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const bothId = db.upsertMovie({
+    folderPath: '/m/Both',
+    folderName: 'Both (2020)',
+    parsedTitle: 'Both',
+    parsedYear: 2020,
+  });
+  db.enrichMovieById(bothId, { criticRating: 80, communityRating: 7.8, genres: ['Action', 'Drama'] });
+  db.upsertFile({
+    movieId: bothId,
+    filePath: '/m/Both/both.mkv',
+    filename: 'Both.2020.1080p.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const actionOnlyId = db.upsertMovie({
+    folderPath: '/m/ActionOnly',
+    folderName: 'ActionOnly (2021)',
+    parsedTitle: 'ActionOnly',
+    parsedYear: 2021,
+  });
+  db.enrichMovieById(actionOnlyId, { criticRating: 82, communityRating: 7.6, genres: ['Action'] });
+  db.upsertFile({
+    movieId: actionOnlyId,
+    filePath: '/m/ActionOnly/action.mkv',
+    filename: 'ActionOnly.2021.1080p.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 110,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const dramaOnlyId = db.upsertMovie({
+    folderPath: '/m/DramaOnly',
+    folderName: 'DramaOnly (2022)',
+    parsedTitle: 'DramaOnly',
+    parsedYear: 2022,
+  });
+  db.enrichMovieById(dramaOnlyId, { criticRating: 84, communityRating: 7.5, genres: ['Drama'] });
+  db.upsertFile({
+    movieId: dramaOnlyId,
+    filePath: '/m/DramaOnly/drama.mkv',
+    filename: 'DramaOnly.2022.1080p.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 120,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const orRes = await app.request(
+    'http://localhost/api/candidates?criticScoreMin=0&imdbScoreMin=0&genre=Action,Drama&limit=20',
+  );
+  assert.equal(orRes.status, 200);
+  const orBody = await orRes.json();
+  assert.equal(orBody.total, 3);
+
+  const andRes = await app.request(
+    'http://localhost/api/candidates?criticScoreMin=0&imdbScoreMin=0&genre=Action,Drama&genreAnd=1&limit=20',
+  );
+  assert.equal(andRes.status, 200);
+  const andBody = await andRes.json();
+  assert.equal(andBody.total, 1);
+  assert.equal(andBody.candidates[0].id, bothId);
 });
 
 test('verify start returns 409 when a verify job is already running', async (t) => {

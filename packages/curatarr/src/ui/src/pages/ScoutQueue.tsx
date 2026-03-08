@@ -65,6 +65,7 @@ export function ScoutQueue() {
   const noJf = searchParams.get('noJf') === '1';
   const multiOnly = searchParams.get('multi') === '1';
   const qGenre = searchParams.get('genre');
+  const genreAnd = searchParams.get('genreAnd') === '1';
   const qTags = searchParams.get('tags');
 
   // Resolved values (URL overrides seeded defaults)
@@ -153,6 +154,7 @@ export function ScoutQueue() {
       audioFormat,
       audioLayout,
       genreKey,
+      genreAnd,
       tagKey,
       hdrOnly,
       dvOnly,
@@ -171,6 +173,7 @@ export function ScoutQueue() {
         ...(audioFormat ? { audioFormat } : {}),
         ...(audioLayout ? { audioLayout } : {}),
         ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
+        ...(genreAnd ? { genreAnd: 'true' } : {}),
         ...(selectedTags.length > 0 ? { tags: selectedTags.join(',') } : {}),
         ...(hdrOnly ? { hdr: 'true' } : {}),
         ...(dvOnly ? { dv: 'true' } : {}),
@@ -184,7 +187,10 @@ export function ScoutQueue() {
 
   function removeGenreFilter(genre: string) {
     const next = selectedGenres.filter((g) => g !== genre);
-    patch({ genre: next.length > 0 ? next.join(',') : null });
+    patch({
+      genre: next.length > 0 ? next.join(',') : null,
+      genreAnd: next.length > 1 ? (genreAnd ? '1' : null) : null,
+    });
   }
 
   function toggleGenreFilter(genre: string) {
@@ -194,7 +200,11 @@ export function ScoutQueue() {
       removeGenreFilter(g);
       return;
     }
-    patch({ genre: [...selectedGenres, g].join(',') });
+    const next = [...selectedGenres, g];
+    patch({
+      genre: next.join(','),
+      genreAnd: next.length > 1 ? (genreAnd ? '1' : null) : null,
+    });
   }
 
   function removeTagFilter(tag: string) {
@@ -221,6 +231,7 @@ export function ScoutQueue() {
     audioFormat ||
     audioLayout ||
     qGenre !== null ||
+    genreAnd ||
     qTags !== null ||
     hdrOnly ||
     dvOnly ||
@@ -380,6 +391,17 @@ export function ScoutQueue() {
           >
             {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : 'Select genres'}
           </button>
+          {selectedGenres.length > 1 && (
+            <label className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide cursor-pointer">
+              <input
+                type="checkbox"
+                checked={genreAnd}
+                onChange={(e) => patch({ genreAnd: e.target.checked ? '1' : null })}
+                className="accent-violet-600"
+              />
+              AND
+            </label>
+          )}
           {genreOpen && (
             <div
               className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
@@ -645,6 +667,7 @@ export function ScoutQueue() {
                 criticScoreMin: null,
                 imdbScoreMin: null,
                 genre: null,
+                genreAnd: null,
                 tags: null,
               })
             }

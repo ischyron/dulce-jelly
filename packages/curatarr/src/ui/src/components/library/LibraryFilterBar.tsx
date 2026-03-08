@@ -21,7 +21,9 @@ interface Props {
   setGenreFilterOpen: Dispatch<SetStateAction<boolean>>;
   genres: string[];
   selectedGenres: string[];
+  genreAnd: boolean;
   onToggleGenreFilter: (genre: string) => void;
+  onToggleGenreAnd: (checked: boolean) => void;
   onRemoveGenreFilter: (genre: string) => void;
 
   resolution: string;
@@ -85,7 +87,9 @@ export function LibraryFilterBar({
   setGenreFilterOpen,
   genres,
   selectedGenres,
+  genreAnd,
   onToggleGenreFilter,
+  onToggleGenreAnd,
   onRemoveGenreFilter,
   resolution,
   onToggleResolution,
@@ -183,6 +187,17 @@ export function LibraryFilterBar({
         >
           {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : 'Select genres'}
         </button>
+        {selectedGenres.length > 1 && (
+          <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide cursor-pointer">
+            <input
+              type="checkbox"
+              checked={genreAnd}
+              onChange={(e) => onToggleGenreAnd(e.target.checked)}
+              className="accent-violet-600"
+            />
+            AND
+          </label>
+        )}
         {genreFilterOpen && (
           <div
             className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"

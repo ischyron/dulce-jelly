@@ -659,6 +659,7 @@ export class CuratDb {
       releaseGroups?: string[]; // e.g. ['YTS.MX', 'YTS', 'YIFY']
       genre?: string;
       genres?: string[];
+      genreAnd?: boolean;
       tags?: string[];
       minCriticRating?: number; // Critic score, 0-100
       minCommunityRating?: number; // IMDb-style, 0-10
@@ -743,13 +744,24 @@ export class CuratDb {
     }
     const genres = opts.genres && opts.genres.length > 0 ? opts.genres : opts.genre ? [opts.genre] : [];
     if (genres.length > 0) {
-      const placeholders = genres.map(() => '?').join(',');
-      sql += ` AND EXISTS (
-        SELECT 1
-        FROM json_each(COALESCE(m.genres, '[]')) g
-        WHERE LOWER(CAST(g.value AS TEXT)) IN (${placeholders})
-      )`;
-      bindings.push(...genres.map((g) => g.toLowerCase()));
+      if (opts.genreAnd) {
+        for (const genre of genres) {
+          sql += ` AND EXISTS (
+            SELECT 1
+            FROM json_each(COALESCE(m.genres, '[]')) g
+            WHERE LOWER(CAST(g.value AS TEXT)) = ?
+          )`;
+          bindings.push(genre.toLowerCase());
+        }
+      } else {
+        const placeholders = genres.map(() => '?').join(',');
+        sql += ` AND EXISTS (
+          SELECT 1
+          FROM json_each(COALESCE(m.genres, '[]')) g
+          WHERE LOWER(CAST(g.value AS TEXT)) IN (${placeholders})
+        )`;
+        bindings.push(...genres.map((g) => g.toLowerCase()));
+      }
     }
     if (opts.tags && opts.tags.length > 0) {
       const placeholders = opts.tags.map(() => '?').join(',');

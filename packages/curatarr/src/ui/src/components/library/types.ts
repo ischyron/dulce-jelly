@@ -12,6 +12,7 @@ export const PERSIST_FILTER_KEYS = [
   'audioFormat',
   'audioLayout',
   'genre',
+  'genreAnd',
   'tags',
   'hdr',
   'dv',

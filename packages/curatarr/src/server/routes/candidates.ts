@@ -35,6 +35,7 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const limit = all || !Number.isFinite(parsedLimit) ? null : Math.max(1, Math.min(1000, parsedLimit));
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
     const genre = c.req.query('genre') ?? undefined;
+    const genreAnd = c.req.query('genreAnd') === '1' || c.req.query('genreAnd') === 'true';
     const genres = (genre ?? '')
       .split(',')
       .map((v) => v.trim())
@@ -59,6 +60,7 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
       minCommunityRating: minCommunity,
       releaseGroups,
       genres: genres.length > 0 ? genres : undefined,
+      genreAnd,
       tags: tags.length > 0 ? tags : undefined,
     });
 

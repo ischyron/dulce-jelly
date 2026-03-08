@@ -34,6 +34,7 @@ export function Library() {
   const audioFormat = getSearchParam(searchParams, 'audioFormat', '');
   const audioLayout = getSearchParam(searchParams, 'audioLayout', '');
   const genreFilter = getSearchParam(searchParams, 'genre', '');
+  const genreAnd = searchParams.get('genreAnd') === '1';
   const selectedGenres = genreFilter
     ? genreFilter
         .split(',')
@@ -160,6 +161,7 @@ export function Library() {
       audioFormat ||
       audioLayout ||
       selectedGenres.length > 0 ||
+      genreAnd ||
       selectedTags.length > 0 ||
       hdrOnly ||
       dvOnly ||
@@ -198,6 +200,7 @@ export function Library() {
       audioFormat,
       audioLayout,
       genreFilter,
+      genreAnd,
       tagFilter,
       hdrOnly,
       dvOnly,
@@ -220,6 +223,7 @@ export function Library() {
         ...(audioFormat ? { audioFormat } : {}),
         ...(audioLayout ? { audioLayout } : {}),
         ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
+        ...(genreAnd ? { genreAnd: 'true' } : {}),
         ...(selectedTags.length > 0 ? { tags: selectedTags.join(',') } : {}),
         ...(hdrOnly ? { hdr: 'true' } : {}),
         ...(dvOnly ? { dv: 'true' } : {}),
@@ -301,7 +305,11 @@ export function Library() {
 
   function removeGenreFilter(genre: string) {
     const next = selectedGenres.filter((g) => g !== genre);
-    patch({ genre: next.length > 0 ? next.join(',') : null, page: '1' });
+    patch({
+      genre: next.length > 0 ? next.join(',') : null,
+      genreAnd: next.length > 1 ? (genreAnd ? '1' : null) : null,
+      page: '1',
+    });
   }
 
   function toggleGenreFilter(genre: string) {
@@ -311,7 +319,12 @@ export function Library() {
       removeGenreFilter(g);
       return;
     }
-    patch({ genre: [...selectedGenres, g].join(','), page: '1' });
+    const next = [...selectedGenres, g];
+    patch({
+      genre: next.join(','),
+      genreAnd: next.length > 1 ? (genreAnd ? '1' : null) : null,
+      page: '1',
+    });
   }
 
   function addBatchTag(raw: string) {
@@ -382,7 +395,9 @@ export function Library() {
         setGenreFilterOpen={setGenreFilterOpen}
         genres={genresData?.genres ?? []}
         selectedGenres={selectedGenres}
+        genreAnd={genreAnd}
         onToggleGenreFilter={toggleGenreFilter}
+        onToggleGenreAnd={(checked) => patch({ genreAnd: checked ? '1' : null, page: '1' })}
         onRemoveGenreFilter={removeGenreFilter}
         resolution={resolution}
         onToggleResolution={(value) => patch({ resolution: resolution === value ? null : value, page: '1' })}

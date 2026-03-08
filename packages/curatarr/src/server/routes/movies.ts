@@ -103,6 +103,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const audioLayout = (c.req.query('audioLayout') ?? '').toLowerCase().trim();
     const releaseGroup = c.req.query('releaseGroup');
     const genre = c.req.query('genre');
+    const genreAnd = c.req.query('genreAnd') === '1' || c.req.query('genreAnd') === 'true';
     const genres = (genre ?? '')
       .split(',')
       .map((v) => v.trim())
@@ -191,13 +192,24 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       bindings.push(`%${releaseGroup}%`);
     }
     if (genres.length > 0) {
-      const placeholders = genres.map(() => '?').join(',');
-      sql += ` AND EXISTS (
-        SELECT 1
-        FROM json_each(COALESCE(m.genres, '[]')) g
-        WHERE LOWER(CAST(g.value AS TEXT)) IN (${placeholders})
-      )`;
-      bindings.push(...genres.map((g) => g.toLowerCase()));
+      if (genreAnd) {
+        for (const genreValue of genres) {
+          sql += ` AND EXISTS (
+            SELECT 1
+            FROM json_each(COALESCE(m.genres, '[]')) g
+            WHERE LOWER(CAST(g.value AS TEXT)) = ?
+          )`;
+          bindings.push(genreValue.toLowerCase());
+        }
+      } else {
+        const placeholders = genres.map(() => '?').join(',');
+        sql += ` AND EXISTS (
+          SELECT 1
+          FROM json_each(COALESCE(m.genres, '[]')) g
+          WHERE LOWER(CAST(g.value AS TEXT)) IN (${placeholders})
+        )`;
+        bindings.push(...genres.map((g) => g.toLowerCase()));
+      }
     }
     if (tags.length > 0) {
       const placeholders = tags.map(() => '?').join(',');

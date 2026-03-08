@@ -51,8 +51,7 @@ export function Sidebar() {
           height: '1px',
           width: '80%',
           background: 'linear-gradient(to right, transparent, var(--c-accent) 50%, transparent)',
-          boxShadow: '0 0 6px 1px var(--c-accent)',
-          opacity: 0.45,
+          opacity: 0.4,
         }}
       />
 

@@ -327,6 +327,20 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     return c.json({ genres });
   });
 
+  // GET /api/movies/release-groups — distinct release groups sorted by frequency
+  app.get('/release-groups', (c) => {
+    const rows = db
+      .raw()
+      .prepare(
+        `SELECT release_group FROM files
+         WHERE release_group IS NOT NULL AND release_group != ''
+         GROUP BY release_group
+         ORDER BY COUNT(*) DESC, release_group COLLATE NOCASE ASC`,
+      )
+      .all() as Array<{ release_group: string }>;
+    return c.json({ releaseGroups: rows.map((r) => r.release_group) });
+  });
+
   // GET /api/movies/tags — distinct sorted tags from user metadata
   app.get('/tags', (c) => {
     const tags = db.getAllTags();

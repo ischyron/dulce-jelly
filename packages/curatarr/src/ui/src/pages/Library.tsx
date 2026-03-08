@@ -47,6 +47,7 @@ export function Library() {
   const legacyOnly = searchParams.get('legacy') === '1';
   const noJf = searchParams.get('noJf') === '1';
   const multiOnly = searchParams.get('multi') === '1';
+  const releaseGroup = getSearchParam(searchParams, 'releaseGroup', '');
   const tagFilter = getSearchParam(searchParams, 'tags', '');
   const selectedTags = tagFilter
     ? tagFilter
@@ -163,6 +164,7 @@ export function Library() {
       selectedGenres.length > 0 ||
       genreAnd ||
       selectedTags.length > 0 ||
+      releaseGroup ||
       hdrOnly ||
       dvOnly ||
       av1CompatOnly ||
@@ -187,6 +189,11 @@ export function Library() {
     queryFn: api.tags,
     staleTime: 120_000,
   });
+  const { data: releaseGroupsData } = useQuery({
+    queryKey: ['release-groups'],
+    queryFn: api.releaseGroups,
+    staleTime: 120_000,
+  });
 
   const { data, isLoading, isFetching } = useQuery({
     queryKey: [
@@ -208,6 +215,7 @@ export function Library() {
       legacyOnly,
       noJf,
       multiOnly,
+      releaseGroup,
       sortBy,
       sortDir,
     ],
@@ -230,6 +238,7 @@ export function Library() {
         ...(legacyOnly ? { legacy: 'true' } : {}),
         ...(noJf ? { noJf: 'true' } : {}),
         ...(multiOnly ? { multi: 'true' } : {}),
+        ...(releaseGroup ? { releaseGroup } : {}),
         ...(showAll ? { showAll: 'true' } : {}),
       }),
     placeholderData: (prev) => prev,
@@ -424,6 +433,9 @@ export function Library() {
         selectedTags={selectedTags}
         onToggleFilterTag={toggleFilterTag}
         onRemoveFilterTag={removeFilterTag}
+        releaseGroups={releaseGroupsData?.releaseGroups ?? []}
+        releaseGroup={releaseGroup}
+        onReleaseGroupChange={(value) => patch({ releaseGroup: value || null, page: '1' })}
         multiOnly={multiOnly}
         onToggleMultiOnly={(checked) => patch({ multi: checked ? '1' : null, page: '1' })}
         noJf={noJf}

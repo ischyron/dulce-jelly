@@ -73,6 +73,7 @@ export function ScoutQueue() {
   const legacyOnly = searchParams.get('legacy') === '1';
   const noJf = searchParams.get('noJf') === '1';
   const multiOnly = searchParams.get('multi') === '1';
+  const releaseGroup = searchParams.get('releaseGroup') ?? '';
   const qGenre = searchParams.get('genre');
   const genreAnd = searchParams.get('genreAnd') === '1';
   const qTags = searchParams.get('tags');
@@ -141,6 +142,11 @@ export function ScoutQueue() {
     queryFn: api.tags,
     staleTime: 120_000,
   });
+  const { data: releaseGroupsData } = useQuery({
+    queryKey: ['release-groups'],
+    queryFn: api.releaseGroups,
+    staleTime: 120_000,
+  });
 
   function handleSearchInput(val: string) {
     setSearchInput(val);
@@ -171,6 +177,7 @@ export function ScoutQueue() {
       legacyOnly,
       noJf,
       multiOnly,
+      releaseGroup,
     ],
     queryFn: () =>
       api.candidates({
@@ -189,6 +196,7 @@ export function ScoutQueue() {
         ...(legacyOnly ? { legacy: 'true' } : {}),
         ...(noJf ? { noJf: 'true' } : {}),
         ...(multiOnly ? { multi: 'true' } : {}),
+        ...(releaseGroup ? { releaseGroup } : {}),
         all: '1',
       }),
     enabled: Number.isFinite(effMinCritic) && Number.isFinite(effMinComm),
@@ -247,7 +255,8 @@ export function ScoutQueue() {
     av1CompatOnly ||
     legacyOnly ||
     noJf ||
-    multiOnly;
+    multiOnly ||
+    releaseGroup;
 
   const candidateById = useMemo(() => {
     const map = new Map<number, Candidate>();
@@ -469,6 +478,24 @@ export function ScoutQueue() {
           )}
         </FilterSection>
 
+        <FilterSection label="Resolution" className="text-xs w-full xl:w-auto order-2">
+          {RESOLUTION_OPTIONS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => patch({ resolution: resolution === item ? null : item })}
+              className="px-2 py-1 text-xs rounded border transition-colors"
+              style={
+                resolution === item
+                  ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
+                  : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }
+              }
+            >
+              {item}
+            </button>
+          ))}
+        </FilterSection>
+
         <FilterSection
           ref={tagRef}
           label={FILTER_TOKENS.tags.label}
@@ -541,22 +568,25 @@ export function ScoutQueue() {
           )}
         </FilterSection>
 
-        <FilterSection label="Resolution" className="text-xs w-full xl:w-auto order-2">
-          {RESOLUTION_OPTIONS.map((item) => (
-            <button
-              key={item}
-              type="button"
-              onClick={() => patch({ resolution: resolution === item ? null : item })}
-              className="px-2 py-1 text-xs rounded border transition-colors"
-              style={
-                resolution === item
-                  ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
-                  : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }
-              }
-            >
-              {item}
-            </button>
-          ))}
+        <FilterSection label="Group" className="text-xs w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
+          <select
+            value={releaseGroup}
+            onChange={(e) => patch({ releaseGroup: e.target.value || null })}
+            aria-label="Release group filter"
+            className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
+            style={{
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              color: releaseGroup ? 'var(--c-accent)' : 'var(--c-muted)',
+            }}
+          >
+            <option value="">All groups</option>
+            {(releaseGroupsData?.releaseGroups ?? []).map((g) => (
+              <option key={g} value={g}>
+                {g}
+              </option>
+            ))}
+          </select>
         </FilterSection>
 
         <FilterSection label="Flags" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
@@ -710,6 +740,7 @@ export function ScoutQueue() {
                 genre: null,
                 genreAnd: null,
                 tags: null,
+                releaseGroup: null,
               })
             }
             className="text-xs leading-none h-6 px-2 rounded border font-semibold inline-flex items-center self-center order-4"

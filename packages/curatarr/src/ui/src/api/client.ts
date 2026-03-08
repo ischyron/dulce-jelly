@@ -16,6 +16,7 @@ import type {
   MovieDetail,
   MoviesResponse,
   QualityRule,
+  ReleaseGroupsResponse,
   ScanHistoryRun,
   ScoutAutoRunResponse,
   ScoutAutoStatusResponse,
@@ -107,6 +108,7 @@ export const api = {
   },
   genres: () => req<GenresResponse>('/movies/genres'),
   tags: () => req<TagsResponse>('/movies/tags'),
+  releaseGroups: () => req<ReleaseGroupsResponse>('/movies/release-groups'),
 
   movie: (id: number) => req<MovieDetail>(`/movies/${id}`),
 

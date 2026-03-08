@@ -20,6 +20,7 @@ export const PERSIST_FILTER_KEYS = [
   'legacy',
   'noJf',
   'multi',
+  'releaseGroup',
 ] as const;
 
 export type SortField = 'quality' | 'title' | 'year' | 'rating' | 'size';

@@ -62,6 +62,10 @@ interface Props {
   onToggleFilterTag: (tag: string) => void;
   onRemoveFilterTag: (tag: string) => void;
 
+  releaseGroups: string[];
+  releaseGroup: string;
+  onReleaseGroupChange: (value: string) => void;
+
   multiOnly: boolean;
   onToggleMultiOnly: (checked: boolean) => void;
   noJf: boolean;
@@ -123,6 +127,9 @@ export function LibraryFilterBar({
   selectedTags,
   onToggleFilterTag,
   onRemoveFilterTag,
+  releaseGroups,
+  releaseGroup,
+  onReleaseGroupChange,
   multiOnly,
   onToggleMultiOnly,
   noJf,
@@ -477,6 +484,27 @@ export function LibraryFilterBar({
             ))}
           </div>
         )}
+      </FilterSection>
+
+      <FilterSection label="Group" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
+        <select
+          value={releaseGroup}
+          onChange={(e) => onReleaseGroupChange(e.target.value)}
+          aria-label="Release group filter"
+          className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
+          style={{
+            background: 'var(--c-surface)',
+            border: '1px solid var(--c-border)',
+            color: releaseGroup ? 'var(--c-accent)' : 'var(--c-muted)',
+          }}
+        >
+          <option value="">All groups</option>
+          {releaseGroups.map((g) => (
+            <option key={g} value={g}>
+              {g}
+            </option>
+          ))}
+        </select>
       </FilterSection>
 
       <FilterSection label="Flags" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>

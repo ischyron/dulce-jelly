@@ -368,6 +368,10 @@ export interface TagsResponse {
   tags: string[];
 }
 
+export interface ReleaseGroupsResponse {
+  releaseGroups: string[];
+}
+
 export interface CandidatesResponse {
   total: number;
   candidates: Candidate[];

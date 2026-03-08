@@ -33,7 +33,13 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const all = c.req.query('all') === '1' || (limitRaw ?? '').toLowerCase() === 'all';
     const parsedLimit = Number.parseInt(limitRaw ?? '100', 10);
     const limit = all || !Number.isFinite(parsedLimit) ? null : Math.max(1, Math.min(1000, parsedLimit));
-    const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
+    const releaseGroupSingle = c.req.query('releaseGroup');
+    const releaseGroupsParam = c.req.query('releaseGroups')?.split(',').filter(Boolean) ?? [];
+    const releaseGroups = releaseGroupSingle
+      ? [...releaseGroupsParam, releaseGroupSingle]
+      : releaseGroupsParam.length > 0
+        ? releaseGroupsParam
+        : undefined;
     const genre = c.req.query('genre') ?? undefined;
     const genreAnd = c.req.query('genreAnd') === '1' || c.req.query('genreAnd') === 'true';
     const genres = (genre ?? '')

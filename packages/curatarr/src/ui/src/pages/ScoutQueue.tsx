@@ -726,8 +726,22 @@ export function ScoutQueue() {
               Adjust thresholds in Settings → Scout
             </Link>
           </div>
-          <span style={{ color: 'var(--c-muted)' }}>
-            {data ? `${data.total} candidates` : '…'} · {selectedBatch.length}/{maxBatch} selected
+          <span className="flex items-center gap-1.5" style={{ color: 'var(--c-muted)' }}>
+            {data ? (
+              <>
+                <span className="font-semibold" style={{ color: 'var(--c-text)' }}>
+                  {data.total.toLocaleString()}
+                </span>
+                <span>candidates</span>
+              </>
+            ) : (
+              '…'
+            )}
+            <span style={{ color: 'var(--c-border)' }}>·</span>
+            <span className="font-semibold" style={{ color: 'var(--c-text)' }}>
+              {selectedBatch.length}/{maxBatch}
+            </span>
+            <span>selected</span>
           </span>
         </div>
 

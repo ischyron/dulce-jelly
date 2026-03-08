@@ -328,9 +328,76 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     return c.json({ genres });
   });
 
-  // GET /api/movies/release-groups — distinct release groups sorted by frequency
-  // Includes groups stored in the DB as well as groups derived from filenames at runtime
-  // (for files where release_group is NULL, matching the movies listing fallback).
+  // GET /api/movies/release-groups — distinct release groups sorted alphabetically.
+  // Stored values are re-validated case-insensitively to strip false positives
+  // (resolution tags, app names) that may have been written before the blocklist existed.
+  const RELEASE_GROUP_EXCLUSION_RE = /^\d+[pPiIkK]$/i; // e.g. 1080p, 720P, 2160p, 4k
+  const RELEASE_GROUP_EXCLUSIONS = new Set([
+    'RADARR',
+    'SONARR',
+    'LIDARR',
+    'READARR',
+    'PROWLARR',
+    'BAZARR',
+    'PLEX',
+    'JELLYFIN',
+    'EMBY',
+    'HD',
+    'UHD',
+    'SD',
+    'SDR',
+    'FHD',
+    'QHD',
+    '4K',
+    '2K',
+    '8K',
+    '1080I',
+    '576P',
+    '576I',
+    '360P',
+    '240P',
+    'HDR',
+    'HDR10',
+    'HLG',
+    '10BIT',
+    '8BIT',
+    'BLURAY',
+    'WEBRIP',
+    'WEBDL',
+    'BDRIP',
+    'DVDRIP',
+    'HDTV',
+    'REMUX',
+    'X264',
+    'X265',
+    'H264',
+    'H265',
+    'HEVC',
+    'AVC',
+    'AV1',
+    'AAC',
+    'AC3',
+    'DTS',
+    'EAC3',
+    'FLAC',
+    'MP3',
+    'OPUS',
+    'ATMOS',
+    'TRUEHD',
+    'DDP',
+    'DD',
+    'PROPER',
+    'REPACK',
+    'EXTENDED',
+    'MULTI',
+    'DUAL',
+  ]);
+
+  function isValidReleaseGroup(g: string): boolean {
+    const u = g.toUpperCase();
+    return !RELEASE_GROUP_EXCLUSION_RE.test(g) && !RELEASE_GROUP_EXCLUSIONS.has(u);
+  }
+
   app.get('/release-groups', (c) => {
     const rows = db.raw().prepare('SELECT release_group, filename FROM files').all() as Array<{
       release_group: string | null;
@@ -341,7 +408,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     for (const row of rows) {
       const stored = typeof row.release_group === 'string' ? row.release_group.trim() : '';
       const group = stored || (row.filename ? (extractReleaseGroup(row.filename) ?? '') : '');
-      if (group) {
+      if (group && isValidReleaseGroup(group)) {
         counts.set(group, (counts.get(group) ?? 0) + 1);
       }
     }

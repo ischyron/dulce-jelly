@@ -1,9 +1,9 @@
-import type { CSSProperties, ComponentPropsWithoutRef, ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { forwardRef } from 'react';
 
 type FilterLabelTone = 'blue' | 'pink';
 
-interface FilterSectionProps extends Omit<ComponentPropsWithoutRef<'div'>, 'children'> {
+interface FilterSectionProps {
   label: string;
   labelTone?: FilterLabelTone;
   className?: string;
@@ -27,14 +27,13 @@ function labelStyles(tone: FilterLabelTone): CSSProperties {
 }
 
 export const FilterSection = forwardRef<HTMLDivElement, FilterSectionProps>(function FilterSection(
-  { label, labelTone = 'blue', className = '', style, children, ...divProps },
+  { label, labelTone = 'blue', className = '', style, children },
   ref,
 ) {
   return (
     <div
       ref={ref}
-      {...divProps}
-      className={`flex flex-wrap items-center gap-2 px-3 py-2 min-h-[46px] rounded-lg border ${className}`.trim()}
+      className={`flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border ${className}`.trim()}
       style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', ...style }}
     >
       <span

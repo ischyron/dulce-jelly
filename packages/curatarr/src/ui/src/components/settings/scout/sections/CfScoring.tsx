@@ -139,18 +139,19 @@ export function CfScoring({ form, set }: CfScoringSectionProps) {
           Scout Minimum Qualifiers
         </div>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-          Gate the candidate pool with MC/IMDb thresholds and batch size.
+          Gate the candidate pool with Critic Score/IMDb thresholds and batch size.
         </p>
         <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
           Applies to the auto-run queue only. You can manually scout releases for any item.
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <Field
-            label="Min MC (Metacritic)"
+            label="Critic Score (Min)"
             name="scoutPipelineMinCritic"
             value={form.scoutPipelineMinCritic ?? '65'}
             onChange={(v) => set('scoutPipelineMinCritic', v)}
             placeholder="65"
+            tooltip="Jellyfin critic score threshold (0–100). Auto-scout queue includes titles at or above this value."
           />
           <Field
             label="Min IMDb"

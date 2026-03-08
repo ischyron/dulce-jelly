@@ -43,7 +43,7 @@ Scope: Scout Queue, Scout scoring (including CF/bitrate), Scout rules UI, Prowla
 3. Scout filters from Settings defaults
 - Steps:
   1. Open `/settings`
-  2. Set `Min MC`, `Min IMDb`, `Max Scout Resolution`
+  2. Set `Critic Score`, `Min IMDb`, `Max Scout Resolution`
   3. Save
   4. Open `/scout` without query params
 - Expected:
@@ -158,7 +158,7 @@ Scope: Scout Queue, Scout scoring (including CF/bitrate), Scout rules UI, Prowla
   - No white-screen or frozen modal
 
 ## Quick API Assertions (Executed)
-- `GET /api/candidates?minCritic=65&minCommunity=7&maxResolution=1080p&limit=5` returned 5 candidates.
+- `GET /api/candidates?criticScoreMin=65&imdbScoreMin=7&resolution=1080p&limit=5` returned 5 candidates.
 - `GET /api/rules?category=scout` returned 3 seeded scout rules.
 - `POST /api/scout/search-one` returned `422 prowlarr_not_configured` (expected in current config).
 - `POST /api/scout/auto-run` returned `422 prowlarr_not_configured` (expected in current config).

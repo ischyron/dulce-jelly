@@ -71,7 +71,7 @@ export function printUpgradeCandidates(
   } = {},
 ): void {
   const candidates = db.getUpgradeCandidates({
-    maxResolution: opts.maxResolution ?? '1080p',
+    resolution: opts.maxResolution ?? '1080p',
     minCriticRating: opts.skipRatingFilter ? undefined : opts.minCriticRating,
     minCommunityRating: opts.skipRatingFilter ? undefined : (opts.minCommunityRating ?? 7.0),
     limit: opts.limit ?? 50,
@@ -88,7 +88,7 @@ export function printUpgradeCandidates(
   // is persisted per-library item (e.g. DB tags or normalized TRaSH-backed score snapshots).
   console.log('');
   console.log(
-    `  ${'Title'.padEnd(42)}${'Year'.padEnd(6)}${'Res'.padEnd(8)}${'Codec'.padEnd(8)}${'Group'.padEnd(14)}${'MC'.padEnd(6)}IMDb`,
+    `  ${'Title'.padEnd(42)}${'Year'.padEnd(6)}${'Res'.padEnd(8)}${'Codec'.padEnd(8)}${'Group'.padEnd(14)}${'Critic'.padEnd(8)}IMDb`,
   );
   console.log(`  ${'─'.repeat(100)}`);
 
@@ -98,9 +98,9 @@ export function printUpgradeCandidates(
     const res = (row.resolution_cat ?? '?').padEnd(8);
     const codec = (row.video_codec ?? '?').padEnd(8);
     const group = (row.release_group ?? '?').padEnd(14);
-    const mc = row.critic_rating != null ? String(row.critic_rating).padEnd(6) : '?     ';
+    const critic = row.critic_rating != null ? String(row.critic_rating).padEnd(8) : '?       ';
     const imdb = row.community_rating != null ? row.community_rating.toFixed(1) : '?';
-    console.log(`  ${title.padEnd(42)}${year}${res}${codec}${group}${mc}${imdb}`);
+    console.log(`  ${title.padEnd(42)}${year}${res}${codec}${group}${critic}${imdb}`);
   }
   console.log('');
 }

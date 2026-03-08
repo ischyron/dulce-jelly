@@ -31,7 +31,7 @@ const DEFAULT_SETTINGS: Record<string, string> = {
   jfSyncBatchSize: '10', // items per JF API page during sync
 
   /** Scout defaults (used as query params on /api/candidates) */
-  scoutPipelineMinCritic: '65', // Metacritic ≥ 65
+  scoutPipelineMinCritic: '65', // Critic score ≥ 65
   scoutPipelineMinImdb: '7.0', // IMDb ≥ 7.0
   scoutPipelineBatchSize: '5', // hard-clamped to 10 in API/server
   scoutPipelineAutoEnabled: 'false', // scheduled scout disabled by default

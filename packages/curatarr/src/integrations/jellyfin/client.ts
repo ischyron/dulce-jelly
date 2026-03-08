@@ -19,7 +19,7 @@ export interface JfMovie {
   OriginalTitle?: string;
   ProductionYear?: number;
   Path?: string; // file path Jellyfin knows about
-  CriticRating?: number; // Metacritic 0-100
+  CriticRating?: number; // Critic score 0-100
   CommunityRating?: number; // IMDb-style 0-10
   OfficialRating?: string; // MPAA
   Overview?: string;

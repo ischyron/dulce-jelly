@@ -24,7 +24,7 @@ export function makeReportCommand(): Command {
     .option('--hdr', 'Show HDR format breakdown')
     .option('--audio', 'Show audio codec breakdown')
     .option('--all', 'Show all sections')
-    .option('--min-mc <n>', 'Min Metacritic rating for upgrade candidates', '70')
+    .option('--min-critic-score <n>', 'Min critic score for upgrade candidates', '70')
     .option('--min-imdb <n>', 'Min IMDb rating for upgrade candidates', '7.0')
     .option('--no-rating-filter', 'Show upgrade candidates without requiring Jellyfin ratings')
     .option('--limit <n>', 'Max rows per section', '50')
@@ -33,7 +33,7 @@ export function makeReportCommand(): Command {
       const db = new CuratDb(dbPath);
 
       const showAll = Boolean(opts.all);
-      const minMc = Number.parseFloat(opts.minMc);
+      const minCriticScore = Number.parseFloat(opts.minCriticScore);
       const minImdb = Number.parseFloat(opts.minImdb);
       const limit = Number.parseInt(opts.limit, 10);
 
@@ -42,7 +42,7 @@ export function makeReportCommand(): Command {
 
       if (showAll || opts.upgrades) {
         printUpgradeCandidates(db, {
-          minCriticRating: minMc,
+          minCriticRating: minCriticScore,
           minCommunityRating: minImdb,
           limit,
           skipRatingFilter: opts.ratingFilter === false,

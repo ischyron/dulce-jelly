@@ -16,11 +16,12 @@ export function MinimumQualifiersFields({ form, set }: MinimumQualifiersSectionP
       </p>
       <div className="grid grid-cols-2 gap-3">
         <Field
-          label="Min MC (Metacritic)"
+          label="Critic Score (Min)"
           name="scoutMinCritic"
           value={form.scoutMinCritic ?? '65'}
           onChange={(v) => set('scoutMinCritic', v)}
           placeholder="65"
+          tooltip="Jellyfin critic score threshold (0–100)."
         />
         <Field
           label="Min IMDb"

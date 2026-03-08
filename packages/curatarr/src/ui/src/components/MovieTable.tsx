@@ -32,9 +32,9 @@ export function MovieTable({ movies, onSelect, selectedId }: Props) {
             </th>
             <th className="px-3 py-2 font-medium text-right">
               <span className="inline-flex items-center gap-1">
-                MC
+                Critic Score
                 <InfoHint
-                  label="Critic info"
+                  label="Critic score info"
                   text="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin."
                 />
               </span>

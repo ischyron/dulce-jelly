@@ -101,7 +101,7 @@ export function LibraryTable({
           </th>
           <SortHeader
             field="rating"
-            label="Critic"
+            label="Critic Score"
             current={sortBy}
             dir={sortDir}
             onChange={onSort}

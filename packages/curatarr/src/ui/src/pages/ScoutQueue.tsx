@@ -1,14 +1,20 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Bot, Star } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { type Candidate, api } from '../api/client';
 import { InfoHint } from '../components/InfoHint';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer';
 import { CodecBadge, CriticScoreBadge, HdrBadge, ResolutionBadge } from '../components/QualityBadge';
+import {
+  AUDIO_FORMAT_OPTIONS,
+  AUDIO_LAYOUT_OPTIONS,
+  CODEC_OPTIONS,
+  RESOLUTION_OPTIONS,
+} from '../components/library/types';
 import { BatchConfirmModal } from '../components/scout-queue/BatchConfirmModal';
 import { CompatTag } from '../components/scout-queue/CompatTag';
+import { getCodecDescription } from '../components/shared/utils';
 
 function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
@@ -22,7 +28,6 @@ function clampBatchSize(raw: string | undefined): number {
 }
 
 export function ScoutQueue() {
-  const { t } = useTranslation('scout');
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Load seeded defaults from settings API
@@ -35,7 +40,6 @@ export function ScoutQueue() {
   const settings = settingsData?.settings ?? {};
   const seedMinCritic = Number.parseFloat(settings.scoutPipelineMinCritic ?? '65');
   const seedMinComm = Number.parseFloat(settings.scoutPipelineMinImdb ?? '7.0');
-  const seedGenre = '';
   const maxBatch = clampBatchSize(settings.scoutPipelineBatchSize);
 
   const [selectedId, setSelectedId] = useState<number | undefined>();
@@ -43,32 +47,64 @@ export function ScoutQueue() {
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [batchUiError, setBatchUiError] = useState<string>('');
   const [batchResultMsg, setBatchResultMsg] = useState<string>('');
+  const [searchInput, setSearchInput] = useState(searchParams.get('q') ?? '');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const qMinCritic = searchParams.get('minCritic');
-  const qMinCommunity = searchParams.get('minCommunity');
+  const qMinCritic = searchParams.get('criticScoreMin') ?? searchParams.get('minCritic');
+  const qMinCommunity = searchParams.get('imdbScoreMin') ?? searchParams.get('minCommunity');
+  const q = searchParams.get('q') ?? '';
+  const resolution = searchParams.get('resolution') ?? '';
+  const codec = searchParams.get('codec') ?? '';
+  const audioFormat = searchParams.get('audioFormat') ?? '';
+  const audioLayout = searchParams.get('audioLayout') ?? '';
+  const hdrOnly = searchParams.get('hdr') === '1';
+  const dvOnly = searchParams.get('dv') === '1';
+  const av1CompatOnly = searchParams.get('av1Compat') === '1';
+  const legacyOnly = searchParams.get('legacy') === '1';
+  const noJf = searchParams.get('noJf') === '1';
+  const multiOnly = searchParams.get('multi') === '1';
   const qGenre = searchParams.get('genre');
+  const qTags = searchParams.get('tags');
 
   // Resolved values (URL overrides seeded defaults)
   const effMinCritic = qMinCritic != null ? Number(qMinCritic) : seedMinCritic;
   const effMinComm = qMinCommunity != null ? Number(qMinCommunity) : seedMinComm;
-  const effGenre = qGenre ?? seedGenre;
+  const effGenre = qGenre ?? '';
   const selectedGenres = effGenre
     ? effGenre
         .split(',')
         .map((g) => g.trim())
         .filter(Boolean)
     : [];
+  const selectedTags = qTags
+    ? qTags
+        .split(',')
+        .map((tag) => tag.trim().toLowerCase().replace(/\s+/g, '-'))
+        .filter(Boolean)
+    : [];
   const genreRef = useRef<HTMLDivElement | null>(null);
+  const tagRef = useRef<HTMLDivElement | null>(null);
   const [genreOpen, setGenreOpen] = useState(false);
+  const [tagOpen, setTagOpen] = useState(false);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
-      if (!genreRef.current) return;
-      if (!genreRef.current.contains(e.target as Node)) setGenreOpen(false);
+      if (genreRef.current && !genreRef.current.contains(e.target as Node)) setGenreOpen(false);
+      if (tagRef.current && !tagRef.current.contains(e.target as Node)) setTagOpen(false);
     }
-    if (genreOpen) document.addEventListener('mousedown', onDocClick);
+    if (genreOpen || tagOpen) document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [genreOpen]);
+  }, [genreOpen, tagOpen]);
+
+  useEffect(() => {
+    setSearchInput(q);
+  }, [q]);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
 
   function patch(changes: Record<string, string | null>) {
     setSearchParams(
@@ -89,15 +125,57 @@ export function ScoutQueue() {
     queryFn: api.genres,
     staleTime: 120_000,
   });
+  const { data: tagsData } = useQuery({
+    queryKey: ['tags'],
+    queryFn: api.tags,
+    staleTime: 120_000,
+  });
+
+  function handleSearchInput(val: string) {
+    setSearchInput(val);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      patch({ q: val });
+    }, 300);
+  }
 
   const genreKey = selectedGenres.join(',');
+  const tagKey = selectedTags.join(',');
   const { data, isLoading } = useQuery({
-    queryKey: ['candidates', effMinCritic, effMinComm, genreKey],
+    queryKey: [
+      'candidates',
+      q,
+      effMinCritic,
+      effMinComm,
+      resolution,
+      codec,
+      audioFormat,
+      audioLayout,
+      genreKey,
+      tagKey,
+      hdrOnly,
+      dvOnly,
+      av1CompatOnly,
+      legacyOnly,
+      noJf,
+      multiOnly,
+    ],
     queryFn: () =>
       api.candidates({
-        minCritic: effMinCritic,
-        minCommunity: effMinComm,
+        criticScoreMin: effMinCritic,
+        imdbScoreMin: effMinComm,
+        ...(q ? { search: q } : {}),
+        ...(resolution ? { resolution } : {}),
+        ...((av1CompatOnly ? 'av1' : codec) ? { codec: av1CompatOnly ? 'av1' : codec } : {}),
+        ...(audioFormat ? { audioFormat } : {}),
+        ...(audioLayout ? { audioLayout } : {}),
         ...(selectedGenres.length > 0 ? { genre: selectedGenres.join(',') } : {}),
+        ...(selectedTags.length > 0 ? { tags: selectedTags.join(',') } : {}),
+        ...(hdrOnly ? { hdr: 'true' } : {}),
+        ...(dvOnly ? { dv: 'true' } : {}),
+        ...(legacyOnly ? { legacy: 'true' } : {}),
+        ...(noJf ? { noJf: 'true' } : {}),
+        ...(multiOnly ? { multi: 'true' } : {}),
         limit: 200,
       }),
     enabled: Number.isFinite(effMinCritic) && Number.isFinite(effMinComm),
@@ -117,6 +195,38 @@ export function ScoutQueue() {
     }
     patch({ genre: [...selectedGenres, g].join(',') });
   }
+
+  function removeTagFilter(tag: string) {
+    const next = selectedTags.filter((t) => t !== tag);
+    patch({ tags: next.length > 0 ? next.join(',') : null });
+  }
+
+  function toggleTagFilter(rawTag: string) {
+    const tag = rawTag.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!tag) return;
+    if (selectedTags.includes(tag)) {
+      removeTagFilter(tag);
+      return;
+    }
+    patch({ tags: [...selectedTags, tag].join(',') });
+  }
+
+  const hasFilterOverrides =
+    qMinCritic !== null ||
+    qMinCommunity !== null ||
+    q ||
+    resolution ||
+    codec ||
+    audioFormat ||
+    audioLayout ||
+    qGenre !== null ||
+    qTags !== null ||
+    hdrOnly ||
+    dvOnly ||
+    av1CompatOnly ||
+    legacyOnly ||
+    noJf ||
+    multiOnly;
 
   const candidateById = useMemo(() => {
     const map = new Map<number, Candidate>();
@@ -190,7 +300,7 @@ export function ScoutQueue() {
     <div className="flex flex-col h-full">
       {/* Filters */}
       <div
-        className="px-6 py-3 border-b flex items-center gap-4 shrink-0"
+        className="px-6 py-3 border-b flex flex-wrap items-center gap-4 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
         <h1 className="font-semibold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
@@ -198,7 +308,30 @@ export function ScoutQueue() {
           Scout Queue
         </h1>
 
-        <div ref={genreRef} className="relative flex items-center gap-2 text-sm ml-4">
+        <div
+          className="text-xs rounded-lg border px-2 py-1"
+          style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
+        >
+          Pre-sorted queue from Scout minimum qualifiers.
+          <Link to="/settings/scout" className="ml-1 underline" style={{ color: '#c4b5fd' }}>
+            Adjust in Settings → Scout
+          </Link>
+          .
+        </div>
+
+        <div className="relative">
+          <input
+            type="text"
+            aria-label="Search titles"
+            placeholder="Search titles…"
+            value={searchInput}
+            onChange={(e) => handleSearchInput(e.target.value)}
+            className="px-3 py-1.5 rounded-lg text-sm focus:outline-none w-52"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          />
+        </div>
+
+        <div ref={genreRef} className="relative flex items-center gap-2 text-sm">
           <span
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
@@ -268,21 +401,230 @@ export function ScoutQueue() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 ml-4 text-sm">
-          <label
-            htmlFor="scout-min-mc"
+        <div ref={tagRef} className="relative flex items-center gap-2 text-sm">
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            style={{ color: '#f9a8d4', borderColor: 'rgba(249,168,212,0.35)', background: 'rgba(249,168,212,0.12)' }}
+          >
+            Tags
+          </span>
+          <button
+            type="button"
+            onClick={() => setTagOpen((v) => !v)}
+            aria-expanded={tagOpen}
+            aria-haspopup="listbox"
+            className="px-2 py-1 rounded text-sm focus:outline-none"
+            style={{
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              color: selectedTags.length > 0 ? 'var(--c-accent)' : 'var(--c-muted)',
+            }}
+          >
+            {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
+          </button>
+          {tagOpen && (
+            <div
+              className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+            >
+              {(tagsData?.tags ?? []).length === 0 && (
+                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                  No tags available.
+                </div>
+              )}
+              {(tagsData?.tags ?? []).map((tag) => (
+                <label
+                  key={tag}
+                  className="flex items-center gap-2 text-xs cursor-pointer"
+                  style={{ color: selectedTags.includes(tag) ? '#d4cfff' : 'var(--c-muted)' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTags.includes(tag)}
+                    onChange={() => toggleTagFilter(tag)}
+                    className="accent-violet-600"
+                  />
+                  <span>{tag}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedTags.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {selectedTags.map((tag) => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => removeTagFilter(tag)}
+                  className="px-2 py-0.5 rounded-full text-xs border"
+                  style={{
+                    color: '#c4b5fd',
+                    borderColor: 'rgba(124,58,237,0.35)',
+                    background: 'rgba(124,58,237,0.12)',
+                  }}
+                  aria-label={`Remove ${tag} filter`}
+                >
+                  {tag} ×
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <span
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
           >
-            Min MC
+            Resolution
+          </span>
+          {RESOLUTION_OPTIONS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => patch({ resolution: resolution === item ? null : item })}
+              className="px-2 py-1 text-xs rounded border transition-colors"
+              style={
+                resolution === item
+                  ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
+                  : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }
+              }
+            >
+              {item}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <span
+            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Codec
+          </span>
+          {CODEC_OPTIONS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => patch({ codec: codec === item ? null : item, av1Compat: null })}
+              className="px-2 py-1 text-xs rounded border transition-colors"
+              title={getCodecDescription(item)}
+              style={
+                codec === item && !av1CompatOnly
+                  ? { background: 'var(--c-accent)', borderColor: 'var(--c-accent)', color: 'white' }
+                  : { borderColor: 'var(--c-border)', color: 'var(--c-muted)' }
+              }
+            >
+              {item.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--c-muted)' }}>
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={hdrOnly}
+              onChange={(e) => patch({ hdr: e.target.checked ? '1' : null })}
+              className="accent-violet-600"
+            />
+            HDR
+          </label>
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={dvOnly}
+              onChange={(e) => patch({ dv: e.target.checked ? '1' : null })}
+              className="accent-violet-600"
+            />
+            Dolby Vision
+          </label>
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={av1CompatOnly}
+              onChange={(e) => patch({ av1Compat: e.target.checked ? '1' : null, codec: null })}
+              className="accent-violet-600"
+            />
+            AV1 (compat risk)
+          </label>
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={legacyOnly}
+              onChange={(e) => patch({ legacy: e.target.checked ? '1' : null })}
+              className="accent-violet-600"
+            />
+            Legacy codec
+          </label>
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={multiOnly}
+              onChange={(e) => patch({ multi: e.target.checked ? '1' : null })}
+              className="accent-violet-600"
+            />
+            Multi-file
+          </label>
+          <label className="inline-flex items-center gap-1 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={noJf}
+              onChange={(e) => patch({ noJf: e.target.checked ? '1' : null })}
+              className="accent-violet-600"
+            />
+            Jellyfin Sync Needed
+          </label>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <select
+            value={audioFormat}
+            onChange={(e) => patch({ audioFormat: e.target.value || null })}
+            className="px-2 py-1 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          >
+            <option value="">Audio format</option>
+            {AUDIO_FORMAT_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item.toUpperCase()}
+              </option>
+            ))}
+          </select>
+          <select
+            value={audioLayout}
+            onChange={(e) => patch({ audioLayout: e.target.value || null })}
+            className="px-2 py-1 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          >
+            <option value="">Audio layout</option>
+            {AUDIO_LAYOUT_OPTIONS.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2 text-sm">
+          <label
+            htmlFor="scout-min-critic-score"
+            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
+            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
+          >
+            Critic Score
+            <InfoHint
+              label="Critic score filter info"
+              text="Jellyfin critic score (0–100). Set to 0 to include items even when critic score metadata is missing."
+            />
           </label>
           <input
-            id="scout-min-mc"
+            id="scout-min-critic-score"
             type="number"
             min={0}
             max={100}
             value={effMinCritic}
-            onChange={(e) => patch({ minCritic: e.target.value })}
+            onChange={(e) => patch({ criticScoreMin: e.target.value, minCritic: null })}
             className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           />
@@ -303,21 +645,41 @@ export function ScoutQueue() {
             max={10}
             step={0.1}
             value={effMinComm}
-            onChange={(e) => patch({ minCommunity: e.target.value })}
+            onChange={(e) => patch({ imdbScoreMin: e.target.value, minCommunity: null })}
             className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           />
         </div>
 
         {/* Reset to seeded defaults */}
-        {(qMinCritic !== null || qMinCommunity !== null || qGenre !== null) && (
+        {hasFilterOverrides && (
           <button
             type="button"
-            onClick={() => patch({ minCritic: null, minCommunity: null, genre: null })}
+            onClick={() =>
+              patch({
+                q: null,
+                resolution: null,
+                codec: null,
+                audioFormat: null,
+                audioLayout: null,
+                hdr: null,
+                dv: null,
+                av1Compat: null,
+                legacy: null,
+                noJf: null,
+                multi: null,
+                minCritic: null,
+                minCommunity: null,
+                criticScoreMin: null,
+                imdbScoreMin: null,
+                genre: null,
+                tags: null,
+              })
+            }
             className="text-xs px-2 py-1 rounded border font-semibold"
             style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
           >
-            Reset defaults
+            Reset filters
           </button>
         )}
 
@@ -352,10 +714,10 @@ export function ScoutQueue() {
           <div className="p-8 space-y-1" style={{ color: 'var(--c-muted)' }}>
             <p className="text-sm">No upgrade candidates with current filters.</p>
             <p className="text-xs">
-              Scout Queue requires Metacritic and IMDb ratings — these come from{' '}
+              Scout Queue requires critic and IMDb ratings — these come from{' '}
               <strong style={{ color: 'var(--c-text)' }}>Jellyfin Sync</strong> (Scan &amp; Sync page). If you haven't
-              synced yet, all ratings are null and no movies will appear here. Try setting Min MC and Min IMDb to 0 to
-              see all scanned movies regardless of ratings.
+              synced yet, all ratings are null and no movies will appear here. Try setting Critic Score and Min IMDb to
+              0 to see all scanned movies regardless of ratings.
             </p>
           </div>
         ) : (
@@ -411,9 +773,9 @@ export function ScoutQueue() {
                   title="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin. Red = Fresh (≥60), grey = Rotten (<60)."
                 >
                   <span className="inline-flex items-center gap-1">
-                    Critic
+                    Critic Score
                     <InfoHint
-                      label="Critic info"
+                      label="Critic score info"
                       text="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin."
                     />
                   </span>

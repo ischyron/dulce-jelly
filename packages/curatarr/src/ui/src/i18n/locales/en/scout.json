@@ -5,7 +5,7 @@
     "genreSelect": "Select genres",
     "genreSelected": "{{count}} selected",
     "removeFilter": "Remove {{name}} filter",
-    "minMc": "Min MC",
+    "criticScore": "Critic Score",
     "minImdb": "Min IMDb",
     "resetDefaults": "Reset defaults",
     "scoutBatch": "Scout Batch"
@@ -18,7 +18,7 @@
     "colHdr": "HDR",
     "colGroup": "Group",
     "colFlags": "Flags",
-    "colCritic": "Critic",
+    "colCritic": "Critic Score",
     "colImdb": "IMDb",
     "colSize": "Size",
     "selectAll": "Select all rows on this page",
@@ -30,6 +30,6 @@
     "summary": "{{total}} candidates · {{selected}}/{{max}} selected",
     "loading": "Loading…",
     "noCandidates": "No upgrade candidates with current filters.",
-    "noCandidatesDetail": "Scout Queue requires Metacritic and IMDb ratings — these come from Jellyfin Sync (Scan & Sync page). If you haven't synced yet, all ratings are null and no movies will appear here. Try setting Min MC and Min IMDb to 0 to see all scanned movies regardless of ratings."
+    "noCandidatesDetail": "Scout Queue requires critic and IMDb ratings — these come from Jellyfin Sync (Scan & Sync page). If you haven't synced yet, all ratings are null and no movies will appear here. Try setting Critic Score and Min IMDb to 0 to see all scanned movies regardless of ratings."
   }
 }

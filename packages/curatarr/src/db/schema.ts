@@ -32,7 +32,7 @@ export function applySchema(db: Database.Database): void {
       jellyfin_year   INTEGER,
       imdb_id         TEXT,
       tmdb_id         TEXT,
-      critic_rating   REAL,                   -- Metacritic 0-100
+      critic_rating   REAL,                   -- Critic score 0-100
       community_rating REAL,                  -- IMDb/community 0-10
       genres          TEXT,                   -- JSON array of strings
       overview        TEXT,

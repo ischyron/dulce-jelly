@@ -60,7 +60,7 @@ export function LibraryTable({
 
   return (
     <table className="w-full text-sm border-collapse">
-      <thead className="sticky top-0 z-[5]" style={{ background: 'var(--c-bg)' }}>
+      <thead className="sticky top-0 z-[5]" style={{ background: 'var(--c-surface)' }}>
         <tr style={{ borderBottom: '1px solid var(--c-border)' }}>
           <th className="px-2 py-2 text-center" style={{ width: '32px' }}>
             <label

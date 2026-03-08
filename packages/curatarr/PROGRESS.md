@@ -19,6 +19,17 @@
 
 ## TODO Items
 
+- [DONE] ~~Polish Scout/Library filter-row layout: move Scout minimums after search, align reset button placement, and vertically center Library pagination/stats row content.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: moved Scout `Scout Minimums` widget directly after search; moved `Reset filters` to the Video/Audio row in both Scout and Library; aligned Library top-row stats/pagination (`Show`, count, total size) to be vertically centered; aligned shared wording (`Video`) and tag tone parity across Scout/Library
+  - Unit/interaction: `npm test` -> pass (after `npm rebuild better-sqlite3` to fix local ABI mismatch)
+  - E2E: `npm run test:e2e` -> pass (47 passed)
+  - Chrome MCP: blocked in this session (`Transport closed` from `mcp__chrome__list_pages`); fallback manual verification run with Playwright on deployed app (`/library`, `/scout`) including screenshots `library-final-gate.png` and `scout-final-gate.png`; expected vs actual layout alignment matched; pass (fallback)
+  - Git: `5717c33`, push ok (`main -> main`)
+  - Deploy: pre-push pipeline `docker compose build curatarr` + `docker compose up -d curatarr` -> ok; post-check `docker compose ps curatarr` -> healthy
+  - Date: 2026-03-08
+
 - [DONE] ~~Refactor Scout/Library rating terminology and filter parity: remove MC naming, add Critic Score naming, and align Scout candidate filters/data parity with Library (no Scout sorting).~~
   Evidence:
   - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled

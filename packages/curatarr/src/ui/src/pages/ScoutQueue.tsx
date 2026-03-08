@@ -301,7 +301,7 @@ export function ScoutQueue() {
     <div className="flex flex-col h-full">
       {/* Filters */}
       <div
-        className="px-6 py-3 border-b flex flex-wrap items-start gap-3 shrink-0"
+        className="px-6 py-3 border-b flex flex-wrap items-start gap-2 lg:gap-3 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
         <h1
@@ -319,10 +319,51 @@ export function ScoutQueue() {
             placeholder="Search titles…"
             value={searchInput}
             onChange={(e) => handleSearchInput(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm focus:outline-none w-52"
+            className="px-3 py-1.5 rounded-lg text-sm focus:outline-none w-full sm:w-56 lg:w-64"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           />
         </div>
+
+        <FilterSection label="Scout Minimums" className="text-sm w-full xl:w-auto order-2">
+          <label
+            className="text-xs flex items-center gap-1"
+            htmlFor="scout-min-critic-score"
+            style={{ color: 'var(--c-muted)' }}
+          >
+            Critic Score
+            <InfoHint
+              label="Critic score filter info"
+              text="Jellyfin critic score (0–100). Set to 0 to include items even when critic score metadata is missing."
+            />
+          </label>
+          <input
+            id="scout-min-critic-score"
+            type="number"
+            min={0}
+            max={100}
+            value={effMinCritic}
+            onChange={(e) => patch({ criticScoreMin: e.target.value, minCritic: null })}
+            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          />
+
+          <span style={{ color: 'var(--c-border)' }}>·</span>
+
+          <label className="text-xs" htmlFor="scout-min-imdb" style={{ color: 'var(--c-muted)' }}>
+            Min IMDb
+          </label>
+          <input
+            id="scout-min-imdb"
+            type="number"
+            min={0}
+            max={10}
+            step={0.1}
+            value={effMinComm}
+            onChange={(e) => patch({ imdbScoreMin: e.target.value, minCommunity: null })}
+            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
+            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+          />
+        </FilterSection>
 
         <FilterSection ref={genreRef} label="Genre" className="relative text-sm w-full xl:w-auto order-2">
           <button
@@ -470,8 +511,11 @@ export function ScoutQueue() {
           ))}
         </FilterSection>
 
-        <div className="flex flex-wrap items-center gap-2 px-1 py-1 w-full xl:w-auto order-2">
-          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--c-muted)' }}>
+        <FilterSection label="Flags" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
+          <label
+            className="inline-flex items-center gap-1 text-xs leading-none h-6 cursor-pointer"
+            style={{ color: 'var(--c-muted)' }}
+          >
             <input
               type="checkbox"
               checked={multiOnly}
@@ -480,7 +524,10 @@ export function ScoutQueue() {
             />
             Multi-file
           </label>
-          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--c-muted)' }}>
+          <label
+            className="inline-flex items-center gap-1 text-xs leading-none h-6 cursor-pointer"
+            style={{ color: 'var(--c-muted)' }}
+          >
             <input
               type="checkbox"
               checked={noJf}
@@ -489,9 +536,9 @@ export function ScoutQueue() {
             />
             Jellyfin Sync Needed
           </label>
-        </div>
+        </FilterSection>
 
-        <FilterSection label="Video Codec / HDR" className="text-sm w-fit max-w-full order-4">
+        <FilterSection label="Video" className="text-sm w-fit max-w-full order-4">
           {CODEC_OPTIONS.map((item) => (
             <button
               key={item}
@@ -576,51 +623,6 @@ export function ScoutQueue() {
           </select>
         </FilterSection>
 
-        <div className="flex items-center gap-2 text-sm order-2">
-          <label
-            htmlFor="scout-min-critic-score"
-            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
-            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-          >
-            Critic Score
-            <InfoHint
-              label="Critic score filter info"
-              text="Jellyfin critic score (0–100). Set to 0 to include items even when critic score metadata is missing."
-            />
-          </label>
-          <input
-            id="scout-min-critic-score"
-            type="number"
-            min={0}
-            max={100}
-            value={effMinCritic}
-            onChange={(e) => patch({ criticScoreMin: e.target.value, minCritic: null })}
-            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-          />
-        </div>
-
-        <div className="flex items-center gap-2 text-sm order-2">
-          <label
-            htmlFor="scout-min-imdb"
-            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
-            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-          >
-            Min IMDb
-          </label>
-          <input
-            id="scout-min-imdb"
-            type="number"
-            min={0}
-            max={10}
-            step={0.1}
-            value={effMinComm}
-            onChange={(e) => patch({ imdbScoreMin: e.target.value, minCommunity: null })}
-            className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
-            style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-          />
-        </div>
-
         {/* Reset to seeded defaults */}
         {hasFilterOverrides && (
           <button
@@ -664,23 +666,16 @@ export function ScoutQueue() {
           </button>
         )}
 
-        <span className="text-xs ml-auto order-6" style={{ color: 'var(--c-muted)' }}>
-          {data ? `${data.total} candidates` : '…'} · {selectedBatch.length}/{maxBatch} selected
-        </span>
-
-        <div
-          className="w-full text-xs rounded-lg border px-3 py-2 order-7"
-          style={{
-            borderColor: 'rgba(124,58,237,0.28)',
-            background: 'linear-gradient(90deg, rgba(124,58,237,0.1), rgba(30,41,59,0.24))',
-            color: '#cfc8ef',
-          }}
-        >
-          Scout is a pre-sorted queue based on minimum qualifiers.
-          <Link to="/settings/scout" className="ml-1 font-semibold underline" style={{ color: '#ddd6fe' }}>
-            Adjust thresholds in Settings → Scout
-          </Link>
-          .
+        <div className="w-full order-7 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs">
+          <div className="flex flex-wrap items-center gap-1.5" style={{ color: 'var(--c-muted)' }}>
+            <span>Scout is a pre-sorted queue based on minimum qualifiers.</span>
+            <Link to="/settings/scout" className="font-semibold underline" style={{ color: '#ddd6fe' }}>
+              Adjust thresholds in Settings → Scout
+            </Link>
+          </div>
+          <span style={{ color: 'var(--c-muted)' }}>
+            {data ? `${data.total} candidates` : '…'} · {selectedBatch.length}/{maxBatch} selected
+          </span>
         </div>
 
         <div className="w-full order-3" />

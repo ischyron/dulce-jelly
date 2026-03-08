@@ -131,7 +131,7 @@ export function LibraryFilterBar({
 }: Props) {
   return (
     <div
-      className="sticky top-0 z-10 px-6 py-3 border-b flex flex-wrap items-start gap-3"
+      className="sticky top-0 z-10 px-6 py-3 border-b flex flex-wrap items-start gap-2 lg:gap-3"
       style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
     >
       {isFetching && (
@@ -156,7 +156,7 @@ export function LibraryFilterBar({
           placeholder="Search titles…"
           value={searchInput}
           onChange={(e) => onSearchInput(e.target.value)}
-          className="pl-8 pr-3 py-1.5 rounded-lg text-sm focus:outline-none w-52"
+          className="pl-8 pr-3 py-1.5 rounded-lg text-sm focus:outline-none w-full sm:w-56 lg:w-64"
           style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           onFocus={(e) => {
             e.target.style.borderColor = 'var(--c-accent)';
@@ -246,7 +246,7 @@ export function LibraryFilterBar({
         ))}
       </FilterSection>
 
-      <FilterSection label="Video Codec / HDR" className="w-fit max-w-full order-4">
+      <FilterSection label="Video" className="w-fit max-w-full order-4">
         {CODEC_OPTIONS.map((item) => (
           <button
             key={item}
@@ -374,6 +374,7 @@ export function LibraryFilterBar({
       <FilterSection
         ref={tagFilterRef}
         label="Tag"
+        labelTone="pink"
         className="relative text-xs w-full xl:w-auto order-2"
         style={{ color: 'var(--c-muted)' }}
       >
@@ -432,12 +433,9 @@ export function LibraryFilterBar({
         )}
       </FilterSection>
 
-      <div
-        className="flex flex-wrap items-center gap-2 px-1 py-1 w-full xl:w-auto order-2"
-        style={{ background: 'transparent' }}
-      >
+      <FilterSection label="Flags" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
         <label
-          className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+          className="flex items-center gap-1.5 text-xs leading-none h-6 cursor-pointer select-none"
           style={{ color: multiOnly ? '#c4b5fd' : 'var(--c-muted)' }}
           title="Show movies that have multiple video files in the same movie folder"
         >
@@ -450,7 +448,7 @@ export function LibraryFilterBar({
           Has multi-part/versions
         </label>
         <label
-          className="flex items-center gap-1.5 text-xs cursor-pointer select-none"
+          className="flex items-center gap-1.5 text-xs leading-none h-6 cursor-pointer select-none"
           style={{ color: noJf ? '#c4b5fd' : 'var(--c-muted)' }}
           title="Show movies not yet matched in Jellyfin"
         >
@@ -462,9 +460,9 @@ export function LibraryFilterBar({
           />
           Jellyfin Sync Needed
         </label>
-      </div>
+      </FilterSection>
 
-      <div className="flex items-center gap-1.5 text-xs ml-auto order-6" style={{ color: 'var(--c-muted)' }}>
+      <div className="flex items-center gap-1.5 text-xs order-4 lg:ml-auto" style={{ color: 'var(--c-muted)' }}>
         <span>Show</span>
         <select
           value={showAll ? 'all' : String(limit)}
@@ -493,10 +491,7 @@ export function LibraryFilterBar({
         </button>
       )}
 
-      <span
-        className="text-xs flex flex-wrap items-center gap-2 w-full xl:w-auto xl:ml-auto order-6"
-        style={{ color: 'var(--c-muted)' }}
-      >
+      <span className="text-xs flex flex-wrap items-center gap-2 order-4" style={{ color: 'var(--c-muted)' }}>
         {av1CompatOnly && av1CompatRelevant && (
           <>
             <span

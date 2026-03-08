@@ -18,34 +18,43 @@ export interface VerifyOptions {
 export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): Promise<void> {
   const concurrency = opts.concurrency ?? 3;
   const signal = opts.signal;
+  const CHUNK_SIZE = 200;
 
-  let files: FileRow[];
-  if (opts.fileIds && opts.fileIds.length > 0) {
-    const all = db.getAllFiles();
-    files = all.filter((f) => opts.fileIds?.includes(f.id));
-    if (!opts.rescan) {
-      files = files.filter((f) => f.verify_status == null || f.verify_status === 'pending');
-    }
-  } else {
-    files = opts.rescan
-      ? db.getAllFiles().filter((f) => f.scanned_at != null && f.scan_error == null)
-      : db.getUnverifiedFiles(10_000);
-  }
-
-  const total = files.length;
+  let total = 0;
   let checked = 0;
   let passed = 0;
   let failed = 0;
   let errors = 0;
 
+  const queue: FileRow[] = [];
+  const refill = () => {
+    if ((opts.fileIds && opts.fileIds.length > 0) || signal?.aborted) return 0;
+    const batch = db.pickFilesForVerify(CHUNK_SIZE, Boolean(opts.rescan));
+    if (batch.length) {
+      total += batch.length;
+      queue.push(...batch);
+    }
+    return batch.length;
+  };
+
+  if (opts.fileIds && opts.fileIds.length > 0) {
+    const reserved = db.reserveVerifyFilesById(opts.fileIds);
+    total += reserved.length;
+    queue.push(...reserved);
+  } else {
+    total += refill();
+  }
+
   verifyEmitter.emit('progress', { total, checked, passed, failed, errors, running: true });
 
-  const queue = [...files];
-
   async function worker(): Promise<void> {
-    while (queue.length > 0 && !signal?.aborted) {
+    while (!signal?.aborted) {
+      if (queue.length === 0) {
+        if (refill() === 0) break;
+        if (queue.length === 0) break;
+      }
       const file = queue.shift();
-      if (!file) break;
+      if (!file) continue;
 
       verifyEmitter.emit('file_start', {
         fileId: file.id,
@@ -86,7 +95,7 @@ export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): P
   }
 
   const workers: Promise<void>[] = [];
-  for (let i = 0; i < Math.min(concurrency, files.length || 1); i++) {
+  for (let i = 0; i < Math.max(concurrency, 1); i++) {
     workers.push(worker());
   }
   await Promise.all(workers);

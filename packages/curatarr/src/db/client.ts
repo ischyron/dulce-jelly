@@ -1198,6 +1198,49 @@ export class CuratDb {
     return this.db.prepare(baseSql).run().changes;
   }
 
+  private reserveVerifyRows(rows: FileRow[]): void {
+    if (rows.length === 0) return;
+    const ids = rows.map((f) => f.id);
+    const placeholders = ids.map(() => '?').join(',');
+    this.db
+      .prepare(
+        `
+      UPDATE files SET
+        verify_status = 'pending',
+        verify_errors = NULL,
+        quality_flags = '[]',
+        verified_at   = NULL,
+        updated_at    = datetime('now')
+      WHERE id IN (${placeholders})
+    `,
+      )
+      .run(...ids);
+  }
+
+  pickFilesForVerify(limit: number, rescan = false): FileRow[] {
+    const tx = this.db.transaction((lim: number) => {
+      const cond = rescan
+        ? `WHERE scanned_at IS NOT NULL AND scan_error IS NULL AND verify_status != 'pending'`
+        : `WHERE scanned_at IS NOT NULL AND scan_error IS NULL AND (verify_status IS NULL OR verify_status = 'pending')`;
+      const rows = this.db.prepare(`SELECT * FROM files ${cond} ORDER BY id LIMIT ?`).all(lim) as FileRow[];
+      this.reserveVerifyRows(rows);
+      return rows;
+    });
+    return tx(limit);
+  }
+
+  reserveVerifyFilesById(ids: number[]): FileRow[] {
+    if (ids.length === 0) return [];
+    const unique = [...new Set(ids.filter((id) => Number.isInteger(id) && id > 0))];
+    if (unique.length === 0) return [];
+    const placeholders = unique.map(() => '?').join(',');
+    const rows = this.db
+      .prepare(`SELECT * FROM files WHERE id IN (${placeholders}) ORDER BY id`)
+      .all(...unique) as FileRow[];
+    this.reserveVerifyRows(rows);
+    return rows;
+  }
+
   close(): void {
     this.db.close();
   }

@@ -102,6 +102,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const audioFormat = (c.req.query('audioFormat') ?? '').toLowerCase().trim();
     const audioLayout = (c.req.query('audioLayout') ?? '').toLowerCase().trim();
     const releaseGroup = c.req.query('releaseGroup');
+    const selectedReleaseGroups = releaseGroup ? releaseGroup.split(',').filter(Boolean) : [];
     const genre = c.req.query('genre');
     const genreAnd = c.req.query('genreAnd') === '1' || c.req.query('genreAnd') === 'true';
     const genres = (genre ?? '')
@@ -187,9 +188,9 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     if (multiOnly) {
       sql += ' AND (SELECT COUNT(*) FROM files mf WHERE mf.movie_id = m.id) > 1';
     }
-    if (releaseGroup) {
-      sql += ' AND f.release_group LIKE ?';
-      bindings.push(`%${releaseGroup}%`);
+    if (selectedReleaseGroups.length > 0) {
+      sql += ` AND f.release_group IN (${selectedReleaseGroups.map(() => '?').join(',')})`;
+      bindings.push(...selectedReleaseGroups);
     }
     if (genres.length > 0) {
       if (genreAnd) {

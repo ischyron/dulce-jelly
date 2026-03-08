@@ -79,7 +79,13 @@ export function ScoutQueue() {
   const legacyOnly = searchParams.get('legacy') === '1';
   const noJf = searchParams.get('noJf') === '1';
   const multiOnly = searchParams.get('multi') === '1';
-  const releaseGroup = searchParams.get('releaseGroup') ?? '';
+  const releaseGroupParam = searchParams.get('releaseGroup') ?? '';
+  const selectedReleaseGroups = releaseGroupParam
+    ? releaseGroupParam
+        .split(',')
+        .map((g) => g.trim())
+        .filter(Boolean)
+    : [];
   const qGenre = searchParams.get('genre');
   const genreAnd = searchParams.get('genreAnd') === '1';
   const qTags = searchParams.get('tags');
@@ -102,17 +108,20 @@ export function ScoutQueue() {
     : [];
   const genreRef = useRef<HTMLDivElement | null>(null);
   const tagRef = useRef<HTMLDivElement | null>(null);
+  const releaseGroupRef = useRef<HTMLDivElement | null>(null);
   const [genreOpen, setGenreOpen] = useState(false);
   const [tagOpen, setTagOpen] = useState(false);
+  const [releaseGroupOpen, setReleaseGroupOpen] = useState(false);
 
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (genreRef.current && !genreRef.current.contains(e.target as Node)) setGenreOpen(false);
       if (tagRef.current && !tagRef.current.contains(e.target as Node)) setTagOpen(false);
+      if (releaseGroupRef.current && !releaseGroupRef.current.contains(e.target as Node)) setReleaseGroupOpen(false);
     }
-    if (genreOpen || tagOpen) document.addEventListener('mousedown', onDocClick);
+    if (genreOpen || tagOpen || releaseGroupOpen) document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [genreOpen, tagOpen]);
+  }, [genreOpen, tagOpen, releaseGroupOpen]);
 
   useEffect(() => {
     setSearchInput(q);
@@ -183,7 +192,7 @@ export function ScoutQueue() {
       legacyOnly,
       noJf,
       multiOnly,
-      releaseGroup,
+      releaseGroupParam,
     ],
     queryFn: () =>
       api.candidates({
@@ -202,7 +211,7 @@ export function ScoutQueue() {
         ...(legacyOnly ? { legacy: 'true' } : {}),
         ...(noJf ? { noJf: 'true' } : {}),
         ...(multiOnly ? { multi: 'true' } : {}),
-        ...(releaseGroup ? { releaseGroup } : {}),
+        ...(selectedReleaseGroups.length > 0 ? { releaseGroup: selectedReleaseGroups.join(',') } : {}),
         all: '1',
       }),
     enabled: Number.isFinite(effMinCritic) && Number.isFinite(effMinComm),
@@ -228,6 +237,20 @@ export function ScoutQueue() {
       genre: next.join(','),
       genreAnd: next.length > 1 ? (genreAnd ? '1' : null) : null,
     });
+  }
+
+  function removeReleaseGroupFilter(group: string) {
+    const next = selectedReleaseGroups.filter((g) => g !== group);
+    patch({ releaseGroup: next.length > 0 ? next.join(',') : null });
+  }
+
+  function toggleReleaseGroupFilter(group: string) {
+    if (!group) return;
+    if (selectedReleaseGroups.includes(group)) {
+      removeReleaseGroupFilter(group);
+      return;
+    }
+    patch({ releaseGroup: [...selectedReleaseGroups, group].join(',') });
   }
 
   function removeTagFilter(tag: string) {
@@ -262,7 +285,7 @@ export function ScoutQueue() {
     legacyOnly ||
     noJf ||
     multiOnly ||
-    releaseGroup;
+    selectedReleaseGroups.length > 0;
 
   const candidateById = useMemo(() => {
     const map = new Map<number, Candidate>();
@@ -503,6 +526,78 @@ export function ScoutQueue() {
         </FilterSection>
 
         <FilterSection
+          ref={releaseGroupRef}
+          label="Release Group"
+          className="relative text-xs w-full xl:w-auto order-2"
+          style={{ color: 'var(--c-muted)' }}
+          onClick={(e) => {
+            if (isSurfaceToggleTarget(e.target)) setReleaseGroupOpen((v) => !v);
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setReleaseGroupOpen((v) => !v)}
+            aria-expanded={releaseGroupOpen}
+            aria-haspopup="listbox"
+            className="px-2 py-1 rounded text-xs focus:outline-none"
+            style={{
+              background: 'var(--c-surface)',
+              border: '1px solid var(--c-border)',
+              color: selectedReleaseGroups.length > 0 ? 'var(--c-accent)' : 'var(--c-muted)',
+            }}
+          >
+            {selectedReleaseGroups.length > 0 ? `${selectedReleaseGroups.length} selected` : 'All groups'}
+          </button>
+          {releaseGroupOpen && (
+            <div
+              className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+            >
+              {(releaseGroupsData?.releaseGroups ?? []).length === 0 && (
+                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                  No groups found
+                </div>
+              )}
+              {(releaseGroupsData?.releaseGroups ?? []).map((g) => (
+                <label
+                  key={g}
+                  className="flex items-center gap-2 text-xs cursor-pointer"
+                  style={{ color: selectedReleaseGroups.includes(g) ? '#d4cfff' : 'var(--c-muted)' }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedReleaseGroups.includes(g)}
+                    onChange={() => toggleReleaseGroupFilter(g)}
+                    className="accent-violet-600"
+                  />
+                  <span>{g}</span>
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedReleaseGroups.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              {selectedReleaseGroups.map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => removeReleaseGroupFilter(g)}
+                  className="px-2 py-0.5 rounded-full text-xs border"
+                  style={{
+                    color: '#c4b5fd',
+                    borderColor: 'rgba(124,58,237,0.35)',
+                    background: 'rgba(124,58,237,0.12)',
+                  }}
+                  aria-label={`Remove ${g} filter`}
+                >
+                  {g} ×
+                </button>
+              ))}
+            </div>
+          )}
+        </FilterSection>
+
+        <FilterSection
           ref={tagRef}
           label={FILTER_TOKENS.tags.label}
           labelTone="pink"
@@ -572,27 +667,6 @@ export function ScoutQueue() {
               ))}
             </div>
           )}
-        </FilterSection>
-
-        <FilterSection label="Group" className="text-xs w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
-          <select
-            value={releaseGroup}
-            onChange={(e) => patch({ releaseGroup: e.target.value || null })}
-            aria-label="Release group filter"
-            className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-            style={{
-              background: 'var(--c-surface)',
-              border: '1px solid var(--c-border)',
-              color: releaseGroup ? 'var(--c-accent)' : 'var(--c-muted)',
-            }}
-          >
-            <option value="">All groups</option>
-            {(releaseGroupsData?.releaseGroups ?? []).map((g) => (
-              <option key={g} value={g}>
-                {g}
-              </option>
-            ))}
-          </select>
         </FilterSection>
 
         <FilterSection label="Flags" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
@@ -792,7 +866,7 @@ export function ScoutQueue() {
       )}
 
       {/* Table */}
-      <div className="flex-1 overflow-auto px-6">
+      <div className="flex-1 overflow-auto px-6 pt-4">
         {isLoading ? (
           <div className="p-8" style={{ color: 'var(--c-muted)' }}>
             Loading…

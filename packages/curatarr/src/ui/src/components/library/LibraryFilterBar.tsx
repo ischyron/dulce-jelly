@@ -63,8 +63,12 @@ interface Props {
   onRemoveFilterTag: (tag: string) => void;
 
   releaseGroups: string[];
-  releaseGroup: string;
-  onReleaseGroupChange: (value: string) => void;
+  releaseGroupFilterRef: RefObject<HTMLDivElement>;
+  releaseGroupFilterOpen: boolean;
+  setReleaseGroupFilterOpen: Dispatch<SetStateAction<boolean>>;
+  selectedReleaseGroups: string[];
+  onToggleReleaseGroup: (group: string) => void;
+  onRemoveReleaseGroup: (group: string) => void;
 
   multiOnly: boolean;
   onToggleMultiOnly: (checked: boolean) => void;
@@ -128,8 +132,12 @@ export function LibraryFilterBar({
   onToggleFilterTag,
   onRemoveFilterTag,
   releaseGroups,
-  releaseGroup,
-  onReleaseGroupChange,
+  releaseGroupFilterRef,
+  releaseGroupFilterOpen,
+  setReleaseGroupFilterOpen,
+  selectedReleaseGroups,
+  onToggleReleaseGroup,
+  onRemoveReleaseGroup,
   multiOnly,
   onToggleMultiOnly,
   noJf,
@@ -422,6 +430,77 @@ export function LibraryFilterBar({
       )}
 
       <FilterSection
+        ref={releaseGroupFilterRef}
+        label="Release Group"
+        className="relative text-xs w-full xl:w-auto order-2"
+        style={{ color: 'var(--c-muted)' }}
+        onClick={(e) => {
+          if (isSurfaceToggleTarget(e.target)) setReleaseGroupFilterOpen((v) => !v);
+        }}
+      >
+        <button
+          type="button"
+          onClick={() => setReleaseGroupFilterOpen((v) => !v)}
+          aria-expanded={releaseGroupFilterOpen}
+          aria-haspopup="listbox"
+          className="px-2 py-1 text-xs rounded border"
+          style={{
+            borderColor: 'var(--c-border)',
+            color: selectedReleaseGroups.length ? '#c4b5fd' : 'var(--c-muted)',
+          }}
+        >
+          {selectedReleaseGroups.length > 0 ? `${selectedReleaseGroups.length} selected` : 'All groups'}
+        </button>
+        {releaseGroupFilterOpen && (
+          <div
+            className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+            style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+          >
+            {releaseGroups.length === 0 && (
+              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                No groups found
+              </div>
+            )}
+            {releaseGroups.map((g) => (
+              <label
+                key={g}
+                className="flex items-center gap-2 text-xs cursor-pointer"
+                style={{ color: selectedReleaseGroups.includes(g) ? '#d4cfff' : 'var(--c-muted)' }}
+              >
+                <input
+                  type="checkbox"
+                  checked={selectedReleaseGroups.includes(g)}
+                  onChange={() => onToggleReleaseGroup(g)}
+                  className="accent-violet-600"
+                />
+                <span>{g}</span>
+              </label>
+            ))}
+          </div>
+        )}
+        {selectedReleaseGroups.length > 0 && (
+          <div className="flex items-center gap-1 flex-wrap">
+            {selectedReleaseGroups.map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => onRemoveReleaseGroup(g)}
+                aria-label={`Remove ${g} filter`}
+                className="px-2 py-0.5 rounded-full text-xs border"
+                style={{
+                  color: '#c4b5fd',
+                  borderColor: 'rgba(124,58,237,0.35)',
+                  background: 'rgba(124,58,237,0.12)',
+                }}
+              >
+                {g} ×
+              </button>
+            ))}
+          </div>
+        )}
+      </FilterSection>
+
+      <FilterSection
         ref={tagFilterRef}
         label={FILTER_TOKENS.tags.label}
         labelTone="pink"
@@ -484,27 +563,6 @@ export function LibraryFilterBar({
             ))}
           </div>
         )}
-      </FilterSection>
-
-      <FilterSection label="Group" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>
-        <select
-          value={releaseGroup}
-          onChange={(e) => onReleaseGroupChange(e.target.value)}
-          aria-label="Release group filter"
-          className="px-1.5 py-0.5 rounded text-xs focus:outline-none"
-          style={{
-            background: 'var(--c-surface)',
-            border: '1px solid var(--c-border)',
-            color: releaseGroup ? 'var(--c-accent)' : 'var(--c-muted)',
-          }}
-        >
-          <option value="">All groups</option>
-          {releaseGroups.map((g) => (
-            <option key={g} value={g}>
-              {g}
-            </option>
-          ))}
-        </select>
       </FilterSection>
 
       <FilterSection label="Flags" className="w-full xl:w-auto order-2" style={{ color: 'var(--c-muted)' }}>

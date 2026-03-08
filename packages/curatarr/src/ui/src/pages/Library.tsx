@@ -47,7 +47,13 @@ export function Library() {
   const legacyOnly = searchParams.get('legacy') === '1';
   const noJf = searchParams.get('noJf') === '1';
   const multiOnly = searchParams.get('multi') === '1';
-  const releaseGroup = getSearchParam(searchParams, 'releaseGroup', '');
+  const releaseGroupParam = getSearchParam(searchParams, 'releaseGroup', '');
+  const selectedReleaseGroups = releaseGroupParam
+    ? releaseGroupParam
+        .split(',')
+        .map((g) => g.trim())
+        .filter(Boolean)
+    : [];
   const tagFilter = getSearchParam(searchParams, 'tags', '');
   const selectedTags = tagFilter
     ? tagFilter
@@ -65,10 +71,12 @@ export function Library() {
   const restoredInitialParamsRef = useRef(false);
   const tagFilterRef = useRef<HTMLDivElement | null>(null);
   const genreFilterRef = useRef<HTMLDivElement | null>(null);
+  const releaseGroupFilterRef = useRef<HTMLDivElement | null>(null);
 
   const [searchInput, setSearchInput] = useState(search);
   const [tagFilterOpen, setTagFilterOpen] = useState(false);
   const [genreFilterOpen, setGenreFilterOpen] = useState(false);
+  const [releaseGroupFilterOpen, setReleaseGroupFilterOpen] = useState(false);
   const [showAddTagsModal, setShowAddTagsModal] = useState(false);
   const [showRemoveTagsModal, setShowRemoveTagsModal] = useState(false);
   const [showRemoveIndexModal, setShowRemoveIndexModal] = useState(false);
@@ -90,10 +98,12 @@ export function Library() {
     function onDocClick(e: MouseEvent) {
       if (tagFilterRef.current && !tagFilterRef.current.contains(e.target as Node)) setTagFilterOpen(false);
       if (genreFilterRef.current && !genreFilterRef.current.contains(e.target as Node)) setGenreFilterOpen(false);
+      if (releaseGroupFilterRef.current && !releaseGroupFilterRef.current.contains(e.target as Node))
+        setReleaseGroupFilterOpen(false);
     }
-    if (tagFilterOpen || genreFilterOpen) document.addEventListener('mousedown', onDocClick);
+    if (tagFilterOpen || genreFilterOpen || releaseGroupFilterOpen) document.addEventListener('mousedown', onDocClick);
     return () => document.removeEventListener('mousedown', onDocClick);
-  }, [tagFilterOpen, genreFilterOpen]);
+  }, [tagFilterOpen, genreFilterOpen, releaseGroupFilterOpen]);
 
   useEffect(() => {
     if (restoredInitialParamsRef.current) return;
@@ -164,7 +174,7 @@ export function Library() {
       selectedGenres.length > 0 ||
       genreAnd ||
       selectedTags.length > 0 ||
-      releaseGroup ||
+      selectedReleaseGroups.length > 0 ||
       hdrOnly ||
       dvOnly ||
       av1CompatOnly ||
@@ -215,7 +225,7 @@ export function Library() {
       legacyOnly,
       noJf,
       multiOnly,
-      releaseGroup,
+      releaseGroupParam,
       sortBy,
       sortDir,
     ],
@@ -238,7 +248,7 @@ export function Library() {
         ...(legacyOnly ? { legacy: 'true' } : {}),
         ...(noJf ? { noJf: 'true' } : {}),
         ...(multiOnly ? { multi: 'true' } : {}),
-        ...(releaseGroup ? { releaseGroup } : {}),
+        ...(selectedReleaseGroups.length > 0 ? { releaseGroup: selectedReleaseGroups.join(',') } : {}),
         ...(showAll ? { showAll: 'true' } : {}),
       }),
     placeholderData: (prev) => prev,
@@ -310,6 +320,20 @@ export function Library() {
       return;
     }
     patch({ tags: [...selectedTags, t].join(','), page: '1' });
+  }
+
+  function removeReleaseGroupFilter(group: string) {
+    const next = selectedReleaseGroups.filter((g) => g !== group);
+    patch({ releaseGroup: next.length > 0 ? next.join(',') : null, page: '1' });
+  }
+
+  function toggleReleaseGroupFilter(group: string) {
+    if (!group) return;
+    if (selectedReleaseGroups.includes(group)) {
+      removeReleaseGroupFilter(group);
+      return;
+    }
+    patch({ releaseGroup: [...selectedReleaseGroups, group].join(','), page: '1' });
   }
 
   function removeGenreFilter(genre: string) {
@@ -434,8 +458,12 @@ export function Library() {
         onToggleFilterTag={toggleFilterTag}
         onRemoveFilterTag={removeFilterTag}
         releaseGroups={releaseGroupsData?.releaseGroups ?? []}
-        releaseGroup={releaseGroup}
-        onReleaseGroupChange={(value) => patch({ releaseGroup: value || null, page: '1' })}
+        releaseGroupFilterRef={releaseGroupFilterRef}
+        releaseGroupFilterOpen={releaseGroupFilterOpen}
+        setReleaseGroupFilterOpen={setReleaseGroupFilterOpen}
+        selectedReleaseGroups={selectedReleaseGroups}
+        onToggleReleaseGroup={toggleReleaseGroupFilter}
+        onRemoveReleaseGroup={removeReleaseGroupFilter}
         multiOnly={multiOnly}
         onToggleMultiOnly={(checked) => patch({ multi: checked ? '1' : null, page: '1' })}
         noJf={noJf}
@@ -459,7 +487,7 @@ export function Library() {
         totalLibrarySize={data?.totalSize}
       />
 
-      <div className="px-6 py-4 space-y-4">
+      <div className="px-6 py-6 space-y-4">
         <div className="overflow-x-auto">
           <LibraryTable
             isLoading={isLoading}

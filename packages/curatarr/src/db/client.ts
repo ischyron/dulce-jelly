@@ -739,8 +739,8 @@ export class CuratDb {
       sql += ' AND (SELECT COUNT(*) FROM files mf WHERE mf.movie_id = m.id) > 1';
     }
     if (opts.releaseGroups && opts.releaseGroups.length > 0) {
-      sql += ` AND (${opts.releaseGroups.map(() => 'f.release_group LIKE ?').join(' OR ')})`;
-      bindings.push(...opts.releaseGroups.map((g) => `%${g}%`));
+      sql += ` AND f.release_group IN (${opts.releaseGroups.map(() => '?').join(',')})`;
+      bindings.push(...opts.releaseGroups);
     }
     const genres = opts.genres && opts.genres.length > 0 ? opts.genres : opts.genre ? [opts.genre] : [];
     if (genres.length > 0) {

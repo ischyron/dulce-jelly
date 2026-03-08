@@ -19,6 +19,17 @@
 
 ## TODO Items
 
+- [DONE] ~~Verify UX: add clear-errors action, add per-row recheck, disable recheck while verify is running, and block second-tab starts with explicit alert; tighten deep-verify diagnostics to actionable flags.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: added `POST /api/verify/clear` + DB reset helper for fail/error states; added Verify failures table actions (`Clear Errors`, row `Recheck`) with running-state disables; added 409 in-progress alert path for start/recheck across tabs/windows; tightened deep-check classifier to prioritize actionable decode/mux faults and ignore known null-mux noise; added diagnostic classification doc `docs/technical/verify-diagnostic-classification.md`
+  - Unit/interaction: `npm run build:server && npm run test` -> pass (58/58)
+  - E2E: `npm run test:e2e` -> pass (47/47)
+  - Chrome MCP: blocked in this session (all `mcp__chrome__*` calls timed out after interruption); fallback manual verification executed via Playwright script on deployed app: two-tab verify start race produced alert `"Deep Verify is already running in another tab/window. Wait for completion or stop the current run first."`; verify status confirmed single active run; run cancelled and status returned `running:false`; pass (fallback)
+  - Git: `1a533d6`, push ok (`main -> main`)
+  - Deploy: pre-push pipeline `docker compose build curatarr` + `docker compose up -d curatarr` -> ok
+  - Date: 2026-03-08
+
 - [DONE] ~~Deep verify start should display which files are actively started/running with live status updates on `/verify`.~~
   Evidence:
   - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled

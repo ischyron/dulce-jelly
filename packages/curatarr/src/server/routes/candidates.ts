@@ -34,12 +34,16 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const parsedLimit = Number.parseInt(limitRaw ?? '100', 10);
     const limit = all || !Number.isFinite(parsedLimit) ? null : Math.max(1, Math.min(1000, parsedLimit));
     const releaseGroupSingle = c.req.query('releaseGroup');
-    const releaseGroupsParam = c.req.query('releaseGroups')?.split(',').filter(Boolean) ?? [];
-    const releaseGroups = releaseGroupSingle
-      ? [...releaseGroupsParam, releaseGroupSingle]
-      : releaseGroupsParam.length > 0
-        ? releaseGroupsParam
-        : undefined;
+    const releaseGroupsParam = c.req.query('releaseGroups');
+    const releaseGroups = Array.from(
+      new Set(
+        [releaseGroupSingle, releaseGroupsParam]
+          .filter((raw): raw is string => typeof raw === 'string' && raw.trim().length > 0)
+          .flatMap((raw) => raw.split(','))
+          .map((v) => v.trim())
+          .filter(Boolean),
+      ),
+    );
     const genre = c.req.query('genre') ?? undefined;
     const genreAnd = c.req.query('genreAnd') === '1' || c.req.query('genreAnd') === 'true';
     const genres = (genre ?? '')
@@ -64,7 +68,7 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
       multiOnly,
       minCriticRating: minCritic,
       minCommunityRating: minCommunity,
-      releaseGroups,
+      releaseGroups: releaseGroups.length > 0 ? releaseGroups : undefined,
       genres: genres.length > 0 ? genres : undefined,
       genreAnd,
       tags: tags.length > 0 ? tags : undefined,

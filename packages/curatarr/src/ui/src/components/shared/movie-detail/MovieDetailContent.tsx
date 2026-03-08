@@ -3,7 +3,6 @@ import {
   AlertCircle,
   AlertTriangle,
   Check,
-  ExternalLink,
   FileText,
   Film,
   Filter,
@@ -16,7 +15,7 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ApiError, type DroppedScoutRelease, type FileRow, type ScoutRelease, api } from '../../../api/client';
-import { CodecBadge, CriticScoreBadge, HdrBadge, ResolutionBadge } from '../../QualityBadge';
+import { CodecBadge, CriticScoreBadge, HdrBadge, ReleaseTagBadges, ResolutionBadge } from '../../QualityBadge';
 import { DeleteConfirmModal } from '../modals';
 import { formatSyncDate } from '../utils';
 
@@ -161,51 +160,6 @@ function recommendationReasonText(release: ScoutRelease | null): string {
   return uniq.length > 0 ? uniq.join(', ') : 'Balanced match';
 }
 
-function formatScoutReason(reason: string): string {
-  const raw = reason.trim();
-  if (!raw.startsWith('basic:')) return raw;
-  if (/^basic:bitrate/i.test(raw)) return raw.replace(/^basic:/i, '');
-
-  const parts = raw.split(':');
-  if (parts.length < 3) return raw.replace(/^basic:/i, '');
-  const kind = parts[1];
-  const value = parts.slice(2).join(':');
-
-  if (kind === 'resolution') return value.toLowerCase();
-  if (kind === 'video') return value.toUpperCase();
-  if (kind === 'audio') return value.toUpperCase();
-  if (kind === 'source') {
-    if (value.toLowerCase() === 'remux') return 'Remux';
-    if (value.toLowerCase() === 'bluray') return 'BluRay';
-    if (value.toLowerCase() === 'web-dl') return 'WEB-DL';
-    return value;
-  }
-
-  return value;
-}
-
-function ScoutReasonBadges({ reasons }: { reasons: string[] }) {
-  const labels = [...new Set(reasons.map(formatScoutReason).filter(Boolean))];
-  if (labels.length === 0) return null;
-  return (
-    <div className="mt-0.5 flex flex-wrap gap-1">
-      {labels.map((label) => (
-        <span
-          key={label}
-          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] border"
-          style={{
-            color: '#c4b5fd',
-            borderColor: 'rgba(124,58,237,0.35)',
-            background: 'rgba(124,58,237,0.12)',
-          }}
-        >
-          {label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 function releaseKeyForAction(release: ScoutRelease): string {
   const fallback = `${release.title}|${release.size ?? 0}|${release.publishDate ?? ''}`;
   return release.guid ?? release.downloadUrl ?? fallback;
@@ -255,7 +209,7 @@ function ScoutResultsAllTable({
                 <div className="truncate" style={{ color: '#d4cfff' }} title={r.title}>
                   {r.title}
                 </div>
-                {r.reasons.length > 0 && <ScoutReasonBadges reasons={r.reasons} />}
+                <ReleaseTagBadges tags={releaseTitleTags(r.title)} title={r.title} />
                 {r.kind === 'dropped' && r.droppedReason && (
                   <div className="text-xs" style={{ color: '#fbbf24' }}>
                     Reason: {r.droppedReason}
@@ -279,20 +233,6 @@ function ScoutResultsAllTable({
               </td>
               <td className="px-2 py-1.5">
                 <div className="flex items-center justify-end gap-1.5">
-                  {r.downloadUrl && (
-                    <a
-                      href={r.downloadUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`Open release link for ${r.title}`}
-                      title="Open indexer/download link"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
-                      style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-                      data-testid="scout-release-link"
-                    >
-                      <ExternalLink size={13} />
-                    </a>
-                  )}
                   {r.kind === 'candidate' ? (
                     <button
                       type="button"
@@ -437,7 +377,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                 <div className="truncate" style={{ color: '#d4cfff' }} title={r.title}>
                   {r.title}
                 </div>
-                {r.reasons.length > 0 && <ScoutReasonBadges reasons={r.reasons} />}
+                <ReleaseTagBadges tags={releaseTitleTags(r.title)} title={r.title} />
               </td>
               <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>
                 {r.indexer ?? '—'}
@@ -456,20 +396,6 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
               </td>
               <td className="px-2 py-1.5">
                 <div className="flex items-center justify-end gap-1.5">
-                  {r.downloadUrl && (
-                    <a
-                      href={r.downloadUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`Open release link for ${r.title}`}
-                      title="Open indexer/download link"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
-                      style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-                      data-testid="scout-release-link"
-                    >
-                      <ExternalLink size={13} />
-                    </a>
-                  )}
                   <button
                     type="button"
                     aria-label={`Send ${r.title} to SABnzbd`}
@@ -518,6 +444,7 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
                 <div className="truncate" style={{ color: '#d4cfff' }} title={r.title}>
                   {r.title}
                 </div>
+                <ReleaseTagBadges tags={releaseTitleTags(r.title)} title={r.title} />
               </td>
               <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>
                 {r.indexer ?? '—'}
@@ -530,20 +457,6 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
               </td>
               <td className="px-2 py-1.5">
                 <div className="flex items-center justify-end gap-1.5">
-                  {r.downloadUrl && (
-                    <a
-                      href={r.downloadUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      aria-label={`Open release link for ${r.title}`}
-                      title="Open indexer/download link"
-                      className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
-                      style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-                      data-testid="scout-release-link"
-                    >
-                      <ExternalLink size={13} />
-                    </a>
-                  )}
                   <span
                     className="inline-flex h-7 w-7 items-center justify-center rounded border opacity-40"
                     style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.2)' }}
@@ -574,6 +487,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   const [showDelete, setShowDelete] = useState(false);
   const [hasScoutSearchRun, setHasScoutSearchRun] = useState(false);
   const [jellyfinSyncError, setJellyfinSyncError] = useState<string | null>(null);
+  const [folderRescanError, setFolderRescanError] = useState<string | null>(null);
   const [scoutResultView, setScoutResultView] = useState<ScoutResultView>('candidates');
   const [scoutFilterChips, setScoutFilterChips] = useState<string[]>([]);
   const [sabStatus, setSabStatus] = useState<string | null>(null);
@@ -611,24 +525,32 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   const jfRefreshMutation = useMutation({
     mutationFn: async () => {
       setJellyfinSyncError(null);
+      setFolderRescanError(null);
+      await api.rescanMovie(movieId);
       return api.jfRefreshMovie(movieId);
     },
     onSuccess: async () => {
       setJellyfinSyncError(null);
+      setFolderRescanError(null);
       await queryClient.invalidateQueries({ queryKey: ['movie', movieId] });
       await queryClient.invalidateQueries({ queryKey: ['movies'] });
     },
     onError: (err) => {
       if (err instanceof ApiError) {
+        if (err.code === 'folder_not_found') {
+          setFolderRescanError(err.detail?.trim() || 'Movie folder is missing on disk.');
+          setJellyfinSyncError(null);
+          return;
+        }
         const detail = err.detail?.trim();
+        setFolderRescanError(null);
         setJellyfinSyncError(
-          detail
-            ? `Something went wrong while syncing from Jellyfin. ${detail}`
-            : 'Something went wrong while syncing from Jellyfin.',
+          detail ? `Something went wrong while syncing. ${detail}` : 'Something went wrong while syncing.',
         );
         return;
       }
-      setJellyfinSyncError('Something went wrong while syncing from Jellyfin.');
+      setFolderRescanError(null);
+      setJellyfinSyncError('Something went wrong while syncing.');
     },
   });
   const sendToSabMutation = useMutation({
@@ -822,10 +744,10 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   rel="noreferrer"
                   aria-label="Open IMDb"
                   title="Open IMDb"
-                  className="inline-flex items-center justify-center rounded border hover:opacity-90"
-                  style={{ height: 32, padding: '0 8px', borderColor: 'rgba(255,255,255,0.3)', background: '#fff' }}
+                  className="inline-flex items-center justify-center rounded hover:opacity-90"
+                  style={{ height: 36, padding: '0 8px' }}
                 >
-                  <img src="/icons/imdb.svg" alt="IMDb" className="h-4 w-auto" />
+                  <img src="/icons/imdb.svg" alt="IMDb" className="h-5 w-auto" />
                 </a>
               )}
               {tmdbLink && (
@@ -835,15 +757,15 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   rel="noreferrer"
                   aria-label="Open TMDb"
                   title="Open TMDb"
-                  className="inline-flex items-center justify-center rounded border hover:opacity-90"
-                  style={{ height: 32, padding: '0 8px', borderColor: 'rgba(255,255,255,0.3)', background: '#fff' }}
+                  className="inline-flex items-center justify-center rounded hover:opacity-90"
+                  style={{ height: 36, padding: '0 8px' }}
                 >
-                  <img src="/icons/tmdb.svg" alt="TMDb" className="h-4 w-auto" />
+                  <img src="/icons/tmdb.svg" alt="TMDb" className="h-5 w-auto" />
                 </a>
               )}
             </div>
 
-            <div className="flex flex-wrap items-center gap-2 w-full" data-testid="movie-actions-row">
+            <div className="flex flex-wrap items-center gap-2 w-full mt-2" data-testid="movie-actions-row">
               <button
                 type="button"
                 onClick={triggerScoutAndJump}
@@ -863,7 +785,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
               >
                 {jfRefreshMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
-                Sync from Jellyfin
+                Sync
               </button>
               <button
                 type="button"
@@ -915,19 +837,39 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
         )}
 
         <div>
-          <div className="mb-2">
-            <div className="text-[11px] font-mono break-all" style={{ color: '#8b87aa' }}>
-              {data.folder_path}
+          {folderRescanError ? (
+            <div
+              className="rounded-lg border px-3 py-2.5 text-sm"
+              style={{
+                borderColor: 'rgba(248,113,113,0.45)',
+                background: 'rgba(127,29,29,0.18)',
+                color: '#fecaca',
+              }}
+            >
+              <div className="inline-flex items-center gap-1.5 font-semibold">
+                <AlertTriangle size={12} /> Video Files
+              </div>
+              <div className="mt-1.5" style={{ color: '#fca5a5' }}>
+                {folderRescanError}
+              </div>
             </div>
-          </div>
-          <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
-            Video Files ({data.files.length})
-          </h3>
-          <div className="space-y-2">
-            {data.files.map((f) => (
-              <FileCard key={f.id} file={f} />
-            ))}
-          </div>
+          ) : (
+            <>
+              <div className="mb-2">
+                <div className="text-[11px] font-mono break-all" style={{ color: '#8b87aa' }}>
+                  {data.folder_path}
+                </div>
+              </div>
+              <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
+                Video Files ({data.files.length})
+              </h3>
+              <div className="space-y-2">
+                {data.files.map((f) => (
+                  <FileCard key={f.id} file={f} />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
         <div
@@ -1229,20 +1171,6 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                             {scoutSearch.data.recommendation.best.title}
                           </span>
                           <span className="inline-flex items-center gap-1.5 shrink-0">
-                            {scoutSearch.data.recommendation.best.downloadUrl && (
-                              <a
-                                href={scoutSearch.data.recommendation.best.downloadUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label={`Open release link for ${scoutSearch.data.recommendation.best.title}`}
-                                title="Open indexer/download link"
-                                className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
-                                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-                                data-testid="scout-recommendation-release-link"
-                              >
-                                <ExternalLink size={13} />
-                              </a>
-                            )}
                             <button
                               type="button"
                               aria-label={`Send ${scoutSearch.data.recommendation.best.title} to SABnzbd`}
@@ -1260,12 +1188,12 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                                 if (!best) return;
                                 handleSendToSab(best);
                               }}
-                              className="inline-flex h-8 w-8 items-center justify-center rounded border disabled:opacity-40"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border disabled:opacity-40"
                               style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
                               data-testid="scout-recommendation-send-sab"
                             >
                               {sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best) ? (
-                                <Loader2 size={14} className="animate-spin" style={{ color: '#86efac' }} />
+                                <Loader2 size={15} className="animate-spin" style={{ color: '#86efac' }} />
                               ) : (
                                 <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-5 w-5" />
                               )}

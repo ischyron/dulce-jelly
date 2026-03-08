@@ -120,6 +120,11 @@ export const api = {
       body: JSON.stringify(body),
     }),
 
+  rescanMovie: (id: number) =>
+    req<{ ok: boolean; scanned: number; errors: number; details: string[]; movie: Movie }>(`/movies/${id}/rescan`, {
+      method: 'POST',
+    }),
+
   jfRefreshMovie: (id: number) =>
     req<{ updated: boolean; movie: Movie }>(`/movies/${id}/jf-refresh`, { method: 'POST' }),
 

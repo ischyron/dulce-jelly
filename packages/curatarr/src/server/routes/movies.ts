@@ -3,7 +3,8 @@ import path from 'node:path';
 import { Hono } from 'hono';
 import type { CuratDb } from '../../db/client.js';
 import { JellyfinClient, type JfMovie } from '../../integrations/jellyfin/client.js';
-import { extractReleaseGroup } from '../../scanner/ffprobe.js';
+import { normalizeJellyfinTitle } from '../../integrations/jellyfin/sync.js';
+import { extractReleaseGroup, probeFile, probeToUpsert } from '../../scanner/ffprobe.js';
 import { movieLibraryPaths, parseLibraryRootsJson } from '../../shared/libraryRoots.js';
 
 const VIDEO_EXTS = new Set(['.mkv', '.mp4', '.avi', '.mov', '.wmv', '.m4v', '.ts', '.m2ts', '.webm']);
@@ -42,6 +43,10 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
       .trim();
   }
 
+  function stripTrailingYearSuffixes(s: string): string {
+    return s.replace(/\s*(\(\d{4}\))+$/g, '').trim();
+  }
+
   function flagDisambiguationNeeded(
     movieId: number,
     inputTitle: string,
@@ -75,7 +80,9 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     const expectedTitle = movie.parsed_title ?? movie.folder_name;
     const expectedYear = movie.parsed_year;
     const jfTitle = jf.Name ?? '';
-    const titleMatch = normTitle(expectedTitle) === normTitle(jfTitle);
+    const expectedNorm = normTitle(stripTrailingYearSuffixes(expectedTitle));
+    const jfNorm = normTitle(stripTrailingYearSuffixes(jfTitle));
+    const titleMatch = expectedNorm === jfNorm;
     const yearMatch = expectedYear == null || jf.ProductionYear == null || expectedYear === jf.ProductionYear;
 
     if (!titleMatch || !yearMatch) {
@@ -706,7 +713,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
 
       db.enrichMovieById(id, {
         jellyfinId: jf.Id,
-        jellyfinTitle: jf.Name,
+        jellyfinTitle: normalizeJellyfinTitle(jf.Name),
         jellyfinYear: jf.ProductionYear,
         imdbId: jf.ProviderIds?.Imdb,
         tmdbId: jf.ProviderIds?.Tmdb,
@@ -722,6 +729,39 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     } catch (err) {
       return c.json({ error: 'jellyfin_error', detail: (err as Error).message }, 502);
     }
+  });
+
+  // POST /api/movies/:id/rescan — re-probe files on disk for a single movie folder
+  app.post('/:id/rescan', async (c) => {
+    const id = Number.parseInt(c.req.param('id'), 10);
+    const movie = db.getMovieById(id);
+    if (!movie) return c.json({ error: 'not found' }, 404);
+
+    const folderPath = movie.folder_path;
+    if (!fs.existsSync(folderPath) || !fs.statSync(folderPath).isDirectory()) {
+      return c.json({ error: 'folder_not_found', detail: `Folder not found: ${folderPath}` }, 422);
+    }
+
+    const entries = fs.readdirSync(folderPath);
+    const videoFiles = entries
+      .filter((name) => VIDEO_EXTS.has(path.extname(name).toLowerCase()))
+      .map((name) => path.join(folderPath, name));
+
+    const results = { scanned: 0, errors: 0, details: [] as string[] };
+    for (const filePath of videoFiles) {
+      const filename = path.basename(filePath);
+      const probe = await probeFile(filePath);
+      if ('error' in probe) {
+        results.errors++;
+        results.details.push(`${filename}: ${probe.error}`);
+      } else {
+        db.upsertFile({ ...probeToUpsert(probe, id, filePath, filename) });
+        results.scanned++;
+      }
+    }
+
+    const updated = db.getMovieById(id);
+    return c.json({ ok: true, ...results, movie: updated });
   });
 
   return app;

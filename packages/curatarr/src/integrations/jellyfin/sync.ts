@@ -53,6 +53,15 @@ export interface SyncResult {
 // ──────────────────────────────────────────────────────────────────
 
 /**
+ * Strip trailing " (YYYY)" from a Jellyfin title.
+ * Jellyfin uses the folder name (which includes year) as the title for
+ * unidentified movies. We only want the clean title part.
+ */
+export function normalizeJellyfinTitle(name: string): string {
+  return name.replace(/\s+\(\d{4}\)$/, '').trim();
+}
+
+/**
  * Get the "effective folder path" for a Jellyfin movie.
  * Jellyfin's Path points to the video file — we want the parent folder.
  */
@@ -184,7 +193,7 @@ export async function syncJellyfin(jfClient: JellyfinClient, db: CuratDb, opts: 
     // Enrich the DB row
     const ok = db.enrichFromJellyfin(matchResult.movie.folder_path, {
       jellyfinId: jf.Id,
-      jellyfinTitle: jf.Name,
+      jellyfinTitle: normalizeJellyfinTitle(jf.Name),
       jellyfinYear: jf.ProductionYear,
       imdbId: jf.ProviderIds?.Imdb,
       tmdbId: jf.ProviderIds?.Tmdb,

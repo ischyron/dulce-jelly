@@ -374,7 +374,11 @@ export function Verify() {
                 disabled={verifyInProgress}
               />
             </label>
-
+            <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
+              30 seconds to 3 hours. Re-runs may find additional issues by sampling different areas.
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
             {!verifyInProgress ? (
               <button
                 type="button"
@@ -396,12 +400,13 @@ export function Verify() {
                 {t('controls.stop')}
               </button>
             )}
-
             {statusMsg && (
               <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
                 {statusMsg}
               </span>
             )}
+          </div>
+          <div>
             <button
               type="button"
               onClick={clearFailures}
@@ -414,10 +419,6 @@ export function Verify() {
               {t('failures.clear')}
             </button>
           </div>
-          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-            {t('controls.budgetHint')}
-          </p>
-
           {/* Progress */}
           {verifyInProgress && (
             <div className="space-y-2">

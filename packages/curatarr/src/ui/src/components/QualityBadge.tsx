@@ -71,6 +71,82 @@ const audioBadgeColors: Record<string, string> = {
   aac: 'bg-lime-600/30 text-lime-300 border-lime-700',
 };
 
+const sourceBadgeColors: Record<string, string> = {
+  Remux: 'bg-amber-600/20 text-amber-300 border-amber-700',
+  BluRay: 'bg-blue-600/20 text-blue-300 border-blue-700',
+  'WEB-DL': 'bg-indigo-600/20 text-indigo-300 border-indigo-700',
+};
+
+// Maps release title tags (from releaseTitleTags) to audioBadgeColors keys
+const audioTagToKey: Record<string, string> = {
+  Atmos: 'atmos',
+  TrueHD: 'truehd',
+  'DTS-MA': 'dts-ma',
+  DTS: 'dts',
+  DDP: 'ddp',
+  AC3: 'ac3',
+  AAC: 'aac',
+};
+
+const audioTagLabels: Record<string, string> = {
+  Atmos: 'Atmos',
+  TrueHD: 'TrueHD',
+  'DTS-MA': 'DTS-MA',
+  DTS: 'DTS',
+  DDP: 'DDP',
+  AC3: 'AC3',
+  AAC: 'AAC',
+};
+
+function codecFromTitle(title: string): string | null {
+  const t = title.toLowerCase();
+  if (/\bx265\b|\bh\.?265\b|\bhevc\b/.test(t)) return 'hevc';
+  if (/\bx264\b|\bh\.?264\b|\bavc\b/.test(t)) return 'h264';
+  if (/\bav1\b/.test(t)) return 'av1';
+  return null;
+}
+
+/**
+ * Renders quality badges for a Prowlarr/indexer release title.
+ * Uses the same badge components and colors as the library table.
+ * Pass the tags output from releaseTitleTags() + the raw title for codec detection.
+ */
+export function ReleaseTagBadges({ tags, title }: { tags: string[]; title: string }) {
+  const codec = codecFromTitle(title);
+  const resolutionTags = tags.filter((t) => ['2160p', '1080p', '720p', '480p'].includes(t));
+  const sourceTags = tags.filter((t) => sourceBadgeColors[t]);
+  const audioTags = tags.filter((t) => audioTagToKey[t]);
+  const hasBadges = resolutionTags.length > 0 || codec || sourceTags.length > 0 || audioTags.length > 0;
+  if (!hasBadges) return null;
+  return (
+    <div className="mt-0.5 flex flex-wrap gap-1">
+      {resolutionTags.map((tag) => (
+        <ResolutionBadge key={tag} resolution={tag} />
+      ))}
+      {codec && <CodecBadge codec={codec} />}
+      {sourceTags.map((tag) => (
+        <span
+          key={tag}
+          className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${sourceBadgeColors[tag]}`}
+        >
+          {tag}
+        </span>
+      ))}
+      {audioTags.map((tag) => {
+        const key = audioTagToKey[tag];
+        return (
+          <span
+            key={tag}
+            className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${audioBadgeColors[key] ?? audioBadgeColors.aac}`}
+          >
+            {audioTagLabels[tag] ?? tag}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 // Client profiles that lack AV1 hardware decode
 const AV1_UNSUPPORTED_PROFILES = new Set(['android_tv', 'fire_tv']);
 

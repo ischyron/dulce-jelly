@@ -170,6 +170,99 @@ test('movies listing returns filtered totalSize for full result set, not current
   assert.equal(unfilteredBody.totalSize, 600);
 });
 
+test('candidates uses one primary file per movie and falls back release group from filename', async (t) => {
+  const tmp = await makeTempDir('candidates-release-group');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const movieId = db.upsertMovie({ folderPath: '/m/A', folderName: 'A (2020)', parsedTitle: 'A', parsedYear: 2020 });
+  db.enrichMovieById(movieId, { criticRating: 80, communityRating: 7.5 });
+
+  db.upsertFile({
+    movieId,
+    filePath: '/m/A/a-small.mkv',
+    filename: 'A.2020.720p.BluRay.x264-GROUPA.mkv',
+    resolutionCat: '720p',
+    videoCodec: 'h264',
+    releaseGroup: 'GROUPA',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+  db.upsertFile({
+    movieId,
+    filePath: '/m/A/a-big.mkv',
+    filename: 'A.2020.1080p.BluRay.x264.YIFY.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    releaseGroup: undefined,
+    fileSize: 300,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const res = await app.request('http://localhost/api/candidates?criticScoreMin=0&imdbScoreMin=0&limit=20');
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  const rows = body.candidates.filter((row) => row.id === movieId);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].release_group, 'YIFY');
+});
+
+test('candidates applies library-equivalent filters for tags, codec, hdr, noJf and search', async (t) => {
+  const tmp = await makeTempDir('candidates-filters');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const keepId = db.upsertMovie({
+    folderPath: '/m/Keep',
+    folderName: 'Keep Me (2021)',
+    parsedTitle: 'Keep Me',
+    parsedYear: 2021,
+  });
+  db.updateMovieMeta(keepId, { tags: ['keep'] });
+  db.enrichMovieById(keepId, { criticRating: 74, communityRating: 7.2 });
+  db.upsertFile({
+    movieId: keepId,
+    filePath: '/m/Keep/keep.mkv',
+    filename: 'Keep.Me.2021.2160p.WEB-DL.AV1.DDP5.1-GRP.mkv',
+    resolutionCat: '2160p',
+    videoCodec: 'av1',
+    hdrFormats: ['HDR10'],
+    fileSize: 500,
+    audioTracks: [],
+  });
+
+  const dropId = db.upsertMovie({
+    folderPath: '/m/Drop',
+    folderName: 'Drop Me (2020)',
+    parsedTitle: 'Drop Me',
+    parsedYear: 2020,
+  });
+  db.updateMovieMeta(dropId, { tags: ['skip'] });
+  db.enrichMovieById(dropId, { jellyfinId: 'jf-1', criticRating: 91, communityRating: 8.8 });
+  db.upsertFile({
+    movieId: dropId,
+    filePath: '/m/Drop/drop.mkv',
+    filename: 'Drop.Me.2020.2160p.WEB-DL.AV1.DDP5.1-GRP.mkv',
+    resolutionCat: '2160p',
+    videoCodec: 'av1',
+    hdrFormats: ['HDR10'],
+    fileSize: 600,
+    audioTracks: [],
+  });
+
+  const res = await app.request(
+    'http://localhost/api/candidates?criticScoreMin=0&imdbScoreMin=0&search=Keep&codec=av1&hdr=true&noJf=true&tags=keep&limit=20',
+  );
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.total, 1);
+  assert.equal(body.candidates[0].id, keepId);
+});
+
 test('verify start returns 409 when a verify job is already running', async (t) => {
   const tmp = await makeTempDir('verify-running');
   t.after(async () => fs.rm(tmp, { recursive: true, force: true }));

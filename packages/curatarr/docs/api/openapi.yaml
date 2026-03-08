@@ -388,21 +388,51 @@ paths:
       tags: [Candidates]
       summary: List scout upgrade candidates
       parameters:
-        - name: minCritic
+        - name: criticScoreMin
           in: query
           schema: { type: number }
-        - name: minCommunity
+        - name: imdbScoreMin
           in: query
           schema: { type: number }
-        - name: maxResolution
+        - name: search
           in: query
           schema: { type: string }
+        - name: resolution
+          in: query
+          schema: { type: string }
+        - name: codec
+          in: query
+          schema: { type: string }
+        - name: audioFormat
+          in: query
+          schema: { type: string }
+        - name: audioLayout
+          in: query
+          schema: { type: string }
+        - name: tags
+          in: query
+          schema: { type: string, description: Comma-separated list }
         - name: releaseGroups
           in: query
           schema: { type: string, description: Comma-separated list }
         - name: genre
           in: query
           schema: { type: string, description: Comma-separated list }
+        - name: hdr
+          in: query
+          schema: { type: boolean }
+        - name: dv
+          in: query
+          schema: { type: boolean }
+        - name: legacy
+          in: query
+          schema: { type: boolean }
+        - name: noJf
+          in: query
+          schema: { type: boolean }
+        - name: multi
+          in: query
+          schema: { type: boolean }
         - name: limit
           in: query
           schema: { type: integer, default: 100 }

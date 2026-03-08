@@ -143,6 +143,7 @@ export interface FileUpsert {
 
 /** Flat join row returned by getUpgradeCandidates */
 export interface UpgradeCandidate extends MovieRow {
+  filename: string | null;
   resolution_cat: string | null;
   video_codec: string | null;
   audio_codec: string | null;
@@ -645,37 +646,101 @@ export class CuratDb {
   /** Movies with low quality + high ratings — prime upgrade candidates */
   getUpgradeCandidates(
     opts: {
-      maxResolution?: string; // "1080p" = include 1080p and below
+      search?: string;
+      resolution?: string;
+      codec?: string;
+      audioFormat?: string;
+      audioLayout?: string;
+      hdrOnly?: boolean;
+      dvOnly?: boolean;
+      legacyOnly?: boolean;
+      noJf?: boolean;
+      multiOnly?: boolean;
       releaseGroups?: string[]; // e.g. ['YTS.MX', 'YTS', 'YIFY']
       genre?: string;
       genres?: string[];
-      minCriticRating?: number; // Metacritic, 0-100
+      tags?: string[];
+      minCriticRating?: number; // Critic score, 0-100
       minCommunityRating?: number; // IMDb-style, 0-10
       limit?: number;
     } = {},
   ): UpgradeCandidate[] {
-    const resCats = opts.maxResolution ? this.resolutionCatsUpTo(opts.maxResolution) : undefined;
-
     let sql = `
-      SELECT m.*, f.resolution_cat, f.video_codec, f.audio_codec,
-             f.file_size, f.mb_per_minute, f.release_group, f.hdr_formats,
-             f.id as file_id, f.file_path as file_file_path
+      SELECT m.*,
+             f.id as file_id,
+             f.file_path as file_file_path,
+             f.filename,
+             f.resolution_cat, f.video_codec, f.audio_codec,
+             f.file_size, f.mb_per_minute, f.release_group, f.hdr_formats
       FROM movies m
-      JOIN files f ON f.movie_id = m.id AND f.scanned_at IS NOT NULL
+      LEFT JOIN files f ON f.movie_id = m.id
+        AND f.id = (
+          SELECT id FROM files f2 WHERE f2.movie_id = m.id
+          ORDER BY f2.file_size DESC LIMIT 1
+        )
       WHERE 1=1
     `;
     const bindings: (string | number)[] = [];
 
-    if (resCats && resCats.length > 0) {
-      sql += ` AND f.resolution_cat IN (${resCats.map(() => '?').join(',')})`;
-      bindings.push(...resCats);
+    if (opts.search) {
+      sql += ' AND (m.parsed_title LIKE ? OR m.jellyfin_title LIKE ? OR m.folder_name LIKE ?)';
+      const pat = `%${opts.search}%`;
+      bindings.push(pat, pat, pat);
     }
-
+    if (opts.resolution) {
+      sql += ' AND f.resolution_cat = ?';
+      bindings.push(opts.resolution);
+    }
+    if (opts.codec) {
+      sql += ' AND f.video_codec = ?';
+      bindings.push(opts.codec);
+    }
+    if (opts.hdrOnly) {
+      sql += " AND f.hdr_formats != '[]'";
+    }
+    if (opts.dvOnly) {
+      sql += " AND f.hdr_formats LIKE '%DolbyVision%'";
+    }
+    if (opts.legacyOnly) {
+      sql += " AND COALESCE(f.video_codec,'') IN ('mpeg4','mpeg2video','msmpeg4v3')";
+    }
+    if (opts.audioLayout) {
+      if (opts.audioLayout === 'stereo') {
+        sql += " AND (LOWER(COALESCE(f.audio_layout,'')) = 'stereo' OR COALESCE(f.audio_channels, 0) = 2)";
+      } else if (opts.audioLayout === '5.1') {
+        sql += " AND (LOWER(COALESCE(f.audio_layout,'')) LIKE '%5.1%' OR COALESCE(f.audio_channels, 0) = 6)";
+      } else if (opts.audioLayout === '7.1') {
+        sql += " AND (LOWER(COALESCE(f.audio_layout,'')) LIKE '%7.1%' OR COALESCE(f.audio_channels, 0) = 8)";
+      }
+    }
+    if (opts.audioFormat) {
+      if (opts.audioFormat === 'ddp') {
+        sql +=
+          " AND (LOWER(COALESCE(f.audio_codec,'')) = 'eac3' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%dolby digital plus%' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%ddp%')";
+      } else if (opts.audioFormat === 'truehd') {
+        sql +=
+          " AND (LOWER(COALESCE(f.audio_codec,'')) = 'truehd' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%truehd%')";
+      } else if (opts.audioFormat === 'dts') {
+        sql +=
+          " AND (LOWER(COALESCE(f.audio_codec,'')) LIKE 'dts%' OR LOWER(COALESCE(f.audio_profile,'')) LIKE '%dts%')";
+      } else if (opts.audioFormat === 'aac') {
+        sql += " AND LOWER(COALESCE(f.audio_codec,'')) = 'aac'";
+      } else if (opts.audioFormat === 'ac3') {
+        sql += " AND LOWER(COALESCE(f.audio_codec,'')) = 'ac3'";
+      } else if (opts.audioFormat === 'atmos') {
+        sql += " AND LOWER(COALESCE(f.audio_profile,'')) LIKE '%atmos%'";
+      }
+    }
+    if (opts.noJf) {
+      sql += ' AND m.jellyfin_id IS NULL';
+    }
+    if (opts.multiOnly) {
+      sql += ' AND (SELECT COUNT(*) FROM files mf WHERE mf.movie_id = m.id) > 1';
+    }
     if (opts.releaseGroups && opts.releaseGroups.length > 0) {
       sql += ` AND (${opts.releaseGroups.map(() => 'f.release_group LIKE ?').join(' OR ')})`;
       bindings.push(...opts.releaseGroups.map((g) => `%${g}%`));
     }
-
     const genres = opts.genres && opts.genres.length > 0 ? opts.genres : opts.genre ? [opts.genre] : [];
     if (genres.length > 0) {
       const placeholders = genres.map(() => '?').join(',');
@@ -686,12 +751,19 @@ export class CuratDb {
       )`;
       bindings.push(...genres.map((g) => g.toLowerCase()));
     }
-
+    if (opts.tags && opts.tags.length > 0) {
+      const placeholders = opts.tags.map(() => '?').join(',');
+      sql += ` AND EXISTS (
+        SELECT 1
+        FROM json_each(COALESCE(m.tags, '[]')) t
+        WHERE LOWER(CAST(t.value AS TEXT)) IN (${placeholders})
+      )`;
+      bindings.push(...opts.tags.map((tag) => tag.toLowerCase()));
+    }
     if (opts.minCriticRating !== undefined) {
       sql += ' AND m.critic_rating >= ?';
       bindings.push(opts.minCriticRating);
     }
-
     if (opts.minCommunityRating !== undefined) {
       sql += ' AND m.community_rating >= ?';
       bindings.push(opts.minCommunityRating);
@@ -701,12 +773,6 @@ export class CuratDb {
     if (opts.limit) sql += ` LIMIT ${opts.limit}`;
 
     return this.db.prepare(sql).all(...bindings) as UpgradeCandidate[];
-  }
-
-  private resolutionCatsUpTo(max: string): string[] {
-    const order = ['480p', '720p', '1080p', '2160p', 'other'];
-    const idx = order.indexOf(max);
-    return idx === -1 ? [] : order.slice(0, idx + 1);
   }
 
   // ──────────────────────────────────────────────────────────────────

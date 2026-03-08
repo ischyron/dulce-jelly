@@ -859,7 +859,7 @@ function pickAutoMovieIds(db: CuratDb, cap: number): { ids: number[]; skippedByC
   const minCritic = Number.parseFloat(db.getSetting('scoutPipelineMinCritic') ?? '65');
   const minCommunity = Number.parseFloat(db.getSetting('scoutPipelineMinImdb') ?? '7.0');
   const pool = db.getUpgradeCandidates({
-    maxResolution: '2160p',
+    resolution: '2160p',
     minCriticRating: Number.isFinite(minCritic) ? minCritic : 65,
     minCommunityRating: Number.isFinite(minCommunity) ? minCommunity : 7.0,
     limit: 250,

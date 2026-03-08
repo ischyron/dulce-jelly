@@ -239,7 +239,7 @@ test.describe('Scout feature checks', () => {
     const hasProwlarr = Boolean(settings.prowlarrUrl);
     test.skip(!hasProwlarr, 'requires configured Prowlarr for live scout search');
 
-    const candidateRes = await request.get('/api/candidates?minCritic=0&minCommunity=0&maxResolution=2160p&limit=1');
+    const candidateRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=1');
     expect(candidateRes.ok()).toBeTruthy();
     const candidateJson = await candidateRes.json();
     const firstMovieId = candidateJson?.candidates?.[0]?.id;
@@ -333,7 +333,7 @@ test.describe('Scout feature checks', () => {
     const hasProwlarr = Boolean(settings.prowlarrUrl);
     test.skip(!hasProwlarr, 'requires configured Prowlarr for live scout search');
 
-    const candidateRes = await request.get('/api/candidates?minCritic=0&minCommunity=0&maxResolution=2160p&limit=1');
+    const candidateRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=1');
     expect(candidateRes.ok()).toBeTruthy();
     const candidateJson = await candidateRes.json();
     const firstMovieId = candidateJson?.candidates?.[0]?.id;
@@ -401,7 +401,7 @@ test.describe('Scout feature checks', () => {
     const settingsJson = await settingsRes.json();
     const hasProwlarr = Boolean(settingsJson?.settings?.prowlarrUrl);
 
-    const candidateRes = await request.get('/api/candidates?minCritic=0&minCommunity=0&maxResolution=2160p&limit=1');
+    const candidateRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=1');
     expect(candidateRes.ok()).toBeTruthy();
     const candidateJson = await candidateRes.json();
     const first = candidateJson?.candidates?.[0];

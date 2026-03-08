@@ -229,7 +229,7 @@ export function Verify() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    window.localStorage.setItem(VERIFY_BUDGET_STORAGE_KEY, String(clampVerifyBudgetSeconds(budgetSeconds)));
+    window.localStorage.setItem(VERIFY_BUDGET_STORAGE_KEY, String(budgetSeconds));
   }, [budgetSeconds]);
 
   async function startVerify() {
@@ -364,7 +364,8 @@ export function Verify() {
                 min={MIN_VERIFY_BUDGET_SECONDS}
                 max={MAX_VERIFY_BUDGET_SECONDS}
                 value={budgetSeconds}
-                onChange={(e) => setBudgetSeconds(clampVerifyBudgetSeconds(Number.parseInt(e.target.value || '0', 10)))}
+                onChange={(e) => setBudgetSeconds(Number.parseInt(e.target.value || '0', 10))}
+                onBlur={() => setBudgetSeconds((prev) => clampVerifyBudgetSeconds(prev))}
                 className="w-24 rounded border px-2 py-1 text-xs font-mono"
                 style={{
                   borderColor: 'var(--c-border)',

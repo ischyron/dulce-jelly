@@ -553,12 +553,11 @@ export function Settings() {
 
   return (
     <div className="flex flex-col h-full">
-      <PageHeader icon={Settings2} title={t('title')} />
+      <PageHeader
+        icon={Settings2}
+        title={`${t('title')} › ${sectionMode === 'general' ? t('section.general') : t('section.scout')}`}
+      />
       <div className="px-6 py-6 space-y-6 max-w-2xl">
-        <div className="text-sm" style={{ color: 'var(--c-muted)' }}>
-          {sectionMode === 'general' ? t('section.general') : t('section.scout')}
-        </div>
-
         {sectionMode === 'general' ? (
           <section aria-label={t('section.general')}>
             <GeneralPanel

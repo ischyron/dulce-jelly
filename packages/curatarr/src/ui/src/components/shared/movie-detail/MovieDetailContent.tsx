@@ -1182,10 +1182,52 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                     </div>
                     {scoutSearch.data.recommendation.best ? (
                       <div className="space-y-1">
-                        <div style={{ color: '#8b87aa' }}>
-                          Recommended:{' '}
-                          <span className="text-amber-400 font-semibold">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-amber-400 font-semibold break-all">
                             {scoutSearch.data.recommendation.best.title}
+                          </span>
+                          <span className="inline-flex items-center gap-1.5 shrink-0">
+                            {scoutSearch.data.recommendation.best.downloadUrl && (
+                              <a
+                                href={scoutSearch.data.recommendation.best.downloadUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                aria-label={`Open release link for ${scoutSearch.data.recommendation.best.title}`}
+                                title="Open indexer/download link"
+                                className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
+                                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+                                data-testid="scout-recommendation-release-link"
+                              >
+                                <ExternalLink size={11} />
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              aria-label={`Send ${scoutSearch.data.recommendation.best.title} to SABnzbd`}
+                              title={
+                                canSendToSab(scoutSearch.data.recommendation.best)
+                                  ? 'Send to SABnzbd'
+                                  : 'Only usenet releases with a download URL can be sent'
+                              }
+                              disabled={
+                                !canSendToSab(scoutSearch.data.recommendation.best) ||
+                                sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best)
+                              }
+                              onClick={() => {
+                                const best = scoutSearch.data.recommendation.best;
+                                if (!best) return;
+                                handleSendToSab(best);
+                              }}
+                              className="inline-flex h-6 w-6 items-center justify-center rounded border disabled:opacity-40"
+                              style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
+                              data-testid="scout-recommendation-send-sab"
+                            >
+                              {sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best) ? (
+                                <Loader2 size={11} className="animate-spin" style={{ color: '#86efac' }} />
+                              ) : (
+                                <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                              )}
+                            </button>
                           </span>
                         </div>
                         <div style={{ color: '#8b87aa' }}>

@@ -145,10 +145,14 @@ export function Library() {
   }
 
   function resetView() {
-    setSearchParams({}, { replace: true });
+    const next = new URLSearchParams();
+    const currentLimit = searchParams.get('limit');
+    const currentShowAll = searchParams.get('all');
+    if (currentLimit) next.set('limit', currentLimit);
+    if (currentShowAll === '1') next.set('all', '1');
+    setSearchParams(next, { replace: true });
   }
 
-  const hasNonDefaultView = searchParams.toString() !== '';
   const hasActiveFilter = Boolean(
     search ||
       resolution ||
@@ -164,6 +168,7 @@ export function Library() {
       noJf ||
       multiOnly,
   );
+  const hasNonDefaultView = hasActiveFilter;
 
   const { data: statsData } = useQuery<Stats>({
     queryKey: ['stats'],

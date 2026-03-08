@@ -5,6 +5,7 @@
 
 // @ts-check
 const { test, expect } = require('@playwright/test');
+const { restoreScoutState, snapshotScoutState } = require('./helpers/scout-state.cjs');
 
 function qs(obj) {
   return new URLSearchParams(
@@ -42,8 +43,10 @@ async function assertLibraryParity(page, request, pageParams, label) {
     const apiJson = await apiRes.json();
     const expectedRows = Array.isArray(apiJson.movies) ? apiJson.movies.length : 0;
 
-    await page.goto(`/library?${qs(pageParams)}`, { waitUntil: 'networkidle' });
-    await page.waitForTimeout(700);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/movies?') && r.ok()),
+      page.goto(`/library?${qs(pageParams)}`, { waitUntil: 'networkidle' }),
+    ]);
 
     const uiRows = await page.locator('tbody tr').count();
     expect(uiRows, `${label}: UI rows should equal API movies.length`).toBe(expectedRows);
@@ -115,8 +118,10 @@ test.describe('Library', () => {
   test('numeric search works for 500', async ({ page }) => {
     await page.goto('/library');
     const search = page.getByPlaceholder('Search titles…');
-    await search.fill('500');
-    await page.waitForTimeout(450);
+    await Promise.all([
+      page.waitForResponse((r) => r.url().includes('/api/movies?') && r.url().includes('search=500') && r.ok()),
+      search.fill('500'),
+    ]);
     await expect(page).toHaveURL(/q=500/);
     await expect(page.locator('tbody tr').first()).toContainText(/500|\(500\)/i);
   });
@@ -228,7 +233,12 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
 
   test('scout settings custom CF save shows success', async ({ page, request }) => {
     test.setTimeout(90_000);
+    const snapshot = await snapshotScoutState(request);
     const ruleName = `UI E2E CF ${Date.now()}`;
+    const clear = await request.put('/api/scout/rules/replace-category', {
+      data: { category: 'scout_custom_cf', rules: [] },
+    });
+    expect(clear.ok()).toBeTruthy();
     await page.goto('/settings/scout');
 
     const customSection = page
@@ -252,11 +262,7 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     expect(Boolean(created)).toBeTruthy();
     expect(created.enabled).toBe(1);
 
-    // Cleanup created sample rule from this UI test.
-    const cleanup = await request.put('/api/scout/rules/replace-category', {
-      data: { category: 'scout_custom_cf', rules: [] },
-    });
-    expect(cleanup.ok()).toBeTruthy();
+    await restoreScoutState(request, snapshot);
   });
 
   test('scan page jellyfin sync tooltip renders rich content', async ({ page }) => {
@@ -384,6 +390,10 @@ test.describe('MoviePage', () => {
     const releaseLinks = section.getByTestId('scout-release-link');
     if ((await releaseLinks.count()) > 0) {
       await expect(releaseLinks.first()).toBeVisible();
+    }
+    const recommendationLink = section.getByTestId('scout-recommendation-release-link');
+    if ((await recommendationLink.count()) > 0) {
+      await expect(recommendationLink.first()).toBeVisible();
     }
     const sendBtns = section.getByTestId('scout-send-sab');
     if ((await sendBtns.count()) > 0) {

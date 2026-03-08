@@ -296,6 +296,60 @@ async function main() {
   mkdirSync(tempDataDir, { recursive: true });
 
   const scoutReleases = createScoutFixtureReleases();
+  const jellyfinMovies = [
+    {
+      Id: 'jf-500',
+      Name: '(500) Days of Summer',
+      ProductionYear: 2009,
+      Path: path.join(
+        libraryRoot,
+        '(500) Days of Summer (2009)',
+        '(500).Days.of.Summer.2009.1080p.BluRay.x264-YIFY.mkv',
+      ),
+      CriticRating: 85,
+      CommunityRating: 7.7,
+      Genres: ['Drama', 'Romance'],
+      ProviderIds: { Imdb: 'tt1022603', Tmdb: '19913' },
+      MediaSources: [],
+    },
+    {
+      Id: 'jf-legacy',
+      Name: 'Legacy Sample',
+      ProductionYear: 2001,
+      Path: path.join(libraryRoot, 'Legacy Sample (2001)', 'Legacy.Sample.2001.1080p.WEBRip.XviD.AC3-FIXTURE.avi'),
+      CriticRating: 72,
+      CommunityRating: 6.9,
+      Genres: ['Action'],
+      ProviderIds: { Imdb: 'tt0000001', Tmdb: '50001' },
+      MediaSources: [],
+    },
+    {
+      Id: 'jf-multi-a',
+      Name: 'Multi Version Film',
+      ProductionYear: 2010,
+      Path: path.join(libraryRoot, 'Multi Version Film (2010)', 'Multi.Version.Film.2010.1080p.BluRay.x264-GRP.mkv'),
+      CriticRating: 81,
+      CommunityRating: 7.2,
+      Genres: ['Thriller'],
+      ProviderIds: { Imdb: 'tt0000002', Tmdb: '50002' },
+      MediaSources: [],
+    },
+    {
+      Id: 'jf-multi-b',
+      Name: 'Multi Version Film',
+      ProductionYear: 2010,
+      Path: path.join(
+        libraryRoot,
+        'Multi Version Film (2010)',
+        'Multi.Version.Film.2010.2160p.WEB-DL.HEVC.DDP5.1-GRP.mkv',
+      ),
+      CriticRating: 82,
+      CommunityRating: 7.3,
+      Genres: ['Thriller'],
+      ProviderIds: { Imdb: 'tt0000003', Tmdb: '50003' },
+      MediaSources: [],
+    },
+  ];
   const prowlarrFixture = await startFixtureServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     const key = String(req.headers['x-api-key'] ?? '');
@@ -318,9 +372,61 @@ async function main() {
     res.end(JSON.stringify({ error: 'not_found' }));
   });
 
-  const jellyfinFixture = await startFixtureServer((_req, res) => {
-    res.writeHead(200, { 'content-type': 'application/json' });
-    res.end(JSON.stringify({ Items: [] }));
+  const jellyfinFixture = await startFixtureServer((req, res) => {
+    const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    const token = String(req.headers['x-emby-token'] ?? '');
+    if (token !== 'pw-e2e-jf') {
+      res.writeHead(401, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: 'unauthorized' }));
+      return;
+    }
+    if (url.pathname === '/Library/VirtualFolders') {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(
+        JSON.stringify([
+          {
+            ItemId: 'lib-movies',
+            Name: 'Movies',
+            CollectionType: 'movies',
+            Locations: [libraryRoot],
+          },
+        ]),
+      );
+      return;
+    }
+    if (url.pathname === '/Items') {
+      const ids = url.searchParams.get('Ids');
+      const searchTerm = (url.searchParams.get('SearchTerm') ?? '').toLowerCase();
+      if (ids) {
+        // Force one id-lookup miss for fallback-path coverage in jf-refresh e2e.
+        const items = ids === 'jf-multi' ? [] : jellyfinMovies.filter((m) => m.Id === ids);
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ Items: items, TotalRecordCount: items.length }));
+        return;
+      }
+      if (searchTerm) {
+        const items = jellyfinMovies.filter((m) => m.Name.toLowerCase().includes(searchTerm));
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ Items: items, TotalRecordCount: items.length }));
+        return;
+      }
+      const parentId = url.searchParams.get('ParentId');
+      const items = parentId === 'lib-movies' ? jellyfinMovies : [];
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ Items: items, TotalRecordCount: items.length }));
+      return;
+    }
+    if (url.pathname.startsWith('/Items/') && url.pathname.includes('/Images/Primary')) {
+      const pngFallback = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5n2n0AAAAASUVORK5CYII=',
+        'base64',
+      );
+      res.writeHead(200, { 'content-type': 'image/png' });
+      res.end(pngFallback);
+      return;
+    }
+    res.writeHead(404, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'not_found' }));
   });
 
   await seedDeterministicDb(dbPath, libraryRoot, prowlarrFixture.port, jellyfinFixture.port);

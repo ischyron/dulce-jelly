@@ -1,5 +1,6 @@
 // @ts-check
 const { test, expect } = require('@playwright/test');
+const { restoreScoutState, snapshotScoutState } = require('./helpers/scout-state.cjs');
 
 test.describe('Scout feature checks', () => {
   test('scout batch hard cap rejects payload > 10', async ({ request }) => {
@@ -71,6 +72,7 @@ test.describe('Scout feature checks', () => {
   });
 
   test('custom CF preview + create/disable/delete lifecycle', async ({ request }) => {
+    const snapshot = await snapshotScoutState(request);
     const ruleName = `DDP Boost ${Date.now()}`;
 
     const badSave = await request.put('/api/rules', {
@@ -146,18 +148,12 @@ test.describe('Scout feature checks', () => {
       const disabledBody = await disabledPreview.json();
       expect(disabledBody.delta).toBe(0);
     } finally {
-      const cleanup = await request.put('/api/scout/rules/replace-category', {
-        data: { category: 'scout_custom_cf', rules: [] },
-      });
-      expect(cleanup.ok()).toBeTruthy();
-      const list = await request.get('/api/scout/rules?category=scout_custom_cf');
-      const listBody = await list.json();
-      const rows = listBody?.rules?.scout_custom_cf ?? [];
-      expect(rows).toHaveLength(0);
+      await restoreScoutState(request, snapshot);
     }
   });
 
   test('llm ruleset create/disable/delete lifecycle', async ({ request }) => {
+    const snapshot = await snapshotScoutState(request);
     const ruleName = `Rule ${Date.now()}`;
 
     try {
@@ -205,14 +201,7 @@ test.describe('Scout feature checks', () => {
       expect(disabledRows.length).toBe(1);
       expect(disabledRows[0].enabled).toBe(0);
     } finally {
-      const cleanup = await request.put('/api/scout/rules/replace-category', {
-        data: { category: 'scout_llm_ruleset', rules: [] },
-      });
-      expect(cleanup.ok()).toBeTruthy();
-      const list = await request.get('/api/scout/rules?category=scout_llm_ruleset');
-      const body = await list.json();
-      const rows = body?.rules?.scout_llm_ruleset ?? [];
-      expect(rows).toHaveLength(0);
+      await restoreScoutState(request, snapshot);
     }
   });
 
@@ -232,6 +221,7 @@ test.describe('Scout feature checks', () => {
 
   test('scout percentile gate drops bottom 90%, and LLM-active flow returns one candidate', async ({ request }) => {
     test.setTimeout(120_000);
+    const snapshot = await snapshotScoutState(request);
 
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();
@@ -308,15 +298,13 @@ test.describe('Scout feature checks', () => {
         ),
       ).toBeTruthy();
     } finally {
-      const cleanup = await request.put('/api/scout/rules/replace-category', {
-        data: { category: 'scout_llm_ruleset', rules: [] },
-      });
-      expect(cleanup.ok()).toBeTruthy();
+      await restoreScoutState(request, snapshot);
     }
   });
 
   test('scout search-one cache hits within TTL and invalidates on scout settings change', async ({ request }) => {
     test.setTimeout(120_000);
+    const snapshot = await snapshotScoutState(request);
 
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();
@@ -362,7 +350,7 @@ test.describe('Scout feature checks', () => {
     const postForceBody = await postForceRes.json();
     expect(postForceBody?.cache?.hit).toBe(true);
 
-    const prevRes1080 = settings.scoutPipelineBasicRes1080 ?? '24';
+    const prevRes1080 = settings.scoutPipelineBasicRes1080 ?? snapshot.settings.scoutPipelineBasicRes1080;
     const nextRes1080 = String(Number.parseInt(prevRes1080, 10) === 24 ? 25 : 24);
     try {
       const updateRes = await request.put('/api/settings', {
@@ -378,10 +366,7 @@ test.describe('Scout feature checks', () => {
       expect(thirdBody?.cache?.hit).toBe(false);
       expect(thirdBody?.cache?.revision).not.toBe(secondBody?.cache?.revision);
     } finally {
-      const restoreRes = await request.put('/api/settings', {
-        data: { scoutPipelineBasicRes1080: prevRes1080 },
-      });
-      expect(restoreRes.ok()).toBeTruthy();
+      await restoreScoutState(request, snapshot);
     }
   });
 

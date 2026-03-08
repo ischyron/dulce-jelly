@@ -303,12 +303,15 @@ export function ScoutQueue() {
         className="px-6 py-3 border-b flex flex-wrap items-start gap-3 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
-        <h1 className="font-semibold flex items-center gap-2 w-full sm:w-auto" style={{ color: 'var(--c-text)' }}>
+        <h1
+          className="font-semibold flex items-center gap-2 w-full sm:w-auto order-1"
+          style={{ color: 'var(--c-text)' }}
+        >
           <Bot size={17} style={{ color: 'var(--c-accent)' }} />
           Scout Queue
         </h1>
 
-        <div className="relative w-full sm:w-auto">
+        <div className="relative w-full sm:w-auto order-1">
           <input
             type="text"
             aria-label="Search titles"
@@ -322,7 +325,7 @@ export function ScoutQueue() {
 
         <div
           ref={genreRef}
-          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto"
+          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
         >
           <span
@@ -396,7 +399,7 @@ export function ScoutQueue() {
 
         <div
           ref={tagRef}
-          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto"
+          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
         >
           <span
@@ -469,7 +472,7 @@ export function ScoutQueue() {
         </div>
 
         <div
-          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto"
+          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
         >
           <span
@@ -496,7 +499,7 @@ export function ScoutQueue() {
         </div>
 
         <div
-          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)]"
+          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)] order-4"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
         >
           <span
@@ -524,7 +527,7 @@ export function ScoutQueue() {
         </div>
 
         <div
-          className="flex flex-wrap items-center gap-3 text-xs w-full lg:w-[calc(50%-0.375rem)] px-2 py-1 rounded-lg border"
+          className="flex flex-wrap items-center gap-3 text-xs w-full lg:w-[calc(50%-0.375rem)] px-2 py-1 rounded-lg border order-4"
           style={{ color: 'var(--c-muted)', borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
         >
           <label className="inline-flex items-center gap-1 cursor-pointer">
@@ -584,7 +587,7 @@ export function ScoutQueue() {
         </div>
 
         <div
-          className="flex flex-wrap items-center gap-2 text-sm w-full px-2 py-1 rounded-lg border"
+          className="flex flex-wrap items-center gap-2 text-sm w-full px-2 py-1 rounded-lg border order-4"
           style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
         >
           <select
@@ -615,7 +618,7 @@ export function ScoutQueue() {
           </select>
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm order-2">
           <label
             htmlFor="scout-min-critic-score"
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
@@ -639,7 +642,7 @@ export function ScoutQueue() {
           />
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div className="flex items-center gap-2 text-sm order-2">
           <label
             htmlFor="scout-min-imdb"
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
@@ -685,7 +688,7 @@ export function ScoutQueue() {
                 tags: null,
               })
             }
-            className="text-xs px-2 py-1 rounded border font-semibold"
+            className="text-xs px-2 py-1 rounded border font-semibold order-2"
             style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
           >
             Reset filters
@@ -696,19 +699,19 @@ export function ScoutQueue() {
           <button
             type="button"
             onClick={openBatchModal}
-            className="text-xs px-3 py-1 rounded font-medium ml-auto"
+            className="text-xs px-3 py-1 rounded font-medium ml-auto order-6"
             style={{ background: 'var(--c-accent)', color: 'white' }}
           >
             Scout Batch
           </button>
         )}
 
-        <span className="text-xs ml-auto" style={{ color: 'var(--c-muted)' }}>
+        <span className="text-xs ml-auto order-6" style={{ color: 'var(--c-muted)' }}>
           {data ? `${data.total} candidates` : '…'} · {selectedBatch.length}/{maxBatch} selected
         </span>
 
         <div
-          className="w-full text-xs rounded-lg border px-3 py-2 order-last"
+          className="w-full text-xs rounded-lg border px-3 py-2 order-7"
           style={{
             borderColor: 'rgba(124,58,237,0.28)',
             background: 'linear-gradient(90deg, rgba(124,58,237,0.1), rgba(30,41,59,0.24))',
@@ -721,6 +724,9 @@ export function ScoutQueue() {
           </Link>
           .
         </div>
+
+        <div className="w-full order-3" />
+        <div className="w-full order-5" />
       </div>
       {(batchUiError || batchResultMsg) && (
         <div className="px-6 py-2 text-xs" style={{ color: batchUiError ? '#f87171' : '#8b87aa' }}>

@@ -140,14 +140,14 @@ export function LibraryFilterBar({
       )}
 
       <h1
-        className="text-base font-semibold shrink-0 flex items-center gap-2 w-full sm:w-auto"
+        className="text-base font-semibold shrink-0 flex items-center gap-2 w-full sm:w-auto order-1"
         style={{ color: 'var(--c-text)' }}
       >
         <LibraryIcon size={17} style={{ color: 'var(--c-accent)' }} />
         Library
       </h1>
 
-      <div className="relative w-full sm:w-auto">
+      <div className="relative w-full sm:w-auto order-1">
         <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2" style={{ color: 'var(--c-muted)' }} />
         <input
           type="text"
@@ -168,7 +168,7 @@ export function LibraryFilterBar({
 
       <div
         ref={genreFilterRef}
-        className="relative flex flex-wrap items-center gap-2 text-xs px-2 py-1 rounded-lg border w-full xl:w-auto"
+        className="relative flex flex-wrap items-center gap-2 text-xs px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
         style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}
       >
         <span
@@ -233,7 +233,7 @@ export function LibraryFilterBar({
       </div>
 
       <div
-        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full xl:w-auto"
+        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
         style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
       >
         <span
@@ -260,7 +260,7 @@ export function LibraryFilterBar({
       </div>
 
       <div
-        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)]"
+        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)] order-4"
         style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
       >
         <span
@@ -345,7 +345,7 @@ export function LibraryFilterBar({
       </div>
 
       <div
-        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)]"
+        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)] order-4"
         style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}
       >
         <span
@@ -404,7 +404,7 @@ export function LibraryFilterBar({
 
       <div
         ref={tagFilterRef}
-        className="relative flex flex-wrap items-center gap-2 text-xs px-2 py-1 rounded-lg border w-full xl:w-auto"
+        className="relative flex flex-wrap items-center gap-2 text-xs px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
         style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}
       >
         <span
@@ -469,7 +469,7 @@ export function LibraryFilterBar({
       </div>
 
       <div
-        className="flex flex-wrap items-center gap-2 px-1 py-1 w-full xl:w-auto"
+        className="flex flex-wrap items-center gap-2 px-1 py-1 w-full xl:w-auto order-2"
         style={{ background: 'transparent' }}
       >
         <label
@@ -500,7 +500,7 @@ export function LibraryFilterBar({
         </label>
       </div>
 
-      <div className="flex items-center gap-1.5 text-xs ml-auto" style={{ color: 'var(--c-muted)' }}>
+      <div className="flex items-center gap-1.5 text-xs ml-auto order-6" style={{ color: 'var(--c-muted)' }}>
         <span>Show</span>
         <select
           value={showAll ? 'all' : String(limit)}
@@ -521,16 +521,16 @@ export function LibraryFilterBar({
         <button
           type="button"
           onClick={onResetView}
-          className="text-xs px-2 py-1 rounded border font-semibold"
+          className="text-xs px-2 py-1 rounded border font-semibold order-6"
           style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
-          title="Reset all filters, sort, and page to defaults"
+          title="Reset active filters and keep the current page-size preference"
         >
-          reset view
+          reset filters
         </button>
       )}
 
       <span
-        className="text-xs flex flex-wrap items-center gap-2 w-full xl:w-auto xl:ml-auto"
+        className="text-xs flex flex-wrap items-center gap-2 w-full xl:w-auto xl:ml-auto order-6"
         style={{ color: 'var(--c-muted)' }}
       >
         {av1CompatOnly && av1CompatRelevant && (
@@ -606,6 +606,9 @@ export function LibraryFilterBar({
           </>
         ) : null}
       </span>
+
+      <div className="w-full order-3" />
+      <div className="w-full order-5" />
     </div>
   );
 }

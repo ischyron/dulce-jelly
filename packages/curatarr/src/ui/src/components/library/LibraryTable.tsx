@@ -134,8 +134,9 @@ export function LibraryTable({
                 content={
                   <div className="space-y-2">
                     <div className="font-semibold">Status dot guide</div>
+                    <p className="text-[11px] opacity-90">Left dot = scan. Right dot = Jellyfin.</p>
                     <p className="text-[11px] opacity-90">
-                      Two dots are shown per movie: left = scan health, right = Jellyfin match state.
+                      Tip: use <span className="font-semibold">Jellyfin Sync Needed</span> for unmatched movies.
                     </p>
                     <div className="text-[11px] rounded border p-2" style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
                       <div className="font-semibold mb-1">Left dot (Scan)</div>
@@ -215,9 +216,6 @@ export function LibraryTable({
                         </tbody>
                       </table>
                     </div>
-                    <p className="text-[11px] opacity-90">
-                      Tip: use <span className="font-semibold">Jellyfin Sync Needed</span> to list unmatched movies.
-                    </p>
                   </div>
                 }
               />

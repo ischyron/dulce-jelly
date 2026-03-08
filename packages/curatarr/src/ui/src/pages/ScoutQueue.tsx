@@ -308,17 +308,6 @@ export function ScoutQueue() {
           Scout Queue
         </h1>
 
-        <div
-          className="text-xs rounded-lg border px-2 py-1"
-          style={{ borderColor: 'var(--c-border)', color: 'var(--c-muted)' }}
-        >
-          Pre-sorted queue from Scout minimum qualifiers.
-          <Link to="/settings/scout" className="ml-1 underline" style={{ color: '#c4b5fd' }}>
-            Adjust in Settings → Scout
-          </Link>
-          .
-        </div>
-
         <div className="relative">
           <input
             type="text"
@@ -697,6 +686,21 @@ export function ScoutQueue() {
         <span className="ml-auto text-xs" style={{ color: 'var(--c-muted)' }}>
           {data ? `${data.total} candidates` : '…'} · {selectedBatch.length}/{maxBatch} selected
         </span>
+
+        <div
+          className="w-full text-xs rounded-lg border px-3 py-2 order-last"
+          style={{
+            borderColor: 'rgba(124,58,237,0.28)',
+            background: 'linear-gradient(90deg, rgba(124,58,237,0.1), rgba(30,41,59,0.24))',
+            color: '#cfc8ef',
+          }}
+        >
+          Scout is a pre-sorted queue based on minimum qualifiers.
+          <Link to="/settings/scout" className="ml-1 font-semibold underline" style={{ color: '#ddd6fe' }}>
+            Adjust thresholds in Settings → Scout
+          </Link>
+          .
+        </div>
       </div>
       {(batchUiError || batchResultMsg) && (
         <div className="px-6 py-2 text-xs" style={{ color: batchUiError ? '#f87171' : '#8b87aa' }}>

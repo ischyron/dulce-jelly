@@ -19,6 +19,17 @@
 
 ## TODO Items
 
+- [DONE] ~~Reframe Verify as budgeted random-sampling deep check, add per-file budget control (30s-1h, localStorage), and fix clear-count accuracy to report completed results instead of pending reservations.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: verify runtime now uses budgeted random sampling (`30..3600s`) with stratified random windows and strict per-file budget timeout; `/api/verify/start` accepts `budgetSeconds`; Verify UI renamed to `Deep Check via Random Sampling`, includes budget input persisted in localStorage and reused for single-file recheck; clear API now returns `{ cleared, clearedPending, clearedTotal }` so user-facing `cleared` count reflects completed result rows (`pass/fail/error`) rather than chunked `pending` reservations
+  - Unit/interaction: `npm run build && npm run test` -> pass (58/58)
+  - E2E: `npm run test:e2e` -> pass (47/47)
+  - Chrome MCP: flow exercised: `http://dulce.local:3270/verify` after deploy; expected: new heading/description + budget control visible and bounded; actual: page shows `Deep Check via Random Sampling`, budget input present with min `30`, max `3600`, default `30`, and updated sampling guidance text; pass
+  - Git: `2c61c80`, push ok (`main -> main`)
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok (container rebuilt/restarted)
+  - Date: 2026-03-08
+
 - [DONE] ~~Verify failures diagnostics UX: add expandable/copyable detailed errors + curated impact summary, and clear all verification states including pass rows.~~
   Evidence:
   - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled

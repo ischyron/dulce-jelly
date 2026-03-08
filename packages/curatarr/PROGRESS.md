@@ -19,6 +19,39 @@
 
 ## TODO Items
 
+- [DONE] ~~Verify failures diagnostics UX: add expandable/copyable detailed errors + curated impact summary, and clear all verification states including pass rows.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: `/api/verify/clear` now resets all non-null verification states (`pass`/`fail`/`error`/`pending`) via `clearVerifyErrors`; Verify UI now includes a top-level clear button, per-row `Details` expansion with full raw diagnostics textarea, curated impact list (flag/error pattern mapping), and copy-to-clipboard with fallback for non-secure origins (`execCommand('copy')`)
+  - Unit/interaction: `npm run build:server && npm run test` -> pass (58/58)
+  - E2E: `npm run test:e2e` -> pass (47/47)
+  - Chrome MCP: flow exercised: `http://dulce.local:3270/verify` -> open failure row details, verify curated impact + raw diagnostics, click `Copy` (status: `Diagnostics copied to clipboard.`), click `Clear Verification Data`; expected: details visible/copyable and clear resets status counts including pass; actual: details panel rendered correctly, copy succeeded with confirmation, status cards changed to `Passed=0 Failed=0 Errors=0` and failures table disappeared; pass
+  - Git: `f52b373`, push ok (`main -> main`)
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok; pre-push pipeline docker build+deploy -> ok
+  - Date: 2026-03-08
+
+- [DONE] ~~Deep verify queue ramps through batches until the user stops it (Cisco requested continuous runs).~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: `CuratDb.pickFilesForVerify`/`reserveVerifyFilesById` reserve batches as `pending`, `startVerifyQueue` now refills the worker queue with new chunks (chunk size 200) and only stops when no more work or `cancel`; queue workers emit `file_start` per file and keep pulling until signal abort, so the 3-worker job never idles after the first chunk
+  - Unit/interaction: `npm run build:server && npm run test` -> pass (58/58)
+  - E2E: `npm run test:e2e` -> pass (47/47)
+  - Chrome MCP: N/A (backend behavior only)
+  - Git: `93046d8`, push ok (`main -> main`)
+  - Deploy: pre-push pipeline `docker compose build curatarr` + `docker compose up -d curatarr` -> ok
+  - Date: 2026-03-08
+
+- [DONE] ~~Replace the full five-minute deep verify decode with the new quick-check pipeline that samples (<20 s) and only flags prioritized errors.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: `deepCheck` now limits `ffmpeg` to 20 seconds (`QUICK_CHECK_SECONDS`), enforces a 1-minute timeout and curates decode/mux regexes for actionable issues; removed GOP analysis to keep the operation fast; docs updated in `docs/technical/verify-diagnostic-classification.md`
+  - Unit/interaction: `npm run build:server && npm run test` -> pass (58/58)
+  - E2E: `npm run test:e2e` -> pass (47/47)
+  - Chrome MCP: N/A (backend change)
+  - Git: `93046d8` (quick check committed together with queue change)
+  - Deploy: pre-push pipeline `docker compose build curatarr` + `docker compose up -d curatarr` -> ok
+  - Date: 2026-03-08
+
 - [DONE] ~~Verify UX: add clear-errors action, add per-row recheck, disable recheck while verify is running, and block second-tab starts with explicit alert; tighten deep-verify diagnostics to actionable flags.~~
   Evidence:
   - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled

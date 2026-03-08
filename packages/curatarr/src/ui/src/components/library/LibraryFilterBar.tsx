@@ -144,7 +144,7 @@ export function LibraryFilterBar({
 }: Props) {
   return (
     <div
-      className="sticky top-0 z-10 px-6 py-3 border-b flex flex-wrap items-start gap-2 lg:gap-3"
+      className="sticky top-0 z-10 px-6 py-3 border-b flex flex-wrap items-center gap-2 lg:gap-3"
       style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
     >
       {isFetching && (
@@ -154,7 +154,7 @@ export function LibraryFilterBar({
       )}
 
       <h1
-        className="text-base font-semibold shrink-0 flex items-center gap-2 w-full sm:w-auto order-1"
+        className="text-base font-semibold shrink-0 flex items-center gap-2 h-8 w-full sm:w-auto order-1 self-center"
         style={{ color: 'var(--c-text)' }}
       >
         <LibraryIcon size={17} style={{ color: 'var(--c-accent)' }} />
@@ -185,19 +185,8 @@ export function LibraryFilterBar({
         label={FILTER_TOKENS.genre.label}
         className="relative text-xs w-full xl:w-auto order-2"
         style={{ color: 'var(--c-muted)' }}
-        role="button"
-        tabIndex={0}
-        aria-haspopup="listbox"
-        aria-expanded={genreFilterOpen}
-        aria-label="Toggle genre filter menu"
         onClick={(e) => {
           if (isSurfaceToggleTarget(e.target)) setGenreFilterOpen((v) => !v);
-        }}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-            e.preventDefault();
-            setGenreFilterOpen((v) => !v);
-          }
         }}
       >
         <button
@@ -431,19 +420,8 @@ export function LibraryFilterBar({
         labelTone="pink"
         className="relative text-xs w-full xl:w-auto order-2"
         style={{ color: 'var(--c-muted)' }}
-        role="button"
-        tabIndex={0}
-        aria-haspopup="listbox"
-        aria-expanded={tagFilterOpen}
-        aria-label="Toggle tag filter menu"
         onClick={(e) => {
           if (isSurfaceToggleTarget(e.target)) setTagFilterOpen((v) => !v);
-        }}
-        onKeyDown={(e) => {
-          if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-            e.preventDefault();
-            setTagFilterOpen((v) => !v);
-          }
         }}
       >
         <button

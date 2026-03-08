@@ -321,11 +321,11 @@ export function ScoutQueue() {
     <div className="flex flex-col h-full">
       {/* Filters */}
       <div
-        className="px-6 py-3 border-b flex flex-wrap items-start gap-2 lg:gap-3 shrink-0"
+        className="px-6 py-3 border-b flex flex-wrap items-center gap-2 lg:gap-3 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
         <h1
-          className="font-semibold flex items-center gap-2 w-full sm:w-auto order-1"
+          className="text-base font-semibold shrink-0 flex items-center gap-2 h-8 w-full sm:w-auto order-1 self-center"
           style={{ color: 'var(--c-text)' }}
         >
           <Bot size={17} style={{ color: 'var(--c-accent)' }} />
@@ -344,7 +344,7 @@ export function ScoutQueue() {
           />
         </div>
 
-        <FilterSection label="Scout Minimums" className="text-sm w-full xl:w-auto order-2">
+        <FilterSection label="Scout Minimums" className="text-xs w-full xl:w-auto order-2">
           <label
             className="text-xs flex items-center gap-1"
             htmlFor="scout-min-critic-score"
@@ -388,20 +388,9 @@ export function ScoutQueue() {
         <FilterSection
           ref={genreRef}
           label={FILTER_TOKENS.genre.label}
-          className="relative text-sm w-full xl:w-auto order-2"
-          role="button"
-          tabIndex={0}
-          aria-haspopup="listbox"
-          aria-expanded={genreOpen}
-          aria-label="Toggle genre filter menu"
+          className="relative text-xs w-full xl:w-auto order-2"
           onClick={(e) => {
             if (isSurfaceToggleTarget(e.target)) setGenreOpen((v) => !v);
-          }}
-          onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-              e.preventDefault();
-              setGenreOpen((v) => !v);
-            }
           }}
         >
           <button
@@ -409,7 +398,7 @@ export function ScoutQueue() {
             onClick={() => setGenreOpen((v) => !v)}
             aria-expanded={genreOpen}
             aria-haspopup="listbox"
-            className="px-2 py-1 rounded text-sm focus:outline-none"
+            className="px-2 py-1 rounded text-xs focus:outline-none"
             style={{
               background: 'var(--c-surface)',
               border: '1px solid var(--c-border)',
@@ -482,20 +471,9 @@ export function ScoutQueue() {
           ref={tagRef}
           label={FILTER_TOKENS.tags.label}
           labelTone="pink"
-          className="relative text-sm w-full xl:w-auto order-2"
-          role="button"
-          tabIndex={0}
-          aria-haspopup="listbox"
-          aria-expanded={tagOpen}
-          aria-label="Toggle tag filter menu"
+          className="relative text-xs w-full xl:w-auto order-2"
           onClick={(e) => {
             if (isSurfaceToggleTarget(e.target)) setTagOpen((v) => !v);
-          }}
-          onKeyDown={(e) => {
-            if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
-              e.preventDefault();
-              setTagOpen((v) => !v);
-            }
           }}
         >
           <button
@@ -503,7 +481,7 @@ export function ScoutQueue() {
             onClick={() => setTagOpen((v) => !v)}
             aria-expanded={tagOpen}
             aria-haspopup="listbox"
-            className="px-2 py-1 rounded text-sm focus:outline-none"
+            className="px-2 py-1 rounded text-xs focus:outline-none"
             style={{
               background: 'var(--c-surface)',
               border: '1px solid var(--c-border)',
@@ -561,7 +539,7 @@ export function ScoutQueue() {
           )}
         </FilterSection>
 
-        <FilterSection label="Resolution" className="text-sm w-full xl:w-auto order-2">
+        <FilterSection label="Resolution" className="text-xs w-full xl:w-auto order-2">
           {RESOLUTION_OPTIONS.map((item) => (
             <button
               key={item}
@@ -606,7 +584,7 @@ export function ScoutQueue() {
           </label>
         </FilterSection>
 
-        <FilterSection label={FILTER_TOKENS.video.label} className="text-sm w-fit max-w-full order-4">
+        <FilterSection label={FILTER_TOKENS.video.label} className="text-xs w-fit max-w-full order-4">
           {CODEC_OPTIONS.map((item) => (
             <button
               key={item}
@@ -662,11 +640,11 @@ export function ScoutQueue() {
           </label>
         </FilterSection>
 
-        <FilterSection label={FILTER_TOKENS.audio.label} className="text-sm w-fit max-w-full order-4">
+        <FilterSection label={FILTER_TOKENS.audio.label} className="text-xs w-fit max-w-full order-4">
           <select
             value={audioFormat}
             onChange={(e) => patch({ audioFormat: e.target.value || null })}
-            className="px-2 py-1 rounded text-sm focus:outline-none"
+            className="px-2 py-1 rounded text-xs focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           >
             <option value="">{FILTER_TOKENS.audio.formatPlaceholder}</option>
@@ -679,7 +657,7 @@ export function ScoutQueue() {
           <select
             value={audioLayout}
             onChange={(e) => patch({ audioLayout: e.target.value || null })}
-            className="px-2 py-1 rounded text-sm focus:outline-none"
+            className="px-2 py-1 rounded text-xs focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           >
             <option value="">{FILTER_TOKENS.audio.channelsPlaceholder}</option>

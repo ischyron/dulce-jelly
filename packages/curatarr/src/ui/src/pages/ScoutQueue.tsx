@@ -15,7 +15,16 @@ import {
 import { BatchConfirmModal } from '../components/scout-queue/BatchConfirmModal';
 import { CompatTag } from '../components/scout-queue/CompatTag';
 import { FilterSection } from '../components/shared/FilterSection';
+import { FILTER_TOKENS } from '../components/shared/filterTokens';
 import { getCodecDescription } from '../components/shared/utils';
+
+function isSurfaceToggleTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return true;
+  return (
+    target.closest('button, input, select, textarea, a, label, [role="button"], [role="link"], [role="checkbox"]') ===
+    null
+  );
+}
 
 function formatSize(bytes: number | null): string {
   if (!bytes) return '—';
@@ -376,7 +385,25 @@ export function ScoutQueue() {
           />
         </FilterSection>
 
-        <FilterSection ref={genreRef} label="Genre" className="relative text-sm w-full xl:w-auto order-2">
+        <FilterSection
+          ref={genreRef}
+          label={FILTER_TOKENS.genre.label}
+          className="relative text-sm w-full xl:w-auto order-2"
+          role="button"
+          tabIndex={0}
+          aria-haspopup="listbox"
+          aria-expanded={genreOpen}
+          aria-label="Toggle genre filter menu"
+          onClick={(e) => {
+            if (isSurfaceToggleTarget(e.target)) setGenreOpen((v) => !v);
+          }}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+              e.preventDefault();
+              setGenreOpen((v) => !v);
+            }
+          }}
+        >
           <button
             type="button"
             onClick={() => setGenreOpen((v) => !v)}
@@ -389,7 +416,7 @@ export function ScoutQueue() {
               color: selectedGenres.length > 0 ? 'var(--c-accent)' : 'var(--c-muted)',
             }}
           >
-            {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : 'Select genres'}
+            {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : FILTER_TOKENS.genre.select}
           </button>
           {selectedGenres.length > 1 && (
             <label className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide cursor-pointer">
@@ -409,7 +436,7 @@ export function ScoutQueue() {
             >
               {(genresData?.genres ?? []).length === 0 && (
                 <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                  No genres available.
+                  {FILTER_TOKENS.genre.noOptions}
                 </div>
               )}
               {(genresData?.genres ?? []).map((g) => (
@@ -451,7 +478,26 @@ export function ScoutQueue() {
           )}
         </FilterSection>
 
-        <FilterSection ref={tagRef} label="Tags" labelTone="pink" className="relative text-sm w-full xl:w-auto order-2">
+        <FilterSection
+          ref={tagRef}
+          label={FILTER_TOKENS.tags.label}
+          labelTone="pink"
+          className="relative text-sm w-full xl:w-auto order-2"
+          role="button"
+          tabIndex={0}
+          aria-haspopup="listbox"
+          aria-expanded={tagOpen}
+          aria-label="Toggle tag filter menu"
+          onClick={(e) => {
+            if (isSurfaceToggleTarget(e.target)) setTagOpen((v) => !v);
+          }}
+          onKeyDown={(e) => {
+            if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+              e.preventDefault();
+              setTagOpen((v) => !v);
+            }
+          }}
+        >
           <button
             type="button"
             onClick={() => setTagOpen((v) => !v)}
@@ -464,7 +510,7 @@ export function ScoutQueue() {
               color: selectedTags.length > 0 ? 'var(--c-accent)' : 'var(--c-muted)',
             }}
           >
-            {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
+            {selectedTags.length > 0 ? `${selectedTags.length} selected` : FILTER_TOKENS.tags.select}
           </button>
           {tagOpen && (
             <div
@@ -473,7 +519,7 @@ export function ScoutQueue() {
             >
               {(tagsData?.tags ?? []).length === 0 && (
                 <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                  No tags available.
+                  {FILTER_TOKENS.tags.noOptions}
                 </div>
               )}
               {(tagsData?.tags ?? []).map((tag) => (
@@ -560,7 +606,7 @@ export function ScoutQueue() {
           </label>
         </FilterSection>
 
-        <FilterSection label="Video" className="text-sm w-fit max-w-full order-4">
+        <FilterSection label={FILTER_TOKENS.video.label} className="text-sm w-fit max-w-full order-4">
           {CODEC_OPTIONS.map((item) => (
             <button
               key={item}
@@ -594,7 +640,7 @@ export function ScoutQueue() {
               onChange={(e) => patch({ dv: e.target.checked ? '1' : null })}
               className="accent-violet-600"
             />
-            Dolby Vision
+            {FILTER_TOKENS.video.dv}
           </label>
           <label className="inline-flex items-center gap-1 cursor-pointer" style={{ color: 'var(--c-muted)' }}>
             <input
@@ -603,7 +649,7 @@ export function ScoutQueue() {
               onChange={(e) => patch({ av1Compat: e.target.checked ? '1' : null, codec: null })}
               className="accent-violet-600"
             />
-            AV1 (compat risk)
+            {FILTER_TOKENS.video.av1Compat}
           </label>
           <label className="inline-flex items-center gap-1 cursor-pointer" style={{ color: 'var(--c-muted)' }}>
             <input
@@ -612,18 +658,18 @@ export function ScoutQueue() {
               onChange={(e) => patch({ legacy: e.target.checked ? '1' : null })}
               className="accent-violet-600"
             />
-            Legacy codec
+            {FILTER_TOKENS.video.legacy}
           </label>
         </FilterSection>
 
-        <FilterSection label="Audio" className="text-sm w-fit max-w-full order-4">
+        <FilterSection label={FILTER_TOKENS.audio.label} className="text-sm w-fit max-w-full order-4">
           <select
             value={audioFormat}
             onChange={(e) => patch({ audioFormat: e.target.value || null })}
             className="px-2 py-1 rounded text-sm focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           >
-            <option value="">Audio format</option>
+            <option value="">{FILTER_TOKENS.audio.formatPlaceholder}</option>
             {AUDIO_FORMAT_OPTIONS.map((item) => (
               <option key={item} value={item}>
                 {item.toUpperCase()}
@@ -636,7 +682,7 @@ export function ScoutQueue() {
             className="px-2 py-1 rounded text-sm focus:outline-none"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           >
-            <option value="">Audio layout</option>
+            <option value="">{FILTER_TOKENS.audio.channelsPlaceholder}</option>
             {AUDIO_LAYOUT_OPTIONS.map((item) => (
               <option key={item} value={item}>
                 {item}
@@ -671,7 +717,7 @@ export function ScoutQueue() {
                 tags: null,
               })
             }
-            className="text-xs px-2 py-1 rounded border font-semibold order-4"
+            className="text-xs leading-none h-6 px-2 rounded border font-semibold inline-flex items-center self-center order-4"
             style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
           >
             Reset filters

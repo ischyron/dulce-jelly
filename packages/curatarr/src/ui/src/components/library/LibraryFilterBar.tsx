@@ -1,6 +1,7 @@
 import { Library as LibraryIcon, Search } from 'lucide-react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
 import { FilterSection } from '../shared/FilterSection';
+import { FILTER_TOKENS } from '../shared/filterTokens';
 import { getCodecDescription } from '../shared/utils';
 import { formatTotalSize } from './helpers';
 import {
@@ -10,6 +11,14 @@ import {
   PAGE_SIZE_OPTIONS,
   RESOLUTION_OPTIONS,
 } from './types';
+
+function isSurfaceToggleTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return true;
+  return (
+    target.closest('button, input, select, textarea, a, label, [role="button"], [role="link"], [role="checkbox"]') ===
+    null
+  );
+}
 
 interface Props {
   isFetching: boolean;
@@ -173,9 +182,23 @@ export function LibraryFilterBar({
 
       <FilterSection
         ref={genreFilterRef}
-        label="Genre"
+        label={FILTER_TOKENS.genre.label}
         className="relative text-xs w-full xl:w-auto order-2"
         style={{ color: 'var(--c-muted)' }}
+        role="button"
+        tabIndex={0}
+        aria-haspopup="listbox"
+        aria-expanded={genreFilterOpen}
+        aria-label="Toggle genre filter menu"
+        onClick={(e) => {
+          if (isSurfaceToggleTarget(e.target)) setGenreFilterOpen((v) => !v);
+        }}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+            e.preventDefault();
+            setGenreFilterOpen((v) => !v);
+          }
+        }}
       >
         <button
           type="button"
@@ -185,7 +208,7 @@ export function LibraryFilterBar({
           className="px-2 py-1 text-xs rounded border"
           style={{ borderColor: 'var(--c-border)', color: selectedGenres.length ? '#c4b5fd' : 'var(--c-muted)' }}
         >
-          {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : 'Select genres'}
+          {selectedGenres.length > 0 ? `${selectedGenres.length} selected` : FILTER_TOKENS.genre.select}
         </button>
         {selectedGenres.length > 1 && (
           <label className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide cursor-pointer">
@@ -205,7 +228,7 @@ export function LibraryFilterBar({
           >
             {genres.length === 0 && (
               <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                No genres available.
+                {FILTER_TOKENS.genre.noOptions}
               </div>
             )}
             {genres.map((genre) => (
@@ -261,7 +284,7 @@ export function LibraryFilterBar({
         ))}
       </FilterSection>
 
-      <FilterSection label="Video" className="w-fit max-w-full order-4">
+      <FilterSection label={FILTER_TOKENS.video.label} className="w-fit max-w-full order-4">
         {CODEC_OPTIONS.map((item) => (
           <button
             key={item}
@@ -275,7 +298,7 @@ export function LibraryFilterBar({
             }
             title={getCodecDescription(item) ?? item}
           >
-            {item}
+            {item.toUpperCase()}
           </button>
         ))}
         <span style={{ color: 'var(--c-border)' }}>·</span>
@@ -305,7 +328,7 @@ export function LibraryFilterBar({
             onChange={(e) => onToggleDvOnly(e.target.checked)}
             className="accent-violet-600"
           />
-          DV
+          {FILTER_TOKENS.video.dv}
         </label>
 
         <label
@@ -319,7 +342,7 @@ export function LibraryFilterBar({
             onChange={(e) => onToggleAv1CompatOnly(e.target.checked)}
             className="accent-violet-600"
           />
-          AV1 compat
+          {FILTER_TOKENS.video.av1Compat}
         </label>
 
         <label
@@ -333,11 +356,15 @@ export function LibraryFilterBar({
             onChange={(e) => onToggleLegacyOnly(e.target.checked)}
             className="accent-violet-600"
           />
-          Legacy
+          {FILTER_TOKENS.video.legacy}
         </label>
       </FilterSection>
 
-      <FilterSection label="Audio" className="w-fit max-w-full order-4" style={{ color: 'var(--c-muted)' }}>
+      <FilterSection
+        label={FILTER_TOKENS.audio.label}
+        className="w-fit max-w-full order-4"
+        style={{ color: 'var(--c-muted)' }}
+      >
         <select
           value={audioFormat}
           onChange={(e) => onAudioFormatChange(e.target.value)}
@@ -354,7 +381,7 @@ export function LibraryFilterBar({
               : 'Primary audio format filter'
           }
         >
-          <option value="">Format</option>
+          <option value="">{FILTER_TOKENS.audio.formatPlaceholder}</option>
           {AUDIO_FORMAT_OPTIONS.map((format) => (
             <option key={format} value={format}>
               {format.toUpperCase()}
@@ -377,7 +404,7 @@ export function LibraryFilterBar({
               : 'Primary audio channel layout filter'
           }
         >
-          <option value="">Channels</option>
+          <option value="">{FILTER_TOKENS.audio.channelsPlaceholder}</option>
           {AUDIO_LAYOUT_OPTIONS.map((layout) => (
             <option key={layout} value={layout}>
               {layout}
@@ -390,7 +417,7 @@ export function LibraryFilterBar({
         <button
           type="button"
           onClick={onResetView}
-          className="text-xs px-2 py-1 rounded border font-semibold order-4"
+          className="text-xs leading-none h-6 px-2 rounded border font-semibold inline-flex items-center self-center order-4"
           style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
           title="Reset active filters and keep the current page-size preference"
         >
@@ -400,10 +427,24 @@ export function LibraryFilterBar({
 
       <FilterSection
         ref={tagFilterRef}
-        label="Tag"
+        label={FILTER_TOKENS.tags.label}
         labelTone="pink"
         className="relative text-xs w-full xl:w-auto order-2"
         style={{ color: 'var(--c-muted)' }}
+        role="button"
+        tabIndex={0}
+        aria-haspopup="listbox"
+        aria-expanded={tagFilterOpen}
+        aria-label="Toggle tag filter menu"
+        onClick={(e) => {
+          if (isSurfaceToggleTarget(e.target)) setTagFilterOpen((v) => !v);
+        }}
+        onKeyDown={(e) => {
+          if ((e.key === 'Enter' || e.key === ' ') && e.target === e.currentTarget) {
+            e.preventDefault();
+            setTagFilterOpen((v) => !v);
+          }
+        }}
       >
         <button
           type="button"
@@ -413,7 +454,7 @@ export function LibraryFilterBar({
           className="px-2 py-1 text-xs rounded border"
           style={{ borderColor: 'var(--c-border)', color: selectedTags.length ? '#c4b5fd' : 'var(--c-muted)' }}
         >
-          {selectedTags.length > 0 ? `${selectedTags.length} selected` : 'Select tags'}
+          {selectedTags.length > 0 ? `${selectedTags.length} selected` : FILTER_TOKENS.tags.select}
         </button>
         {tagFilterOpen && (
           <div
@@ -422,7 +463,7 @@ export function LibraryFilterBar({
           >
             {tags.length === 0 && (
               <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                No tags available.
+                {FILTER_TOKENS.tags.noOptions}
               </div>
             )}
             {tags.map((tag) => (

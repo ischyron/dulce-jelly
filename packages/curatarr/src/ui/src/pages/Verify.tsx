@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, CheckCircle2, Loader2, RotateCcw, ShieldCheck, Square, Trash2, XCircle } from 'lucide-react';
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -133,6 +133,7 @@ function buildCuratedIssues(errors: string[], flags: QualityFlag[]): CuratedIssu
 
 export function Verify() {
   const { t } = useTranslation('verify');
+  const queryClient = useQueryClient();
   const [concurrency, setConcurrency] = useState(3);
   const [budgetSeconds, setBudgetSeconds] = useState<number>(() => {
     if (typeof window === 'undefined') return DEFAULT_VERIFY_BUDGET_SECONDS;
@@ -200,6 +201,8 @@ export function Verify() {
       setStatusMsg(d.cancelled ? t('controls.cancelled') : t('controls.complete'));
       refetchStatus();
       refetchFailures();
+      void queryClient.invalidateQueries({ queryKey: ['movies'] });
+      void queryClient.invalidateQueries({ queryKey: ['movie'] });
       es.close();
     });
 
@@ -208,7 +211,7 @@ export function Verify() {
       setRunning(false);
       es.close();
     });
-  }, [refetchFailures, refetchStatus, t]);
+  }, [queryClient, refetchFailures, refetchStatus, t]);
 
   // Sync running state from server on mount / status refresh.
   useEffect(() => {
@@ -255,7 +258,12 @@ export function Verify() {
     try {
       const res = await api.verifyClear();
       setStatusMsg(t('failures.cleared', { count: res.cleared }));
-      await Promise.all([refetchStatus(), refetchFailures()]);
+      await Promise.all([
+        refetchStatus(),
+        refetchFailures(),
+        queryClient.invalidateQueries({ queryKey: ['movies'] }),
+        queryClient.invalidateQueries({ queryKey: ['movie'] }),
+      ]);
     } catch (err) {
       setStatusMsg((err as Error).message);
     } finally {

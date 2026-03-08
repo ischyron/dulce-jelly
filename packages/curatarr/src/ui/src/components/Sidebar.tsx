@@ -34,9 +34,8 @@ export function Sidebar() {
       {/* Wordmark */}
       <Link
         to="/"
-        className="flex items-center gap-2.5 px-4 py-5 border-b hover:opacity-80 transition-opacity"
+        className="flex items-center gap-2.5 px-4 py-5 hover:opacity-80 transition-opacity"
         aria-label={t('brand.name')}
-        style={{ borderColor: 'var(--c-border)' }}
       >
         <img src="/logo.svg" alt={t('brand.logoAlt')} width={24} height={24} />
         <span
@@ -46,6 +45,14 @@ export function Sidebar() {
           {t('brand.name')}
         </span>
       </Link>
+      <div
+        className="mx-4"
+        style={{
+          height: '1px',
+          width: '70%',
+          background: 'linear-gradient(to right, var(--c-border), transparent)',
+        }}
+      />
 
       {/* Nav */}
       <nav className="flex-1 py-3" aria-label="Primary navigation">

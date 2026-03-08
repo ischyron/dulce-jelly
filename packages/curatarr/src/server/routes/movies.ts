@@ -347,7 +347,7 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
     }
 
     const releaseGroups = Array.from(counts.entries())
-      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
+      .sort((a, b) => a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
       .map(([g]) => g);
 
     return c.json({ releaseGroups });

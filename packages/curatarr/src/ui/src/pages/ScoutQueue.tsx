@@ -399,9 +399,15 @@ export function ScoutQueue() {
               id="scout-min-critic-score"
               type="number"
               min={0}
-              max={100}
+              max={99}
               value={effMinCritic}
               onChange={(e) => patch({ criticScoreMin: e.target.value, minCritic: null })}
+              onBlur={(e) => {
+                const parsed = Number.parseFloat(e.target.value);
+                if (!Number.isFinite(parsed)) return;
+                const clamped = Math.max(0, Math.min(99, parsed));
+                if (clamped !== parsed) patch({ criticScoreMin: String(clamped), minCritic: null });
+              }}
               className="w-16 px-2 py-1 rounded text-sm focus:outline-none"
               style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
             />
@@ -460,7 +466,7 @@ export function ScoutQueue() {
           )}
           {genreOpen && (
             <div
-              className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 overflow-auto rounded-lg border p-2 space-y-1"
               style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
             >
               {(genresData?.genres ?? []).length === 0 && (
@@ -550,7 +556,7 @@ export function ScoutQueue() {
           </button>
           {releaseGroupOpen && (
             <div
-              className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[14rem] w-max max-w-[24rem] max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[14rem] w-max max-w-[24rem] overflow-auto rounded-lg border p-2 space-y-1"
               style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
             >
               {(releaseGroupsData?.releaseGroups ?? []).length === 0 && (
@@ -622,7 +628,7 @@ export function ScoutQueue() {
           </button>
           {tagOpen && (
             <div
-              className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+              className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 overflow-auto rounded-lg border p-2 space-y-1"
               style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
             >
               {(tagsData?.tags ?? []).length === 0 && (

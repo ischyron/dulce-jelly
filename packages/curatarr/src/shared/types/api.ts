@@ -228,6 +228,17 @@ export interface ScoutSearchBatchResponse {
   results: ScoutBatchItem[];
 }
 
+export interface ScoutSendToSabRequest {
+  title: string;
+  protocol: 'torrent' | 'usenet' | 'unknown';
+  downloadUrl: string;
+}
+
+export interface ScoutSendToSabResponse {
+  queued: boolean;
+  nzoIds: string[];
+}
+
 export interface ScoutAutoStatusResponse {
   running: boolean;
   lastRun: {

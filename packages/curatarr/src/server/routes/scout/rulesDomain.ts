@@ -7,18 +7,25 @@ function isScoutRuleCategory(value: unknown): value is ScoutRuleCategory {
   return typeof value === 'string' && SCOUT_RULE_CATEGORIES.includes(value as ScoutRuleCategory);
 }
 
+function normalizeRegexFlags(raw: unknown, defaultFlags = 'i'): string {
+  const candidate = typeof raw === 'string' ? raw : defaultFlags;
+  const cleaned = candidate.replace(/[^gimsuy]/g, '');
+  return [...new Set(cleaned.split(''))].join('');
+}
+
 export function validateScoutRuleConfig(category: ScoutRuleCategory, config: unknown): string | null {
   if (category === 'scout_custom_cf') {
     const c = (config ?? {}) as Record<string, unknown>;
     const matchType = c.matchType === 'regex' ? 'regex' : c.matchType === 'string' ? 'string' : '';
     const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
     const score = Number(c.score ?? Number.NaN);
+    const appliesTo = c.appliesTo === 'full' ? 'full' : c.appliesTo === 'title' || c.appliesTo == null ? 'title' : '';
     if (!matchType) return 'scout_custom_cf requires matchType: regex|string';
     if (!pattern) return 'scout_custom_cf requires a non-empty pattern';
     if (!Number.isFinite(score)) return 'scout_custom_cf requires numeric score';
+    if (!appliesTo) return 'scout_custom_cf appliesTo must be title|full';
     if (matchType === 'regex') {
-      const flagsRaw = typeof c.flags === 'string' ? c.flags : 'i';
-      const flags = flagsRaw.replace(/[^gimsuy]/g, '');
+      const flags = normalizeRegexFlags(c.flags, 'i');
       try {
         // Validate regex early so scout scoring never crashes at runtime.
         // eslint-disable-next-line no-new
@@ -33,11 +40,12 @@ export function validateScoutRuleConfig(category: ScoutRuleCategory, config: unk
     const c = (config ?? {}) as Record<string, unknown>;
     const matchType = c.matchType === 'regex' ? 'regex' : c.matchType === 'string' ? 'string' : '';
     const pattern = typeof c.pattern === 'string' ? c.pattern.trim() : '';
+    const appliesTo = c.appliesTo === 'full' ? 'full' : c.appliesTo === 'title' || c.appliesTo == null ? 'title' : '';
     if (!matchType) return 'scout_release_blockers requires matchType: regex|string';
     if (!pattern) return 'scout_release_blockers requires a non-empty pattern';
+    if (!appliesTo) return 'scout_release_blockers appliesTo must be title|full';
     if (matchType === 'regex') {
-      const flagsRaw = typeof c.flags === 'string' ? c.flags : 'i';
-      const flags = flagsRaw.includes('i') ? 'i' : '';
+      const flags = normalizeRegexFlags(c.flags, 'i');
       try {
         new RegExp(pattern, flags);
       } catch {

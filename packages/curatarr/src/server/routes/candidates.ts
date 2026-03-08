@@ -13,7 +13,7 @@ function normalizeTag(raw: unknown): string | null {
 export function makeCandidatesRoutes(db: CuratDb): Hono {
   const app = new Hono();
 
-  // GET /api/candidates?criticScoreMin=60&imdbScoreMin=6&maxResolution=1080p&limit=100
+  // GET /api/candidates?criticScoreMin=60&imdbScoreMin=6&resolution=1080p&limit=100
   app.get('/', (c) => {
     const minCriticRaw = c.req.query('criticScoreMin') ?? c.req.query('minCritic');
     const minCommunityRaw = c.req.query('imdbScoreMin') ?? c.req.query('minCommunity');
@@ -29,7 +29,10 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const legacyOnly = c.req.query('legacy') === 'true';
     const noJf = c.req.query('noJf') === 'true';
     const multiOnly = c.req.query('multi') === 'true';
-    const limit = Math.max(1, Math.min(1000, Number.parseInt(c.req.query('limit') ?? '100', 10)));
+    const limitRaw = c.req.query('limit');
+    const all = c.req.query('all') === '1' || (limitRaw ?? '').toLowerCase() === 'all';
+    const parsedLimit = Number.parseInt(limitRaw ?? '100', 10);
+    const limit = all || !Number.isFinite(parsedLimit) ? null : Math.max(1, Math.min(1000, parsedLimit));
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
     const genre = c.req.query('genre') ?? undefined;
     const genres = (genre ?? '')
@@ -80,7 +83,7 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
 
     withScore.sort((a, b) => b.priority_score - a.priority_score);
     const total = withScore.length;
-    const limited = withScore.slice(0, limit);
+    const limited = limit == null ? withScore : withScore.slice(0, limit);
 
     return c.json({ total, candidates: limited });
   });

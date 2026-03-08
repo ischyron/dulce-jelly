@@ -29,6 +29,7 @@ settings:
 
   # Prowlarr
   prowlarrUrl: http://prowlarr:9696
+  sabnzbdUrl: http://sabnzbd:8080
 
   # Scout queue defaults
   scoutPipelineMinCritic: "65"

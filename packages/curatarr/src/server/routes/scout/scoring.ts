@@ -58,6 +58,34 @@ function safeParseJson(s: string): unknown {
   }
 }
 
+function normalizeRegexFlags(raw: unknown, defaultFlags = 'i'): string {
+  const candidate = typeof raw === 'string' ? raw : defaultFlags;
+  const cleaned = candidate.replace(/[^gimsuy]/g, '');
+  return [...new Set(cleaned.split(''))].join('');
+}
+
+function buildRuleTarget(
+  release: Pick<
+    ProwlarrSearchResult,
+    'title' | 'indexer' | 'protocol' | 'size' | 'publishDate' | 'guid' | 'downloadUrl' | 'seeders' | 'peers'
+  >,
+  appliesTo: 'title' | 'full',
+): string {
+  if (appliesTo === 'title') return release.title ?? '';
+  const parts = [
+    release.title ?? '',
+    release.indexer ?? '',
+    release.guid ?? '',
+    release.downloadUrl ?? '',
+    release.publishDate ?? '',
+    release.protocol ?? '',
+    release.size != null ? String(release.size) : '',
+    release.seeders != null ? String(release.seeders) : '',
+    release.peers != null ? String(release.peers) : '',
+  ];
+  return parts.filter((p) => p.length > 0).join('\n');
+}
+
 function intSetting(db: CuratDb, key: string, fallback: number, min: number, max: number): number {
   const raw = Number.parseInt(db.getSetting(key) ?? '', 10);
   if (!Number.isFinite(raw)) return fallback;
@@ -215,8 +243,7 @@ export function loadScoutCustomCfRules(db: CuratDb): ScoutCustomCfRule[] {
     const matchType = cfg.matchType === 'regex' ? 'regex' : 'string';
     const pattern = typeof cfg.pattern === 'string' ? cfg.pattern : '';
     const score = Number(cfg.score ?? 0);
-    const flagsRaw = typeof cfg.flags === 'string' ? cfg.flags : 'i';
-    const flags = flagsRaw.includes('i') ? 'i' : '';
+    const flags = normalizeRegexFlags(cfg.flags, 'i');
     const appliesTo = cfg.appliesTo === 'full' ? 'full' : 'title';
     if (!pattern.trim() || !Number.isFinite(score)) continue;
     out.push({
@@ -239,9 +266,8 @@ export function applyCustomCfRules(
   let delta = 0;
   const reasons: string[] = [];
   const matchedRuleIds: number[] = [];
-  const text = release.title ?? '';
   for (const rule of rules) {
-    const target = rule.appliesTo === 'full' ? text : text;
+    const target = buildRuleTarget(release, rule.appliesTo);
     let matched = false;
     if (rule.matchType === 'regex') {
       try {
@@ -296,7 +322,7 @@ export function loadScoutBlockerRules(db: CuratDb): ScoutBlockerRule[] {
       enabled: row.enabled !== 0,
       priority: row.priority,
       matchType,
-      flags: typeof cfg.flags === 'string' ? cfg.flags : 'i',
+      flags: normalizeRegexFlags(cfg.flags, 'i'),
       appliesTo: cfg.appliesTo === 'full' ? 'full' : 'title',
       pattern,
       reason: typeof cfg.reason === 'string' && cfg.reason.trim() ? cfg.reason.trim() : 'Blocked by custom rule',
@@ -315,11 +341,11 @@ export function applyBlockerRules(
   for (const rel of releases) {
     let dropReason: string | null = null;
     for (const rule of blockers) {
-      const target = rule.appliesTo === 'full' ? rel.title : rel.title;
+      const target = buildRuleTarget(rel, rule.appliesTo);
       let matched = false;
       if (rule.matchType === 'regex') {
         try {
-          matched = new RegExp(rule.pattern, rule.flags.includes('i') ? 'i' : '').test(target);
+          matched = new RegExp(rule.pattern, rule.flags).test(target);
         } catch {
           matched = false;
         }

@@ -652,6 +652,51 @@ function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | n
   return { url, apiKey };
 }
 
+function resolveSabConfig(db: CuratDb): { url: string; apiKey: string; category: string | null } | null {
+  const url = (db.getSetting('sabnzbdUrl') ?? '').trim();
+  const apiKey = (db.getSetting('sabnzbdApiKey') ?? '').trim();
+  const categoryRaw = (db.getSetting('sabnzbdCategory') ?? '').trim();
+  if (!url || !apiKey) return null;
+  return { url, apiKey, category: categoryRaw || null };
+}
+
+async function sendReleaseToSab(
+  cfg: { url: string; apiKey: string; category: string | null },
+  payload: { downloadUrl: string; title: string },
+): Promise<{ nzoIds: string[] }> {
+  const base = cfg.url.replace(/\/+$/, '');
+  const requestUrl = new URL(`${base}/api`);
+  requestUrl.searchParams.set('apikey', cfg.apiKey);
+  requestUrl.searchParams.set('output', 'json');
+  requestUrl.searchParams.set('mode', 'addurl');
+  requestUrl.searchParams.set('name', payload.downloadUrl);
+  requestUrl.searchParams.set('nzbname', payload.title);
+  if (cfg.category) requestUrl.searchParams.set('cat', cfg.category);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const res = await fetch(requestUrl, { method: 'GET', signal: controller.signal });
+    const body = (await res.json().catch(() => ({}))) as {
+      status?: boolean;
+      error?: string;
+      nzo_ids?: unknown;
+    };
+    if (!res.ok) {
+      throw new Error(body.error ? `sab_http_${res.status}:${body.error}` : `sab_http_${res.status}`);
+    }
+    const nzoIds = Array.isArray(body.nzo_ids)
+      ? body.nzo_ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
+      : [];
+    if (body.status !== true && nzoIds.length === 0) {
+      throw new Error(body.error ? `sab_add_failed:${body.error}` : 'sab_add_failed');
+    }
+    return { nzoIds };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function configuredBatchCap(db: CuratDb): number {
   const raw = Number.parseInt(db.getSetting('scoutPipelineBatchSize') ?? '10', 10);
   if (!Number.isFinite(raw)) return 10;
@@ -1046,6 +1091,44 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     const res = replaceScoutRuleCategory(db, body.category, body.rules);
     if (res.error) return c.json({ error: res.error }, 400);
     return c.json({ saved: res.saved ?? [] });
+  });
+
+  // POST /api/scout/send-to-sab  { title: string, protocol: string, downloadUrl: string }
+  app.post('/send-to-sab', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      title?: unknown;
+      protocol?: unknown;
+      downloadUrl?: unknown;
+    };
+    const title = toText(body.title).trim();
+    const protocol = toText(body.protocol).trim().toLowerCase();
+    const downloadUrl = toText(body.downloadUrl).trim();
+    if (!title || !downloadUrl) {
+      return c.json({ error: 'invalid_payload' }, 400);
+    }
+    if (protocol && protocol !== 'usenet') {
+      return c.json({ error: 'unsupported_protocol' }, 422);
+    }
+    try {
+      // Validate URL early so downstream errors are actionable.
+      // eslint-disable-next-line no-new
+      new URL(downloadUrl);
+    } catch {
+      return c.json({ error: 'invalid_download_url' }, 400);
+    }
+
+    const cfg = resolveSabConfig(db);
+    if (!cfg) return c.json({ error: 'sab_not_configured' }, 422);
+
+    try {
+      const sent = await sendReleaseToSab(cfg, { title, downloadUrl });
+      return c.json({
+        queued: true,
+        nzoIds: sent.nzoIds,
+      });
+    } catch (err) {
+      return c.json({ error: 'sab_send_failed', detail: (err as Error).message }, 502);
+    }
   });
 
   // POST /api/scout/search-one  { movieId: number, query?: string, forceRefresh?: boolean }

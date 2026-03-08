@@ -222,6 +222,14 @@ test('candidates total reflects filtered result set before limit', async (t) => 
   const body = await res.json();
   assert.equal(body.total, 2);
   assert.equal(body.candidates.length, 1);
+
+  const allRes = await app.request(
+    'http://localhost/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=1080p&limit=1&all=1',
+  );
+  assert.equal(allRes.status, 200);
+  const allBody = await allRes.json();
+  assert.equal(allBody.total, 2);
+  assert.equal(allBody.candidates.length, 2);
 });
 
 test('candidates uses one primary file per movie and falls back release group from filename', async (t) => {

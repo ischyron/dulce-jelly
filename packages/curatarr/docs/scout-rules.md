@@ -22,6 +22,8 @@
 - LLM rules are stored under `quality_rules` with `category = 'scout_llm_ruleset'` (see `src/server/routes/rules.ts`).
 - Execution happens in `src/server/routes/scout.ts`: after CF scoring, releases are scored/filtered by the ordered ruleset; the prompt is assembled from the saved sentences plus objective.
 - The client surfaces the rules in `ExtendedLlmRuleset` (Settings) and displays drop reasons in Scout Queue modals.
+- For Scout custom CF/blocker rules, `appliesTo: "title"` evaluates only the release title; `appliesTo: "full"` evaluates a deterministic concatenation of title + indexer + guid + download URL + publish date + protocol + size/seed/peer fields.
+- Regex flags for Scout custom CF/blocker rules are normalized to supported JavaScript flags (`gimsuy`) and applied consistently at validation and runtime.
 - Limits: batch size for scout searches is clamped (server-side) to 10; LLM ruleset length is effectively bounded by payload size (< 10 KB after serialization).
 - Error handling: if the LLM call fails, Scout falls back to deterministic CF ordering and returns a warning banner to the UI.
 - Prompt assembly (high level):

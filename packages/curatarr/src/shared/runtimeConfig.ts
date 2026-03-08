@@ -23,6 +23,7 @@ interface ConfigDoc {
 interface SecretsDoc {
   jellyfin?: { apiKey?: unknown };
   prowlarr?: { apiKey?: unknown };
+  sabnzbd?: { apiKey?: unknown };
   llm?: { provider?: unknown; apiKey?: unknown };
 }
 
@@ -99,6 +100,9 @@ function extractSecretsSettings(raw: PlainObject): Record<string, string> {
 
   const prowlarrApiKey = str(parsed.prowlarr?.apiKey);
   if (prowlarrApiKey) out.prowlarrApiKey = prowlarrApiKey;
+
+  const sabnzbdApiKey = str(parsed.sabnzbd?.apiKey);
+  if (sabnzbdApiKey) out.sabnzbdApiKey = sabnzbdApiKey;
 
   const llmProvider = str(parsed.llm?.provider);
   if (llmProvider) out.llmProvider = llmProvider;

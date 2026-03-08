@@ -25,6 +25,8 @@ import type {
   ScoutRulesRefineDraftResponse,
   ScoutSearchBatchResponse,
   ScoutSearchOneResponse,
+  ScoutSendToSabRequest,
+  ScoutSendToSabResponse,
   ScoutTrashParityResponse,
   ScoutTrashSyncDetailsResponse,
   ScoutTrashSyncResponse,
@@ -255,6 +257,12 @@ export const api = {
 
   scoutSearchBatch: (body: { movieIds: number[]; batchSize?: number }) =>
     req<ScoutSearchBatchResponse>('/scout/search-batch', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  scoutSendToSab: (body: ScoutSendToSabRequest) =>
+    req<ScoutSendToSabResponse>('/scout/send-to-sab', {
       method: 'POST',
       body: JSON.stringify(body),
     }),

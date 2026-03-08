@@ -176,7 +176,7 @@ export function ScoutQueue() {
         ...(legacyOnly ? { legacy: 'true' } : {}),
         ...(noJf ? { noJf: 'true' } : {}),
         ...(multiOnly ? { multi: 'true' } : {}),
-        limit: 200,
+        all: '1',
       }),
     enabled: Number.isFinite(effMinCritic) && Number.isFinite(effMinComm),
   });

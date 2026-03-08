@@ -1,5 +1,6 @@
 import { Library as LibraryIcon, Search } from 'lucide-react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { FilterSection } from '../shared/FilterSection';
 import { getCodecDescription } from '../shared/utils';
 import { formatTotalSize } from './helpers';
 import {
@@ -166,17 +167,12 @@ export function LibraryFilterBar({
         />
       </div>
 
-      <div
+      <FilterSection
         ref={genreFilterRef}
-        className="relative flex flex-wrap items-center gap-2 text-xs px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
-        style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}
+        label="Genre"
+        className="relative text-xs w-full xl:w-auto order-2"
+        style={{ color: 'var(--c-muted)' }}
       >
-        <span
-          className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
-          style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-        >
-          Genre
-        </span>
         <button
           type="button"
           onClick={() => setGenreFilterOpen((v) => !v)}
@@ -230,18 +226,9 @@ export function LibraryFilterBar({
             ))}
           </div>
         )}
-      </div>
+      </FilterSection>
 
-      <div
-        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
-        style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-      >
-        <span
-          className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
-          style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-        >
-          Resolution
-        </span>
+      <FilterSection label="Resolution" className="w-full xl:w-auto order-2">
         {RESOLUTION_OPTIONS.map((item) => (
           <button
             key={item}
@@ -257,18 +244,9 @@ export function LibraryFilterBar({
             {item}
           </button>
         ))}
-      </div>
+      </FilterSection>
 
-      <div
-        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)] order-4"
-        style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-      >
-        <span
-          className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
-          style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-        >
-          Video Codec / HDR
-        </span>
+      <FilterSection label="Video Codec / HDR" className="w-fit max-w-full order-4">
         {CODEC_OPTIONS.map((item) => (
           <button
             key={item}
@@ -342,18 +320,9 @@ export function LibraryFilterBar({
           />
           Legacy
         </label>
-      </div>
+      </FilterSection>
 
-      <div
-        className="flex flex-wrap items-center gap-2 px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)] order-4"
-        style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}
-      >
-        <span
-          className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
-          style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-        >
-          Audio
-        </span>
+      <FilterSection label="Audio" className="w-fit max-w-full order-4" style={{ color: 'var(--c-muted)' }}>
         <select
           value={audioFormat}
           onChange={(e) => onAudioFormatChange(e.target.value)}
@@ -400,19 +369,14 @@ export function LibraryFilterBar({
             </option>
           ))}
         </select>
-      </div>
+      </FilterSection>
 
-      <div
+      <FilterSection
         ref={tagFilterRef}
-        className="relative flex flex-wrap items-center gap-2 text-xs px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
-        style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)', color: 'var(--c-muted)' }}
+        label="Tag"
+        className="relative text-xs w-full xl:w-auto order-2"
+        style={{ color: 'var(--c-muted)' }}
       >
-        <span
-          className="text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap px-1.5 py-0.5 rounded border"
-          style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-        >
-          Tag
-        </span>
         <button
           type="button"
           onClick={() => setTagFilterOpen((v) => !v)}
@@ -466,7 +430,7 @@ export function LibraryFilterBar({
             ))}
           </div>
         )}
-      </div>
+      </FilterSection>
 
       <div
         className="flex flex-wrap items-center gap-2 px-1 py-1 w-full xl:w-auto order-2"

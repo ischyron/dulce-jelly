@@ -14,6 +14,7 @@ import {
 } from '../components/library/types';
 import { BatchConfirmModal } from '../components/scout-queue/BatchConfirmModal';
 import { CompatTag } from '../components/scout-queue/CompatTag';
+import { FilterSection } from '../components/shared/FilterSection';
 import { getCodecDescription } from '../components/shared/utils';
 
 function formatSize(bytes: number | null): string {
@@ -323,17 +324,7 @@ export function ScoutQueue() {
           />
         </div>
 
-        <div
-          ref={genreRef}
-          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-        >
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
-            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-          >
-            Genre
-          </span>
+        <FilterSection ref={genreRef} label="Genre" className="relative text-sm w-full xl:w-auto order-2">
           <button
             type="button"
             onClick={() => setGenreOpen((v) => !v)}
@@ -395,19 +386,9 @@ export function ScoutQueue() {
               ))}
             </div>
           )}
-        </div>
+        </FilterSection>
 
-        <div
-          ref={tagRef}
-          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-        >
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
-            style={{ color: '#f9a8d4', borderColor: 'rgba(249,168,212,0.35)', background: 'rgba(249,168,212,0.12)' }}
-          >
-            Tags
-          </span>
+        <FilterSection ref={tagRef} label="Tags" labelTone="pink" className="relative text-sm w-full xl:w-auto order-2">
           <button
             type="button"
             onClick={() => setTagOpen((v) => !v)}
@@ -469,18 +450,9 @@ export function ScoutQueue() {
               ))}
             </div>
           )}
-        </div>
+        </FilterSection>
 
-        <div
-          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto order-2"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-        >
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
-            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-          >
-            Resolution
-          </span>
+        <FilterSection label="Resolution" className="text-sm w-full xl:w-auto order-2">
           {RESOLUTION_OPTIONS.map((item) => (
             <button
               key={item}
@@ -496,18 +468,30 @@ export function ScoutQueue() {
               {item}
             </button>
           ))}
+        </FilterSection>
+
+        <div className="flex flex-wrap items-center gap-2 px-1 py-1 w-full xl:w-auto order-2">
+          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--c-muted)' }}>
+            <input
+              type="checkbox"
+              checked={multiOnly}
+              onChange={(e) => patch({ multi: e.target.checked ? '1' : null })}
+              className="accent-violet-600"
+            />
+            Multi-file
+          </label>
+          <label className="inline-flex items-center gap-1 text-xs cursor-pointer" style={{ color: 'var(--c-muted)' }}>
+            <input
+              type="checkbox"
+              checked={noJf}
+              onChange={(e) => patch({ noJf: e.target.checked ? '1' : null })}
+              className="accent-violet-600"
+            />
+            Jellyfin Sync Needed
+          </label>
         </div>
 
-        <div
-          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)] order-4"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-        >
-          <span
-            className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
-            style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
-          >
-            Codec
-          </span>
+        <FilterSection label="Video Codec / HDR" className="text-sm w-fit max-w-full order-4">
           {CODEC_OPTIONS.map((item) => (
             <button
               key={item}
@@ -524,13 +508,8 @@ export function ScoutQueue() {
               {item.toUpperCase()}
             </button>
           ))}
-        </div>
-
-        <div
-          className="flex flex-wrap items-center gap-3 text-xs w-full lg:w-[calc(50%-0.375rem)] px-2 py-1 rounded-lg border order-4"
-          style={{ color: 'var(--c-muted)', borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-        >
-          <label className="inline-flex items-center gap-1 cursor-pointer">
+          <span style={{ color: 'var(--c-border)' }}>·</span>
+          <label className="inline-flex items-center gap-1 cursor-pointer" style={{ color: 'var(--c-muted)' }}>
             <input
               type="checkbox"
               checked={hdrOnly}
@@ -539,7 +518,7 @@ export function ScoutQueue() {
             />
             HDR
           </label>
-          <label className="inline-flex items-center gap-1 cursor-pointer">
+          <label className="inline-flex items-center gap-1 cursor-pointer" style={{ color: 'var(--c-muted)' }}>
             <input
               type="checkbox"
               checked={dvOnly}
@@ -548,7 +527,7 @@ export function ScoutQueue() {
             />
             Dolby Vision
           </label>
-          <label className="inline-flex items-center gap-1 cursor-pointer">
+          <label className="inline-flex items-center gap-1 cursor-pointer" style={{ color: 'var(--c-muted)' }}>
             <input
               type="checkbox"
               checked={av1CompatOnly}
@@ -557,7 +536,7 @@ export function ScoutQueue() {
             />
             AV1 (compat risk)
           </label>
-          <label className="inline-flex items-center gap-1 cursor-pointer">
+          <label className="inline-flex items-center gap-1 cursor-pointer" style={{ color: 'var(--c-muted)' }}>
             <input
               type="checkbox"
               checked={legacyOnly}
@@ -566,30 +545,9 @@ export function ScoutQueue() {
             />
             Legacy codec
           </label>
-          <label className="inline-flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={multiOnly}
-              onChange={(e) => patch({ multi: e.target.checked ? '1' : null })}
-              className="accent-violet-600"
-            />
-            Multi-file
-          </label>
-          <label className="inline-flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={noJf}
-              onChange={(e) => patch({ noJf: e.target.checked ? '1' : null })}
-              className="accent-violet-600"
-            />
-            Jellyfin Sync Needed
-          </label>
-        </div>
+        </FilterSection>
 
-        <div
-          className="flex flex-wrap items-center gap-2 text-sm w-full px-2 py-1 rounded-lg border order-4"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
-        >
+        <FilterSection label="Audio" className="text-sm w-fit max-w-full order-4">
           <select
             value={audioFormat}
             onChange={(e) => patch({ audioFormat: e.target.value || null })}
@@ -616,7 +574,7 @@ export function ScoutQueue() {
               </option>
             ))}
           </select>
-        </div>
+        </FilterSection>
 
         <div className="flex items-center gap-2 text-sm order-2">
           <label

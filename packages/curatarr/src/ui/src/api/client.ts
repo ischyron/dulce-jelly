@@ -241,6 +241,12 @@ export const api = {
 
   verifyCancel: () => req<{ cancelled: boolean }>('/verify/cancel', { method: 'POST' }),
 
+  verifyClear: (opts?: { fileIds?: number[] }) =>
+    req<{ cleared: number }>('/verify/clear', {
+      method: 'POST',
+      body: JSON.stringify(opts ?? {}),
+    }),
+
   verifyStatus: () =>
     req<{ running: boolean; unverified: number; pass: number; fail: number; error: number }>('/verify/status'),
 

@@ -35,14 +35,14 @@ const FLAG_DOCS: Record<string, { title: string; explanation: string; impact: st
   decode_error: {
     title: 'Decode errors',
     explanation:
-      'ffmpeg encountered errors while fully decoding the file. This may indicate a corrupt bitstream, truncated data, or a broken encode.',
+      'ffmpeg encountered actionable decode/bitstream faults (for example: "Invalid NAL unit size", "error while decoding", "corrupt/truncated stream").',
     impact: 'Possible visual artefacts, incomplete playback, or a hard stop at the corrupted region.',
     action: 'Verify the file with a full deep check. Replace the file if errors persist.',
   },
   mux_error: {
     title: 'Mux-level error',
     explanation:
-      'The container has structural problems (bad header, invalid chunk layout, or missing index). The video content itself may be fine, but the wrapper is damaged.',
+      'The container has structural problems (for example: "moov atom not found", invalid atom/header, or invalid container data).',
     impact: 'Seeking may fail, duration may be reported incorrectly, or some players may refuse to open the file.',
     action: 'Remux into a fresh MKV using mkvmerge or ffmpeg -c copy to rebuild the container without re-encoding.',
   },

@@ -1,7 +1,10 @@
 /**
  * Deep-verify a video file using ffmpeg null output.
- * Runs: ffmpeg -v error -threads 2 -i <file> -map 0 -f null - 2>&1
- * Parses stderr for error/warning lines; benign "pts has no value" lines are ignored.
+ * Runs: ffmpeg -v warning -threads 2 -i <file> -map 0:v? -map 0:a? -sn -dn -f null - 2>&1
+ * Parses stderr with strict high-signal classification:
+ *   - Ignore known benign diagnostics/noise.
+ *   - Keep actionable decode/container faults only.
+ *   - Track DTS monotonic warnings separately as timestamp quality flags.
  *
  * Also runs a lightweight quality analysis:
  *   - Backward PTS/DTS jumps → FLAG (timestamp disorder, may cause playback freezes)
@@ -35,10 +38,40 @@ export interface DeepCheckResult {
 // ── Patterns ───────────────────────────────────────────────────────────────
 
 /** Truly benign lines that can be ignored without logging */
-const BENIGN_PATTERNS = [/pts has no value/i, /application provided invalid/i];
+const BENIGN_PATTERNS = [
+  /pts has no value/i,
+  /application provided invalid/i,
+  /automatic encoder selection failed.*format null/i,
+  /default encoder for format null .*disabled/i,
+  /\bAt least one output file must be specified\b/i,
+];
 
 /** DTS/PTS disorder patterns — captured as quality flags, not ignored */
 const DTS_DISORDER = /non monoton|DTS .{0,60}, next:.{0,60}invalid|out of order packet/i;
+
+const MUX_ERROR_PATTERNS = [
+  /moov atom not found/i,
+  /invalid data found when processing input/i,
+  /error reading header/i,
+  /could not find codec parameters/i,
+  /invalid atom size/i,
+];
+
+const DECODE_ERROR_PATTERNS = [
+  /invalid nal unit size/i,
+  /non-existing pps/i,
+  /pps id out of range/i,
+  /sps id out of range/i,
+  /error while decoding/i,
+  /decode_slice_header error/i,
+  /cabac decode of qscale diff failed/i,
+  /missing reference picture/i,
+  /reference picture missing/i,
+  /corrupt/i,
+  /truncated/i,
+  /packet too small/i,
+  /invalid .* bitstream/i,
+];
 
 /** Extract the jump magnitude from lines like "DTS -0.125, next:-1.125" */
 function parseDtsMagnitude(line: string): number | null {
@@ -51,6 +84,10 @@ function parseDtsMagnitude(line: string): number | null {
 
 function isBenign(line: string): boolean {
   return BENIGN_PATTERNS.some((p) => p.test(line));
+}
+
+function matchesAny(line: string, patterns: RegExp[]): boolean {
+  return patterns.some((p) => p.test(line));
 }
 
 const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per file
@@ -161,14 +198,42 @@ export async function deepCheck(filePath: string, signal?: AbortSignal): Promise
   const qualityFlags: QualityFlag[] = [];
 
   // --- Run ffmpeg null pass ---
-  const ffmpegResult = await new Promise<{ errors: string[]; warnings: string[]; dtsLines: string[] }>((resolve) => {
+  const ffmpegResult = await new Promise<{
+    errors: string[];
+    warnings: string[];
+    dtsLines: string[];
+    decodeLines: string[];
+    muxLines: string[];
+  }>((resolve) => {
     const _errors: string[] = [];
     const _warnings: string[] = [];
     const _dtsLines: string[] = [];
+    const _decodeLines: string[] = [];
+    const _muxLines: string[] = [];
 
-    const proc = spawn('ffmpeg', ['-v', 'error', '-threads', '2', '-i', filePath, '-map', '0', '-f', 'null', '-'], {
-      stdio: ['ignore', 'ignore', 'pipe'],
-    });
+    const proc = spawn(
+      'ffmpeg',
+      [
+        '-v',
+        'warning',
+        '-threads',
+        '2',
+        '-i',
+        filePath,
+        '-map',
+        '0:v?',
+        '-map',
+        '0:a?',
+        '-sn',
+        '-dn',
+        '-f',
+        'null',
+        '-',
+      ],
+      {
+        stdio: ['ignore', 'ignore', 'pipe'],
+      },
+    );
 
     let stderr = '';
     proc.stderr?.on('data', (chunk: Buffer) => {
@@ -196,25 +261,40 @@ export async function deepCheck(filePath: string, signal?: AbortSignal): Promise
         if (isBenign(line)) continue;
 
         if (DTS_DISORDER.test(line)) {
-          // Captured as quality flag below — do NOT add to errors
+          // Captured as quality flag below — does not force a hard fail alone.
           _dtsLines.push(line);
-        } else if (/\berror\b/i.test(line)) {
+        } else if (matchesAny(line, DECODE_ERROR_PATTERNS)) {
+          _decodeLines.push(line);
           _errors.push(line);
-        } else if (/\bwarning\b/i.test(line)) {
+        } else if (matchesAny(line, MUX_ERROR_PATTERNS)) {
+          _muxLines.push(line);
+          _errors.push(line);
+        } else if (/\bwarning\b/i.test(line) || /\berror\b/i.test(line) || /\bfailed\b/i.test(line)) {
+          // Keep unclassified diagnostics as warnings to avoid false-positive hard failures.
           _warnings.push(line);
-        } else {
-          _errors.push(line);
         }
       }
 
-      resolve({ errors: _errors, warnings: _warnings, dtsLines: _dtsLines });
+      resolve({
+        errors: _errors,
+        warnings: _warnings,
+        dtsLines: _dtsLines,
+        decodeLines: _decodeLines,
+        muxLines: _muxLines,
+      });
     });
 
     proc.on('error', (err) => {
       clearTimeout(timer);
       signal?.removeEventListener('abort', onAbort);
       _errors.push(`spawn error: ${err.message}`);
-      resolve({ errors: _errors, warnings: _warnings, dtsLines: _dtsLines });
+      resolve({
+        errors: _errors,
+        warnings: _warnings,
+        dtsLines: _dtsLines,
+        decodeLines: _decodeLines,
+        muxLines: _muxLines,
+      });
     });
   });
 
@@ -238,20 +318,28 @@ export async function deepCheck(filePath: string, signal?: AbortSignal): Promise
     });
   }
 
+  if (ffmpegResult.decodeLines.length > 0) {
+    qualityFlags.push({
+      severity: 'FLAG',
+      code: 'decode_error',
+      message: `${ffmpegResult.decodeLines.length} actionable bitstream/decode error(s)`,
+      detail: ffmpegResult.decodeLines.slice(0, 3).join(' | '),
+    });
+  }
+
+  if (ffmpegResult.muxLines.length > 0) {
+    qualityFlags.push({
+      severity: 'FLAG',
+      code: 'mux_error',
+      message: `${ffmpegResult.muxLines.length} actionable container/mux error(s)`,
+      detail: ffmpegResult.muxLines.slice(0, 3).join(' | '),
+    });
+  }
+
   // --- GOP analysis (skipped if aborted) ---
   if (!signal?.aborted) {
     const gopFlags = await analyzeGop(filePath);
     qualityFlags.push(...gopFlags);
-  }
-
-  // Promote decode errors to quality flags too (mux-level)
-  if (errors.length > 0 && errors.some((e) => !e.startsWith('spawn error') && !e.startsWith('timeout'))) {
-    qualityFlags.push({
-      severity: 'FLAG',
-      code: 'decode_error',
-      message: `${errors.length} decode error(s) detected`,
-      detail: errors.slice(0, 3).join(' | '),
-    });
   }
 
   return {

@@ -104,5 +104,20 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
     return c.json({ total, page, limit, failures });
   });
 
+  // POST /api/verify/clear { fileIds?: number[] } — clear fail/error verification state
+  app.post('/clear', async (c) => {
+    if (verifyEmitter.running) {
+      return c.json({ error: 'Cannot clear verify errors while verify is running' }, 409);
+    }
+
+    const body = (await c.req.json().catch(() => ({}))) as Record<string, unknown>;
+    const fileIds = Array.isArray(body.fileIds)
+      ? body.fileIds.map((v) => Number.parseInt(String(v), 10)).filter((id) => Number.isInteger(id) && id > 0)
+      : undefined;
+
+    const cleared = db.clearVerifyErrors(fileIds);
+    return c.json({ cleared });
+  });
+
   return app;
 }

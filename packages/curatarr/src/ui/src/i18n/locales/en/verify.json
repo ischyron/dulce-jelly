@@ -16,7 +16,9 @@
     "progressAriaLabel": "Deep verify progress",
     "checking": "Checking…",
     "complete": "Complete.",
-    "cancelled": "Cancelled."
+    "cancelled": "Cancelled.",
+    "alreadyRunning": "A verify run is already in progress.",
+    "alreadyRunningAlert": "Deep Verify is already running in another tab/window. Wait for completion or stop the current run first."
   },
   "live": {
     "runningTitle": "Running Now ({{count}})",
@@ -30,6 +32,15 @@
     "colSize": "Size",
     "colErrors": "Errors",
     "colVerifiedAt": "Verified At",
+    "colActions": "Actions",
+    "recheck": "Recheck",
+    "rechecking": "Rechecking…",
+    "recheckTitle": "Run deep verify again for this file",
+    "recheckDisabledTitle": "Recheck is disabled while a verify run is in progress",
+    "recheckStarted": "Recheck started (single file).",
+    "clear": "Clear Errors",
+    "clearTitle": "Clear all current verify fail/error results",
+    "cleared": "Cleared {{count}} verify error result(s).",
     "prev": "Prev",
     "next": "Next",
     "page": "Page {{current}} of {{total}}"

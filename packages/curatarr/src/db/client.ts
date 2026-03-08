@@ -1176,6 +1176,28 @@ export class CuratDb {
     return (this.db.prepare(`SELECT COUNT(*) as n FROM files WHERE verify_status = 'fail'`).get() as { n: number }).n;
   }
 
+  clearVerifyErrors(fileIds?: number[]): number {
+    const baseSql = `
+      UPDATE files
+      SET verify_status = NULL,
+          verify_errors = NULL,
+          quality_flags = '[]',
+          verified_at   = NULL,
+          updated_at    = datetime('now')
+      WHERE verify_status IN ('fail', 'error')
+    `;
+
+    if (Array.isArray(fileIds) && fileIds.length > 0) {
+      const cleanIds = [...new Set(fileIds.filter((id) => Number.isInteger(id) && id > 0))];
+      if (cleanIds.length === 0) return 0;
+      const placeholders = cleanIds.map(() => '?').join(',');
+      const stmt = this.db.prepare(`${baseSql} AND id IN (${placeholders})`);
+      return stmt.run(...cleanIds).changes;
+    }
+
+    return this.db.prepare(baseSql).run().changes;
+  }
+
   close(): void {
     this.db.close();
   }

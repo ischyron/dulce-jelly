@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Loader2, ShieldCheck, Square, XCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Loader2, RotateCcw, ShieldCheck, Square, Trash2, XCircle } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type VerifyFailure, api } from '../api/client';
+import { ApiError, type VerifyFailure, api } from '../api/client';
 
 interface VerifyProgress {
   total?: number;
@@ -45,6 +45,8 @@ export function Verify() {
   const [recentResults, setRecentResults] = useState<FileResult[]>([]);
   const [statusMsg, setStatusMsg] = useState('');
   const [failPage, setFailPage] = useState(1);
+  const [clearingFailures, setClearingFailures] = useState(false);
+  const [recheckingFileId, setRecheckingFileId] = useState<number | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
   const { data: statusData, refetch: refetchStatus } = useQuery({
@@ -125,7 +127,14 @@ export function Verify() {
       await api.verifyStart({ concurrency });
       connectSse();
     } catch (err) {
-      setStatusMsg((err as Error).message);
+      const apiErr = err instanceof ApiError ? err : null;
+      if (apiErr?.status === 409) {
+        const msg = t('controls.alreadyRunning');
+        setStatusMsg(msg);
+        window.alert(t('controls.alreadyRunningAlert'));
+      } else {
+        setStatusMsg((err as Error).message);
+      }
     }
   }
 
@@ -133,9 +142,45 @@ export function Verify() {
     await api.verifyCancel();
   }
 
+  async function clearFailures() {
+    if (running || statusData?.running || clearingFailures) return;
+    setClearingFailures(true);
+    try {
+      const res = await api.verifyClear();
+      setStatusMsg(t('failures.cleared', { count: res.cleared }));
+      await Promise.all([refetchStatus(), refetchFailures()]);
+    } catch (err) {
+      setStatusMsg((err as Error).message);
+    } finally {
+      setClearingFailures(false);
+    }
+  }
+
+  async function recheckFailure(fileId: number) {
+    if (running || statusData?.running || recheckingFileId != null) return;
+    setRecheckingFileId(fileId);
+    try {
+      await api.verifyStart({ concurrency: 1, fileIds: [fileId], rescan: true });
+      connectSse();
+      setStatusMsg(t('failures.recheckStarted'));
+    } catch (err) {
+      const apiErr = err instanceof ApiError ? err : null;
+      if (apiErr?.status === 409) {
+        const msg = t('controls.alreadyRunning');
+        setStatusMsg(msg);
+        window.alert(t('controls.alreadyRunningAlert'));
+      } else {
+        setStatusMsg((err as Error).message);
+      }
+    } finally {
+      setRecheckingFileId(null);
+    }
+  }
+
   const checked = progress.checked ?? 0;
   const total = progress.total ?? 0;
   const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
+  const verifyInProgress = running || Boolean(statusData?.running);
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -193,12 +238,12 @@ export function Verify() {
               value={concurrency}
               onChange={(e) => setConcurrency(Number(e.target.value))}
               className="w-24"
-              disabled={running}
+              disabled={verifyInProgress}
             />
             <span className="font-mono text-sm w-4 text-center">{concurrency}</span>
           </label>
 
-          {!running ? (
+          {!verifyInProgress ? (
             <button
               type="button"
               onClick={startVerify}
@@ -228,7 +273,7 @@ export function Verify() {
         </div>
 
         {/* Progress */}
-        {running && (
+        {verifyInProgress && (
           <div className="space-y-2">
             <div className="flex justify-between text-xs" style={{ color: 'var(--c-muted)' }}>
               <span className="flex items-center gap-1">
@@ -274,7 +319,7 @@ export function Verify() {
         )}
 
         {/* Live started/running file stream */}
-        {running && (
+        {verifyInProgress && (
           <div>
             <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--c-muted)' }}>
               {t('live.runningTitle', { count: activeFiles.length })}
@@ -341,9 +386,22 @@ export function Verify() {
               <AlertCircle size={15} style={{ color: '#f87171' }} />
               {t('failures.title')}
             </h2>
-            <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              {t('failures.total', { count: failData?.total })}
-            </span>
+            <div className="flex items-center gap-3">
+              <span className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                {t('failures.total', { count: failData?.total })}
+              </span>
+              <button
+                type="button"
+                onClick={clearFailures}
+                disabled={verifyInProgress || clearingFailures || (failData?.total ?? 0) === 0}
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border disabled:opacity-40"
+                style={{ borderColor: 'var(--c-border)', color: '#fca5a5', background: 'rgba(248,113,113,0.12)' }}
+                title={t('failures.clearTitle')}
+              >
+                <Trash2 size={12} />
+                {t('failures.clear')}
+              </button>
+            </div>
           </div>
           <div className="overflow-auto">
             <table className="w-full text-sm">
@@ -356,6 +414,7 @@ export function Verify() {
                   <th className="px-4 py-2">{t('failures.colSize')}</th>
                   <th className="px-4 py-2">{t('failures.colErrors')}</th>
                   <th className="px-4 py-2">{t('failures.colVerifiedAt')}</th>
+                  <th className="px-4 py-2">{t('failures.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -381,6 +440,23 @@ export function Verify() {
                       </td>
                       <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--c-muted)' }}>
                         {f.verified_at ? f.verified_at.slice(0, 16) : '—'}
+                      </td>
+                      <td className="px-4 py-2.5 text-xs">
+                        <button
+                          type="button"
+                          onClick={() => recheckFailure(f.id)}
+                          disabled={verifyInProgress || recheckingFileId !== null}
+                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded border disabled:opacity-40"
+                          style={{
+                            borderColor: 'var(--c-border)',
+                            color: 'var(--c-text)',
+                            background: 'rgba(99,102,241,0.12)',
+                          }}
+                          title={verifyInProgress ? t('failures.recheckDisabledTitle') : t('failures.recheckTitle')}
+                        >
+                          <RotateCcw size={11} />
+                          {recheckingFileId === f.id ? t('failures.rechecking') : t('failures.recheck')}
+                        </button>
                       </td>
                     </tr>
                   );

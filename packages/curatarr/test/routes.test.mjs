@@ -492,6 +492,90 @@ test('verify start returns 409 when a verify job is already running', async (t) 
   assert.match(body.error, /Verify already running/i);
 });
 
+test('verify clear resets fail/error rows and leaves pass rows intact', async (t) => {
+  const tmp = await makeTempDir('verify-clear');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const movieId = db.upsertMovie({
+    folderPath: '/m/VerifyTarget',
+    folderName: 'VerifyTarget (2020)',
+    parsedTitle: 'VerifyTarget',
+    parsedYear: 2020,
+  });
+
+  const failFileId = db.upsertFile({
+    movieId,
+    filePath: '/m/VerifyTarget/fail.mkv',
+    filename: 'fail.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+  const errorFileId = db.upsertFile({
+    movieId,
+    filePath: '/m/VerifyTarget/error.mkv',
+    filename: 'error.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+  const passFileId = db.upsertFile({
+    movieId,
+    filePath: '/m/VerifyTarget/pass.mkv',
+    filename: 'pass.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  db.setVerifyResult(failFileId, {
+    status: 'fail',
+    errors: ['Invalid NAL unit size'],
+    qualityFlags: [{ severity: 'FLAG', code: 'decode_error', message: 'decode error' }],
+  });
+  db.setVerifyResult(errorFileId, {
+    status: 'error',
+    errors: ['spawn error: ffmpeg missing'],
+    qualityFlags: [{ severity: 'FLAG', code: 'mux_error', message: 'mux error' }],
+  });
+  db.setVerifyResult(passFileId, { status: 'pass', errors: [], qualityFlags: [] });
+
+  const res = await app.request('http://localhost/api/verify/clear', {
+    method: 'POST',
+    body: JSON.stringify({}),
+    headers: { 'content-type': 'application/json' },
+  });
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.equal(body.cleared, 2);
+
+  const rows = db.getAllFiles();
+  const failRow = rows.find((r) => r.id === failFileId);
+  const errorRow = rows.find((r) => r.id === errorFileId);
+  const passRow = rows.find((r) => r.id === passFileId);
+  assert.ok(failRow);
+  assert.ok(errorRow);
+  assert.ok(passRow);
+
+  assert.equal(failRow.verify_status, null);
+  assert.equal(failRow.verify_errors, null);
+  assert.equal(failRow.quality_flags, '[]');
+
+  assert.equal(errorRow.verify_status, null);
+  assert.equal(errorRow.verify_errors, null);
+  assert.equal(errorRow.quality_flags, '[]');
+
+  assert.equal(passRow.verify_status, 'pass');
+});
+
 test('jf-refresh falls back to title/year search when stored Jellyfin ID lookup returns 400', async (t) => {
   const tmp = await makeTempDir('jf-refresh-fallback');
   t.after(async () => fs.rm(tmp, { recursive: true, force: true }));

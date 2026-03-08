@@ -1052,6 +1052,7 @@ export function makeScoutRoutes(db: CuratDb): Hono {
         publishDate: null,
         guid: null,
         downloadUrl: null,
+        magnetUrl: null,
         seeders: null,
         peers: null,
       },
@@ -1120,6 +1121,105 @@ export function makeScoutRoutes(db: CuratDb): Hono {
       });
     } catch (err) {
       return c.json({ error: 'prowlarr_grab_failed', detail: (err as Error).message }, 502);
+    }
+  });
+
+  // POST /api/scout/send-to-qb  { title: string, protocol: string, downloadUrl: string }
+  app.post('/send-to-qb', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as {
+      title?: unknown;
+      protocol?: unknown;
+      downloadUrl?: unknown;
+    };
+    const title = toText(body.title).trim();
+    const protocol = toText(body.protocol).trim().toLowerCase();
+    const downloadUrl = toText(body.downloadUrl).trim();
+    if (!title || !downloadUrl) {
+      return c.json({ error: 'invalid_payload' }, 400);
+    }
+    if (protocol && protocol !== 'torrent') {
+      return c.json({ error: 'unsupported_protocol' }, 422);
+    }
+
+    const qbUrl = (db.getSetting('qbittorrentUrl') ?? '').replace(/\/+$/, '');
+    if (!qbUrl) return c.json({ error: 'qbittorrent_not_configured' }, 422);
+
+    const cfg = resolveProwlarrConfig(db);
+    if (!cfg) return c.json({ error: 'prowlarr_not_configured' }, 422);
+    if (!isSafeProwlarrDownloadUrl(downloadUrl, cfg.url)) {
+      return c.json({ error: 'invalid_download_url' }, 400);
+    }
+
+    // Step 1: Fetch the .torrent file from Prowlarr
+    let torrentBytes: ArrayBuffer;
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 15_000);
+      const res = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: { 'X-Api-Key': cfg.apiKey, 'User-Agent': 'curatarr-scout-grab' },
+        signal: ctrl.signal,
+      });
+      clearTimeout(t);
+      if (!res.ok) {
+        const detail = await res.text().catch(() => '');
+        throw new Error(detail ? `prowlarr_${res.status}:${detail}` : `prowlarr_${res.status}`);
+      }
+      torrentBytes = await res.arrayBuffer();
+    } catch (err) {
+      return c.json({ error: 'prowlarr_fetch_failed', detail: (err as Error).message }, 502);
+    }
+
+    // Step 2: Optionally login to qBittorrent to get session cookie
+    const qbUser = db.getSetting('qbittorrentUsername') ?? '';
+    const qbPass = db.getSetting('qbittorrentPassword') ?? '';
+    let sid = '';
+    if (qbUser && qbPass) {
+      try {
+        const loginCtrl = new AbortController();
+        const lt = setTimeout(() => loginCtrl.abort(), 10_000);
+        const loginRes = await fetch(`${qbUrl}/api/v2/auth/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Referer: qbUrl },
+          body: `username=${encodeURIComponent(qbUser)}&password=${encodeURIComponent(qbPass)}`,
+          signal: loginCtrl.signal,
+        });
+        clearTimeout(lt);
+        const loginText = await loginRes.text().catch(() => '');
+        if (!loginRes.ok || loginText === 'Fails.') {
+          return c.json({ error: 'qbittorrent_auth_failed', detail: loginText }, 502);
+        }
+        const setCookie = loginRes.headers.get('set-cookie') ?? '';
+        const match = setCookie.match(/SID=([^;]+)/);
+        if (match) sid = match[1];
+      } catch (err) {
+        return c.json({ error: 'qbittorrent_auth_failed', detail: (err as Error).message }, 502);
+      }
+    }
+
+    // Step 3: POST .torrent to qBittorrent /api/v2/torrents/add
+    try {
+      const form = new FormData();
+      form.append('torrents', new Blob([torrentBytes], { type: 'application/x-bittorrent' }), `${title}.torrent`);
+
+      const addCtrl = new AbortController();
+      const at = setTimeout(() => addCtrl.abort(), 15_000);
+      const headers: Record<string, string> = { Referer: qbUrl };
+      if (sid) headers['Cookie'] = `SID=${sid}`;
+      const addRes = await fetch(`${qbUrl}/api/v2/torrents/add`, {
+        method: 'POST',
+        headers,
+        body: form,
+        signal: addCtrl.signal,
+      });
+      clearTimeout(at);
+      const addText = await addRes.text().catch(() => '');
+      if (!addRes.ok) {
+        throw new Error(`qbittorrent_add_${addRes.status}:${addText}`);
+      }
+      return c.json({ queued: true, via: 'qbittorrent' });
+    } catch (err) {
+      return c.json({ error: 'qbittorrent_add_failed', detail: (err as Error).message }, 502);
     }
   });
 

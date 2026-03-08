@@ -880,12 +880,15 @@ export function ScoutQueue() {
         ) : !data?.candidates.length ? (
           <div className="p-8 space-y-1" style={{ color: 'var(--c-muted)' }}>
             <p className="text-sm">No upgrade candidates with current filters.</p>
-            <p className="text-xs">
+            <div
+              className="max-w-xl rounded-lg border px-3 py-2.5 text-xs leading-relaxed"
+              style={{ borderColor: 'var(--c-border)', background: 'var(--c-surface)' }}
+            >
               Scout Queue requires critic and IMDb ratings — these come from{' '}
               <strong style={{ color: 'var(--c-text)' }}>Jellyfin Sync</strong> (Scan &amp; Sync page). If you haven't
               synced yet, all ratings are null and no movies will appear here. Try setting Critic Score and Min IMDb to
               0 to see all scanned movies regardless of ratings.
-            </p>
+            </div>
           </div>
         ) : (
           <table className="w-full text-sm border-collapse">

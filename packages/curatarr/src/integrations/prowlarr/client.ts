@@ -6,6 +6,7 @@ export interface ProwlarrSearchResult {
   publishDate: string | null;
   guid: string | null;
   downloadUrl: string | null;
+  magnetUrl: string | null;
   seeders: number | null;
   peers: number | null;
 }
@@ -24,6 +25,7 @@ interface RawProwlarrSearchItem {
   publishDate?: unknown;
   guid?: unknown;
   downloadUrl?: unknown;
+  magnetUrl?: unknown;
   seeders?: unknown;
   peers?: unknown;
 }
@@ -129,6 +131,7 @@ function parseUsenetFeedXml(
       publishDate: pubDate,
       guid: guid || null,
       downloadUrl: link || null,
+      magnetUrl: null,
       seeders: null,
       peers: null,
     });
@@ -207,6 +210,7 @@ export class ProwlarrClient {
         publishDate: asString(row.publishDate),
         guid: asString(row.guid),
         downloadUrl: asString(row.downloadUrl),
+        magnetUrl: asString(row.magnetUrl),
         seeders: asNumber(row.seeders),
         peers: asNumber(row.peers),
       };

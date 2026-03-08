@@ -339,7 +339,7 @@ export function ScoutQueue() {
             placeholder="Search titles…"
             value={searchInput}
             onChange={(e) => handleSearchInput(e.target.value)}
-            className="px-3 py-1.5 rounded-lg text-sm focus:outline-none w-full sm:w-56 lg:w-64"
+            className="px-3 py-2 min-h-[44px] rounded-lg text-sm focus:outline-none w-full sm:w-56 lg:w-64"
             style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           />
         </div>

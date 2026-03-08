@@ -169,7 +169,7 @@ export function LibraryFilterBar({
           placeholder="Search titles…"
           value={searchInput}
           onChange={(e) => onSearchInput(e.target.value)}
-          className="pl-8 pr-3 py-1.5 rounded-lg text-sm focus:outline-none w-full sm:w-56 lg:w-64"
+          className="pl-8 pr-3 py-2 min-h-[44px] rounded-lg text-sm focus:outline-none w-full sm:w-56 lg:w-64"
           style={{ background: 'var(--c-surface)', border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
           onFocus={(e) => {
             e.target.style.borderColor = 'var(--c-accent)';

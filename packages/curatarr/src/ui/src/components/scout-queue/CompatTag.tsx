@@ -24,7 +24,7 @@ export function CompatTag({ codec }: Props) {
         title="AV1 not hardware-decoded on this client"
         className="inline-flex items-center gap-0.5 text-xs text-amber-400"
       >
-        <AlertTriangle size={11} /> AV1 compat
+        <AlertTriangle size={11} /> AV1
       </span>
     );
   }
@@ -34,7 +34,7 @@ export function CompatTag({ codec }: Props) {
         title="Legacy codec — replace recommended"
         className="inline-flex items-center gap-0.5 text-xs text-orange-400"
       >
-        <AlertTriangle size={11} /> legacy
+        <AlertTriangle size={11} /> Legacy
       </span>
     );
   }

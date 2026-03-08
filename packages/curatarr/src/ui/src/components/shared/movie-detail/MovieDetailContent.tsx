@@ -90,13 +90,14 @@ function releaseTitleTags(title: string): string[] {
   if (/\bblu[- .]?ray\b|\bbdrip\b/.test(t)) out.add('BluRay');
   if (/\bweb[- .]?dl\b/.test(t)) out.add('WEB-DL');
 
-  if (/\bdts[- .]?(hd[- .]?ma|ma)\b/.test(t)) out.add('DTS-MA');
+  const hasDtsMa = /\bdts[- .]?(hd[- .]?ma|ma)\b/.test(t);
+  if (hasDtsMa) out.add('DTS-MA');
   if (/\btruehd\b/.test(t)) out.add('TrueHD');
   if (/\batmos\b/.test(t)) out.add('Atmos');
   if (/\bddp\b|\beac3\b|\bdd\+\b/.test(t)) out.add('DDP');
   if (/\bac3\b/.test(t)) out.add('AC3');
   if (/\baac\b/.test(t)) out.add('AAC');
-  if (/\bdts\b/.test(t)) out.add('DTS');
+  if (!hasDtsMa && /\bdts\b/.test(t)) out.add('DTS');
 
   return [...out];
 }
@@ -159,6 +160,34 @@ function recommendationReasonText(release: ScoutRelease | null): string {
   return uniq.length > 0 ? uniq.join(', ') : 'Balanced match';
 }
 
+function formatScoutReason(reason: string): string {
+  const raw = reason.trim();
+  if (!raw.startsWith('basic:')) return raw;
+  if (/^basic:bitrate/i.test(raw)) return raw.replace(/^basic:/i, '');
+
+  const parts = raw.split(':');
+  if (parts.length < 3) return raw.replace(/^basic:/i, '');
+  const kind = parts[1];
+  const value = parts.slice(2).join(':');
+
+  if (kind === 'resolution') return value.toLowerCase();
+  if (kind === 'video') return value.toUpperCase();
+  if (kind === 'audio') return value.toUpperCase();
+  if (kind === 'source') {
+    if (value.toLowerCase() === 'remux') return 'Remux';
+    if (value.toLowerCase() === 'bluray') return 'BluRay';
+    if (value.toLowerCase() === 'web-dl') return 'WEB-DL';
+    return value;
+  }
+
+  return value;
+}
+
+function formatScoutReasons(reasons: string[]): string {
+  const pretty = reasons.map(formatScoutReason).filter(Boolean);
+  return [...new Set(pretty)].join(', ');
+}
+
 function releaseKeyForAction(release: ScoutRelease): string {
   const fallback = `${release.title}|${release.size ?? 0}|${release.publishDate ?? ''}`;
   return release.guid ?? release.downloadUrl ?? fallback;
@@ -210,7 +239,7 @@ function ScoutResultsAllTable({
                 </div>
                 {r.reasons.length > 0 && (
                   <div className="text-[10px] truncate" style={{ color: '#8b87aa' }}>
-                    {r.reasons.join(', ')}
+                    {formatScoutReasons(r.reasons)}
                   </div>
                 )}
                 {r.kind === 'dropped' && r.droppedReason && (
@@ -396,7 +425,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                 </div>
                 {r.reasons.length > 0 && (
                   <div className="text-[10px] truncate" style={{ color: '#8b87aa' }}>
-                    {r.reasons.join(', ')}
+                    {formatScoutReasons(r.reasons)}
                   </div>
                 )}
               </td>

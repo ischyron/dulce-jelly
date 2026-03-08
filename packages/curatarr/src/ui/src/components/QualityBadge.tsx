@@ -61,6 +61,16 @@ interface QualityBadgeProps {
   codec?: string | null;
 }
 
+const audioBadgeColors: Record<string, string> = {
+  atmos: 'bg-fuchsia-600/30 text-fuchsia-300 border-fuchsia-700',
+  truehd: 'bg-violet-600/30 text-violet-300 border-violet-700',
+  'dts-ma': 'bg-cyan-600/30 text-cyan-300 border-cyan-700',
+  dts: 'bg-sky-600/30 text-sky-300 border-sky-700',
+  ddp: 'bg-emerald-600/30 text-emerald-300 border-emerald-700',
+  ac3: 'bg-orange-600/30 text-orange-300 border-orange-700',
+  aac: 'bg-lime-600/30 text-lime-300 border-lime-700',
+};
+
 // Client profiles that lack AV1 hardware decode
 const AV1_UNSUPPORTED_PROFILES = new Set(['android_tv', 'fire_tv']);
 
@@ -216,6 +226,68 @@ export function CriticScoreBadge({
         />
       )}
       <span style={{ color: fresh ? '#4ade80' : '#f87171' }}>{score}</span>
+    </span>
+  );
+}
+
+export function AudioQualityBadges({
+  audioCodec,
+  audioProfile,
+}: {
+  audioCodec?: string | null;
+  audioProfile?: string | null;
+}) {
+  const codec = (audioCodec ?? '').toLowerCase().trim();
+  const profile = (audioProfile ?? '').toLowerCase().trim();
+  const chips: string[] = [];
+  const add = (chip: string) => {
+    if (!chips.includes(chip)) chips.push(chip);
+  };
+
+  if (profile.includes('atmos')) add('atmos');
+
+  if (codec === 'truehd' || profile.includes('truehd')) add('truehd');
+
+  // Keep DTS-MA and DTS distinct; do not emit DTS when MA is present.
+  const hasDtsMa =
+    profile.includes('dts-hd ma') || profile.includes('dts hd ma') || profile.includes('dts-ma') || profile === 'ma';
+  const hasDts = codec.startsWith('dts') || profile.includes('dts');
+  if (hasDtsMa) add('dts-ma');
+  else if (hasDts) add('dts');
+
+  if (
+    codec === 'eac3' ||
+    profile.includes('dolby digital plus') ||
+    profile.includes('ddp') ||
+    profile.includes('dd+')
+  ) {
+    add('ddp');
+  }
+  if (codec === 'ac3' || profile === 'dolby digital') add('ac3');
+  if (codec === 'aac') add('aac');
+
+  if (chips.length === 0) return null;
+
+  const labels: Record<string, string> = {
+    atmos: 'Atmos',
+    truehd: 'TrueHD',
+    'dts-ma': 'DTS-MA',
+    dts: 'DTS',
+    ddp: 'DDP',
+    ac3: 'AC3',
+    aac: 'AAC',
+  };
+
+  return (
+    <span className="inline-flex gap-1 flex-wrap">
+      {chips.map((chip) => (
+        <span
+          key={chip}
+          className={`inline-block px-1.5 py-0.5 text-xs font-mono rounded border ${audioBadgeColors[chip] ?? audioBadgeColors.aac}`}
+        >
+          {labels[chip] ?? chip.toUpperCase()}
+        </span>
+      ))}
     </span>
   );
 }

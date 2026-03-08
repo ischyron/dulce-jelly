@@ -1,6 +1,13 @@
 import type { Movie } from '../../api/client';
 import { InfoHint } from '../InfoHint';
-import { CodecBadge, CriticScoreBadge, HdrBadge, QualityFlagsBadge, ResolutionBadge } from '../QualityBadge';
+import {
+  AudioQualityBadges,
+  CodecBadge,
+  CriticScoreBadge,
+  HdrBadge,
+  QualityFlagsBadge,
+  ResolutionBadge,
+} from '../QualityBadge';
 import { SortHeader } from './SortHeader';
 import { StatusDots } from './StatusDots';
 import type { SortField } from './types';
@@ -263,10 +270,11 @@ export function LibraryTable({
             <td className="px-3 py-2 text-sm whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>
               {movie.parsed_year ?? '—'}
             </td>
-            <td className="px-3 py-2 whitespace-nowrap">
-              <span className="inline-flex gap-1">
+            <td className="px-3 py-2 min-w-[260px]">
+              <span className="inline-flex gap-1 flex-wrap">
                 <ResolutionBadge resolution={movie.resolution_cat} />
                 <CodecBadge codec={movie.video_codec} showCompatWarning />
+                <AudioQualityBadges audioCodec={movie.audio_codec} audioProfile={movie.audio_profile} />
               </span>
             </td>
             <td className="px-3 py-2 whitespace-nowrap">
@@ -284,7 +292,7 @@ export function LibraryTable({
             <td className="px-3 py-2 text-right text-xs whitespace-nowrap" style={{ color: 'var(--c-muted)' }}>
               {formatSize(movie.file_size)}
             </td>
-            <td className="px-3 py-2 text-center">
+            <td className="px-2 py-2 text-center" style={{ minWidth: '64px' }}>
               <QualityFlagsBadge qualityFlagsJson={movie.quality_flags} verifyStatus={movie.verify_status} />
             </td>
             <td className="px-3 py-2 text-center">

@@ -5,7 +5,13 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { type Candidate, api } from '../api/client';
 import { InfoHint } from '../components/InfoHint';
 import { MovieDetailDrawer } from '../components/MovieDetailDrawer';
-import { CodecBadge, CriticScoreBadge, HdrBadge, ResolutionBadge } from '../components/QualityBadge';
+import {
+  AudioQualityBadges,
+  CodecBadge,
+  CriticScoreBadge,
+  HdrBadge,
+  ResolutionBadge,
+} from '../components/QualityBadge';
 import {
   AUDIO_FORMAT_OPTIONS,
   AUDIO_LAYOUT_OPTIONS,
@@ -840,7 +846,7 @@ export function ScoutQueue() {
                 </th>
                 <th className="px-3 py-2">Title</th>
                 <th className="px-3 py-2">Year</th>
-                <th className="px-3 py-2">Quality</th>
+                <th className="px-3 py-2 min-w-[260px]">Quality</th>
                 <th className="px-3 py-2">HDR</th>
                 <th className="px-3 py-2">
                   <span className="inline-flex items-center gap-1">
@@ -848,7 +854,7 @@ export function ScoutQueue() {
                     <InfoHint label="Group info" text="Torrent/Usenet release group inferred from the filename only." />
                   </span>
                 </th>
-                <th className="px-3 py-2">Flags</th>
+                <th className="px-2 py-2 text-center w-20">Flags</th>
                 <th
                   className="px-3 py-2 text-right"
                   title="Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin. Red = Fresh (≥60), grey = Rotten (<60)."
@@ -914,10 +920,11 @@ export function ScoutQueue() {
                   <td className="px-3 py-2" style={{ color: 'var(--c-muted)' }}>
                     {c.parsed_year ?? '—'}
                   </td>
-                  <td className="px-3 py-2">
-                    <span className="inline-flex gap-1">
+                  <td className="px-3 py-2 min-w-[260px]">
+                    <span className="inline-flex gap-1 flex-wrap">
                       <ResolutionBadge resolution={c.resolution_cat} />
                       <CodecBadge codec={c.video_codec} showCompatWarning />
+                      <AudioQualityBadges audioCodec={c.audio_codec} audioProfile={c.audio_profile} />
                     </span>
                   </td>
                   <td className="px-3 py-2">
@@ -926,7 +933,7 @@ export function ScoutQueue() {
                   <td className="px-3 py-2 text-xs" style={{ color: 'var(--c-muted)' }}>
                     {c.release_group ?? '—'}
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="px-2 py-2 text-center">
                     <CompatTag codec={c.video_codec} />
                   </td>
                   <td className="px-3 py-2 text-right">

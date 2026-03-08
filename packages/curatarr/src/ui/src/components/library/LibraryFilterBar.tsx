@@ -371,6 +371,18 @@ export function LibraryFilterBar({
         </select>
       </FilterSection>
 
+      {hasNonDefaultView && (
+        <button
+          type="button"
+          onClick={onResetView}
+          className="text-xs px-2 py-1 rounded border font-semibold order-4"
+          style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
+          title="Reset active filters and keep the current page-size preference"
+        >
+          reset filters
+        </button>
+      )}
+
       <FilterSection
         ref={tagFilterRef}
         label="Tag"
@@ -462,7 +474,10 @@ export function LibraryFilterBar({
         </label>
       </FilterSection>
 
-      <div className="flex items-center gap-1.5 text-xs order-4 lg:ml-auto" style={{ color: 'var(--c-muted)' }}>
+      <div
+        className="flex items-center gap-1.5 text-xs leading-none h-6 order-4 lg:ml-auto self-center"
+        style={{ color: 'var(--c-muted)' }}
+      >
         <span>Show</span>
         <select
           value={showAll ? 'all' : String(limit)}
@@ -479,19 +494,10 @@ export function LibraryFilterBar({
         </select>
       </div>
 
-      {hasNonDefaultView && (
-        <button
-          type="button"
-          onClick={onResetView}
-          className="text-xs px-2 py-1 rounded border font-semibold order-6"
-          style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
-          title="Reset active filters and keep the current page-size preference"
-        >
-          reset filters
-        </button>
-      )}
-
-      <span className="text-xs flex flex-wrap items-center gap-2 order-4" style={{ color: 'var(--c-muted)' }}>
+      <span
+        className="text-xs flex flex-wrap items-center gap-2 leading-none h-6 order-4 self-center"
+        style={{ color: 'var(--c-muted)' }}
+      >
         {av1CompatOnly && av1CompatRelevant && (
           <>
             <span

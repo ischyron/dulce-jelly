@@ -648,7 +648,7 @@ export function ScoutQueue() {
                 tags: null,
               })
             }
-            className="text-xs px-2 py-1 rounded border font-semibold order-2"
+            className="text-xs px-2 py-1 rounded border font-semibold order-4"
             style={{ color: '#ddd6fe', borderColor: 'rgba(124,58,237,0.45)', background: 'rgba(124,58,237,0.2)' }}
           >
             Reset filters

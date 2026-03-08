@@ -19,6 +19,17 @@
 
 ## TODO Items
 
+- [DONE] ~~Deep verify start should display which files are actively started/running with live status updates on `/verify`.~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: emitted `file_start` SSE events from verify workers; added `/verify` live `Running Now` list bound to active file starts/completions; added i18n strings for running/waiting states
+  - Unit/interaction: `npm run test` -> pass (57/57)
+  - E2E: `npm run test:e2e` -> pass (47/47)
+  - Chrome MCP: flow exercised: `http://dulce.local:3270/verify` start + stop deep verify; expected: during run, UI shows live running filenames for started workers; actual: heading `RUNNING NOW (3)` appeared immediately with three active filenames and cleared after stop with `Cancelled.` status; pass
+  - Git: `1886817`, push ok (`main -> main`)
+  - Deploy: pre-push pipeline executed `docker compose build curatarr` + `docker compose up -d curatarr` -> ok
+  - Date: 2026-03-08
+
 - [DONE] ~~Polish Scout/Library filter-row layout: move Scout minimums after search, align reset button placement, and vertically center Library pagination/stats row content.~~
   Evidence:
   - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled

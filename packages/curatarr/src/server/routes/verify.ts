@@ -104,7 +104,7 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
     return c.json({ total, page, limit, failures });
   });
 
-  // POST /api/verify/clear { fileIds?: number[] } — clear fail/error verification state
+  // POST /api/verify/clear { fileIds?: number[] } — clear all verification state (pass/fail/error/pending)
   app.post('/clear', async (c) => {
     if (verifyEmitter.running) {
       return c.json({ error: 'Cannot clear verify errors while verify is running' }, 409);

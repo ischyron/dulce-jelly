@@ -161,6 +161,7 @@ export interface VerifyFailure {
   filename: string;
   verify_status: string | null;
   verify_errors: string | null;
+  quality_flags: string;
   verified_at: string | null;
   file_size: number | null;
   resolution_cat: string | null;

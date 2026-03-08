@@ -492,7 +492,7 @@ test('verify start returns 409 when a verify job is already running', async (t) 
   assert.match(body.error, /Verify already running/i);
 });
 
-test('verify clear resets fail/error rows and leaves pass rows intact', async (t) => {
+test('verify clear resets all verify result rows including pass', async (t) => {
   const tmp = await makeTempDir('verify-clear');
   t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
   const db = new CuratDb(path.join(tmp, 'curatarr.db'));
@@ -555,7 +555,7 @@ test('verify clear resets fail/error rows and leaves pass rows intact', async (t
   });
   const body = await res.json();
   assert.equal(res.status, 200);
-  assert.equal(body.cleared, 2);
+  assert.equal(body.cleared, 3);
 
   const rows = db.getAllFiles();
   const failRow = rows.find((r) => r.id === failFileId);
@@ -573,7 +573,9 @@ test('verify clear resets fail/error rows and leaves pass rows intact', async (t
   assert.equal(errorRow.verify_errors, null);
   assert.equal(errorRow.quality_flags, '[]');
 
-  assert.equal(passRow.verify_status, 'pass');
+  assert.equal(passRow.verify_status, null);
+  assert.equal(passRow.verify_errors, null);
+  assert.equal(passRow.quality_flags, '[]');
 });
 
 test('jf-refresh falls back to title/year search when stored Jellyfin ID lookup returns 400', async (t) => {

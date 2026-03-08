@@ -1184,7 +1184,7 @@ export class CuratDb {
           quality_flags = '[]',
           verified_at   = NULL,
           updated_at    = datetime('now')
-      WHERE verify_status IN ('fail', 'error')
+      WHERE verify_status IS NOT NULL
     `;
 
     if (Array.isArray(fileIds) && fileIds.length > 0) {

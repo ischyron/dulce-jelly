@@ -1,6 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { AlertCircle, CheckCircle2, Loader2, RotateCcw, ShieldCheck, Square, Trash2, XCircle } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  AlertCircle,
+  CheckCircle2,
+  Copy,
+  Loader2,
+  RotateCcw,
+  ShieldCheck,
+  Square,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ApiError, type VerifyFailure, api } from '../api/client';
 
@@ -28,12 +38,96 @@ interface FileStart {
   startedAt?: string;
 }
 
+interface QualityFlag {
+  severity: 'FLAG' | 'WARN';
+  code: string;
+  message: string;
+  detail?: string;
+}
+
+interface CuratedIssue {
+  severity: 'FLAG' | 'WARN';
+  title: string;
+  impact: string;
+}
+
 function formatBytes(n: number | null): string {
   if (!n) return '—';
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   if (n < 1024 * 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)} MB`;
   return `${(n / 1024 / 1024 / 1024).toFixed(2)} GB`;
+}
+
+function parseStringArray(input: string | null): string[] {
+  if (!input) return [];
+  try {
+    const parsed = JSON.parse(input) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((v): v is string => typeof v === 'string');
+  } catch {
+    return [];
+  }
+}
+
+function parseQualityFlags(input: string | null): QualityFlag[] {
+  if (!input) return [];
+  try {
+    const parsed = JSON.parse(input) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (v): v is QualityFlag =>
+        typeof v === 'object' &&
+        v !== null &&
+        (v as { severity?: unknown }).severity !== undefined &&
+        typeof (v as { code?: unknown }).code === 'string' &&
+        typeof (v as { message?: unknown }).message === 'string',
+    );
+  } catch {
+    return [];
+  }
+}
+
+function buildCuratedIssues(errors: string[], flags: QualityFlag[]): CuratedIssue[] {
+  const curated: CuratedIssue[] = [];
+  const seen = new Set<string>();
+  const push = (severity: 'FLAG' | 'WARN', title: string, impact: string) => {
+    const key = `${severity}:${title}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    curated.push({ severity, title, impact });
+  };
+
+  for (const flag of flags) {
+    if (flag.code === 'decode_error') {
+      push('FLAG', 'Bitstream/Decode corruption', 'Playback may freeze, macroblock, or stop at damaged frames.');
+    } else if (flag.code === 'mux_error') {
+      push('FLAG', 'Container/Mux integrity issue', 'Players may fail to open, seek, or parse tracks reliably.');
+    } else if (flag.code === 'backward_pts') {
+      push('FLAG', 'Timestamp disorder (non-monotonic DTS/PTS)', 'Can cause stutter, random jumps, or A/V sync drift.');
+    }
+  }
+
+  for (const err of errors) {
+    const line = err.toLowerCase();
+    if (line.includes('invalid nal unit size') || line.includes('decode_slice_header') || line.includes('invalid')) {
+      push('FLAG', 'H.264/H.265 bitstream damage', 'Decoder encountered malformed NAL/slice data; playback may break.');
+    } else if (line.includes('non monoton') || line.includes('out of order packet')) {
+      push('FLAG', 'Non-monotonic DTS/PTS', 'Timestamp flow is broken and can produce visible playback glitches.');
+    } else if (line.includes('moov atom not found') || line.includes('invalid atom size')) {
+      push('FLAG', 'Container metadata corruption', 'Stream metadata is damaged; file may fail open or be unseekable.');
+    } else if (line.startsWith('timeout:')) {
+      push('WARN', 'Verification timeout', 'The scan did not finish in time; result confidence is reduced.');
+    } else if (line.startsWith('spawn error')) {
+      push(
+        'WARN',
+        'Verifier runtime failure',
+        'System ffmpeg execution failed; this is environment/tooling, not media quality.',
+      );
+    }
+  }
+
+  return curated;
 }
 
 export function Verify() {
@@ -47,6 +141,7 @@ export function Verify() {
   const [failPage, setFailPage] = useState(1);
   const [clearingFailures, setClearingFailures] = useState(false);
   const [recheckingFileId, setRecheckingFileId] = useState<number | null>(null);
+  const [expandedFailureId, setExpandedFailureId] = useState<number | null>(null);
   const esRef = useRef<EventSource | null>(null);
 
   const { data: statusData, refetch: refetchStatus } = useQuery({
@@ -177,10 +272,39 @@ export function Verify() {
     }
   }
 
+  async function copyFailureDiagnostics(filename: string, errors: string[], curated: CuratedIssue[]) {
+    const payload = [
+      `File: ${filename}`,
+      '',
+      'Curated impact:',
+      ...(curated.length > 0 ? curated.map((item) => `[${item.severity}] ${item.title}: ${item.impact}`) : ['None']),
+      '',
+      'Raw diagnostics:',
+      ...(errors.length > 0 ? errors : ['None']),
+    ].join('\n');
+
+    try {
+      await navigator.clipboard.writeText(payload);
+      setStatusMsg(t('failures.copyOk'));
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = payload;
+      ta.setAttribute('readonly', 'true');
+      ta.style.position = 'fixed';
+      ta.style.left = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const copied = document.execCommand('copy');
+      document.body.removeChild(ta);
+      setStatusMsg(copied ? t('failures.copyOk') : t('failures.copyFail'));
+    }
+  }
+
   const checked = progress.checked ?? 0;
   const total = progress.total ?? 0;
   const pct = total > 0 ? Math.round((checked / total) * 100) : 0;
   const verifyInProgress = running || Boolean(statusData?.running);
+  const clearableCount = (statusData?.pass ?? 0) + (statusData?.fail ?? 0) + (statusData?.error ?? 0);
 
   return (
     <div className="p-6 space-y-6 max-w-5xl">
@@ -270,6 +394,17 @@ export function Verify() {
               {statusMsg}
             </span>
           )}
+          <button
+            type="button"
+            onClick={clearFailures}
+            disabled={verifyInProgress || clearingFailures || clearableCount === 0}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border disabled:opacity-40"
+            style={{ borderColor: 'var(--c-border)', color: '#fca5a5', background: 'rgba(248,113,113,0.12)' }}
+            title={t('failures.clearTitle')}
+          >
+            <Trash2 size={12} />
+            {t('failures.clear')}
+          </button>
         </div>
 
         {/* Progress */}
@@ -393,7 +528,7 @@ export function Verify() {
               <button
                 type="button"
                 onClick={clearFailures}
-                disabled={verifyInProgress || clearingFailures || (failData?.total ?? 0) === 0}
+                disabled={verifyInProgress || clearingFailures || clearableCount === 0}
                 className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border disabled:opacity-40"
                 style={{ borderColor: 'var(--c-border)', color: '#fca5a5', background: 'rgba(248,113,113,0.12)' }}
                 title={t('failures.clearTitle')}
@@ -419,46 +554,126 @@ export function Verify() {
               </thead>
               <tbody>
                 {(failData?.failures ?? []).map((f: VerifyFailure) => {
-                  const errs = (() => {
-                    try {
-                      return JSON.parse(f.verify_errors ?? '[]') as string[];
-                    } catch {
-                      return [];
-                    }
-                  })();
+                  const errs = parseStringArray(f.verify_errors);
+                  const flags = parseQualityFlags(f.quality_flags ?? '[]');
+                  const curated = buildCuratedIssues(errs, flags);
+                  const showDetails = expandedFailureId === f.id;
                   return (
-                    <tr key={f.id} className="border-b" style={{ borderColor: 'var(--c-border)' }}>
-                      <td className="px-4 py-2.5 font-mono text-xs max-w-xs truncate" style={{ color: '#fca5a5' }}>
-                        {f.filename}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--c-muted)' }}>
-                        {formatBytes(f.file_size)}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs max-w-sm truncate" style={{ color: '#fbbf24' }}>
-                        {errs[0] ?? '—'}
-                        {errs.length > 1 && <span style={{ color: 'var(--c-muted)' }}> +{errs.length - 1}</span>}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--c-muted)' }}>
-                        {f.verified_at ? f.verified_at.slice(0, 16) : '—'}
-                      </td>
-                      <td className="px-4 py-2.5 text-xs">
-                        <button
-                          type="button"
-                          onClick={() => recheckFailure(f.id)}
-                          disabled={verifyInProgress || recheckingFileId !== null}
-                          className="inline-flex items-center gap-1.5 px-2 py-1 rounded border disabled:opacity-40"
-                          style={{
-                            borderColor: 'var(--c-border)',
-                            color: 'var(--c-text)',
-                            background: 'rgba(99,102,241,0.12)',
-                          }}
-                          title={verifyInProgress ? t('failures.recheckDisabledTitle') : t('failures.recheckTitle')}
-                        >
-                          <RotateCcw size={11} />
-                          {recheckingFileId === f.id ? t('failures.rechecking') : t('failures.recheck')}
-                        </button>
-                      </td>
-                    </tr>
+                    <Fragment key={f.id}>
+                      <tr className="border-b" style={{ borderColor: 'var(--c-border)' }}>
+                        <td className="px-4 py-2.5 font-mono text-xs max-w-xs truncate" style={{ color: '#fca5a5' }}>
+                          {f.filename}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--c-muted)' }}>
+                          {formatBytes(f.file_size)}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs max-w-sm truncate" style={{ color: '#fbbf24' }}>
+                          {errs[0] ?? '—'}
+                          {errs.length > 1 && <span style={{ color: 'var(--c-muted)' }}> +{errs.length - 1}</span>}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs" style={{ color: 'var(--c-muted)' }}>
+                          {f.verified_at ? f.verified_at.slice(0, 16) : '—'}
+                        </td>
+                        <td className="px-4 py-2.5 text-xs">
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setExpandedFailureId((prev) => (prev === f.id ? null : f.id))}
+                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded border"
+                              style={{
+                                borderColor: 'var(--c-border)',
+                                color: 'var(--c-text)',
+                                background: 'rgba(251,191,36,0.12)',
+                              }}
+                            >
+                              <AlertCircle size={11} />
+                              {showDetails ? t('failures.hideDetails') : t('failures.details')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => recheckFailure(f.id)}
+                              disabled={verifyInProgress || recheckingFileId !== null}
+                              className="inline-flex items-center gap-1.5 px-2 py-1 rounded border disabled:opacity-40"
+                              style={{
+                                borderColor: 'var(--c-border)',
+                                color: 'var(--c-text)',
+                                background: 'rgba(99,102,241,0.12)',
+                              }}
+                              title={verifyInProgress ? t('failures.recheckDisabledTitle') : t('failures.recheckTitle')}
+                            >
+                              <RotateCcw size={11} />
+                              {recheckingFileId === f.id ? t('failures.rechecking') : t('failures.recheck')}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                      {showDetails && (
+                        <tr className="border-b" style={{ borderColor: 'var(--c-border)' }}>
+                          <td colSpan={5} className="px-4 py-3">
+                            <div
+                              className="rounded-lg border p-3 space-y-3"
+                              style={{ background: 'var(--c-bg)', borderColor: 'var(--c-border)' }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <h3 className="text-xs font-semibold uppercase" style={{ color: 'var(--c-muted)' }}>
+                                  {t('failures.detailsTitle')}
+                                </h3>
+                                <button
+                                  type="button"
+                                  onClick={() => copyFailureDiagnostics(f.filename, errs, curated)}
+                                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded border text-xs"
+                                  style={{
+                                    borderColor: 'var(--c-border)',
+                                    color: 'var(--c-text)',
+                                    background: 'rgba(74,222,128,0.12)',
+                                  }}
+                                >
+                                  <Copy size={11} />
+                                  {t('failures.copy')}
+                                </button>
+                              </div>
+                              <div>
+                                <div className="text-xs font-semibold mb-1" style={{ color: 'var(--c-muted)' }}>
+                                  {t('failures.curatedImpact')}
+                                </div>
+                                {curated.length === 0 ? (
+                                  <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                                    {t('failures.none')}
+                                  </div>
+                                ) : (
+                                  <ul className="space-y-1 text-xs">
+                                    {curated.map((item) => (
+                                      <li key={`${item.severity}:${item.title}`}>
+                                        <span style={{ color: item.severity === 'FLAG' ? '#f87171' : '#fbbf24' }}>
+                                          [{item.severity}]
+                                        </span>{' '}
+                                        <span style={{ color: 'var(--c-text)' }}>{item.title}</span>{' '}
+                                        <span style={{ color: 'var(--c-muted)' }}>{item.impact}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                              </div>
+                              <div>
+                                <div className="text-xs font-semibold mb-1" style={{ color: 'var(--c-muted)' }}>
+                                  {t('failures.rawErrors')}
+                                </div>
+                                <textarea
+                                  readOnly
+                                  value={errs.length > 0 ? errs.join('\n') : t('failures.none')}
+                                  className="w-full h-36 rounded border px-2 py-1.5 text-xs font-mono"
+                                  style={{
+                                    background: 'var(--c-surface)',
+                                    borderColor: 'var(--c-border)',
+                                    color: 'var(--c-text)',
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>

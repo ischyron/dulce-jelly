@@ -203,7 +203,7 @@ function ScoutResultsAllTable({
 }: { releases: ScoutResultRow[]; actionState: ScoutActionState }) {
   return (
     <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
-      <table className="w-full text-xs border-collapse">
+      <table className="w-full text-sm border-collapse">
         <thead>
           <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
             <th className="px-2 py-2 text-left">State</th>
@@ -222,7 +222,7 @@ function ScoutResultsAllTable({
             <tr key={`${r.guid ?? r.title}-all-${i}`} style={{ borderTop: '1px solid rgba(38,38,58,0.8)' }}>
               <td className="px-2 py-1.5">
                 <span
-                  className="inline-flex items-center rounded px-2 py-0.5 text-[10px] font-semibold"
+                  className="inline-flex items-center rounded px-2 py-0.5 text-xs font-semibold"
                   style={{
                     background: r.kind === 'candidate' ? 'rgba(74,222,128,0.16)' : 'rgba(251,191,36,0.16)',
                     color: r.kind === 'candidate' ? '#4ade80' : '#fbbf24',
@@ -238,12 +238,12 @@ function ScoutResultsAllTable({
                   {r.title}
                 </div>
                 {r.reasons.length > 0 && (
-                  <div className="text-[10px] truncate" style={{ color: '#8b87aa' }}>
+                  <div className="text-xs truncate" style={{ color: '#8b87aa' }}>
                     {formatScoutReasons(r.reasons)}
                   </div>
                 )}
                 {r.kind === 'dropped' && r.droppedReason && (
-                  <div className="text-[10px]" style={{ color: '#fbbf24' }}>
+                  <div className="text-xs" style={{ color: '#fbbf24' }}>
                     Reason: {r.droppedReason}
                   </div>
                 )}
@@ -272,11 +272,11 @@ function ScoutResultsAllTable({
                       rel="noreferrer"
                       aria-label={`Open release link for ${r.title}`}
                       title="Open indexer/download link"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
                       style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
                       data-testid="scout-release-link"
                     >
-                      <ExternalLink size={11} />
+                      <ExternalLink size={13} />
                     </a>
                   )}
                   {r.kind === 'candidate' ? (
@@ -288,23 +288,23 @@ function ScoutResultsAllTable({
                       }
                       disabled={!canSendToSab(r) || actionState.sendingKey === releaseKeyForAction(r)}
                       onClick={() => actionState.onSendToSab(r)}
-                      className="inline-flex h-6 w-6 items-center justify-center rounded border disabled:opacity-40"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border disabled:opacity-40"
                       style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
                       data-testid="scout-send-sab"
                     >
                       {actionState.sendingKey === releaseKeyForAction(r) ? (
-                        <Loader2 size={11} className="animate-spin" style={{ color: '#86efac' }} />
+                        <Loader2 size={13} className="animate-spin" style={{ color: '#86efac' }} />
                       ) : (
-                        <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                        <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
                       )}
                     </button>
                   ) : (
                     <span
-                      className="inline-flex h-6 w-6 items-center justify-center rounded border opacity-40"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border opacity-40"
                       style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.2)' }}
                       title="Dropped releases cannot be sent"
                     >
-                      <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                      <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
                     </span>
                   )}
                 </div>
@@ -402,7 +402,7 @@ function FileCard({ file }: { file: FileRow }) {
 function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]; actionState: ScoutActionState }) {
   return (
     <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
-      <table className="w-full text-xs border-collapse">
+      <table className="w-full text-sm border-collapse">
         <thead>
           <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
             <th className="px-2 py-2 text-left">Score</th>
@@ -424,7 +424,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                   {r.title}
                 </div>
                 {r.reasons.length > 0 && (
-                  <div className="text-[10px] truncate" style={{ color: '#8b87aa' }}>
+                  <div className="text-xs truncate" style={{ color: '#8b87aa' }}>
                     {formatScoutReasons(r.reasons)}
                   </div>
                 )}
@@ -453,11 +453,11 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                       rel="noreferrer"
                       aria-label={`Open release link for ${r.title}`}
                       title="Open indexer/download link"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
                       style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
                       data-testid="scout-release-link"
                     >
-                      <ExternalLink size={11} />
+                      <ExternalLink size={13} />
                     </a>
                   )}
                   <button
@@ -466,14 +466,14 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                     title={canSendToSab(r) ? 'Send to SABnzbd' : 'Only usenet releases with a download URL can be sent'}
                     disabled={!canSendToSab(r) || actionState.sendingKey === releaseKeyForAction(r)}
                     onClick={() => actionState.onSendToSab(r)}
-                    className="inline-flex h-6 w-6 items-center justify-center rounded border disabled:opacity-40"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded border disabled:opacity-40"
                     style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
                     data-testid="scout-send-sab"
                   >
                     {actionState.sendingKey === releaseKeyForAction(r) ? (
-                      <Loader2 size={11} className="animate-spin" style={{ color: '#86efac' }} />
+                      <Loader2 size={13} className="animate-spin" style={{ color: '#86efac' }} />
                     ) : (
-                      <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                      <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
                     )}
                   </button>
                 </div>
@@ -489,7 +489,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
 function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[] }) {
   return (
     <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
-      <table className="w-full text-xs border-collapse">
+      <table className="w-full text-sm border-collapse">
         <thead>
           <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
             <th className="px-2 py-2 text-left">Score</th>
@@ -527,19 +527,19 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
                       rel="noreferrer"
                       aria-label={`Open release link for ${r.title}`}
                       title="Open indexer/download link"
-                      className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
                       style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
                       data-testid="scout-release-link"
                     >
-                      <ExternalLink size={11} />
+                      <ExternalLink size={13} />
                     </a>
                   )}
                   <span
-                    className="inline-flex h-6 w-6 items-center justify-center rounded border opacity-40"
+                    className="inline-flex h-7 w-7 items-center justify-center rounded border opacity-40"
                     style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.2)' }}
                     title="Dropped releases cannot be sent"
                   >
-                    <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                    <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-4 w-4" />
                   </span>
                 </div>
               </td>
@@ -750,7 +750,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
 
           <div className="min-w-0 flex-1 space-y-2">
             <h1
-              className={mode === 'page' ? 'text-2xl font-bold break-words' : 'text-lg font-bold break-words'}
+              className={mode === 'page' ? 'text-2xl font-bold break-words' : 'text-xl font-bold break-words'}
               style={{ color: 'var(--c-text)' }}
             >
               {displayTitle}
@@ -769,7 +769,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               ))}
             </div>
 
-            <div className="flex flex-wrap items-center gap-4 text-xs" style={{ color: 'var(--c-muted)' }}>
+            <div className="flex flex-wrap items-center gap-4 text-sm" style={{ color: 'var(--c-muted)' }}>
               <span title="IMDb community rating (0-10) from Jellyfin CommunityRating">
                 IMDb rating: <span style={{ color: '#d4cfff' }}>{imdbValue}</span>
               </span>
@@ -781,7 +781,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               </span>
             </div>
 
-            <div className="block w-full text-xs" style={{ color: '#8b87aa' }} data-testid="movie-synced-row">
+            <div className="block w-full text-sm" style={{ color: '#8b87aa' }} data-testid="movie-synced-row">
               Jellyfin Synced:{' '}
               <span style={{ color: '#d4cfff' }}>{data.jf_synced_at ? formatSyncDate(data.jf_synced_at) : '—'}</span>
               {pendingJellyfinSync && (
@@ -838,7 +838,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 type="button"
                 onClick={triggerScoutAndJump}
                 disabled={scoutSearch.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-60"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm border disabled:opacity-60"
                 style={{ borderColor: 'var(--c-accent)', background: 'var(--c-accent)', color: '#fff' }}
                 title="Search live releases from Prowlarr"
               >
@@ -849,7 +849,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 type="button"
                 onClick={() => jfRefreshMutation.mutate()}
                 disabled={jfRefreshMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm border disabled:opacity-50"
                 style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
               >
                 {jfRefreshMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
@@ -858,7 +858,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               <button
                 type="button"
                 onClick={() => setShowDelete(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs border"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-sm border"
                 style={{ borderColor: 'rgba(239,68,68,0.35)', color: '#f87171', background: 'rgba(239,68,68,0.1)' }}
               >
                 <Trash2 size={12} /> Delete
@@ -869,7 +869,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
 
         {disambiguationRequired && (
           <div
-            className="rounded-lg border px-3 py-2 text-xs"
+            className="rounded-lg border px-3 py-2.5 text-sm"
             style={{ borderColor: 'rgba(248,113,113,0.45)', background: 'rgba(127,29,29,0.18)', color: '#fecaca' }}
           >
             <div className="inline-flex items-center gap-1.5 font-semibold">
@@ -888,14 +888,14 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               <button
                 type="button"
                 onClick={() => jfRefreshMutation.mutate()}
-                className="px-2 py-1 rounded text-[11px] border"
+                className="px-2.5 py-1 rounded text-xs border"
                 style={{ borderColor: 'rgba(248,113,113,0.45)', color: '#fecaca' }}
               >
                 Retry Jellyfin Sync
               </button>
               <Link
                 to="/disambiguate"
-                className="px-2 py-1 rounded text-[11px] border"
+                className="px-2.5 py-1 rounded text-xs border"
                 style={{ borderColor: 'rgba(248,113,113,0.45)', color: '#fecaca' }}
               >
                 Open Disambiguate
@@ -910,7 +910,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               {data.folder_path}
             </div>
           </div>
-          <h3 className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
+          <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
             Video Files ({data.files.length})
           </h3>
           <div className="space-y-2">
@@ -925,7 +925,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
           style={{ borderColor: 'var(--c-border)', background: 'rgba(27,27,41,0.45)' }}
         >
           <div
-            className="text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5"
+            className="text-sm font-semibold uppercase tracking-wider inline-flex items-center gap-1.5"
             style={{ color: '#8b87aa' }}
           >
             <Tag size={12} /> Tags
@@ -934,7 +934,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             {tags.map((t) => (
               <span
                 key={t}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-medium"
                 style={{
                   background: 'rgba(124,58,237,0.15)',
                   border: '1px solid rgba(124,58,237,0.35)',
@@ -952,7 +952,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               </span>
             ))}
             {tags.length === 0 && (
-              <span className="text-xs" style={{ color: '#8b87aa' }}>
+              <span className="text-sm" style={{ color: '#8b87aa' }}>
                 No tags
               </span>
             )}
@@ -961,7 +961,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             <select
               value={selectedTag}
               onChange={(e) => setSelectedTag(e.target.value)}
-              className="w-full sm:w-auto px-2 py-1 rounded text-xs focus:outline-none sm:min-w-[10rem]"
+              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm focus:outline-none sm:min-w-[10rem]"
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
             >
               <option value="">Select existing tag</option>
@@ -975,7 +975,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               type="button"
               onClick={addExistingTag}
               disabled={!selectedTag || patchMutation.isPending}
-              className="w-full sm:w-auto px-2 py-1 rounded text-xs border disabled:opacity-50"
+              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm border disabled:opacity-50"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
               Add tag
@@ -987,14 +987,14 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 if (e.key === 'Enter') addNewTag();
               }}
               placeholder="new tag"
-              className="w-full sm:w-auto px-2 py-1 rounded text-xs focus:outline-none"
+              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm focus:outline-none"
               style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
             />
             <button
               type="button"
               onClick={addNewTag}
               disabled={!addableTag || patchMutation.isPending}
-              className="w-full sm:w-auto px-2 py-1 rounded text-xs border disabled:opacity-50"
+              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm border disabled:opacity-50"
               style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
             >
               Add new
@@ -1003,7 +1003,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
 
           <div className="pt-1 border-t" style={{ borderColor: 'var(--c-border)' }}>
             <div
-              className="text-xs font-semibold uppercase tracking-wider inline-flex items-center gap-1.5 mb-2"
+              className="text-sm font-semibold uppercase tracking-wider inline-flex items-center gap-1.5 mb-2"
               style={{ color: '#8b87aa' }}
             >
               <FileText size={12} /> Notes
@@ -1021,7 +1021,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                 type="button"
                 onClick={saveNotes}
                 disabled={patchMutation.isPending}
-                className="px-3 py-1.5 rounded-lg text-xs font-medium border disabled:opacity-60"
+                className="px-3 py-1.5 rounded-lg text-sm font-medium border disabled:opacity-60"
                 style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
               >
                 Save Notes
@@ -1041,7 +1041,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               <h3
                 ref={scoutHeadingRef}
                 tabIndex={-1}
-                className="text-xs font-semibold uppercase tracking-wider focus:outline-none"
+                className="text-sm font-semibold uppercase tracking-wider focus:outline-none"
                 style={{ color: '#8b87aa' }}
               >
                 Scout Results
@@ -1053,7 +1053,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   scoutSearch.mutate(true);
                 }}
                 disabled={scoutSearch.isPending}
-                className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border disabled:opacity-50"
+                className="inline-flex items-center gap-1 text-sm px-2.5 py-1.5 rounded border disabled:opacity-50"
                 style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
                 title="Force a fresh Prowlarr lookup and bypass Scout cache"
               >
@@ -1062,20 +1062,20 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               </button>
             </div>
             {jellyfinSyncError && (
-              <div className="text-xs text-red-400 inline-flex items-start gap-1">
+              <div className="text-sm text-red-400 inline-flex items-start gap-1">
                 <AlertCircle size={12} className="mt-[1px]" />
                 <span>{jellyfinSyncError}</span>
               </div>
             )}
             {scoutSearch.isError && (
-              <div className="text-xs text-red-400 inline-flex items-center gap-1">
+              <div className="text-sm text-red-400 inline-flex items-center gap-1">
                 <AlertCircle size={12} />
                 {(scoutSearch.error as Error).message}
               </div>
             )}
             {sabStatus && (
               <div
-                className="text-xs inline-flex items-center gap-1"
+                className="text-sm inline-flex items-center gap-1"
                 style={{ color: sabStatus.startsWith('Error:') ? '#fca5a5' : '#86efac' }}
               >
                 <AlertCircle size={12} />
@@ -1086,7 +1086,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
               scoutSearch.data &&
               scoutSearch.data.releases.length === 0 &&
               (scoutSearch.data.droppedReleases?.length ?? 0) === 0 && (
-                <div className="text-xs" style={{ color: '#8b87aa' }}>
+                <div className="text-sm" style={{ color: '#8b87aa' }}>
                   No releases found.
                 </div>
               )}
@@ -1124,7 +1124,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                               key={view.key}
                               type="button"
                               onClick={() => setScoutResultView(view.key as ScoutResultView)}
-                              className="px-2 py-1 rounded border text-xs"
+                              className="px-2.5 py-1.5 rounded border text-sm"
                               style={{
                                 borderColor: scoutResultView === view.key ? '#a78bfa' : 'var(--c-border)',
                                 color: scoutResultView === view.key ? '#d4cfff' : 'var(--c-muted)',
@@ -1142,14 +1142,14 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                             style={{ borderColor: 'var(--c-border)', background: 'rgba(30,30,46,0.6)' }}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+                              <div className="text-xs uppercase tracking-wider" style={{ color: '#8b87aa' }}>
                                 Filter Chips
                               </div>
                               {scoutFilterChips.length > 0 && (
                                 <button
                                   type="button"
                                   onClick={() => setScoutFilterChips([])}
-                                  className="text-xs underline"
+                                  className="text-sm underline"
                                   style={{ color: '#c4b5fd' }}
                                 >
                                   Clear filters
@@ -1157,13 +1157,13 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                               )}
                             </div>
                             {chipGroups.length === 0 && (
-                              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                              <div className="text-sm" style={{ color: 'var(--c-muted)' }}>
                                 No detected tags for chip filters.
                               </div>
                             )}
                             {chipGroups.map((group) => (
                               <div key={group.label} className="space-y-1">
-                                <div className="text-[11px] uppercase tracking-wider" style={{ color: '#8b87aa' }}>
+                                <div className="text-xs uppercase tracking-wider" style={{ color: '#8b87aa' }}>
                                   {group.label}
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
@@ -1178,7 +1178,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                                             prev.includes(chip) ? prev.filter((v) => v !== chip) : [...prev, chip],
                                           )
                                         }
-                                        className="px-2 py-0.5 rounded-full text-[11px] border"
+                                        className="px-2 py-0.5 rounded-full text-xs border"
                                         style={{
                                           borderColor: active ? '#a78bfa' : 'var(--c-border)',
                                           color: active ? '#d4cfff' : 'var(--c-muted)',
@@ -1192,7 +1192,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                                 </div>
                               </div>
                             ))}
-                            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                            <div className="text-sm" style={{ color: 'var(--c-muted)' }}>
                               Showing {filteredAll.length} of {allResults.length} releases
                               {chipFilterActive ? ` (filters: ${scoutFilterChips.join(', ')})` : ''}.
                             </div>
@@ -1203,7 +1203,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   })()}
 
                   <div
-                    className="rounded-lg border px-3 py-2 text-xs"
+                    className="rounded-lg border px-3 py-2.5 text-sm"
                     style={{ borderColor: '#3a3657', background: 'rgba(30,30,46,0.6)' }}
                   >
                     <div style={{ color: '#8b87aa' }} className="uppercase tracking-wider mb-1">
@@ -1223,11 +1223,11 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                                 rel="noreferrer"
                                 aria-label={`Open release link for ${scoutSearch.data.recommendation.best.title}`}
                                 title="Open indexer/download link"
-                                className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
+                                className="inline-flex h-7 w-7 items-center justify-center rounded border hover:opacity-90"
                                 style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
                                 data-testid="scout-recommendation-release-link"
                               >
-                                <ExternalLink size={11} />
+                                <ExternalLink size={13} />
                               </a>
                             )}
                             <button
@@ -1247,14 +1247,14 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                                 if (!best) return;
                                 handleSendToSab(best);
                               }}
-                              className="inline-flex h-6 w-6 items-center justify-center rounded border disabled:opacity-40"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded border disabled:opacity-40"
                               style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
                               data-testid="scout-recommendation-send-sab"
                             >
                               {sendingSabKey === releaseKeyForAction(scoutSearch.data.recommendation.best) ? (
-                                <Loader2 size={11} className="animate-spin" style={{ color: '#86efac' }} />
+                                <Loader2 size={14} className="animate-spin" style={{ color: '#86efac' }} />
                               ) : (
-                                <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                                <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-5 w-5" />
                               )}
                             </button>
                           </span>

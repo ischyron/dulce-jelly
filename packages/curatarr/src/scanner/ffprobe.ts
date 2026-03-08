@@ -405,6 +405,25 @@ const NON_GROUP_TOKENS = new Set([
   'DDP',
   'DD',
   'REMUX',
+  // *arr / media-server app names that appear in filenames but are not release groups
+  'RADARR',
+  'SONARR',
+  'LIDARR',
+  'READARR',
+  'PROWLARR',
+  'BAZARR',
+  'PLEX',
+  'JELLYFIN',
+  'EMBY',
+  // Extra resolution / scan tokens sometimes missed by RESOLUTION_RE
+  '1080I',
+  '576P',
+  '576I',
+  '360P',
+  '240P',
+  'FHD',
+  'QHD',
+  '8K',
 ]);
 
 // Matches resolution tokens like "1080p", "720P", "4k" (digits + optional p/i/k)

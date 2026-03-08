@@ -755,7 +755,7 @@ export function ScoutQueue() {
       )}
 
       {/* Table */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto px-6">
         {isLoading ? (
           <div className="p-8" style={{ color: 'var(--c-muted)' }}>
             Loading…

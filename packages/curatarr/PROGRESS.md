@@ -19,6 +19,19 @@
 
 ## TODO Items
 
+- [DONE] ~~Refactor Scout/Library rating terminology and filter parity: remove MC naming, add Critic Score naming, and align Scout candidate filters/data parity with Library (no Scout sorting).~~
+  Evidence:
+  - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled
+  - Dev: removed `MC/Metacritic/minMc` naming and replaced with `criticScore` naming (UI labels + i18n key + docs), updated Scout queue query params to `criticScoreMin` / `imdbScoreMin` (with backend compatibility aliases), added Scout pre-sorted queue info/link to Settings, expanded Scout filters to include Library-equivalent controls (search, resolution, codec, HDR/DV/AV1/legacy, audio format/layout, genres, tags, multi, noJf), aligned `/api/candidates` with Library-style filter semantics and primary-file parity, added release-group fallback parsing in candidates path, and added candidate parity/filter route tests.
+  - Unit/interaction: `npm run build:server && npm run test` -> pass
+  - E2E: `npm run test:e2e` -> pass (44 passed)
+  - Chrome MCP: blocked in this session (`Transport closed` from `mcp__chrome__*` calls); manual browser verification executed via Playwright fallback on deployed app:  
+    flow exercised: `/scout` and `/library?q=12%20Angry`; expected: Scout shows `Critic Score` and Library-equivalent filter controls with pre-sorted queue note; Library header shows `Critic Score`; release group parity for `12 Angry Men (1957)` between Scout and Library should match.  
+    actual: Scout showed `Critic Score`, full filter set, and pre-sorted note linking to `/settings/scout`; Library header showed `Critic Score`; both views showed release group `YTS.MX` for `12 Angry Men (1957)`; pass (fallback).
+  - Git: `1f48f19`, `48cabf3`, push ok (`main -> main`)
+  - Deploy: `cd ../../ && docker compose up -d --build curatarr` -> ok; plus pre-push pipeline docker build/deploy -> ok
+  - Date: 2026-03-08
+
 - [DONE] ~~Fix release-group parsing/display parity and remove hardcoded group-tier seeding/reporting heuristics.~~
   Evidence:
   - MCP preflight: `codex mcp list` -> pass; playwright=enabled; chrome=enabled

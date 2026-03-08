@@ -385,69 +385,69 @@ export function Library() {
   }
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl w-full mx-auto">
-      <div className="flex flex-col">
-        <LibraryFilterBar
-          isFetching={isFetching}
-          searchInput={searchInput}
-          onSearchInput={handleSearchInput}
-          genreFilterRef={genreFilterRef}
-          genreFilterOpen={genreFilterOpen}
-          setGenreFilterOpen={setGenreFilterOpen}
-          genres={genresData?.genres ?? []}
-          selectedGenres={selectedGenres}
-          genreAnd={genreAnd}
-          onToggleGenreFilter={toggleGenreFilter}
-          onToggleGenreAnd={(checked) => patch({ genreAnd: checked ? '1' : null, page: '1' })}
-          onRemoveGenreFilter={removeGenreFilter}
-          resolution={resolution}
-          onToggleResolution={(value) => patch({ resolution: resolution === value ? null : value, page: '1' })}
-          codec={codec}
-          onToggleCodec={(value) => patch({ codec: codec === value ? null : value, page: '1' })}
-          hdrOnly={hdrOnly}
-          onToggleHdrOnly={(checked) => patch({ hdr: checked ? '1' : null, page: '1' })}
-          dvOnly={dvOnly}
-          onToggleDvOnly={(checked) => patch({ dv: checked ? '1' : null, page: '1' })}
-          av1CompatOnly={av1CompatOnly}
-          onToggleAv1CompatOnly={(checked) =>
-            patch({ av1Compat: checked ? '1' : null, codec: checked ? null : codec, page: '1' })
-          }
-          legacyOnly={legacyOnly}
-          onToggleLegacyOnly={(checked) => patch({ legacy: checked ? '1' : null, page: '1' })}
-          audioFormat={audioFormat}
-          onAudioFormatChange={(value) => patch({ audioFormat: value || null, page: '1' })}
-          audioLayout={audioLayout}
-          onAudioLayoutChange={(value) => patch({ audioLayout: value || null, page: '1' })}
-          tagFilterRef={tagFilterRef}
-          tagFilterOpen={tagFilterOpen}
-          setTagFilterOpen={setTagFilterOpen}
-          tags={tagsData?.tags ?? []}
-          selectedTags={selectedTags}
-          onToggleFilterTag={toggleFilterTag}
-          onRemoveFilterTag={removeFilterTag}
-          multiOnly={multiOnly}
-          onToggleMultiOnly={(checked) => patch({ multi: checked ? '1' : null, page: '1' })}
-          noJf={noJf}
-          onToggleNoJf={(checked) => patch({ noJf: checked ? '1' : null, page: '1' })}
-          showAll={showAll}
-          limit={limit}
-          onPageSizeChange={(value) => {
-            if (value === 'all') patch({ limit: 'all', all: '1', page: '1' });
-            else patch({ limit: value, all: null, page: '1' });
-          }}
-          hasNonDefaultView={hasNonDefaultView}
-          onResetView={resetView}
-          av1CompatRelevant={av1CompatRelevant}
-          clientProfile={clientProfile}
-          selectedCount={selectedIds.length}
-          onOpenAddTagsModal={openAddTagsModal}
-          onOpenRemoveTagsModal={openRemoveTagsModal}
-          onRemoveSelectedFromIndex={removeSelectedFromIndex}
-          removePending={removeSelectedMutation.isPending}
-          totalMovies={data?.total}
-          totalLibrarySize={data?.totalSize}
-        />
+    <div className="flex flex-col h-full">
+      <LibraryFilterBar
+        isFetching={isFetching}
+        searchInput={searchInput}
+        onSearchInput={handleSearchInput}
+        genreFilterRef={genreFilterRef}
+        genreFilterOpen={genreFilterOpen}
+        setGenreFilterOpen={setGenreFilterOpen}
+        genres={genresData?.genres ?? []}
+        selectedGenres={selectedGenres}
+        genreAnd={genreAnd}
+        onToggleGenreFilter={toggleGenreFilter}
+        onToggleGenreAnd={(checked) => patch({ genreAnd: checked ? '1' : null, page: '1' })}
+        onRemoveGenreFilter={removeGenreFilter}
+        resolution={resolution}
+        onToggleResolution={(value) => patch({ resolution: resolution === value ? null : value, page: '1' })}
+        codec={codec}
+        onToggleCodec={(value) => patch({ codec: codec === value ? null : value, page: '1' })}
+        hdrOnly={hdrOnly}
+        onToggleHdrOnly={(checked) => patch({ hdr: checked ? '1' : null, page: '1' })}
+        dvOnly={dvOnly}
+        onToggleDvOnly={(checked) => patch({ dv: checked ? '1' : null, page: '1' })}
+        av1CompatOnly={av1CompatOnly}
+        onToggleAv1CompatOnly={(checked) =>
+          patch({ av1Compat: checked ? '1' : null, codec: checked ? null : codec, page: '1' })
+        }
+        legacyOnly={legacyOnly}
+        onToggleLegacyOnly={(checked) => patch({ legacy: checked ? '1' : null, page: '1' })}
+        audioFormat={audioFormat}
+        onAudioFormatChange={(value) => patch({ audioFormat: value || null, page: '1' })}
+        audioLayout={audioLayout}
+        onAudioLayoutChange={(value) => patch({ audioLayout: value || null, page: '1' })}
+        tagFilterRef={tagFilterRef}
+        tagFilterOpen={tagFilterOpen}
+        setTagFilterOpen={setTagFilterOpen}
+        tags={tagsData?.tags ?? []}
+        selectedTags={selectedTags}
+        onToggleFilterTag={toggleFilterTag}
+        onRemoveFilterTag={removeFilterTag}
+        multiOnly={multiOnly}
+        onToggleMultiOnly={(checked) => patch({ multi: checked ? '1' : null, page: '1' })}
+        noJf={noJf}
+        onToggleNoJf={(checked) => patch({ noJf: checked ? '1' : null, page: '1' })}
+        showAll={showAll}
+        limit={limit}
+        onPageSizeChange={(value) => {
+          if (value === 'all') patch({ limit: 'all', all: '1', page: '1' });
+          else patch({ limit: value, all: null, page: '1' });
+        }}
+        hasNonDefaultView={hasNonDefaultView}
+        onResetView={resetView}
+        av1CompatRelevant={av1CompatRelevant}
+        clientProfile={clientProfile}
+        selectedCount={selectedIds.length}
+        onOpenAddTagsModal={openAddTagsModal}
+        onOpenRemoveTagsModal={openRemoveTagsModal}
+        onRemoveSelectedFromIndex={removeSelectedFromIndex}
+        removePending={removeSelectedMutation.isPending}
+        totalMovies={data?.total}
+        totalLibrarySize={data?.totalSize}
+      />
 
+      <div className="px-6 py-4 space-y-4">
         <div className="overflow-x-auto">
           <LibraryTable
             isLoading={isLoading}
@@ -476,53 +476,53 @@ export function Library() {
             onChangePage={(next) => patch({ page: String(next) })}
           />
         )}
-
-        <TagBatchModal
-          mode="add"
-          selectedCount={selectedIds.length}
-          allTags={tagsData?.tags ?? []}
-          pending={batchTagsMutation.isPending}
-          open={showAddTagsModal}
-          tagPick={batchTagPick}
-          tagInput={batchTagInput}
-          batchTags={batchTags}
-          onClose={() => setShowAddTagsModal(false)}
-          onTagPickChange={setBatchTagPick}
-          onTagInputChange={setBatchTagInput}
-          onAddPicked={addPickedTag}
-          onAddInput={addInputTag}
-          onRemoveBatchTag={(tag) => setBatchTags((prev) => prev.filter((x) => x !== tag))}
-          onApply={applyBatchAddTags}
-        />
-
-        <TagBatchModal
-          mode="remove"
-          selectedCount={selectedIds.length}
-          allTags={tagsData?.tags ?? []}
-          pending={batchTagsMutation.isPending}
-          open={showRemoveTagsModal}
-          tagPick={batchTagPick}
-          tagInput={batchTagInput}
-          batchTags={batchTags}
-          onClose={() => setShowRemoveTagsModal(false)}
-          onTagPickChange={setBatchTagPick}
-          onTagInputChange={setBatchTagInput}
-          onAddPicked={addPickedTag}
-          onAddInput={addInputTag}
-          onRemoveBatchTag={(tag) => setBatchTags((prev) => prev.filter((x) => x !== tag))}
-          onApply={applyBatchRemoveTags}
-        />
-
-        <RemoveIndexModal
-          open={showRemoveIndexModal}
-          selectedCount={selectedIds.length}
-          pending={removeSelectedMutation.isPending}
-          onClose={() => setShowRemoveIndexModal(false)}
-          onConfirm={confirmRemoveSelectedFromIndex}
-        />
-
-        {selectedId && <MovieDetailDrawer movieId={selectedId} onClose={() => patch({ movie: null })} />}
       </div>
+
+      <TagBatchModal
+        mode="add"
+        selectedCount={selectedIds.length}
+        allTags={tagsData?.tags ?? []}
+        pending={batchTagsMutation.isPending}
+        open={showAddTagsModal}
+        tagPick={batchTagPick}
+        tagInput={batchTagInput}
+        batchTags={batchTags}
+        onClose={() => setShowAddTagsModal(false)}
+        onTagPickChange={setBatchTagPick}
+        onTagInputChange={setBatchTagInput}
+        onAddPicked={addPickedTag}
+        onAddInput={addInputTag}
+        onRemoveBatchTag={(tag) => setBatchTags((prev) => prev.filter((x) => x !== tag))}
+        onApply={applyBatchAddTags}
+      />
+
+      <TagBatchModal
+        mode="remove"
+        selectedCount={selectedIds.length}
+        allTags={tagsData?.tags ?? []}
+        pending={batchTagsMutation.isPending}
+        open={showRemoveTagsModal}
+        tagPick={batchTagPick}
+        tagInput={batchTagInput}
+        batchTags={batchTags}
+        onClose={() => setShowRemoveTagsModal(false)}
+        onTagPickChange={setBatchTagPick}
+        onTagInputChange={setBatchTagInput}
+        onAddPicked={addPickedTag}
+        onAddInput={addInputTag}
+        onRemoveBatchTag={(tag) => setBatchTags((prev) => prev.filter((x) => x !== tag))}
+        onApply={applyBatchRemoveTags}
+      />
+
+      <RemoveIndexModal
+        open={showRemoveIndexModal}
+        selectedCount={selectedIds.length}
+        pending={removeSelectedMutation.isPending}
+        onClose={() => setShowRemoveIndexModal(false)}
+        onConfirm={confirmRemoveSelectedFromIndex}
+      />
+
+      {selectedId && <MovieDetailDrawer movieId={selectedId} onClose={() => patch({ movie: null })} />}
     </div>
   );
 }

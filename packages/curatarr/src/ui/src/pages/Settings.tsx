@@ -4,6 +4,7 @@ import { type DragEvent, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../api/client';
+import { PageHeader } from '../components/PageHeader';
 import { LLM_RULESET_SAMPLES } from '../components/settings/content';
 import { GeneralPanel } from '../components/settings/general/GeneralPanel';
 import { ScoutPanel } from '../components/settings/scout/ScoutPanel';
@@ -551,290 +552,289 @@ export function Settings() {
     );
 
   return (
-    <div className="p-6 space-y-6 max-w-2xl">
-      <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
-        <Settings2 size={20} style={{ color: 'var(--c-accent)' }} />
-        {t('title')}
-      </h1>
-      <div className="text-sm" style={{ color: 'var(--c-muted)' }}>
-        {sectionMode === 'general' ? t('section.general') : t('section.scout')}
-      </div>
-
-      {sectionMode === 'general' ? (
-        <section aria-label={t('section.general')}>
-          <GeneralPanel
-            form={form}
-            set={set}
-            checkJellyfinHealth={checkJellyfinHealth}
-            checkingJellyfinHealth={checkingJellyfinHealth}
-            jellyfinHealth={jellyfinHealth}
-            movieRoots={movieRoots}
-            updateMovieRoot={updateMovieRoot}
-            openBrowse={openBrowse}
-            removeMovieRoot={removeMovieRoot}
-            addMovieRoot={addMovieRoot}
-            clientProfile={clientProfile}
-            setClientProfile={setClientProfile}
-          />
-        </section>
-      ) : (
-        <section aria-label={t('section.scout')}>
-          <ScoutPanel
-            prowlarr={{
-              form,
-              set,
-              checkProwlarrHealth,
-              checkingProwlarrHealth,
-              prowlarrHealth,
-            }}
-            llmProvider={{ form, set }}
-            minimumQualifiers={{ form, set }}
-            cfScoring={{
-              form,
-              set,
-            }}
-            trashSyncDetails={{
-              onSyncTrash: () => scoutSyncTrashMutation.mutate(),
-              syncingTrash: scoutSyncTrashMutation.isPending,
-              syncTrashError: scoutSyncTrashMutation.isError
-                ? (scoutSyncTrashMutation.error as Error).message
-                : undefined,
-              hasTrashSyncDetails,
-              syncedTrashSource,
-              syncedTrashRevision,
-              syncedTrashModelVersion,
-              syncedTrashMappingRevision,
-              syncedTrashAt,
-              syncedTrashRules,
-              syncedTrashWarning,
-              upstreamSnapshot,
-            }}
-            customOverrides={{
-              form,
-              set,
-              customCfDraft,
-              updateCustomCfRule,
-              removeCustomCfRule,
-              addCustomCfRule,
-              saveCustomCf: () => saveCustomCfMutation.mutate(customCfDraft),
-              savePending: saveCustomCfMutation.isPending,
-              customCfSaved,
-              customCfError,
-              customCfPreviewTitle,
-              setCustomCfPreviewTitle,
-              runCustomCfPreview: () => customCfPreviewMutation.mutate(customCfPreviewTitle),
-              customCfPreviewPending: customCfPreviewMutation.isPending,
-              customCfPreviewData: customCfPreviewMutation.data,
-              blockerDraft,
-              updateBlockerRule,
-              removeBlockerRule,
-              addBlockerRule,
-              saveBlockers: () => saveBlockersMutation.mutate(blockerDraft),
-              blockersSavePending: saveBlockersMutation.isPending,
-              blockersSaved,
-              blockersError,
-            }}
-            extendedLlmRuleset={{
-              form,
-              set,
-              llmRulesDraft,
-              llmDragIndex,
-              onLlmDragStart,
-              onLlmDragOver,
-              onLlmDrop,
-              onLlmDragEnd,
-              updateLlmRule,
-              removeLlmRule,
-              addLlmRule,
-              addLlmSampleRules,
-              saveLlmRules: () => saveLlmRulesMutation.mutate(llmRulesDraft),
-              savePending: saveLlmRulesMutation.isPending,
-              llmRulesSaved,
-              llmRulesError,
-              refineObjective,
-              setRefineObjective,
-              generateDraft: () => scoutRefineDraftMutation.mutate(refineObjective),
-              draftPending: scoutRefineDraftMutation.isPending,
-              draftData: scoutRefineDraftMutation.data,
-            }}
-            automation={{
-              form,
-              set,
-              autoStatusData,
-              runAutoScout: () => scoutAutoRunMutation.mutate(),
-              runPending: scoutAutoRunMutation.isPending,
-            }}
-          />
-        </section>
-      )}
-
-      {showScanPrompt && (
-        <div
-          className="flex items-start gap-3 p-4 rounded-xl border"
-          style={{ background: 'rgba(124,58,237,0.08)', borderColor: 'rgba(124,58,237,0.3)' }}
-        >
-          <ScanLine size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--c-accent)' }} />
-          <div className="flex-1 space-y-2">
-            <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>
-              {t('scanPrompt.title')}
-            </div>
-            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              {t('scanPrompt.body')}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setShowScanPrompt(false);
-                  navigate('/scan');
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
-                style={{ background: 'var(--c-accent)' }}
-              >
-                <ScanLine size={12} /> {t('scanPrompt.goToScan')}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowScanPrompt(false)}
-                className="text-xs underline"
-                style={{ color: 'var(--c-muted)' }}
-              >
-                {t('scanPrompt.dismiss')}
-              </button>
-            </div>
-          </div>
+    <div className="flex flex-col h-full">
+      <PageHeader icon={Settings2} title={t('title')} />
+      <div className="px-6 py-6 space-y-6 max-w-2xl">
+        <div className="text-sm" style={{ color: 'var(--c-muted)' }}>
+          {sectionMode === 'general' ? t('section.general') : t('section.scout')}
         </div>
-      )}
 
-      {browseOpen && (
-        <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
-          <div
-            className="w-full max-w-2xl rounded-xl border p-4 space-y-3"
-            style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="font-semibold" style={{ color: '#d4cfff' }}>
-                  {t('browseModal.title')}
-                </div>
-                <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-                  {browseRestricted ? t('browseModal.restricted') : t('browseModal.local')}
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setBrowseOpen(false);
-                  setBrowseForIndex(null);
-                }}
-                className="p-2 rounded-lg"
-                style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
-              {t('browseModal.mode')}: <span style={{ color: 'var(--c-text)' }}>{browseMode}</span>
-              {' · '}
-              {t('browseModal.current')}: <span style={{ color: '#c4b5fd' }}>{browsePath}</span>
-            </div>
-
-            <div className="flex items-center gap-2 flex-wrap">
-              {browseRoots.map((r) => (
-                <button
-                  key={r}
-                  type="button"
-                  onClick={() => {
-                    void loadBrowse(r);
-                  }}
-                  className="px-2 py-1 rounded text-xs"
-                  style={{ border: '1px solid var(--c-border)', color: '#c4b5fd' }}
-                >
-                  {r}
-                </button>
-              ))}
-              {browseParentPath && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void loadBrowse(browseParentPath);
-                  }}
-                  className="px-2 py-1 rounded text-xs"
-                  style={{ border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
-                >
-                  {t('browseModal.parent')}
-                </button>
-              )}
-            </div>
-
-            <div className="rounded border overflow-auto max-h-72" style={{ borderColor: 'var(--c-border)' }}>
-              {browseError ? (
-                <div className="p-3 text-sm text-red-400">{browseError}</div>
-              ) : browseEntries.length === 0 ? (
-                <div className="p-3 text-sm" style={{ color: 'var(--c-muted)' }}>
-                  {t('browseModal.empty')}
-                </div>
-              ) : (
-                <div className="divide-y" style={{ borderColor: 'var(--c-border)' }}>
-                  {browseEntries.map((entry) => (
-                    <button
-                      key={entry.path}
-                      type="button"
-                      onClick={() => {
-                        void loadBrowse(entry.path);
-                      }}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
-                      style={{ color: 'var(--c-text)' }}
-                    >
-                      {entry.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setBrowseOpen(false);
-                  setBrowseForIndex(null);
-                }}
-                className="px-3 py-1.5 rounded text-sm"
-                style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
-              >
-                {t('browseModal.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={applyBrowsedPath}
-                className="px-3 py-1.5 rounded text-sm text-white"
-                style={{ background: 'var(--c-accent)' }}
-              >
-                {t('browseModal.useFolder')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => handleSave(sectionMode)}
-          disabled={saveMutation.isPending}
-          className="px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-60"
-          style={{ background: 'var(--c-accent)' }}
-        >
-          {saveMutation.isPending ? t('save.saving') : t('save.label')}
-        </button>
-        {saved && (
-          <span className="flex items-center gap-1 text-sm text-green-400">
-            <CheckCircle size={14} /> {t('save.saved')}
-          </span>
+        {sectionMode === 'general' ? (
+          <section aria-label={t('section.general')}>
+            <GeneralPanel
+              form={form}
+              set={set}
+              checkJellyfinHealth={checkJellyfinHealth}
+              checkingJellyfinHealth={checkingJellyfinHealth}
+              jellyfinHealth={jellyfinHealth}
+              movieRoots={movieRoots}
+              updateMovieRoot={updateMovieRoot}
+              openBrowse={openBrowse}
+              removeMovieRoot={removeMovieRoot}
+              addMovieRoot={addMovieRoot}
+              clientProfile={clientProfile}
+              setClientProfile={setClientProfile}
+            />
+          </section>
+        ) : (
+          <section aria-label={t('section.scout')}>
+            <ScoutPanel
+              prowlarr={{
+                form,
+                set,
+                checkProwlarrHealth,
+                checkingProwlarrHealth,
+                prowlarrHealth,
+              }}
+              llmProvider={{ form, set }}
+              minimumQualifiers={{ form, set }}
+              cfScoring={{
+                form,
+                set,
+              }}
+              trashSyncDetails={{
+                onSyncTrash: () => scoutSyncTrashMutation.mutate(),
+                syncingTrash: scoutSyncTrashMutation.isPending,
+                syncTrashError: scoutSyncTrashMutation.isError
+                  ? (scoutSyncTrashMutation.error as Error).message
+                  : undefined,
+                hasTrashSyncDetails,
+                syncedTrashSource,
+                syncedTrashRevision,
+                syncedTrashModelVersion,
+                syncedTrashMappingRevision,
+                syncedTrashAt,
+                syncedTrashRules,
+                syncedTrashWarning,
+                upstreamSnapshot,
+              }}
+              customOverrides={{
+                form,
+                set,
+                customCfDraft,
+                updateCustomCfRule,
+                removeCustomCfRule,
+                addCustomCfRule,
+                saveCustomCf: () => saveCustomCfMutation.mutate(customCfDraft),
+                savePending: saveCustomCfMutation.isPending,
+                customCfSaved,
+                customCfError,
+                customCfPreviewTitle,
+                setCustomCfPreviewTitle,
+                runCustomCfPreview: () => customCfPreviewMutation.mutate(customCfPreviewTitle),
+                customCfPreviewPending: customCfPreviewMutation.isPending,
+                customCfPreviewData: customCfPreviewMutation.data,
+                blockerDraft,
+                updateBlockerRule,
+                removeBlockerRule,
+                addBlockerRule,
+                saveBlockers: () => saveBlockersMutation.mutate(blockerDraft),
+                blockersSavePending: saveBlockersMutation.isPending,
+                blockersSaved,
+                blockersError,
+              }}
+              extendedLlmRuleset={{
+                form,
+                set,
+                llmRulesDraft,
+                llmDragIndex,
+                onLlmDragStart,
+                onLlmDragOver,
+                onLlmDrop,
+                onLlmDragEnd,
+                updateLlmRule,
+                removeLlmRule,
+                addLlmRule,
+                addLlmSampleRules,
+                saveLlmRules: () => saveLlmRulesMutation.mutate(llmRulesDraft),
+                savePending: saveLlmRulesMutation.isPending,
+                llmRulesSaved,
+                llmRulesError,
+                refineObjective,
+                setRefineObjective,
+                generateDraft: () => scoutRefineDraftMutation.mutate(refineObjective),
+                draftPending: scoutRefineDraftMutation.isPending,
+                draftData: scoutRefineDraftMutation.data,
+              }}
+              automation={{
+                form,
+                set,
+                autoStatusData,
+                runAutoScout: () => scoutAutoRunMutation.mutate(),
+                runPending: scoutAutoRunMutation.isPending,
+              }}
+            />
+          </section>
         )}
-        {saveMutation.isError && <span className="text-sm text-red-400">{t('save.failed')}</span>}
+
+        {showScanPrompt && (
+          <div
+            className="flex items-start gap-3 p-4 rounded-xl border"
+            style={{ background: 'rgba(124,58,237,0.08)', borderColor: 'rgba(124,58,237,0.3)' }}
+          >
+            <ScanLine size={16} className="shrink-0 mt-0.5" style={{ color: 'var(--c-accent)' }} />
+            <div className="flex-1 space-y-2">
+              <div className="text-sm font-medium" style={{ color: 'var(--c-text)' }}>
+                {t('scanPrompt.title')}
+              </div>
+              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                {t('scanPrompt.body')}
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowScanPrompt(false);
+                    navigate('/scan');
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                  style={{ background: 'var(--c-accent)' }}
+                >
+                  <ScanLine size={12} /> {t('scanPrompt.goToScan')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowScanPrompt(false)}
+                  className="text-xs underline"
+                  style={{ color: 'var(--c-muted)' }}
+                >
+                  {t('scanPrompt.dismiss')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {browseOpen && (
+          <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
+            <div
+              className="w-full max-w-2xl rounded-xl border p-4 space-y-3"
+              style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold" style={{ color: '#d4cfff' }}>
+                    {t('browseModal.title')}
+                  </div>
+                  <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                    {browseRestricted ? t('browseModal.restricted') : t('browseModal.local')}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrowseOpen(false);
+                    setBrowseForIndex(null);
+                  }}
+                  className="p-2 rounded-lg"
+                  style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="text-xs" style={{ color: 'var(--c-muted)' }}>
+                {t('browseModal.mode')}: <span style={{ color: 'var(--c-text)' }}>{browseMode}</span>
+                {' · '}
+                {t('browseModal.current')}: <span style={{ color: '#c4b5fd' }}>{browsePath}</span>
+              </div>
+
+              <div className="flex items-center gap-2 flex-wrap">
+                {browseRoots.map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => {
+                      void loadBrowse(r);
+                    }}
+                    className="px-2 py-1 rounded text-xs"
+                    style={{ border: '1px solid var(--c-border)', color: '#c4b5fd' }}
+                  >
+                    {r}
+                  </button>
+                ))}
+                {browseParentPath && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void loadBrowse(browseParentPath);
+                    }}
+                    className="px-2 py-1 rounded text-xs"
+                    style={{ border: '1px solid var(--c-border)', color: 'var(--c-text)' }}
+                  >
+                    {t('browseModal.parent')}
+                  </button>
+                )}
+              </div>
+
+              <div className="rounded border overflow-auto max-h-72" style={{ borderColor: 'var(--c-border)' }}>
+                {browseError ? (
+                  <div className="p-3 text-sm text-red-400">{browseError}</div>
+                ) : browseEntries.length === 0 ? (
+                  <div className="p-3 text-sm" style={{ color: 'var(--c-muted)' }}>
+                    {t('browseModal.empty')}
+                  </div>
+                ) : (
+                  <div className="divide-y" style={{ borderColor: 'var(--c-border)' }}>
+                    {browseEntries.map((entry) => (
+                      <button
+                        key={entry.path}
+                        type="button"
+                        onClick={() => {
+                          void loadBrowse(entry.path);
+                        }}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-white/5"
+                        style={{ color: 'var(--c-text)' }}
+                      >
+                        {entry.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setBrowseOpen(false);
+                    setBrowseForIndex(null);
+                  }}
+                  className="px-3 py-1.5 rounded text-sm"
+                  style={{ border: '1px solid var(--c-border)', color: 'var(--c-muted)' }}
+                >
+                  {t('browseModal.cancel')}
+                </button>
+                <button
+                  type="button"
+                  onClick={applyBrowsedPath}
+                  className="px-3 py-1.5 rounded text-sm text-white"
+                  style={{ background: 'var(--c-accent)' }}
+                >
+                  {t('browseModal.useFolder')}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => handleSave(sectionMode)}
+            disabled={saveMutation.isPending}
+            className="px-5 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-60"
+            style={{ background: 'var(--c-accent)' }}
+          >
+            {saveMutation.isPending ? t('save.saving') : t('save.label')}
+          </button>
+          {saved && (
+            <span className="flex items-center gap-1 text-sm text-green-400">
+              <CheckCircle size={14} /> {t('save.saved')}
+            </span>
+          )}
+          {saveMutation.isError && <span className="text-sm text-red-400">{t('save.failed')}</span>}
+        </div>
       </div>
     </div>
   );

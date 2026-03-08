@@ -2,7 +2,7 @@
 
 Curatarr Deep Verify classifies ffmpeg/ffprobe diagnostics into high-signal buckets so users see actionable issues instead of noisy logs.
 
-## Actionable `FLAG` diagnostics
+## Actionable `FLAG` diagnostics (quick check)
 
 These patterns are treated as real faults and will mark verification as failed:
 
@@ -28,6 +28,11 @@ These patterns are treated as real faults and will mark verification as failed:
 
 - Large GOP (`large_gop`)
   - Triggered when max keyframe interval > 4s in the ffprobe packet sample.
+
+## Quick check constraints
+
+- Runs `ffmpeg` with `-t 20` seconds (see `QUICK_CHECK_SECONDS` in `src/scanner/deepcheck.ts`), maps only video/audio (`-map 0:v? -map 0:a? -sn -dn`), and times out after 1 minute (`TIMEOUT_MS`).
+- Only flags the high-signal regexes listed above; everything else stays as a warning or is ignored to keep the run fast.
 
 ## Ignored or downgraded noise
 

@@ -24,8 +24,11 @@ export function Movie() {
   }
 
   return (
-    <div className="p-6 max-w-5xl space-y-5">
-      <div>
+    <div className="flex flex-col h-full">
+      <div
+        className="px-6 py-3 border-b flex items-center shrink-0"
+        style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
+      >
         <Link
           to="/library"
           className="inline-flex items-center gap-1 text-sm hover:underline"
@@ -35,8 +38,13 @@ export function Movie() {
         </Link>
       </div>
 
-      <div className="rounded-xl border p-5" style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}>
-        <MovieDetailContent movieId={movieId} mode="page" onDeleted={() => navigate('/library')} />
+      <div className="px-6 py-6 max-w-5xl space-y-5">
+        <div
+          className="rounded-xl border p-5"
+          style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
+        >
+          <MovieDetailContent movieId={movieId} mode="page" onDeleted={() => navigate('/library')} />
+        </div>
       </div>
     </div>
   );

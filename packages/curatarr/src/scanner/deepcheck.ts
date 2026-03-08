@@ -90,7 +90,8 @@ function matchesAny(line: string, patterns: RegExp[]): boolean {
   return patterns.some((p) => p.test(line));
 }
 
-const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per file
+const QUICK_CHECK_SECONDS = 20;
+const TIMEOUT_MS = 60 * 1000; // 1 minute per file
 
 // ── GOP analysis ───────────────────────────────────────────────────────────
 
@@ -101,94 +102,6 @@ const TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes per file
  * Thresholds (matching Blu-ray + streaming conventions):
  *   WARN  max GOP > 4 s  (short enough for smooth chapter seeking)
  */
-async function analyzeGop(filePath: string): Promise<QualityFlag[]> {
-  return new Promise<QualityFlag[]>((resolve) => {
-    const flags: QualityFlag[] = [];
-
-    const proc = spawn(
-      'ffprobe',
-      [
-        '-v',
-        'quiet',
-        '-select_streams',
-        'v:0',
-        '-show_packets',
-        '-show_entries',
-        'packet=flags,pts_time',
-        '-of',
-        'csv=p=0',
-        '-t',
-        '60', // first 60 seconds only
-        filePath,
-      ],
-      { stdio: ['ignore', 'pipe', 'ignore'] },
-    );
-
-    let stdout = '';
-    proc.stdout?.on('data', (chunk: Buffer) => {
-      stdout += chunk.toString();
-    });
-
-    const timer = setTimeout(() => {
-      proc.kill('SIGKILL');
-      resolve([]); // timeout — skip GOP analysis
-    }, 30_000);
-
-    proc.on('close', () => {
-      clearTimeout(timer);
-
-      // Parse lines: "K__,0.000000" or "___,0.041667"
-      const keyframeTimes: number[] = [];
-      for (const line of stdout.split('\n')) {
-        const parts = line.trim().split(',');
-        if (parts.length < 2) continue;
-        const packetFlags = parts[0];
-        const ptsTime = Number.parseFloat(parts[1]);
-        if (packetFlags.startsWith('K') && !Number.isNaN(ptsTime)) {
-          keyframeTimes.push(ptsTime);
-        }
-      }
-
-      if (keyframeTimes.length < 2) {
-        resolve(flags);
-        return;
-      }
-
-      // Compute keyframe intervals
-      const gaps: number[] = [];
-      for (let i = 1; i < keyframeTimes.length; i++) {
-        const gap = keyframeTimes[i] - keyframeTimes[i - 1];
-        if (gap > 0) gaps.push(gap);
-      }
-
-      if (gaps.length === 0) {
-        resolve(flags);
-        return;
-      }
-
-      const maxGap = Math.max(...gaps);
-      const avgGap = gaps.reduce((a, b) => a + b, 0) / gaps.length;
-
-      if (maxGap > 4) {
-        flags.push({
-          severity: 'WARN',
-          code: 'large_gop',
-          message: `large GOP (max ${maxGap.toFixed(1)}s, avg ${avgGap.toFixed(1)}s)`,
-          detail:
-            'Long keyframe intervals slow chapter seeking and bitrate adaptation. Normal: ≤ 2–4 s for streaming; Blu-ray encodes may reach 10 s.',
-        });
-      }
-
-      resolve(flags);
-    });
-
-    proc.on('error', () => {
-      clearTimeout(timer);
-      resolve([]); // ffprobe unavailable — skip
-    });
-  });
-}
-
 // ── Main deepCheck ─────────────────────────────────────────────────────────
 
 export async function deepCheck(filePath: string, signal?: AbortSignal): Promise<DeepCheckResult> {
@@ -226,6 +139,8 @@ export async function deepCheck(filePath: string, signal?: AbortSignal): Promise
         '0:a?',
         '-sn',
         '-dn',
+        '-t',
+        String(QUICK_CHECK_SECONDS),
         '-f',
         'null',
         '-',
@@ -242,7 +157,7 @@ export async function deepCheck(filePath: string, signal?: AbortSignal): Promise
 
     const timer = setTimeout(() => {
       proc.kill('SIGKILL');
-      _errors.push('timeout: file check exceeded 5 minutes');
+      _errors.push('timeout: file check exceeded 1 minute');
     }, TIMEOUT_MS);
 
     const onAbort = () => {
@@ -334,12 +249,6 @@ export async function deepCheck(filePath: string, signal?: AbortSignal): Promise
       message: `${ffmpegResult.muxLines.length} actionable container/mux error(s)`,
       detail: ffmpegResult.muxLines.slice(0, 3).join(' | '),
     });
-  }
-
-  // --- GOP analysis (skipped if aborted) ---
-  if (!signal?.aborted) {
-    const gopFlags = await analyzeGop(filePath);
-    qualityFlags.push(...gopFlags);
   }
 
   return {

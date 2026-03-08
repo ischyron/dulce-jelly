@@ -19,6 +19,7 @@ export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): P
   const concurrency = opts.concurrency ?? 3;
   const signal = opts.signal;
   const CHUNK_SIZE = 200;
+  db.resetPendingVerifyStatuses();
 
   let total = 0;
   let checked = 0;

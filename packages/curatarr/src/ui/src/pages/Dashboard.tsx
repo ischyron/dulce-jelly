@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api/client';
 import { CodecBarChart, ResolutionPieChart } from '../components/Charts';
 import { InfoHint } from '../components/InfoHint';
+import { PageHeader } from '../components/PageHeader';
 import { StatCard } from '../components/dashboard/StatCard';
 import { JellyfinIcon } from '../components/shared/icons/index';
 import { ScanProgressModal } from '../components/shared/modals';
@@ -81,12 +82,8 @@ export function Dashboard() {
     }));
 
   return (
-    <div className="p-6 space-y-6 max-w-6xl">
-      <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-[#f0eeff] flex items-center gap-2">
-          <LayoutDashboard size={20} style={{ color: 'var(--c-accent)' }} />
-          {t('pageTitle')}
-        </h1>
+    <div className="flex flex-col h-full">
+      <PageHeader icon={LayoutDashboard} title={t('pageTitle')}>
         <div className="flex flex-col items-end gap-1">
           <button
             type="button"
@@ -106,211 +103,212 @@ export function Dashboard() {
           </button>
           {scanError && <p className="text-xs text-red-400 max-w-xs text-right">{scanError}</p>}
         </div>
-      </div>
-
-      {/* Onboarding banner for fresh installs */}
-      {data.totalMovies === 0 && (
-        <div className="bg-[#1a1030] border border-[#7c3aed]/40 rounded-xl p-5 flex gap-4 items-start">
-          <Rocket size={22} className="text-[#a78bfa] shrink-0 mt-0.5" />
-          <div className="space-y-1">
-            <p className="font-semibold text-[#d4cfff]">{t('onboarding.title')}</p>
-            <p className="text-sm text-[#8b87aa]">{t('onboarding.subtitle')}</p>
-            <ol className="text-sm text-[#8b87aa] list-decimal list-inside space-y-0.5 mt-1">
-              <li>
-                {t('onboarding.step1Prefix')}
-                <Link to="/settings" className="text-[#a78bfa] hover:underline">
-                  {t('onboarding.step1Link')}
-                </Link>
-                {t('onboarding.step1Suffix')}
-              </li>
-              <li>
-                {t('onboarding.step2Prefix')}
-                <strong className="text-[#c4b5fd]">{t('onboarding.step2Action')}</strong>
-                {t('onboarding.step2Suffix')}
-              </li>
-              <li>
-                {t('onboarding.step3Prefix')}
-                <Link to="/scan" className="text-[#a78bfa] hover:underline">
-                  {t('onboarding.step3Link')}
-                </Link>
-                {t('onboarding.step3Suffix')}
-              </li>
-            </ol>
-          </div>
-        </div>
-      )}
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="relative h-full">
-          <Link
-            to="/library?reset=1"
-            className="absolute inset-0 rounded-xl z-10"
-            aria-label="Open library from Movies card"
-          />
-          <div className="relative z-20 pointer-events-none bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
-            <div className="flex items-center gap-2 mb-2 text-sm text-[#a78bfa]">
-              <Film size={16} />
-              <span>{t('stats.movies')}</span>
-              <span
-                className="pointer-events-auto"
-                role="presentation"
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-              >
-                <InfoHint
-                  label="Movies info"
-                  text="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."
-                />
-              </span>
+      </PageHeader>
+      <div className="px-6 py-6 space-y-6 max-w-6xl">
+        {/* Onboarding banner for fresh installs */}
+        {data.totalMovies === 0 && (
+          <div className="bg-[#1a1030] border border-[#7c3aed]/40 rounded-xl p-5 flex gap-4 items-start">
+            <Rocket size={22} className="text-[#a78bfa] shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <p className="font-semibold text-[#d4cfff]">{t('onboarding.title')}</p>
+              <p className="text-sm text-[#8b87aa]">{t('onboarding.subtitle')}</p>
+              <ol className="text-sm text-[#8b87aa] list-decimal list-inside space-y-0.5 mt-1">
+                <li>
+                  {t('onboarding.step1Prefix')}
+                  <Link to="/settings" className="text-[#a78bfa] hover:underline">
+                    {t('onboarding.step1Link')}
+                  </Link>
+                  {t('onboarding.step1Suffix')}
+                </li>
+                <li>
+                  {t('onboarding.step2Prefix')}
+                  <strong className="text-[#c4b5fd]">{t('onboarding.step2Action')}</strong>
+                  {t('onboarding.step2Suffix')}
+                </li>
+                <li>
+                  {t('onboarding.step3Prefix')}
+                  <Link to="/scan" className="text-[#a78bfa] hover:underline">
+                    {t('onboarding.step3Link')}
+                  </Link>
+                  {t('onboarding.step3Suffix')}
+                </li>
+              </ol>
             </div>
-            <div className="text-2xl font-bold text-[#f0eeff]">{data.totalMovies.toLocaleString()}</div>
-            <div className="text-xs text-[#8b87aa] mt-0.5 min-h-[16px]" />
           </div>
-        </div>
-        <StatCard
-          icon={CheckCircle}
-          label={t('stats.scannedFiles')}
-          value={`${data.scannedFiles.toLocaleString()} / ${data.totalFiles.toLocaleString()}`}
-          sub={
-            lastScanSummary ??
-            (data.totalFiles > data.scannedFiles
-              ? `${(data.totalFiles - data.scannedFiles).toLocaleString()} pending`
-              : '')
-          }
-          subWrap
-          color="text-green-400"
-          infoText={t('stats.scannedFilesHint')}
-        />
-        <StatCard
-          icon={JellyfinIcon}
-          label={t('stats.jellyfinSynced')}
-          value={`${jellyfinSyncPercentage}%`}
-          sub={
-            <span className="inline-flex items-center gap-1 text-sm">
-              <span className="text-[#d4cfff] font-semibold">{data.jfEnriched}</span>
-              <span className="text-[#8b87aa]">{t('stats.matched')}</span>
-              <span className="text-[#8b87aa]">·</span>
-              <span className="text-amber-400 font-semibold">{data.totalMovies - data.jfEnriched}</span>
-              <span className="text-[#8b87aa]">{t('stats.unmatched')}</span>
-              <span className="text-[#8b87aa]">·</span>
-              <span className="text-[#8b87aa]">
-                {data.totalMovies} {t('stats.total')}
+        )}
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="relative h-full">
+            <Link
+              to="/library?reset=1"
+              className="absolute inset-0 rounded-xl z-10"
+              aria-label="Open library from Movies card"
+            />
+            <div className="relative z-20 pointer-events-none bg-[#16161f] border border-[#26263a] rounded-xl p-4 h-full min-h-[138px] flex flex-col">
+              <div className="flex items-center gap-2 mb-2 text-sm text-[#a78bfa]">
+                <Film size={16} />
+                <span>{t('stats.movies')}</span>
+                <span
+                  className="pointer-events-auto"
+                  role="presentation"
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                >
+                  <InfoHint
+                    label="Movies info"
+                    text="Curatarr treats one library folder as one movie record. If multiple versions exist in a folder, they appear under that movie as Files (2), Files (3), etc."
+                  />
+                </span>
+              </div>
+              <div className="text-2xl font-bold text-[#f0eeff]">{data.totalMovies.toLocaleString()}</div>
+              <div className="text-xs text-[#8b87aa] mt-0.5 min-h-[16px]" />
+            </div>
+          </div>
+          <StatCard
+            icon={CheckCircle}
+            label={t('stats.scannedFiles')}
+            value={`${data.scannedFiles.toLocaleString()} / ${data.totalFiles.toLocaleString()}`}
+            sub={
+              lastScanSummary ??
+              (data.totalFiles > data.scannedFiles
+                ? `${(data.totalFiles - data.scannedFiles).toLocaleString()} pending`
+                : '')
+            }
+            subWrap
+            color="text-green-400"
+            infoText={t('stats.scannedFilesHint')}
+          />
+          <StatCard
+            icon={JellyfinIcon}
+            label={t('stats.jellyfinSynced')}
+            value={`${jellyfinSyncPercentage}%`}
+            sub={
+              <span className="inline-flex items-center gap-1 text-sm">
+                <span className="text-[#d4cfff] font-semibold">{data.jfEnriched}</span>
+                <span className="text-[#8b87aa]">{t('stats.matched')}</span>
+                <span className="text-[#8b87aa]">·</span>
+                <span className="text-amber-400 font-semibold">{data.totalMovies - data.jfEnriched}</span>
+                <span className="text-[#8b87aa]">{t('stats.unmatched')}</span>
+                <span className="text-[#8b87aa]">·</span>
+                <span className="text-[#8b87aa]">
+                  {data.totalMovies} {t('stats.total')}
+                </span>
               </span>
-            </span>
-          }
-          color="text-cyan-400"
-          infoText={t('stats.jellyfinSyncedHint')}
-        />
-        <StatCard
-          icon={AlertCircle}
-          label={t('stats.scanErrors')}
-          value={data.errorFiles}
-          color={data.errorFiles > 0 ? 'text-red-400' : 'text-[#8b87aa]'}
-          infoText={t('stats.scanErrorsHint')}
-        />
-      </div>
-
-      <div>
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.title')}</h2>
-      </div>
-
-      {/* Library views quick links */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.video')}</h2>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 items-center text-sm">
-            <Link
-              to="/library?hdr=1"
-              className="hover:underline inline-flex items-center gap-1"
-              title="Show HDR files in Library"
-            >
-              <span className="text-amber-400 font-semibold">{data.hdrCount}</span>
-              <span className="text-[#8b87aa]">{t('views.hdr')}</span>
-            </Link>
-            <span className="text-[#26263a]">·</span>
-            <Link
-              to="/library?dv=1"
-              className="hover:underline inline-flex items-center gap-1"
-              title="Show Dolby Vision files in Library"
-            >
-              <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
-              <span className="text-[#8b87aa]">{t('views.dolbyVision')}</span>
-            </Link>
-            {(data.codecDist.av1 ?? 0) > 0 && (
-              <>
-                <span className="text-[#26263a]">·</span>
-                <Link
-                  to="/library?av1Compat=1"
-                  className="hover:underline inline-flex items-center gap-1"
-                  title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library"
-                >
-                  <span className="text-emerald-400 font-semibold">{data.codecDist.av1}</span>
-                  <span className="text-[#8b87aa]">{t('views.av1')}</span>
-                  <span className="text-amber-400 text-xs">{t('views.av1Compat')}</span>
-                </Link>
-              </>
-            )}
-            {(data.codecDist.mpeg4 ?? 0) + (data.codecDist.mpeg2video ?? 0) > 0 && (
-              <>
-                <span className="text-[#26263a]">·</span>
-                <Link
-                  to="/library?legacy=1"
-                  className="hover:underline inline-flex items-center gap-1"
-                  title="Legacy codec — click to filter in Library"
-                >
-                  <span className="text-orange-400 font-semibold">
-                    {(data.codecDist.mpeg4 ?? 0) + (data.codecDist.mpeg2video ?? 0)}
-                  </span>
-                  <span className="text-[#8b87aa]">{t('views.legacyCodec')}</span>
-                </Link>
-              </>
-            )}
-          </div>
+            }
+            color="text-cyan-400"
+            infoText={t('stats.jellyfinSyncedHint')}
+          />
+          <StatCard
+            icon={AlertCircle}
+            label={t('stats.scanErrors')}
+            value={data.errorFiles}
+            color={data.errorFiles > 0 ? 'text-red-400' : 'text-[#8b87aa]'}
+            infoText={t('stats.scanErrorsHint')}
+          />
         </div>
-        <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.audio')}</h2>
-          <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
-            {audioQuickLinks.length === 0 && <span className="text-[#8b87aa]">{t('views.noAudioData')}</span>}
-            {audioQuickLinks.map((row) => (
+
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.title')}</h2>
+        </div>
+
+        {/* Library views quick links */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.video')}</h2>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 items-center text-sm">
               <Link
-                key={row.codec}
-                to={`/library?audioFormat=${encodeURIComponent(row.filter)}`}
-                className="hover:underline"
-                title={`Filter Library by audio codec: ${row.codec}`}
+                to="/library?hdr=1"
+                className="hover:underline inline-flex items-center gap-1"
+                title="Show HDR files in Library"
               >
-                <span className="text-cyan-400 font-medium">{row.count}</span>
-                <span className="text-[#8b87aa]"> {row.codec.toUpperCase()}</span>
+                <span className="text-amber-400 font-semibold">{data.hdrCount}</span>
+                <span className="text-[#8b87aa]">{t('views.hdr')}</span>
               </Link>
-            ))}
+              <span className="text-[#26263a]">·</span>
+              <Link
+                to="/library?dv=1"
+                className="hover:underline inline-flex items-center gap-1"
+                title="Show Dolby Vision files in Library"
+              >
+                <span className="text-amber-400 font-semibold">{data.dolbyVisionCount}</span>
+                <span className="text-[#8b87aa]">{t('views.dolbyVision')}</span>
+              </Link>
+              {(data.codecDist.av1 ?? 0) > 0 && (
+                <>
+                  <span className="text-[#26263a]">·</span>
+                  <Link
+                    to="/library?av1Compat=1"
+                    className="hover:underline inline-flex items-center gap-1"
+                    title="AV1 files may not hardware-decode on Android TV / older sticks — click to view in Library"
+                  >
+                    <span className="text-emerald-400 font-semibold">{data.codecDist.av1}</span>
+                    <span className="text-[#8b87aa]">{t('views.av1')}</span>
+                    <span className="text-amber-400 text-xs">{t('views.av1Compat')}</span>
+                  </Link>
+                </>
+              )}
+              {(data.codecDist.mpeg4 ?? 0) + (data.codecDist.mpeg2video ?? 0) > 0 && (
+                <>
+                  <span className="text-[#26263a]">·</span>
+                  <Link
+                    to="/library?legacy=1"
+                    className="hover:underline inline-flex items-center gap-1"
+                    title="Legacy codec — click to filter in Library"
+                  >
+                    <span className="text-orange-400 font-semibold">
+                      {(data.codecDist.mpeg4 ?? 0) + (data.codecDist.mpeg2video ?? 0)}
+                    </span>
+                    <span className="text-[#8b87aa]">{t('views.legacyCodec')}</span>
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4 text-sm">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('views.audio')}</h2>
+            <div className="flex flex-wrap gap-x-4 gap-y-1 items-center">
+              {audioQuickLinks.length === 0 && <span className="text-[#8b87aa]">{t('views.noAudioData')}</span>}
+              {audioQuickLinks.map((row) => (
+                <Link
+                  key={row.codec}
+                  to={`/library?audioFormat=${encodeURIComponent(row.filter)}`}
+                  className="hover:underline"
+                  title={`Filter Library by audio codec: ${row.codec}`}
+                >
+                  <span className="text-cyan-400 font-medium">{row.count}</span>
+                  <span className="text-[#8b87aa]"> {row.codec.toUpperCase()}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
 
-      <div>
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('analytics.title')}</h2>
-      </div>
-
-      {/* Analytics charts */}
-      <div className="space-y-6">
-        <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-          <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.resolutionDist')}</h2>
-          <ResolutionPieChart data={data.resolutionDist} />
+        <div>
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-[#8b87aa] mb-2">{t('analytics.title')}</h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Analytics charts */}
+        <div className="space-y-6">
           <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.videoCodecDist')}</h2>
-            <CodecBarChart data={data.codecDist} />
+            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.resolutionDist')}</h2>
+            <ResolutionPieChart data={data.resolutionDist} />
           </div>
-          <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
-            <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.audioCodecDist')}</h2>
-            <CodecBarChart data={data.audioCodecDist ?? {}} label={t('analytics.audioCodecDist')} />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
+              <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.videoCodecDist')}</h2>
+              <CodecBarChart data={data.codecDist} />
+            </div>
+            <div className="bg-[#16161f] border border-[#26263a] rounded-xl p-4">
+              <h2 className="text-sm font-medium text-[#8b87aa] mb-3">{t('analytics.audioCodecDist')}</h2>
+              <CodecBarChart data={data.audioCodecDist ?? {}} label={t('analytics.audioCodecDist')} />
+            </div>
           </div>
         </div>
-      </div>
 
-      {showScanModal && <ScanProgressModal mode="scan" onClose={() => setShowScanModal(false)} />}
+        {showScanModal && <ScanProgressModal mode="scan" onClose={() => setShowScanModal(false)} />}
+      </div>
     </div>
   );
 }

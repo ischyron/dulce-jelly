@@ -329,17 +329,28 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
   });
 
   // GET /api/movies/release-groups — distinct release groups sorted by frequency
+  // Includes groups stored in the DB as well as groups derived from filenames at runtime
+  // (for files where release_group is NULL, matching the movies listing fallback).
   app.get('/release-groups', (c) => {
-    const rows = db
-      .raw()
-      .prepare(
-        `SELECT release_group FROM files
-         WHERE release_group IS NOT NULL AND release_group != ''
-         GROUP BY release_group
-         ORDER BY COUNT(*) DESC, release_group COLLATE NOCASE ASC`,
-      )
-      .all() as Array<{ release_group: string }>;
-    return c.json({ releaseGroups: rows.map((r) => r.release_group) });
+    const rows = db.raw().prepare('SELECT release_group, file_name FROM files').all() as Array<{
+      release_group: string | null;
+      file_name: string | null;
+    }>;
+
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+      const stored = typeof row.release_group === 'string' ? row.release_group.trim() : '';
+      const group = stored || (row.file_name ? (extractReleaseGroup(row.file_name) ?? '') : '');
+      if (group) {
+        counts.set(group, (counts.get(group) ?? 0) + 1);
+      }
+    }
+
+    const releaseGroups = Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], undefined, { sensitivity: 'base' }))
+      .map(([g]) => g);
+
+    return c.json({ releaseGroups });
   });
 
   // GET /api/movies/tags — distinct sorted tags from user metadata

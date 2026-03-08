@@ -453,7 +453,7 @@ export function LibraryFilterBar({
         </button>
         {releaseGroupFilterOpen && (
           <div
-            className="absolute left-0 top-[calc(100%+6px)] z-20 w-56 max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
+            className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[14rem] w-max max-w-[24rem] max-h-60 overflow-auto rounded-lg border p-2 space-y-1"
             style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
           >
             {releaseGroups.length === 0 && (

@@ -168,7 +168,10 @@ function canSendToSab(release: ScoutRelease): boolean {
   return Boolean(release.downloadUrl && release.protocol === 'usenet');
 }
 
-function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
+function ScoutResultsAllTable({
+  releases,
+  actionState,
+}: { releases: ScoutResultRow[]; actionState: ScoutActionState }) {
   return (
     <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
       <table className="w-full text-xs border-collapse">
@@ -182,6 +185,7 @@ function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
             <th className="px-2 py-2 text-right">Size</th>
             <th className="px-2 py-2 text-right">Age</th>
             <th className="px-2 py-2 text-right">S/P</th>
+            <th className="px-2 py-2 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -229,6 +233,52 @@ function ScoutResultsAllTable({ releases }: { releases: ScoutResultRow[] }) {
               </td>
               <td className="px-2 py-1.5 text-right" style={{ color: 'var(--c-muted)' }}>
                 {r.seeders ?? 0}/{r.peers ?? 0}
+              </td>
+              <td className="px-2 py-1.5">
+                <div className="flex items-center justify-end gap-1.5">
+                  {r.downloadUrl && (
+                    <a
+                      href={r.downloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open release link for ${r.title}`}
+                      title="Open indexer/download link"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
+                      style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+                      data-testid="scout-release-link"
+                    >
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
+                  {r.kind === 'candidate' ? (
+                    <button
+                      type="button"
+                      aria-label={`Send ${r.title} to SABnzbd`}
+                      title={
+                        canSendToSab(r) ? 'Send to SABnzbd' : 'Only usenet releases with a download URL can be sent'
+                      }
+                      disabled={!canSendToSab(r) || actionState.sendingKey === releaseKeyForAction(r)}
+                      onClick={() => actionState.onSendToSab(r)}
+                      className="inline-flex h-6 w-6 items-center justify-center rounded border disabled:opacity-40"
+                      style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
+                      data-testid="scout-send-sab"
+                    >
+                      {actionState.sendingKey === releaseKeyForAction(r) ? (
+                        <Loader2 size={11} className="animate-spin" style={{ color: '#86efac' }} />
+                      ) : (
+                        <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                      )}
+                    </button>
+                  ) : (
+                    <span
+                      className="inline-flex h-6 w-6 items-center justify-center rounded border opacity-40"
+                      style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.2)' }}
+                      title="Dropped releases cannot be sent"
+                    >
+                      <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                    </span>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
@@ -376,6 +426,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                       title="Open indexer/download link"
                       className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
                       style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+                      data-testid="scout-release-link"
                     >
                       <ExternalLink size={11} />
                     </a>
@@ -388,6 +439,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                     onClick={() => actionState.onSendToSab(r)}
                     className="inline-flex h-6 w-6 items-center justify-center rounded border disabled:opacity-40"
                     style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)' }}
+                    data-testid="scout-send-sab"
                   >
                     {actionState.sendingKey === releaseKeyForAction(r) ? (
                       <Loader2 size={11} className="animate-spin" style={{ color: '#86efac' }} />
@@ -416,6 +468,7 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
             <th className="px-2 py-2 text-left">Indexer</th>
             <th className="px-2 py-2 text-left">Protocol</th>
             <th className="px-2 py-2 text-left">Dropped Reason</th>
+            <th className="px-2 py-2 text-right">Action</th>
           </tr>
         </thead>
         <tbody>
@@ -435,6 +488,31 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
               </td>
               <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>
                 {r.droppedReason}
+              </td>
+              <td className="px-2 py-1.5">
+                <div className="flex items-center justify-end gap-1.5">
+                  {r.downloadUrl && (
+                    <a
+                      href={r.downloadUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open release link for ${r.title}`}
+                      title="Open indexer/download link"
+                      className="inline-flex h-6 w-6 items-center justify-center rounded border hover:opacity-90"
+                      style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+                      data-testid="scout-release-link"
+                    >
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
+                  <span
+                    className="inline-flex h-6 w-6 items-center justify-center rounded border opacity-40"
+                    style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.2)' }}
+                    title="Dropped releases cannot be sent"
+                  >
+                    <img src="/icons/sabnzbd.svg" alt="SABnzbd" className="h-3.5 w-3.5" />
+                  </span>
+                </div>
               </td>
             </tr>
           ))}
@@ -467,6 +545,12 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   useEffect(() => {
     if (data) setNotes(data.notes ?? '');
   }, [data]);
+
+  useEffect(() => {
+    if (!sabStatus) return;
+    const timer = setTimeout(() => setSabStatus(null), 4500);
+    return () => clearTimeout(timer);
+  }, [sabStatus]);
 
   const patchMutation = useMutation({
     mutationFn: (meta: { tags?: string[]; notes?: string }) => api.patchMovie(movieId, meta),
@@ -519,11 +603,14 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
       });
     },
     onSuccess: (res, release) => {
-      const suffix = res.nzoIds.length > 0 ? ` (${res.nzoIds.join(', ')})` : '';
-      setSabStatus(`Queued in SABnzbd: ${release.title}${suffix}`);
+      if (res.queued) {
+        setSabStatus(`Queued in SABnzbd via Prowlarr: ${release.title}`);
+        return;
+      }
+      setSabStatus('Error: queue request was not accepted.');
     },
     onError: (err) => {
-      setSabStatus(`SABnzbd send failed: ${(err as Error).message}`);
+      setSabStatus(`Error: ${(err as Error).message}`);
     },
     onSettled: () => {
       setSendingSabKey(null);
@@ -596,7 +683,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
 
   function handleSendToSab(release: ScoutRelease) {
     if (!canSendToSab(release) || !release.downloadUrl) {
-      setSabStatus('Only usenet releases with a download URL can be sent to SABnzbd.');
+      setSabStatus('Error: only usenet releases with a download URL can be sent to SABnzbd.');
       return;
     }
     sendToSabMutation.mutate(release);
@@ -960,7 +1047,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
             {sabStatus && (
               <div
                 className="text-xs inline-flex items-center gap-1"
-                style={{ color: sabStatus.startsWith('SABnzbd send failed') ? '#fca5a5' : '#86efac' }}
+                style={{ color: sabStatus.startsWith('Error:') ? '#fca5a5' : '#86efac' }}
               >
                 <AlertCircle size={12} />
                 {sabStatus}
@@ -1126,6 +1213,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                   )}
                   {scoutResultView === 'all' && (
                     <ScoutResultsAllTable
+                      actionState={{ sendingKey: sendingSabKey, onSendToSab: handleSendToSab }}
                       releases={[
                         ...scoutSearch.data.releases.map((r) => ({ ...r, kind: 'candidate' as const })),
                         ...(scoutSearch.data.droppedReleases ?? []).map((r) => ({

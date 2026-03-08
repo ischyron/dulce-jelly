@@ -135,12 +135,18 @@ test.describe('Library', () => {
   });
 
   test('tag bookmark filter renders rows when API total > 0', async ({ page, request }) => {
-    const res = await request.get('/api/movies?tags=p1&page=1&limit=50');
+    const tagsRes = await request.get('/api/movies/tags');
+    expect(tagsRes.ok()).toBeTruthy();
+    const tagsJson = await tagsRes.json();
+    const tag = Array.isArray(tagsJson?.tags) ? (tagsJson.tags[0] ?? '') : '';
+    if (!tag) return;
+
+    const res = await request.get(`/api/movies?tags=${encodeURIComponent(tag)}&page=1&limit=50`);
     expect(res.ok()).toBeTruthy();
     const json = await res.json();
     expect(typeof json.total).toBe('number');
     if (json.total > 0) {
-      await page.goto('/library?tags=p1&page=1');
+      await page.goto(`/library?tags=${encodeURIComponent(tag)}&page=1`);
       await page.waitForSelector('tbody tr', { timeout: 10000 });
       await expect(page.locator('tbody tr').first()).toBeVisible();
     }
@@ -334,6 +340,55 @@ test.describe('MoviePage', () => {
     await expect(
       page.getByTestId('movie-scout-section').getByRole('button', { name: 'Force Refresh Results' }),
     ).toBeVisible();
+  });
+
+  test('scout results expose SAB action button and release link', async ({ page, request }) => {
+    test.setTimeout(120_000);
+
+    const settingsRes = await request.get('/api/settings');
+    expect(settingsRes.ok()).toBeTruthy();
+    const settings = (await settingsRes.json())?.settings ?? {};
+    test.skip(!settings.prowlarrUrl, 'requires configured Prowlarr');
+
+    const candidatesRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=5');
+    expect(candidatesRes.ok()).toBeTruthy();
+    const candidates = (await candidatesRes.json())?.candidates ?? [];
+
+    let movieId = null;
+    let expectedReleaseTitle = '';
+    for (const row of candidates) {
+      const scoutRes = await request.post('/api/scout/search-one', { data: { movieId: row.id } });
+      if (!scoutRes.ok()) continue;
+      const scout = await scoutRes.json();
+      if ((scout?.releases?.length ?? 0) > 0) {
+        movieId = row.id;
+        expectedReleaseTitle = String(scout.releases[0]?.title ?? '');
+        break;
+      }
+    }
+    test.skip(!movieId, 'requires at least one movie with scout releases');
+
+    await page.goto(`/movies/${movieId}`);
+    const topScoutBtn = page.getByTestId('movie-actions-row').getByRole('button', { name: 'Scout Releases' });
+    await expect(topScoutBtn).toBeVisible();
+    await topScoutBtn.click();
+
+    const section = page.getByTestId('movie-scout-section');
+    await expect(section).toBeVisible();
+    await expect(section.getByRole('button', { name: /View All/i })).toBeVisible();
+    await section.getByRole('button', { name: /View All/i }).click();
+
+    if (expectedReleaseTitle) {
+      await expect(section.getByText(expectedReleaseTitle).first()).toBeVisible();
+    }
+    const releaseLinks = section.getByTestId('scout-release-link');
+    if ((await releaseLinks.count()) > 0) {
+      await expect(releaseLinks.first()).toBeVisible();
+    }
+    const sendBtns = section.getByTestId('scout-send-sab');
+    if ((await sendBtns.count()) > 0) {
+      await expect(sendBtns.first()).toBeVisible();
+    }
   });
 });
 

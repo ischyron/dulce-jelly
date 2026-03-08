@@ -652,46 +652,43 @@ function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | n
   return { url, apiKey };
 }
 
-function resolveSabConfig(db: CuratDb): { url: string; apiKey: string; category: string | null } | null {
-  const url = (db.getSetting('sabnzbdUrl') ?? '').trim();
-  const apiKey = (db.getSetting('sabnzbdApiKey') ?? '').trim();
-  const categoryRaw = (db.getSetting('sabnzbdCategory') ?? '').trim();
-  if (!url || !apiKey) return null;
-  return { url, apiKey, category: categoryRaw || null };
+function isSafeProwlarrDownloadUrl(downloadUrl: string, prowlarrUrl: string): boolean {
+  let target: URL;
+  let configured: URL;
+  try {
+    target = new URL(downloadUrl);
+    configured = new URL(prowlarrUrl);
+  } catch {
+    return false;
+  }
+  if (target.origin !== configured.origin) return false;
+  const basePath = configured.pathname.replace(/\/+$/, '');
+  const escapedBase = basePath.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const rx = new RegExp(`^${escapedBase}\\/[0-9]+\\/download$`);
+  return rx.test(target.pathname);
 }
 
-async function sendReleaseToSab(
-  cfg: { url: string; apiKey: string; category: string | null },
-  payload: { downloadUrl: string; title: string },
-): Promise<{ nzoIds: string[] }> {
-  const base = cfg.url.replace(/\/+$/, '');
-  const requestUrl = new URL(`${base}/api`);
-  requestUrl.searchParams.set('apikey', cfg.apiKey);
-  requestUrl.searchParams.set('output', 'json');
-  requestUrl.searchParams.set('mode', 'addurl');
-  requestUrl.searchParams.set('name', payload.downloadUrl);
-  requestUrl.searchParams.set('nzbname', payload.title);
-  if (cfg.category) requestUrl.searchParams.set('cat', cfg.category);
-
+async function triggerProwlarrGrab(cfg: { url: string; apiKey: string }, downloadUrl: string): Promise<void> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 12_000);
+  const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
-    const res = await fetch(requestUrl, { method: 'GET', signal: controller.signal });
-    const body = (await res.json().catch(() => ({}))) as {
-      status?: boolean;
-      error?: string;
-      nzo_ids?: unknown;
-    };
+    const res = await fetch(downloadUrl, {
+      method: 'GET',
+      headers: {
+        'X-Api-Key': cfg.apiKey,
+        'User-Agent': 'curatarr-scout-grab',
+      },
+      signal: controller.signal,
+    });
     if (!res.ok) {
-      throw new Error(body.error ? `sab_http_${res.status}:${body.error}` : `sab_http_${res.status}`);
+      const detail = await res.text().catch(() => '');
+      throw new Error(detail ? `prowlarr_grab_${res.status}:${detail}` : `prowlarr_grab_${res.status}`);
     }
-    const nzoIds = Array.isArray(body.nzo_ids)
-      ? body.nzo_ids.filter((id): id is string => typeof id === 'string' && id.trim().length > 0)
-      : [];
-    if (body.status !== true && nzoIds.length === 0) {
-      throw new Error(body.error ? `sab_add_failed:${body.error}` : 'sab_add_failed');
+    try {
+      await res.arrayBuffer();
+    } catch {
+      // Some indexers close early after grab handoff; a successful status is enough here.
     }
-    return { nzoIds };
   } finally {
     clearTimeout(timeout);
   }
@@ -1109,25 +1106,20 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     if (protocol && protocol !== 'usenet') {
       return c.json({ error: 'unsupported_protocol' }, 422);
     }
-    try {
-      // Validate URL early so downstream errors are actionable.
-      // eslint-disable-next-line no-new
-      new URL(downloadUrl);
-    } catch {
+    const cfg = resolveProwlarrConfig(db);
+    if (!cfg) return c.json({ error: 'prowlarr_not_configured' }, 422);
+    if (!isSafeProwlarrDownloadUrl(downloadUrl, cfg.url)) {
       return c.json({ error: 'invalid_download_url' }, 400);
     }
 
-    const cfg = resolveSabConfig(db);
-    if (!cfg) return c.json({ error: 'sab_not_configured' }, 422);
-
     try {
-      const sent = await sendReleaseToSab(cfg, { title, downloadUrl });
+      await triggerProwlarrGrab(cfg, downloadUrl);
       return c.json({
         queued: true,
-        nzoIds: sent.nzoIds,
+        via: 'prowlarr',
       });
     } catch (err) {
-      return c.json({ error: 'sab_send_failed', detail: (err as Error).message }, 502);
+      return c.json({ error: 'prowlarr_grab_failed', detail: (err as Error).message }, 502);
     }
   });
 

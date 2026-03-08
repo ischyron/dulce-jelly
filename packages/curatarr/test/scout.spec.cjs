@@ -236,8 +236,7 @@ test.describe('Scout feature checks', () => {
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();
     const settings = (await settingsRes.json())?.settings ?? {};
-    const hasProwlarr = Boolean(settings.prowlarrUrl);
-    test.skip(!hasProwlarr, 'requires configured Prowlarr for live scout search');
+    expect(Boolean(settings.prowlarrUrl)).toBeTruthy();
 
     const candidateRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=1');
     expect(candidateRes.ok()).toBeTruthy();
@@ -258,21 +257,13 @@ test.describe('Scout feature checks', () => {
     });
     expect(clearLlmRes.ok()).toBeTruthy();
 
-    const queries = ['first man 2018', 'inception 2010', 'matrix 1999', 'batman 2022'];
-    let baseline = null;
-    for (const q of queries) {
-      const res = await request.post('/api/scout/search-one', {
-        data: { movieId: firstMovieId, query: q },
-      });
-      if (!res.ok()) continue;
-      const body = await res.json();
-      const totalSeen = (body?.releases?.length ?? 0) + (body?.droppedReleases?.length ?? 0);
-      if (totalSeen >= 10) {
-        baseline = body;
-        break;
-      }
-    }
-    test.skip(!baseline, 'no sufficiently large scout result set available to validate percentile gating');
+    const baselineRes = await request.post('/api/scout/search-one', {
+      data: { movieId: firstMovieId, query: 'fixture scout percentile baseline' },
+    });
+    expect(baselineRes.ok()).toBeTruthy();
+    const baseline = await baselineRes.json();
+    const baselineTotalSeen = (baseline?.releases?.length ?? 0) + (baseline?.droppedReleases?.length ?? 0);
+    expect(baselineTotalSeen).toBeGreaterThanOrEqual(10);
 
     const baselineCandidates = baseline.releases ?? [];
     const baselineDropped = baseline.droppedReleases ?? [];
@@ -330,8 +321,7 @@ test.describe('Scout feature checks', () => {
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();
     const settings = (await settingsRes.json())?.settings ?? {};
-    const hasProwlarr = Boolean(settings.prowlarrUrl);
-    test.skip(!hasProwlarr, 'requires configured Prowlarr for live scout search');
+    expect(Boolean(settings.prowlarrUrl)).toBeTruthy();
 
     const candidateRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=1');
     expect(candidateRes.ok()).toBeTruthy();

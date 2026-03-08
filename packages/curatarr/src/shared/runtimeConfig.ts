@@ -66,7 +66,7 @@ function firstExistingPath(paths: string[]): string {
   for (const p of paths) {
     if (fs.existsSync(p)) return p;
   }
-  return paths[0];
+  return paths[1] ?? paths[0];
 }
 
 function resolveConfigPath(): string {

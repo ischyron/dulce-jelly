@@ -236,6 +236,17 @@ export interface ScoutSendToSabRequest {
 
 export interface ScoutSendToSabResponse {
   queued: boolean;
+  via: 'prowlarr';
+}
+
+export interface ScoutSendToSabRequest {
+  title: string;
+  protocol: 'torrent' | 'usenet' | 'unknown';
+  downloadUrl: string;
+}
+
+export interface ScoutSendToSabResponse {
+  queued: boolean;
   nzoIds: string[];
 }
 

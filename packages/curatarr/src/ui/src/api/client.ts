@@ -86,6 +86,8 @@ export type {
   ScoutRulesRefineDraftResponse,
   ScoutSearchBatchResponse,
   ScoutSearchOneResponse,
+  ScoutSendToSabRequest,
+  ScoutSendToSabResponse,
   ScoutTrashParityResponse,
   ScoutTrashSyncDetailsResponse,
   ScoutTrashSyncResponse,

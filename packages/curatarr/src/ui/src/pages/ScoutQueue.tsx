@@ -300,15 +300,15 @@ export function ScoutQueue() {
     <div className="flex flex-col h-full">
       {/* Filters */}
       <div
-        className="px-6 py-3 border-b flex flex-wrap items-center gap-4 shrink-0"
+        className="px-6 py-3 border-b flex flex-wrap items-start gap-3 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
-        <h1 className="font-semibold flex items-center gap-2" style={{ color: 'var(--c-text)' }}>
+        <h1 className="font-semibold flex items-center gap-2 w-full sm:w-auto" style={{ color: 'var(--c-text)' }}>
           <Bot size={17} style={{ color: 'var(--c-accent)' }} />
           Scout Queue
         </h1>
 
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <input
             type="text"
             aria-label="Search titles"
@@ -320,7 +320,11 @@ export function ScoutQueue() {
           />
         </div>
 
-        <div ref={genreRef} className="relative flex items-center gap-2 text-sm">
+        <div
+          ref={genreRef}
+          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto"
+          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+        >
           <span
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
@@ -390,7 +394,11 @@ export function ScoutQueue() {
           )}
         </div>
 
-        <div ref={tagRef} className="relative flex items-center gap-2 text-sm">
+        <div
+          ref={tagRef}
+          className="relative flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto"
+          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+        >
           <span
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#f9a8d4', borderColor: 'rgba(249,168,212,0.35)', background: 'rgba(249,168,212,0.12)' }}
@@ -460,7 +468,10 @@ export function ScoutQueue() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div
+          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full xl:w-auto"
+          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+        >
           <span
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
@@ -484,7 +495,10 @@ export function ScoutQueue() {
           ))}
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div
+          className="flex flex-wrap items-center gap-2 text-sm px-2 py-1 rounded-lg border w-full lg:w-[calc(50%-0.375rem)]"
+          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+        >
           <span
             className="text-[11px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded border"
             style={{ color: '#93c5fd', borderColor: 'rgba(147,197,253,0.35)', background: 'rgba(147,197,253,0.12)' }}
@@ -509,7 +523,10 @@ export function ScoutQueue() {
           ))}
         </div>
 
-        <div className="flex items-center gap-3 text-xs" style={{ color: 'var(--c-muted)' }}>
+        <div
+          className="flex flex-wrap items-center gap-3 text-xs w-full lg:w-[calc(50%-0.375rem)] px-2 py-1 rounded-lg border"
+          style={{ color: 'var(--c-muted)', borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+        >
           <label className="inline-flex items-center gap-1 cursor-pointer">
             <input
               type="checkbox"
@@ -566,7 +583,10 @@ export function ScoutQueue() {
           </label>
         </div>
 
-        <div className="flex items-center gap-2 text-sm">
+        <div
+          className="flex flex-wrap items-center gap-2 text-sm w-full px-2 py-1 rounded-lg border"
+          style={{ borderColor: 'var(--c-border)', background: 'rgba(255,255,255,0.01)' }}
+        >
           <select
             value={audioFormat}
             onChange={(e) => patch({ audioFormat: e.target.value || null })}
@@ -676,14 +696,14 @@ export function ScoutQueue() {
           <button
             type="button"
             onClick={openBatchModal}
-            className="text-xs px-3 py-1 rounded font-medium"
+            className="text-xs px-3 py-1 rounded font-medium ml-auto"
             style={{ background: 'var(--c-accent)', color: 'white' }}
           >
             Scout Batch
           </button>
         )}
 
-        <span className="ml-auto text-xs" style={{ color: 'var(--c-muted)' }}>
+        <span className="text-xs ml-auto" style={{ color: 'var(--c-muted)' }}>
           {data ? `${data.total} candidates` : '…'} · {selectedBatch.length}/{maxBatch} selected
         </span>
 

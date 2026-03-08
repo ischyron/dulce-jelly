@@ -52,3 +52,12 @@ Color contrast: `--c-muted: #8b87aa` on `--c-bg: #0f0f14` may fail 4.5:1 ratio f
 - [IN-PROGRESS] Content should be isolated from code to allow internationalization (i18n).
   - react-i18next is already in use with `common`, `scan`, `settings` namespaces.
   - Approach document created: `temp/i18n-approach.md` — covers namespace strategy, component audit, enforcement rules for AGENTS.md/CLAUDE.md, and phased implementation plan.
+
+- [IN-PROGRESS] Harden Playwright e2e to be isolated, deterministic, and cleanup-safe (no live DB/data dependencies).
+  - Plan: `temp/e2e-improvement-plan.md`
+  - Task 1 (isolated runtime harness): DONE (runner now provisions temp DB/temp config/temp server and tears down temp workspace)
+  - Task 2 (deterministic seed fixtures): DONE (seeded synthetic library/candidate data for smoke+scout paths)
+  - Task 3 (fake Prowlarr fixture server): DONE (local deterministic fixture responses power Scout e2e without external network dependency)
+  - Task 4 (fake Jellyfin fixture strategy): IN-PROGRESS (baseline fixture stub added; dedicated sync/enrichment scenarios pending)
+  - Task 5 (cleanup/state restoration guardrails): TODO
+  - Task 6 (flake hardening/assertion quality): IN-PROGRESS (removed brittle hardcoded tag + scout link/SAB assumptions in smoke spec)

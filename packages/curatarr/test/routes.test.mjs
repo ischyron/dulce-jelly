@@ -453,3 +453,70 @@ test('jf-refresh returns disambiguation_required when ID lookup fails and fallba
   assert.equal(res.status, 409);
   assert.equal(body.error, 'disambiguation_required');
 });
+
+test('scout send-to-sab rejects when prowlarr is not configured', async (t) => {
+  const tmp = await makeTempDir('scout-send-no-prowlarr');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const res = await app.request('http://localhost/api/scout/send-to-sab', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: 'Toy Story 1995',
+      protocol: 'usenet',
+      downloadUrl: 'http://prowlarr:9696/prowlarr/12/download?apikey=test&link=abc',
+    }),
+    headers: { 'content-type': 'application/json' },
+  });
+  const body = await res.json();
+  assert.equal(res.status, 422);
+  assert.equal(body.error, 'prowlarr_not_configured');
+});
+
+test('scout send-to-sab grabs via prowlarr download URL', async (t) => {
+  const tmp = await makeTempDir('scout-send-prowlarr-grab');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  db.setSetting('prowlarrUrl', 'http://prowlarr:9696/prowlarr');
+  db.setSetting('prowlarrApiKey', 'test-prowlarr-key');
+
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, init) => {
+    const u = new URL(String(url));
+    if (u.hostname === 'prowlarr' && u.pathname === '/prowlarr/12/download') {
+      assert.equal(u.searchParams.get('apikey'), 'test-prowlarr-key');
+      const headerApiKey =
+        init?.headers instanceof Headers
+          ? init.headers.get('X-Api-Key')
+          : init?.headers && !Array.isArray(init.headers)
+            ? init.headers['X-Api-Key']
+            : null;
+      assert.equal(headerApiKey, 'test-prowlarr-key');
+      return new Response('TORRENT_OR_NZB_BYTES', {
+        status: 200,
+        headers: { 'content-type': 'application/octet-stream' },
+      });
+    }
+    throw new Error(`unexpected fetch url in test: ${String(url)}`);
+  };
+  t.after(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  const res = await app.request('http://localhost/api/scout/send-to-sab', {
+    method: 'POST',
+    body: JSON.stringify({
+      title: 'Toy Story 1995',
+      protocol: 'usenet',
+      downloadUrl: 'http://prowlarr:9696/prowlarr/12/download?apikey=test-prowlarr-key&link=abc',
+    }),
+    headers: { 'content-type': 'application/json' },
+  });
+  const body = await res.json();
+  assert.equal(res.status, 200);
+  assert.equal(body.queued, true);
+  assert.equal(body.via, 'prowlarr');
+});

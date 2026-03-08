@@ -49,8 +49,8 @@ export function Sidebar() {
         className="mx-4"
         style={{
           height: '1px',
-          width: '70%',
-          background: 'linear-gradient(to right, var(--c-border), transparent)',
+          width: '80%',
+          background: 'linear-gradient(to right, transparent, var(--c-border) 30%, var(--c-border) 70%, transparent)',
         }}
       />
 

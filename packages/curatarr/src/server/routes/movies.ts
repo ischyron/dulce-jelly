@@ -332,15 +332,15 @@ export function makeMoviesRoutes(db: CuratDb): Hono {
   // Includes groups stored in the DB as well as groups derived from filenames at runtime
   // (for files where release_group is NULL, matching the movies listing fallback).
   app.get('/release-groups', (c) => {
-    const rows = db.raw().prepare('SELECT release_group, file_name FROM files').all() as Array<{
+    const rows = db.raw().prepare('SELECT release_group, filename FROM files').all() as Array<{
       release_group: string | null;
-      file_name: string | null;
+      filename: string | null;
     }>;
 
     const counts = new Map<string, number>();
     for (const row of rows) {
       const stored = typeof row.release_group === 'string' ? row.release_group.trim() : '';
-      const group = stored || (row.file_name ? (extractReleaseGroup(row.file_name) ?? '') : '');
+      const group = stored || (row.filename ? (extractReleaseGroup(row.filename) ?? '') : '');
       if (group) {
         counts.set(group, (counts.get(group) ?? 0) + 1);
       }

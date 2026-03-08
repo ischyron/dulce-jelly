@@ -556,7 +556,7 @@ export function ScoutQueue() {
           </button>
           {releaseGroupOpen && (
             <div
-              className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[14rem] w-max max-w-[24rem] overflow-auto rounded-lg border p-2 space-y-1"
+              className="absolute left-0 top-[calc(100%+6px)] z-20 min-w-[14rem] w-max max-w-[24rem] max-h-[50vh] overflow-auto rounded-lg border p-2 space-y-1"
               style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
             >
               {(releaseGroupsData?.releaseGroups ?? []).length === 0 && (

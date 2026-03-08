@@ -37,7 +37,7 @@ const FLAG_DOCS: Record<string, { title: string; explanation: string; impact: st
     explanation:
       'ffmpeg encountered actionable decode/bitstream faults (for example: "Invalid NAL unit size", "error while decoding", "corrupt/truncated stream").',
     impact: 'Possible visual artefacts, incomplete playback, or a hard stop at the corrupted region.',
-    action: 'Verify the file with a full deep check. Replace the file if errors persist.',
+    action: 'Re-run Deep Check with a higher time budget. Replace the file if errors persist.',
   },
   mux_error: {
     title: 'Mux-level error',
@@ -48,13 +48,13 @@ const FLAG_DOCS: Record<string, { title: string; explanation: string; impact: st
   },
 };
 
-const DOCS_INTRO = `Quality analytics are generated during the "Deep Verify" pass (Verify page → Start Deep Verify). Each file is fully decoded by ffmpeg to detect bitstream issues beyond what a simple metadata probe can reveal.
+const DOCS_INTRO = `Quality analytics are generated during "Deep Check via Random Sampling" (Verify page). Curatarr samples random file segments within your per-file time budget to catch obvious decode/container faults.
 
 Severities:
   FLAG  — confirmed playback issue (freezes, artefacts, corrupt decode)
   WARN  — potential quality concern (large GOP, non-standard timestamps)
 
-Run Deep Verify after your initial Library Scan to populate this column.`;
+Run Deep Check after your initial Library Scan to populate this column.`;
 
 interface QualityBadgeProps {
   resolution?: string | null;
@@ -289,7 +289,7 @@ export function QualityFlagsBadge({
       <span
         className="text-xs"
         style={{ color: 'var(--c-border)' }}
-        title="Not yet verified — run Deep Verify to check"
+        title="Not yet verified — run Deep Check to analyze"
       >
         —
       </span>
@@ -305,7 +305,7 @@ export function QualityFlagsBadge({
       <span
         className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded"
         style={{ background: 'rgba(74,222,128,0.12)', color: '#4ade80' }}
-        title="Deep verify passed — no quality flags"
+        title="Deep check passed — no quality flags"
       >
         OK
       </span>

@@ -46,6 +46,11 @@ const BENIGN_PATTERNS = [
   /\bAt least one output file must be specified\b/i,
 ];
 
+/** Subtitle probe warnings that do not impact video/audio decode health */
+const BENIGN_SUBTITLE_PATTERNS = [
+  /could not find codec parameters for stream \d+ \(subtitle:[^)]+\): unspecified size/i,
+];
+
 /** DTS/PTS disorder patterns — captured as quality flags, not ignored */
 const DTS_DISORDER = /non monoton|DTS .{0,60}, next:.{0,60}invalid|out of order packet/i;
 
@@ -53,7 +58,6 @@ const MUX_ERROR_PATTERNS = [
   /moov atom not found/i,
   /invalid data found when processing input/i,
   /error reading header/i,
-  /could not find codec parameters/i,
   /invalid atom size/i,
 ];
 
@@ -83,15 +87,20 @@ function parseDtsMagnitude(line: string): number | null {
 }
 
 function isBenign(line: string): boolean {
-  return BENIGN_PATTERNS.some((p) => p.test(line));
+  return BENIGN_PATTERNS.some((p) => p.test(line)) || BENIGN_SUBTITLE_PATTERNS.some((p) => p.test(line));
 }
 
 function matchesAny(line: string, patterns: RegExp[]): boolean {
   return patterns.some((p) => p.test(line));
 }
 
-const QUICK_CHECK_SECONDS = 20;
-const TIMEOUT_MS = 60 * 1000; // 1 minute per file
+const MIN_BUDGET_SECONDS = 30;
+const MAX_BUDGET_SECONDS = 3600;
+const DEFAULT_BUDGET_SECONDS = 30;
+const SAMPLE_SEGMENT_SECONDS = 12;
+const MAX_SAMPLE_WINDOWS = 180;
+const MAX_WINDOW_TIMEOUT_MS = 20_000;
+const WINDOW_KILL_GRACE_MS = 1_500;
 
 // ── GOP analysis ───────────────────────────────────────────────────────────
 
@@ -104,114 +113,211 @@ const TIMEOUT_MS = 60 * 1000; // 1 minute per file
  */
 // ── Main deepCheck ─────────────────────────────────────────────────────────
 
-export async function deepCheck(filePath: string, signal?: AbortSignal): Promise<DeepCheckResult> {
+function clampBudgetSeconds(input: number | undefined): number {
+  const n = Number(input);
+  if (!Number.isFinite(n)) return DEFAULT_BUDGET_SECONDS;
+  return Math.max(MIN_BUDGET_SECONDS, Math.min(MAX_BUDGET_SECONDS, Math.floor(n)));
+}
+
+function randomInt(minInclusive: number, maxInclusive: number): number {
+  if (maxInclusive <= minInclusive) return Math.floor(minInclusive);
+  return Math.floor(Math.random() * (maxInclusive - minInclusive + 1)) + minInclusive;
+}
+
+function buildSampleWindows(
+  durationSec: number | null | undefined,
+  budgetSeconds: number,
+): Array<{ offsetSec: number; durationSec: number }> {
+  const windowCount = Math.max(1, Math.min(MAX_SAMPLE_WINDOWS, Math.floor(budgetSeconds / 8)));
+
+  if (!durationSec || !Number.isFinite(durationSec) || durationSec <= 0) {
+    return Array.from({ length: windowCount }, () => ({ offsetSec: 0, durationSec: SAMPLE_SEGMENT_SECONDS }));
+  }
+
+  const sampleDur = Math.min(SAMPLE_SEGMENT_SECONDS, Math.max(4, Math.floor(durationSec)));
+  if (durationSec <= sampleDur + 1) {
+    return [{ offsetSec: 0, durationSec: sampleDur }];
+  }
+
+  const maxOffset = Math.max(0, Math.floor(durationSec - sampleDur));
+  const windows: Array<{ offsetSec: number; durationSec: number }> = [];
+  const seen = new Set<number>();
+  const addWindow = (offsetSec: number) => {
+    const clamped = Math.max(0, Math.min(maxOffset, Math.floor(offsetSec)));
+    if (seen.has(clamped)) return;
+    seen.add(clamped);
+    windows.push({ offsetSec: clamped, durationSec: sampleDur });
+  };
+
+  // Stratified random windows across start/middle/end for better coverage.
+  const thirds = 3;
+  for (let i = 0; i < thirds && windows.length < windowCount; i++) {
+    const start = Math.floor((maxOffset * i) / thirds);
+    const end = Math.floor((maxOffset * (i + 1)) / thirds);
+    addWindow(randomInt(start, Math.max(start, end)));
+  }
+
+  while (windows.length < windowCount) {
+    addWindow(randomInt(0, maxOffset));
+    if (seen.size >= maxOffset + 1) break;
+  }
+
+  return windows;
+}
+
+export async function deepCheck(
+  filePath: string,
+  signal?: AbortSignal,
+  mediaDurationSec?: number | null,
+  budgetSecondsInput?: number,
+): Promise<DeepCheckResult> {
   const start = Date.now();
+  const budgetSeconds = clampBudgetSeconds(budgetSecondsInput);
+  const budgetMs = budgetSeconds * 1000;
+  const deadline = start + budgetMs;
   const errors: string[] = [];
   const warnings: string[] = [];
   const qualityFlags: QualityFlag[] = [];
+  const sampleWindows = buildSampleWindows(mediaDurationSec, budgetSeconds);
+  let timedOut = false;
 
-  // --- Run ffmpeg null pass ---
-  const ffmpegResult = await new Promise<{
-    errors: string[];
-    warnings: string[];
-    dtsLines: string[];
-    decodeLines: string[];
-    muxLines: string[];
-  }>((resolve) => {
-    const _errors: string[] = [];
-    const _warnings: string[] = [];
-    const _dtsLines: string[] = [];
-    const _decodeLines: string[] = [];
-    const _muxLines: string[] = [];
+  // --- Run ffmpeg null sampling windows ---
+  const ffmpegResult = {
+    errors: [] as string[],
+    warnings: [] as string[],
+    dtsLines: [] as string[],
+    decodeLines: [] as string[],
+    muxLines: [] as string[],
+  };
 
-    const proc = spawn(
-      'ffmpeg',
-      [
-        '-v',
-        'warning',
-        '-threads',
-        '2',
-        '-i',
-        filePath,
-        '-map',
-        '0:v?',
-        '-map',
-        '0:a?',
-        '-sn',
-        '-dn',
-        '-t',
-        String(QUICK_CHECK_SECONDS),
-        '-f',
-        'null',
-        '-',
-      ],
-      {
-        stdio: ['ignore', 'ignore', 'pipe'],
-      },
-    );
+  for (const window of sampleWindows) {
+    if (signal?.aborted) break;
+    if (Date.now() >= deadline) {
+      timedOut = true;
+      break;
+    }
 
-    let stderr = '';
-    proc.stderr?.on('data', (chunk: Buffer) => {
-      stderr += chunk.toString();
-    });
+    const remainingMs = Math.max(1, deadline - Date.now());
+    const windowTimeoutMs = Math.max(1_000, Math.min(MAX_WINDOW_TIMEOUT_MS, remainingMs + WINDOW_KILL_GRACE_MS));
 
-    const timer = setTimeout(() => {
-      proc.kill('SIGKILL');
-      _errors.push('timeout: file check exceeded 1 minute');
-    }, TIMEOUT_MS);
+    const windowResult = await new Promise<{
+      errors: string[];
+      warnings: string[];
+      dtsLines: string[];
+      decodeLines: string[];
+      muxLines: string[];
+      timedOut: boolean;
+    }>((resolve) => {
+      const _errors: string[] = [];
+      const _warnings: string[] = [];
+      const _dtsLines: string[] = [];
+      const _decodeLines: string[] = [];
+      const _muxLines: string[] = [];
+      let _timedOut = false;
+      let settled = false;
 
-    const onAbort = () => {
-      proc.kill('SIGKILL');
-    };
-    signal?.addEventListener('abort', onAbort, { once: true });
+      const finalize = () => {
+        if (settled) return;
+        settled = true;
+        resolve({
+          errors: _errors,
+          warnings: _warnings,
+          dtsLines: _dtsLines,
+          decodeLines: _decodeLines,
+          muxLines: _muxLines,
+          timedOut: _timedOut,
+        });
+      };
 
-    proc.on('close', () => {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', onAbort);
+      const proc = spawn(
+        'ffmpeg',
+        [
+          '-v',
+          'warning',
+          '-threads',
+          '2',
+          '-ss',
+          String(window.offsetSec),
+          '-i',
+          filePath,
+          '-map',
+          '0:v?',
+          '-map',
+          '0:a?',
+          '-sn',
+          '-dn',
+          '-t',
+          String(window.durationSec),
+          '-f',
+          'null',
+          '-',
+        ],
+        {
+          stdio: ['ignore', 'ignore', 'pipe'],
+        },
+      );
 
-      for (const line of stderr
-        .split('\n')
-        .map((l) => l.trim())
-        .filter(Boolean)) {
-        if (isBenign(line)) continue;
+      let stderr = '';
+      proc.stderr?.on('data', (chunk: Buffer) => {
+        stderr += chunk.toString();
+      });
 
-        if (DTS_DISORDER.test(line)) {
-          // Captured as quality flag below — does not force a hard fail alone.
-          _dtsLines.push(line);
-        } else if (matchesAny(line, DECODE_ERROR_PATTERNS)) {
-          _decodeLines.push(line);
-          _errors.push(line);
-        } else if (matchesAny(line, MUX_ERROR_PATTERNS)) {
-          _muxLines.push(line);
-          _errors.push(line);
-        } else if (/\bwarning\b/i.test(line) || /\berror\b/i.test(line) || /\bfailed\b/i.test(line)) {
-          // Keep unclassified diagnostics as warnings to avoid false-positive hard failures.
-          _warnings.push(line);
+      const timer = setTimeout(() => {
+        _timedOut = true;
+        proc.kill('SIGKILL');
+      }, windowTimeoutMs);
+
+      const onAbort = () => {
+        proc.kill('SIGKILL');
+      };
+      signal?.addEventListener('abort', onAbort, { once: true });
+
+      proc.on('close', () => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+
+        for (const line of stderr
+          .split('\n')
+          .map((l) => l.trim())
+          .filter(Boolean)) {
+          if (isBenign(line)) continue;
+
+          if (DTS_DISORDER.test(line)) {
+            _dtsLines.push(line);
+          } else if (matchesAny(line, DECODE_ERROR_PATTERNS)) {
+            _decodeLines.push(line);
+            _errors.push(line);
+          } else if (matchesAny(line, MUX_ERROR_PATTERNS)) {
+            _muxLines.push(line);
+            _errors.push(line);
+          }
         }
-      }
 
-      resolve({
-        errors: _errors,
-        warnings: _warnings,
-        dtsLines: _dtsLines,
-        decodeLines: _decodeLines,
-        muxLines: _muxLines,
+        finalize();
+      });
+
+      proc.on('error', (err) => {
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', onAbort);
+        _errors.push(`spawn error: ${err.message}`);
+        finalize();
       });
     });
 
-    proc.on('error', (err) => {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', onAbort);
-      _errors.push(`spawn error: ${err.message}`);
-      resolve({
-        errors: _errors,
-        warnings: _warnings,
-        dtsLines: _dtsLines,
-        decodeLines: _decodeLines,
-        muxLines: _muxLines,
-      });
-    });
-  });
+    ffmpegResult.errors.push(...windowResult.errors);
+    ffmpegResult.warnings.push(...windowResult.warnings);
+    ffmpegResult.dtsLines.push(...windowResult.dtsLines);
+    ffmpegResult.decodeLines.push(...windowResult.decodeLines);
+    ffmpegResult.muxLines.push(...windowResult.muxLines);
+    if (windowResult.timedOut) {
+      timedOut = true;
+      break;
+    }
+  }
+
+  if (timedOut) {
+    ffmpegResult.errors.push(`timeout: file check exceeded ${budgetSeconds}s budget`);
+  }
 
   errors.push(...ffmpegResult.errors);
   warnings.push(...ffmpegResult.warnings);

@@ -1176,26 +1176,48 @@ export class CuratDb {
     return (this.db.prepare(`SELECT COUNT(*) as n FROM files WHERE verify_status = 'fail'`).get() as { n: number }).n;
   }
 
-  clearVerifyErrors(fileIds?: number[]): number {
-    const baseSql = `
+  clearVerifyErrors(fileIds?: number[]): { cleared: number; clearedPending: number; clearedTotal: number } {
+    let whereClause = 'WHERE verify_status IS NOT NULL';
+    let bind: number[] = [];
+
+    if (Array.isArray(fileIds) && fileIds.length > 0) {
+      const cleanIds = [...new Set(fileIds.filter((id) => Number.isInteger(id) && id > 0))];
+      if (cleanIds.length === 0) return { cleared: 0, clearedPending: 0, clearedTotal: 0 };
+      const placeholders = cleanIds.map(() => '?').join(',');
+      whereClause = `${whereClause} AND id IN (${placeholders})`;
+      bind = cleanIds;
+    }
+
+    const counts = this.db
+      .prepare(
+        `
+        SELECT
+          SUM(CASE WHEN verify_status = 'pending' THEN 1 ELSE 0 END) AS pendingCount,
+          SUM(CASE WHEN verify_status IN ('pass', 'fail', 'error') THEN 1 ELSE 0 END) AS completedCount
+        FROM files
+        ${whereClause}
+      `,
+      )
+      .get(...bind) as { pendingCount: number | null; completedCount: number | null };
+
+    const clearedPending = counts.pendingCount ?? 0;
+    const cleared = counts.completedCount ?? 0;
+
+    this.db
+      .prepare(
+        `
       UPDATE files
       SET verify_status = NULL,
           verify_errors = NULL,
           quality_flags = '[]',
           verified_at   = NULL,
           updated_at    = datetime('now')
-      WHERE verify_status IS NOT NULL
-    `;
+      ${whereClause}
+    `,
+      )
+      .run(...bind);
 
-    if (Array.isArray(fileIds) && fileIds.length > 0) {
-      const cleanIds = [...new Set(fileIds.filter((id) => Number.isInteger(id) && id > 0))];
-      if (cleanIds.length === 0) return 0;
-      const placeholders = cleanIds.map(() => '?').join(',');
-      const stmt = this.db.prepare(`${baseSql} AND id IN (${placeholders})`);
-      return stmt.run(...cleanIds).changes;
-    }
-
-    return this.db.prepare(baseSql).run().changes;
+    return { cleared, clearedPending, clearedTotal: cleared + clearedPending };
   }
 
   resetPendingVerifyStatuses(): number {

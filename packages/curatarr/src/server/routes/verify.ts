@@ -26,6 +26,8 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
     const concurrency = Math.max(1, Math.min(8, Number.parseInt(String(body.concurrency ?? 3), 10)));
     const fileIds = Array.isArray(body.fileIds) ? (body.fileIds as number[]) : undefined;
     const rescan = Boolean(body.rescan);
+    const parsedBudget = Number.parseInt(String(body.budgetSeconds ?? 30), 10);
+    const budgetSeconds = Number.isFinite(parsedBudget) ? Math.max(30, Math.min(3600, parsedBudget)) : 30;
 
     const signal = verifyEmitter.start();
 
@@ -36,7 +38,7 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
 
     setImmediate(async () => {
       try {
-        await startVerifyQueue(db, { concurrency, fileIds, rescan, signal });
+        await startVerifyQueue(db, { concurrency, fileIds, rescan, budgetSeconds, signal });
       } catch (err) {
         verifyEmitter.emit('error', { message: (err as Error).message });
       } finally {
@@ -115,8 +117,8 @@ export function makeVerifyRoutes(db: CuratDb): Hono {
       ? body.fileIds.map((v) => Number.parseInt(String(v), 10)).filter((id) => Number.isInteger(id) && id > 0)
       : undefined;
 
-    const cleared = db.clearVerifyErrors(fileIds);
-    return c.json({ cleared });
+    const result = db.clearVerifyErrors(fileIds);
+    return c.json(result);
   });
 
   return app;

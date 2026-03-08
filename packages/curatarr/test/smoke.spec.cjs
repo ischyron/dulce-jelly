@@ -206,7 +206,7 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
 
   test('verify loads', async ({ page }) => {
     await page.goto('/verify');
-    await expect(page.getByRole('heading', { name: 'Deep Verify' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Deep Check via Random Sampling' }).first()).toBeVisible();
   });
 
   test('settings loads', async ({ page }) => {

@@ -12,12 +12,14 @@ export interface VerifyOptions {
   concurrency?: number; // default 3
   fileIds?: number[]; // if set, only verify these file IDs
   rescan?: boolean; // re-verify already-verified files
+  budgetSeconds?: number; // per-file sampling budget
   signal?: AbortSignal;
 }
 
 export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): Promise<void> {
   const concurrency = opts.concurrency ?? 3;
   const signal = opts.signal;
+  const budgetSeconds = opts.budgetSeconds;
   const CHUNK_SIZE = 200;
   db.resetPendingVerifyStatuses();
 
@@ -65,7 +67,7 @@ export async function startVerifyQueue(db: CuratDb, opts: VerifyOptions = {}): P
         startedAt: new Date().toISOString(),
       });
 
-      const result = await deepCheck(file.file_path, signal);
+      const result = await deepCheck(file.file_path, signal, file.duration, budgetSeconds);
       if (signal?.aborted) break;
 
       const status = result.ok ? 'pass' : 'fail';

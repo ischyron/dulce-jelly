@@ -25,7 +25,7 @@
     "jellyfinSynced": "Jellyfin Synced",
     "jellyfinSyncedHint": "Movie-level status. Curatarr maps one folder to one movie; multi-version files stay inside that movie record and are shown in Movie details as Files (2), Files (3), etc.",
     "scanErrors": "Scan Errors",
-    "scanErrorsHint": "Basic file sanity/metadata scan failures from ffprobe during library scan. This is separate from Disambiguate and Deep Verify errors.",
+    "scanErrorsHint": "Basic file sanity/metadata scan failures from ffprobe during library scan. This is separate from Disambiguate and Deep Check errors.",
     "matched": "matched",
     "unmatched": "unmatched",
     "total": "total",

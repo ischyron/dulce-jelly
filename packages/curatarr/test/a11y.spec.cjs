@@ -6,7 +6,7 @@ const ROUTES = [
   { path: '/library', heading: 'Library' },
   { path: '/scan', heading: 'Scan & Sync' },
   { path: '/disambiguate', heading: 'Disambiguate' },
-  { path: '/verify', heading: 'Deep Verify' },
+  { path: '/verify', heading: 'Deep Check via Random Sampling' },
   { path: '/settings/general', heading: 'Settings' },
   { path: '/settings/scout', heading: 'Settings' },
 ];

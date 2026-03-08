@@ -1,54 +1,53 @@
-# Verify Diagnostic Classification
+# Deep Check Runtime
 
-Curatarr Deep Verify classifies ffmpeg/ffprobe diagnostics into high-signal buckets so users see actionable issues instead of noisy logs.
+This is the runtime behavior for `src/scanner/deepcheck.ts`.
 
-## Actionable `FLAG` diagnostics (quick check)
+## Sampling strategy
 
-These patterns are treated as real faults and will mark verification as failed:
+- Goal: catch high-impact corruption in large files without full decode.
+- Uses ffmpeg null decode with video+audio streams only:
+  - `-map 0:v? -map 0:a? -sn -dn -f null -`
+- Random-sampling windows:
+  - Per-file budget is user-controlled (`30` to `3600` seconds, default `30`).
+  - Runtime creates multiple short sample windows across random offsets.
+  - When duration is known, sampling is stratified across start/middle/end regions with extra random offsets.
+  - Re-runs sample different offsets, so long-running repeated checks increase coverage over time.
+  - If duration is unknown/invalid, runtime samples from the start only.
 
-- Bitstream/decode faults (`decode_error`)
+## Failure signals (hard fail)
+
+Only curated high-signal diagnostics fail verification:
+
+- Decode/bitstream faults:
   - `Invalid NAL unit size`
-  - `error while decoding`
   - `decode_slice_header error`
-  - `non-existing PPS`, `PPS id out of range`, `SPS id out of range`
+  - `error while decoding`
+  - `non-existing PPS`, `PPS/SPS id out of range`
   - `missing reference picture`
   - `corrupt`, `truncated`, `packet too small`
   - `invalid ... bitstream`
-- Container/mux faults (`mux_error`)
+- Container/mux faults:
   - `moov atom not found`
   - `invalid data found when processing input`
   - `error reading header`
   - `invalid atom size`
-  - `could not find codec parameters`
-- Timestamp disorder (`backward_pts`)
-  - `non monotonically increasing dts`
-  - out-of-order DTS/PTS diagnostics
+- Runtime limits:
+  - Spawn failure (`spawn error: ...`)
+  - Sampling budget timeout (`timeout: file check exceeded <N>s budget`)
 
-## Actionable `WARN` diagnostics
+## Quality flags (non-fail metadata)
 
-- Large GOP (`large_gop`)
-  - Triggered when max keyframe interval > 4s in the ffprobe packet sample.
+- `backward_pts` (FLAG): non-monotonic/out-of-order DTS/PTS detected.
+- `decode_error` (FLAG): count+sample of decode faults.
+- `mux_error` (FLAG): count+sample of mux/container faults.
 
-## Quick check constraints
+## Ignored noise
 
-- Runs `ffmpeg` with `-t 20` seconds (see `QUICK_CHECK_SECONDS` in `src/scanner/deepcheck.ts`), maps only video/audio (`-map 0:v? -map 0:a? -sn -dn`), and times out after 1 minute (`TIMEOUT_MS`).
-- Only flags the high-signal regexes listed above; everything else stays as a warning or is ignored to keep the run fast.
+Known non-actionable lines are ignored, including:
 
-## Ignored or downgraded noise
+- Null-mux chatter (`Automatic encoder selection failed ... format null`)
+- `pts has no value`
+- Subtitle-only probe messages like:
+  - `Could not find codec parameters ... (Subtitle ...): unspecified size`
 
-These do not fail verification:
-
-- Known benign diagnostics:
-  - `pts has no value`
-  - `Application provided invalid...`
-  - null-mux encoder-selection chatter (`Automatic encoder selection failed ... format null`)
-- Unclassified ffmpeg warnings/errors:
-  - stored as warnings only to avoid false-positive hard failures.
-
-## Stream mapping policy
-
-Deep Verify decodes video/audio streams and skips subtitle/data streams:
-
-- `-map 0:v? -map 0:a? -sn -dn`
-
-This avoids false failures caused by subtitle streams that cannot be muxed to `null`.
+These are ignored because they are commonly non-fatal for main video/audio playback.

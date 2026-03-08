@@ -119,7 +119,7 @@ export function LibraryTable({
           <th
             className="px-3 py-2 font-medium text-xs uppercase tracking-wider text-center"
             style={{ color: 'var(--c-muted)', minWidth: '72px' }}
-            title="Quality analytics — populated after Deep Verify. FLAG = playback issue. WARN = quality concern. Click badge for details + docs."
+            title="Quality analytics — populated after Deep Check. FLAG = playback issue. WARN = quality concern. Click badge for details + docs."
           >
             Issues
           </th>

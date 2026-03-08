@@ -648,7 +648,7 @@ paths:
   /api/verify/start:
     post:
       tags: [Verify]
-      summary: Start deep verify queue
+      summary: Start deep check queue
       requestBody:
         content:
           application/json:
@@ -660,6 +660,7 @@ paths:
                   type: array
                   items: { type: integer }
                 rescan: { type: boolean }
+                budgetSeconds: { type: integer, minimum: 30, maximum: 3600 }
       responses:
         '200':
           description: Verify started

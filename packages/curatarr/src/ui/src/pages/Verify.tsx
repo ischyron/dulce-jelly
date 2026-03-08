@@ -42,6 +42,16 @@ interface CuratedIssue {
   impact: string;
 }
 
+const VERIFY_BUDGET_STORAGE_KEY = 'curatarr.verify.deepCheckBudgetSeconds';
+const MIN_VERIFY_BUDGET_SECONDS = 30;
+const MAX_VERIFY_BUDGET_SECONDS = 3600;
+const DEFAULT_VERIFY_BUDGET_SECONDS = 30;
+
+function clampVerifyBudgetSeconds(input: number): number {
+  if (!Number.isFinite(input)) return DEFAULT_VERIFY_BUDGET_SECONDS;
+  return Math.max(MIN_VERIFY_BUDGET_SECONDS, Math.min(MAX_VERIFY_BUDGET_SECONDS, Math.floor(input)));
+}
+
 function formatBytes(n: number | null): string {
   if (!n) return '—';
   if (n < 1024) return `${n} B`;
@@ -124,6 +134,12 @@ function buildCuratedIssues(errors: string[], flags: QualityFlag[]): CuratedIssu
 export function Verify() {
   const { t } = useTranslation('verify');
   const [concurrency, setConcurrency] = useState(3);
+  const [budgetSeconds, setBudgetSeconds] = useState<number>(() => {
+    if (typeof window === 'undefined') return DEFAULT_VERIFY_BUDGET_SECONDS;
+    const raw = window.localStorage.getItem(VERIFY_BUDGET_STORAGE_KEY);
+    if (!raw) return DEFAULT_VERIFY_BUDGET_SECONDS;
+    return clampVerifyBudgetSeconds(Number.parseInt(raw, 10));
+  });
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<VerifyProgress>({});
   const [activeFiles, setActiveFiles] = useState<FileStart[]>([]);
@@ -208,9 +224,14 @@ export function Verify() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(VERIFY_BUDGET_STORAGE_KEY, String(clampVerifyBudgetSeconds(budgetSeconds)));
+  }, [budgetSeconds]);
+
   async function startVerify() {
     try {
-      await api.verifyStart({ concurrency });
+      await api.verifyStart({ concurrency, budgetSeconds: clampVerifyBudgetSeconds(budgetSeconds) });
       connectSse();
     } catch (err) {
       const apiErr = err instanceof ApiError ? err : null;
@@ -246,7 +267,12 @@ export function Verify() {
     if (running || statusData?.running || recheckingFileId != null) return;
     setRecheckingFileId(fileId);
     try {
-      await api.verifyStart({ concurrency: 1, fileIds: [fileId], rescan: true });
+      await api.verifyStart({
+        concurrency: 1,
+        fileIds: [fileId],
+        rescan: true,
+        budgetSeconds: clampVerifyBudgetSeconds(budgetSeconds),
+      });
       connectSse();
       setStatusMsg(t('failures.recheckStarted'));
     } catch (err) {
@@ -305,11 +331,7 @@ export function Verify() {
         >
           <h2 className="font-semibold text-sm">{t('controls.title')}</h2>
           <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
-            {t('controls.descriptionPrefix')}
-            <code className="font-mono text-xs px-1 rounded" style={{ background: 'var(--c-border)' }}>
-              ffmpeg -v error -f null -
-            </code>
-            {t('controls.descriptionSuffix')}
+            {t('controls.description')}
           </p>
 
           <div className="flex items-center gap-4">
@@ -325,6 +347,24 @@ export function Verify() {
                 disabled={verifyInProgress}
               />
               <span className="font-mono text-sm w-4 text-center">{concurrency}</span>
+            </label>
+
+            <label className="flex items-center gap-2 text-sm">
+              <span style={{ color: 'var(--c-muted)' }}>{t('controls.budget')}</span>
+              <input
+                type="number"
+                min={MIN_VERIFY_BUDGET_SECONDS}
+                max={MAX_VERIFY_BUDGET_SECONDS}
+                value={budgetSeconds}
+                onChange={(e) => setBudgetSeconds(clampVerifyBudgetSeconds(Number.parseInt(e.target.value || '0', 10)))}
+                className="w-24 rounded border px-2 py-1 text-xs font-mono"
+                style={{
+                  borderColor: 'var(--c-border)',
+                  background: 'var(--c-bg)',
+                  color: 'var(--c-text)',
+                }}
+                disabled={verifyInProgress}
+              />
             </label>
 
             {!verifyInProgress ? (
@@ -366,6 +406,9 @@ export function Verify() {
               {t('failures.clear')}
             </button>
           </div>
+          <p className="text-xs" style={{ color: 'var(--c-muted)' }}>
+            {t('controls.budgetHint')}
+          </p>
 
           {/* Progress */}
           {verifyInProgress && (

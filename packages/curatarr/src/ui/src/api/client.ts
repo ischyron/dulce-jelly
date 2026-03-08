@@ -233,7 +233,7 @@ export const api = {
       body: JSON.stringify({ decision }),
     }),
 
-  verifyStart: (opts?: { concurrency?: number; fileIds?: number[]; rescan?: boolean }) =>
+  verifyStart: (opts?: { concurrency?: number; fileIds?: number[]; rescan?: boolean; budgetSeconds?: number }) =>
     req<{ started: boolean; queued: number }>('/verify/start', {
       method: 'POST',
       body: JSON.stringify(opts ?? {}),
@@ -242,7 +242,7 @@ export const api = {
   verifyCancel: () => req<{ cancelled: boolean }>('/verify/cancel', { method: 'POST' }),
 
   verifyClear: (opts?: { fileIds?: number[] }) =>
-    req<{ cleared: number }>('/verify/clear', {
+    req<{ cleared: number; clearedPending: number; clearedTotal: number }>('/verify/clear', {
       method: 'POST',
       body: JSON.stringify(opts ?? {}),
     }),

@@ -1,5 +1,5 @@
 {
-  "pageTitle": "Deep Verify",
+  "pageTitle": "Deep Check via Random Sampling",
   "stats": {
     "unverified": "Unverified",
     "passed": "Passed",
@@ -7,10 +7,11 @@
     "errors": "Errors"
   },
   "controls": {
-    "title": "Deep Check Controls",
-    "descriptionPrefix": "Runs ",
-    "descriptionSuffix": " on each file to detect corruption or truncation.",
+    "title": "Deep Check via Random Sampling",
+    "description": "A full decode scan can take hours per large file. Set a per-file time budget so Curatarr samples random timeline segments and flags obvious playback-impacting issues.",
     "concurrency": "Concurrency",
+    "budget": "Time Budget / file (seconds)",
+    "budgetHint": "30 to 3600 seconds. Re-runs may find additional issues by sampling different areas.",
     "start": "Start Deep Check",
     "stop": "Stop",
     "progressAriaLabel": "Deep verify progress",
@@ -18,7 +19,7 @@
     "complete": "Complete.",
     "cancelled": "Cancelled.",
     "alreadyRunning": "A verify run is already in progress.",
-    "alreadyRunningAlert": "Deep Verify is already running in another tab/window. Wait for completion or stop the current run first."
+    "alreadyRunningAlert": "Deep Check is already running in another tab/window. Wait for completion or stop the current run first."
   },
   "live": {
     "runningTitle": "Running Now ({{count}})",
@@ -35,7 +36,7 @@
     "colActions": "Actions",
     "recheck": "Recheck",
     "rechecking": "Rechecking…",
-    "recheckTitle": "Run deep verify again for this file",
+    "recheckTitle": "Run deep check again for this file",
     "recheckDisabledTitle": "Recheck is disabled while a verify run is in progress",
     "recheckStarted": "Recheck started (single file).",
     "clear": "Clear Verification Data",

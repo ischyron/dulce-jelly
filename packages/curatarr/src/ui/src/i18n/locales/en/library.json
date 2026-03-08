@@ -47,7 +47,7 @@
     "groupHint": "Torrent/Usenet release group inferred from the filename only.",
     "criticHint": "Jellyfin critic score (0–100). Value is blank when Jellyfin sync is pending or data unavailable in Jellyfin.",
     "imdbTitle": "IMDb community rating (0–10) from Jellyfin CommunityRating",
-    "issuesTitle": "Quality analytics — populated after Deep Verify. FLAG = playback issue. WARN = quality concern. Click badge for details + docs.",
+    "issuesTitle": "Quality analytics — populated after Deep Check. FLAG = playback issue. WARN = quality concern. Click badge for details + docs.",
     "selectAll": "Select all rows on this page",
     "selectRow": "Select {{title}}"
   },

@@ -6,6 +6,7 @@ import {
   ExternalLink,
   FileText,
   Film,
+  Filter,
   Loader2,
   RefreshCw,
   Search,
@@ -183,9 +184,26 @@ function formatScoutReason(reason: string): string {
   return value;
 }
 
-function formatScoutReasons(reasons: string[]): string {
-  const pretty = reasons.map(formatScoutReason).filter(Boolean);
-  return [...new Set(pretty)].join(', ');
+function ScoutReasonBadges({ reasons }: { reasons: string[] }) {
+  const labels = [...new Set(reasons.map(formatScoutReason).filter(Boolean))];
+  if (labels.length === 0) return null;
+  return (
+    <div className="mt-0.5 flex flex-wrap gap-1">
+      {labels.map((label) => (
+        <span
+          key={label}
+          className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[11px] border"
+          style={{
+            color: '#c4b5fd',
+            borderColor: 'rgba(124,58,237,0.35)',
+            background: 'rgba(124,58,237,0.12)',
+          }}
+        >
+          {label}
+        </span>
+      ))}
+    </div>
+  );
 }
 
 function releaseKeyForAction(release: ScoutRelease): string {
@@ -202,8 +220,8 @@ function ScoutResultsAllTable({
   actionState,
 }: { releases: ScoutResultRow[]; actionState: ScoutActionState }) {
   return (
-    <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
-      <table className="w-full text-sm border-collapse">
+    <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
+      <table className="w-full text-xs border-collapse">
         <thead>
           <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
             <th className="px-2 py-2 text-left">State</th>
@@ -237,11 +255,7 @@ function ScoutResultsAllTable({
                 <div className="truncate" style={{ color: '#d4cfff' }} title={r.title}>
                   {r.title}
                 </div>
-                {r.reasons.length > 0 && (
-                  <div className="text-xs truncate" style={{ color: '#8b87aa' }}>
-                    {formatScoutReasons(r.reasons)}
-                  </div>
-                )}
+                {r.reasons.length > 0 && <ScoutReasonBadges reasons={r.reasons} />}
                 {r.kind === 'dropped' && r.droppedReason && (
                   <div className="text-xs" style={{ color: '#fbbf24' }}>
                     Reason: {r.droppedReason}
@@ -401,8 +415,8 @@ function FileCard({ file }: { file: FileRow }) {
 
 function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]; actionState: ScoutActionState }) {
   return (
-    <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
-      <table className="w-full text-sm border-collapse">
+    <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
+      <table className="w-full text-xs border-collapse">
         <thead>
           <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
             <th className="px-2 py-2 text-left">Score</th>
@@ -423,11 +437,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                 <div className="truncate" style={{ color: '#d4cfff' }} title={r.title}>
                   {r.title}
                 </div>
-                {r.reasons.length > 0 && (
-                  <div className="text-xs truncate" style={{ color: '#8b87aa' }}>
-                    {formatScoutReasons(r.reasons)}
-                  </div>
-                )}
+                {r.reasons.length > 0 && <ScoutReasonBadges reasons={r.reasons} />}
               </td>
               <td className="px-2 py-1.5" style={{ color: 'var(--c-muted)' }}>
                 {r.indexer ?? '—'}
@@ -488,8 +498,8 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
 
 function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[] }) {
   return (
-    <div className="overflow-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
-      <table className="w-full text-sm border-collapse">
+    <div className="overflow-x-auto rounded-lg border" style={{ borderColor: 'var(--c-border)' }}>
+      <table className="w-full text-xs border-collapse">
         <thead>
           <tr style={{ background: 'var(--c-surface)', color: 'var(--c-muted)' }}>
             <th className="px-2 py-2 text-left">Score</th>
@@ -1142,8 +1152,11 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                             style={{ borderColor: 'var(--c-border)', background: 'rgba(30,30,46,0.6)' }}
                           >
                             <div className="flex items-center justify-between">
-                              <div className="text-xs uppercase tracking-wider" style={{ color: '#8b87aa' }}>
-                                Filter Chips
+                              <div
+                                className="text-xs uppercase tracking-wider inline-flex items-center gap-1.5"
+                                style={{ color: '#8b87aa' }}
+                              >
+                                <Filter size={12} /> Filters
                               </div>
                               {scoutFilterChips.length > 0 && (
                                 <button

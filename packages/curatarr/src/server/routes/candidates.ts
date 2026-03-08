@@ -29,7 +29,7 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     const legacyOnly = c.req.query('legacy') === 'true';
     const noJf = c.req.query('noJf') === 'true';
     const multiOnly = c.req.query('multi') === 'true';
-    const limit = Number.parseInt(c.req.query('limit') ?? '100', 10);
+    const limit = Math.max(1, Math.min(1000, Number.parseInt(c.req.query('limit') ?? '100', 10)));
     const releaseGroups = c.req.query('releaseGroups')?.split(',').filter(Boolean);
     const genre = c.req.query('genre') ?? undefined;
     const genres = (genre ?? '')
@@ -57,7 +57,6 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
       releaseGroups,
       genres: genres.length > 0 ? genres : undefined,
       tags: tags.length > 0 ? tags : undefined,
-      limit,
     });
 
     // Add a composite priority score
@@ -80,8 +79,10 @@ export function makeCandidatesRoutes(db: CuratDb): Hono {
     });
 
     withScore.sort((a, b) => b.priority_score - a.priority_score);
+    const total = withScore.length;
+    const limited = withScore.slice(0, limit);
 
-    return c.json({ total: withScore.length, candidates: withScore });
+    return c.json({ total, candidates: limited });
   });
 
   return app;

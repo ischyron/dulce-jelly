@@ -170,6 +170,60 @@ test('movies listing returns filtered totalSize for full result set, not current
   assert.equal(unfilteredBody.totalSize, 600);
 });
 
+test('candidates total reflects filtered result set before limit', async (t) => {
+  const tmp = await makeTempDir('candidates-total-before-limit');
+  t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
+  const db = new CuratDb(path.join(tmp, 'curatarr.db'));
+  const app = makeApp(db);
+
+  const movieA = db.upsertMovie({ folderPath: '/m/A', folderName: 'A (2020)', parsedTitle: 'A', parsedYear: 2020 });
+  db.enrichMovieById(movieA, { criticRating: 80, communityRating: 7.8 });
+  db.upsertFile({
+    movieId: movieA,
+    filePath: '/m/A/a-1080.mkv',
+    filename: 'A.2020.1080p.BluRay.x264-GRP.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 100,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const movieB = db.upsertMovie({ folderPath: '/m/B', folderName: 'B (2021)', parsedTitle: 'B', parsedYear: 2021 });
+  db.enrichMovieById(movieB, { criticRating: 85, communityRating: 8.0 });
+  db.upsertFile({
+    movieId: movieB,
+    filePath: '/m/B/b-1080.mkv',
+    filename: 'B.2021.1080p.BluRay.x264-GRP.mkv',
+    resolutionCat: '1080p',
+    videoCodec: 'h264',
+    fileSize: 110,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const movieC = db.upsertMovie({ folderPath: '/m/C', folderName: 'C (2022)', parsedTitle: 'C', parsedYear: 2022 });
+  db.enrichMovieById(movieC, { criticRating: 90, communityRating: 8.2 });
+  db.upsertFile({
+    movieId: movieC,
+    filePath: '/m/C/c-2160.mkv',
+    filename: 'C.2022.2160p.BluRay.x265-GRP.mkv',
+    resolutionCat: '2160p',
+    videoCodec: 'hevc',
+    fileSize: 220,
+    hdrFormats: [],
+    audioTracks: [],
+  });
+
+  const res = await app.request(
+    'http://localhost/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=1080p&limit=1',
+  );
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.total, 2);
+  assert.equal(body.candidates.length, 1);
+});
+
 test('candidates uses one primary file per movie and falls back release group from filename', async (t) => {
   const tmp = await makeTempDir('candidates-release-group');
   t.after(async () => fs.rm(tmp, { recursive: true, force: true }));

@@ -1198,6 +1198,19 @@ export class CuratDb {
     return this.db.prepare(baseSql).run().changes;
   }
 
+  resetPendingVerifyStatuses(): number {
+    const stmt = this.db.prepare(`
+      UPDATE files
+      SET verify_status = NULL,
+          verify_errors = NULL,
+          quality_flags = '[]',
+          verified_at   = NULL,
+          updated_at    = datetime('now')
+      WHERE verify_status = 'pending'
+    `);
+    return stmt.run().changes;
+  }
+
   private reserveVerifyRows(rows: FileRow[]): void {
     if (rows.length === 0) return;
     const ids = rows.map((f) => f.id);
@@ -1220,8 +1233,8 @@ export class CuratDb {
   pickFilesForVerify(limit: number, rescan = false): FileRow[] {
     const tx = this.db.transaction((lim: number) => {
       const cond = rescan
-        ? `WHERE scanned_at IS NOT NULL AND scan_error IS NULL AND verify_status != 'pending'`
-        : `WHERE scanned_at IS NOT NULL AND scan_error IS NULL AND (verify_status IS NULL OR verify_status = 'pending')`;
+        ? "WHERE scanned_at IS NOT NULL AND scan_error IS NULL AND verify_status != 'pending'"
+        : 'WHERE scanned_at IS NOT NULL AND scan_error IS NULL AND verify_status IS NULL';
       const rows = this.db.prepare(`SELECT * FROM files ${cond} ORDER BY id LIMIT ?`).all(lim) as FileRow[];
       this.reserveVerifyRows(rows);
       return rows;

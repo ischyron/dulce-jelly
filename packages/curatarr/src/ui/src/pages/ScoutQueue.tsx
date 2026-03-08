@@ -321,7 +321,7 @@ export function ScoutQueue() {
     <div className="flex flex-col h-full">
       {/* Filters */}
       <div
-        className="px-6 py-3 border-b flex flex-wrap items-center gap-x-2 gap-y-3 lg:gap-x-3 shrink-0"
+        className="px-6 py-3 border-b flex flex-wrap items-center gap-x-2 gap-y-2 lg:gap-x-3 shrink-0"
         style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
       >
         <h1

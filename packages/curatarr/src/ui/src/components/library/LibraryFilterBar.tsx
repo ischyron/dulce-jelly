@@ -144,7 +144,7 @@ export function LibraryFilterBar({
 }: Props) {
   return (
     <div
-      className="sticky top-0 z-10 px-6 py-3 border-b flex flex-wrap items-center gap-x-2 gap-y-3 lg:gap-x-3"
+      className="sticky top-0 z-10 px-6 py-3 border-b flex flex-wrap items-center gap-x-2 gap-y-2 lg:gap-x-3"
       style={{ borderColor: 'var(--c-border)', background: 'var(--c-bg)' }}
     >
       {isFetching && (

@@ -1,61 +1,54 @@
 # yaml-language-server: $schema=https://raw.githubusercontent.com/recyclarr/recyclarr/master/schemas/config-schema.json
-# ============================================================
-# Sonarr Configuration – Series Quality Policy
-# ============================================================
-#
-# Copy this file to data/recyclarr/config/configs/sonarr.yml
-#
-# Philosophy:
-# - Size-based rejection (Remux/HDTV blocked via tiny size caps)
-# - Streaming service scoring (ATVP > AMZN/NF > others)
-# - Release group tiers (WEB Tier 01/02/03)
-# - Light LQ penalty (allows fallback when nothing else available)
-# - Custom size limits (not TRaSH defaults)
-#
-# Note: Sonarr uses SPACES in quality group names (WEB 1080p not WEB-1080p)
-# ============================================================
+# ------------------------------------------------------------
+# Sonarr configuration – Tier-first scoring + series quality policy
+# ------------------------------------------------------------
+# Tiers primary, audio secondary, narrowed ATMOS gap
+# HighQuality-4K: WEB tiers lower so Bluray preferred
+# 4K profiles fall back to HD when no 4K available
 
 sonarr:
   sonarr_main:
     base_url: !secret sonarr_url
     api_key: !secret sonarr_api_key
 
-    # Include quality profiles from separate file
-    # Note: When deploying, move includes/ to be a sibling of configs/ (Recyclarr v8.0+)
-    # Production path: ../includes/sonarr-quality-profiles.yml
+    # Include quality profiles from separate file for maintainability
     include:
       - config: ../includes/sonarr-quality-profiles.yml
 
-    # ------------------------------------------------------
-    # Quality definitions (MB per minute)
-    # ------------------------------------------------------
     quality_definition:
       type: series
       qualities:
         # Blocked (deterministic reject)
-        - { name: HDTV-720p,          min: 0, preferred: 1, max: 1 }
-        - { name: HDTV-1080p,         min: 0, preferred: 1, max: 1 }
-        - { name: HDTV-2160p,         min: 0, preferred: 1, max: 1 }
-        - { name: Bluray-1080p Remux, min: 0, preferred: 1, max: 1 }
-        - { name: Bluray-2160p Remux, min: 0, preferred: 1, max: 1 }
+        - { name: HDTV-720p,           min: 0, preferred: 1, max: 1 }
+        - { name: HDTV-1080p,          min: 0, preferred: 1, max: 1 }
+        - { name: HDTV-2160p,          min: 0, preferred: 1, max: 1 }
+        - { name: Bluray-1080p Remux,  min: 0, preferred: 1, max: 1 }
+        - { name: Bluray-2160p Remux,  min: 0, preferred: 1, max: 1 }
 
         # 720p fallback
-        - { name: WEBDL-720p,  min: 6,  preferred: 12,  max: 22 }
-        - { name: WEBRip-720p, min: 5,  preferred: 10,  max: 20 }
-        - { name: Bluray-720p, min: 10, preferred: 18,  max: 32 }
+        - { name: WEBDL-720p,          min: 6,  preferred: 12,  max: 22 }
+        - { name: WEBRip-720p,         min: 5,  preferred: 10,  max: 20 }
+        - { name: Bluray-720p,         min: 10, preferred: 18,  max: 32 }
 
         # 1080p (increased to allow quality WEB-DLs)
-        - { name: WEBDL-1080p,  min: 12, preferred: 40,  max: 95 }
-        - { name: WEBRip-1080p, min: 8,  preferred: 22,  max: 45 }
-        - { name: Bluray-1080p, min: 18, preferred: 40,  max: 75 }
+        - { name: WEBDL-1080p,         min: 12, preferred: 40,  max: 95 }
+        - { name: WEBRip-1080p,        min: 8,  preferred: 22,  max: 45 }
+        - { name: Bluray-1080p,        min: 18, preferred: 40,  max: 75 }
 
-        # 2160p / 4K
-        - { name: WEBDL-2160p,  min: 25, preferred: 85,  max: 170 }
-        - { name: WEBRip-2160p, min: 20, preferred: 55,  max: 110 }
-        - { name: Bluray-2160p, min: 45, preferred: 100, max: 170 }
+        # 2160p / 4K (matches Radarr budget targets)
+        - { name: WEBDL-2160p,         min: 25, preferred: 85,  max: 170 }
+        - { name: WEBRip-2160p,        min: 20, preferred: 55,  max: 110 }
+        - { name: Bluray-2160p,        min: 45, preferred: 100, max: 170 }
+
+    # Quality profiles loaded from includes/sonarr-quality-profiles.yml
 
     # ------------------------------------------------------
-    # Custom Formats (Sonarr-specific TRaSH IDs)
+    # CF Scoring: Tier-first, audio secondary
+    # ------------------------------------------------------
+    # Same hierarchy as Radarr:
+    #   1. Release group tiers (2800-3500) — primary
+    #   2. Audio codecs (TRaSH defaults, TrueHD ATMOS narrowed to 3500)
+    #   3. Streaming services — lower for HighQuality-4K
     # ------------------------------------------------------
     custom_formats:
       # Video encode quality
@@ -77,6 +70,30 @@ sonarr:
           - { name: Efficient-4K, score: -25 }
           - { name: HighQuality-4K, score: -30 }
 
+      # ------------------------------------------------------
+      # Audio — TrueHD ATMOS narrowed to 500 gap over DD+ ATMOS
+      # TRaSH default: TrueHD ATMOS=5000, DD+ ATMOS=3000
+      # Custom:        TrueHD ATMOS=3500, DD+ ATMOS=3000 (TRaSH default)
+      # ------------------------------------------------------
+      - trash_ids: [0d7824bb924701997f874e7ff7d4844a] # TrueHD ATMOS
+        assign_scores_to:
+          - { name: HD, score: 3500 }
+          - { name: Efficient-4K, score: 3500 }
+          - { name: HighQuality-4K, score: 3500 }
+
+      # DD+ ATMOS and below: TRaSH defaults
+      - trash_ids:
+          - 4232a509ce60c4e208d13825b7c06264 # DD+ ATMOS
+          - 63487786a8b01b7f20dd2bc90dd4a477 # DD+
+          - c429417a57ea8c41d57e6990a8b0033f # DTS-HD MA
+          - 851bd64e04c9374c51102be3dd9ae4cc # FLAC
+          - 1808e4b9cee74e064dfae3f1db99dbfe # TrueHD
+          - 28f6ef16d61e2d1adfce3156ed8257e3 # Opus
+        assign_scores_to:
+          - name: HD
+          - name: Efficient-4K
+          - name: HighQuality-4K
+
       # Release hygiene
       - trash_ids: [ec8fa7296b64e8cd390a1600981f3923] # Repack/Proper
         assign_scores_to:
@@ -84,19 +101,7 @@ sonarr:
           - { name: Efficient-4K, score: 50 }
           - { name: HighQuality-4K, score: 50 }
 
-      - trash_ids: [eb3d5cc0a2be0db205fb823640db6a3c] # Repack2
-        assign_scores_to:
-          - { name: HD, score: 6 }
-          - { name: Efficient-4K, score: 6 }
-          - { name: HighQuality-4K, score: 6 }
-
-      - trash_ids: [44e7c4de10ae50265753082e5dc76047] # Repack3
-        assign_scores_to:
-          - { name: HD, score: 7 }
-          - { name: Efficient-4K, score: 7 }
-          - { name: HighQuality-4K, score: 7 }
-
-      # Scene releases (blocked per TRaSH recommendation)
+      # Scene releases (blocked)
       - trash_ids: [1b3994c551cbb92a2c781af061f4ab44] # Scene
         assign_scores_to:
           - { name: HD, score: -10000 }
@@ -104,17 +109,14 @@ sonarr:
           - { name: HighQuality-4K, score: -10000 }
 
       # ------------------------------------------------------
-      # Streaming Services (tiered by quality reputation)
+      # Streaming Services — HD & Efficient-4K (same as before)
       # ------------------------------------------------------
-      # Tier 1: Highest quality (Apple TV+)
       - trash_ids:
           - f67c9ca88f463a48346062e8ad07713f # ATVP (Apple TV+)
         assign_scores_to:
           - { name: HD, score: 25 }
           - { name: Efficient-4K, score: 30 }
-          - { name: HighQuality-4K, score: 35 }
 
-      # Tier 2: Premium quality
       - trash_ids:
           - d660701077794679fd59e8bdf4ce3a29 # AMZN
           - 89358767a60cc28783cdc3d0be9388a4 # DSNP (Disney+)
@@ -123,9 +125,7 @@ sonarr:
         assign_scores_to:
           - { name: HD, score: 18 }
           - { name: Efficient-4K, score: 22 }
-          - { name: HighQuality-4K, score: 25 }
 
-      # Tier 3: Good quality
       - trash_ids:
           - c67a75ae4a1715f2bb4d492755ba4195 # PMTP (Paramount+)
           - 1656adc6d7bb2c8cca6acfb6592db421 # PCOK (Peacock)
@@ -133,33 +133,57 @@ sonarr:
         assign_scores_to:
           - { name: HD, score: 12 }
           - { name: Efficient-4K, score: 15 }
-          - { name: HighQuality-4K, score: 18 }
 
-      # ------------------------------------------------------
-      # Release Groups - WEB Tiers (TRaSH defaults)
-      # ------------------------------------------------------
+      # Streaming Services — HighQuality-4K (lower to prefer Bluray)
+      - trash_ids:
+          - f67c9ca88f463a48346062e8ad07713f # ATVP
+          - d660701077794679fd59e8bdf4ce3a29 # AMZN
+          - 89358767a60cc28783cdc3d0be9388a4 # DSNP
+          - a880d6abc21e7c16884f3ae393f84179 # HMAX
+          - d34870697c9db575f17700212167be23 # NF
+          - c67a75ae4a1715f2bb4d492755ba4195 # PMTP
+          - 1656adc6d7bb2c8cca6acfb6592db421 # PCOK
+          - f6cce30f1733d5c8194222a7507909bb # HULU
+        assign_scores_to:
+          - { name: HighQuality-4K, score: -200 }
+
+      # ----------------------------------------------------------
+      # Release group tiers — BOOSTED (primary quality signal)
+      # TRaSH defaults: 1600-1700; boosted to 2800-3500
+      # ----------------------------------------------------------
+
+      # WEB tiers — HD & Efficient-4K (boosted)
       - trash_ids:
           - e6258996055b9fbab7e9cb2f75819294 # WEB Tier 01
         assign_scores_to:
-          - name: HD
-          - name: Efficient-4K
-          - name: HighQuality-4K
-
+          - { name: HD, score: 3200 }
+          - { name: Efficient-4K, score: 3200 }
       - trash_ids:
           - 58790d4e2fdcd9733aa7ae68ba2bb503 # WEB Tier 02
         assign_scores_to:
-          - name: HD
-          - name: Efficient-4K
-          - name: HighQuality-4K
-
+          - { name: HD, score: 3000 }
+          - { name: Efficient-4K, score: 3000 }
       - trash_ids:
           - d84935abd3f8556dcd51d4f27e22d0a6 # WEB Tier 03
         assign_scores_to:
-          - name: HD
-          - name: Efficient-4K
-          - name: HighQuality-4K
+          - { name: HD, score: 2800 }
+          - { name: Efficient-4K, score: 2800 }
 
-      # LQ penalties (light - allows fallback)
+      # WEB tiers — HighQuality-4K (lower than Bluray → Bluray preferred)
+      - trash_ids:
+          - e6258996055b9fbab7e9cb2f75819294 # WEB Tier 01
+        assign_scores_to:
+          - { name: HighQuality-4K, score: 2500 }
+      - trash_ids:
+          - 58790d4e2fdcd9733aa7ae68ba2bb503 # WEB Tier 02
+        assign_scores_to:
+          - { name: HighQuality-4K, score: 2300 }
+      - trash_ids:
+          - d84935abd3f8556dcd51d4f27e22d0a6 # WEB Tier 03
+        assign_scores_to:
+          - { name: HighQuality-4K, score: 2100 }
+
+      # LQ penalties
       - trash_ids: [9c11cd3f07101cdba90a2d81cf0e56b4] # LQ
         assign_scores_to:
           - { name: HD, score: -10 }

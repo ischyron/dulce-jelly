@@ -12,7 +12,7 @@
 # group (WEB Tier 01-03 = 1600-1700, HD/UHD Bluray Tier 01-03 = 1700-1800)
 # plus decent audio (DD+ = 1750) to pass. Untiered P2P groups max out
 # around ~2250 (DD+ 1750 + HDR 500) and are blocked by the 2500 floor.
-
+#
 quality_profiles:
   # AutoAssignQuality: Intake profile - allows one blocked quality
   - name: AutoAssignQuality
@@ -34,25 +34,16 @@ quality_profiles:
         enabled: false
       - name: HDTV-720p
         enabled: false
-      - name: WEB 2160p
+      - name: WEBDL-2160p
         enabled: false
-        qualities:
-          - WEBRip-2160p
-          - WEBDL-2160p
       - name: Bluray-2160p
         enabled: false
-      - name: WEB 1080p
+      - name: WEBDL-1080p
         enabled: false
-        qualities:
-          - WEBRip-1080p
-          - WEBDL-1080p
       - name: Bluray-1080p
         enabled: false
-      - name: WEB 720p
+      - name: WEBDL-720p
         enabled: false
-        qualities:
-          - WEBRip-720p
-          - WEBDL-720p
       - name: Bluray-720p
         enabled: false
 
@@ -77,10 +68,12 @@ quality_profiles:
         enabled: false
       - name: WEBDL-2160p
       - name: WEBRip-2160p
+        enabled: false
       - name: Bluray-2160p
         enabled: true
       - name: WEBDL-1080p
       - name: WEBRip-1080p
+        enabled: false
       - name: Bluray-1080p
         enabled: true
       - name: WEBDL-720p
@@ -113,6 +106,7 @@ quality_profiles:
         enabled: false
       - name: WEBDL-1080p
       - name: WEBRip-1080p
+        enabled: false
       - name: Bluray-1080p
         enabled: true
       - name: WEBDL-720p
@@ -122,7 +116,7 @@ quality_profiles:
       - name: Bluray-720p
         enabled: false
 
-  # Efficient-4K: 4K WEB-DL preferred, HD fallback if no 4K available
+  # Efficient-4K: 4K WEB-DL preferred, HD WEB fallback if no 4K available
   - name: Efficient-4K
     min_format_score: 2500
     min_upgrade_format_score: 2500
@@ -149,7 +143,7 @@ quality_profiles:
       - name: WEBDL-1080p
         enabled: true
       - name: WEBRip-1080p
-        enabled: true
+        enabled: false
       - name: Bluray-1080p
         enabled: true
       - name: WEBDL-720p
@@ -159,7 +153,7 @@ quality_profiles:
       - name: Bluray-720p
         enabled: false
 
-  # HighQuality-4K: 4K WEB + Bluray encodes (best quality under size limits)
+  # HighQuality-4K: 4K WEB + Bluray encodes, HD fallback if no 4K available
   - name: HighQuality-4K
     min_format_score: 2500
     min_upgrade_format_score: 2500
@@ -182,12 +176,13 @@ quality_profiles:
         enabled: true
       - name: WEBDL-2160p
       - name: WEBRip-2160p
-      - name: WEBDL-1080p
         enabled: false
+      - name: WEBDL-1080p
+        enabled: true
       - name: WEBRip-1080p
         enabled: false
       - name: Bluray-1080p
-        enabled: false
+        enabled: true
       - name: WEBDL-720p
         enabled: false
       - name: WEBRip-720p

@@ -40,18 +40,25 @@ Color contrast: `--c-muted: #8b87aa` on `--c-bg: #0f0f14` may fail 4.5:1 ratio f
   - Task 6 (flake hardening/assertion quality): DONE (replaced waitForSelector with expect().toBeVisible(); replaced networkidle with domcontentloaded + response wait; run time 17s→10s)
   - Task 7 (Prowlarr grab/history fixture + SAB flow e2e): DONE (fixture now handles /<num>/download + /api/v1/history with stateful grab tracking; mode=redirect path tests false-positive detection; two new scout tests pass: send-to-sab happy path + redirect unsubmitted path)
 
-- [IN-PROGRESS] Fix Scout SAB handoff — submit NZB to SABnzbd directly via `addurl` API (Task 7 real feature).
+- ~~[DONE] Fix Scout SAB handoff — submit NZB to SABnzbd directly via `addurl` API (Task 7 real feature).~~
   - Root cause: Prowlarr's `GET /{indexerId}/download` only proxies/redirects the NZB without submitting to a download client. `triggerProwlarrGrab` + history polling was unreliable.
-  - Design: replace `triggerProwlarrGrab` with `submitToSabViaAddUrl`. Pass validated Prowlarr download URL to SABnzbd's `POST /api?mode=addurl&name=<url>&apikey=<key>&output=json`. SABnzbd fetches the NZB from Prowlarr directly (both in same Docker network).
-  - Settings added: `sabUrl` (e.g. `http://sabnzbd:8080`) and `sabApiKey` — exposed in Scout Settings UI alongside Prowlarr section.
-  - Backend: `resolveSabConfig(db)` + `submitToSabViaAddUrl(cfg, downloadUrl)`. `send-to-sab` route still validates downloadUrl via `isSafeProwlarrDownloadUrl`, then calls SABnzbd `addurl`. Returns `{ queued: true, via: 'sabnzbd' }`.
-  - Live config: `sabUrl=http://sabnzbd:8080`, `sabApiKey=9ba21273fdd8465ebfe58ff132e85079`.
+  - Dev: replaced `triggerProwlarrGrab` with `submitToSabViaAddUrl`. Curatarr calls SABnzbd `POST /api?mode=addurl&name=<prowlarr_download_url>&apikey=<sabApiKey>&output=json`. SABnzbd fetches NZB from Prowlarr directly (same Docker network). Returns `{ queued: true, via: 'sabnzbd' }`. `sabUrl`/`sabApiKey` settings added to Scout Settings UI.
+  - Unit test: `npm test` — 58/58 pass (updated `send-to-sab` unit test to mock SABnzbd `addurl` endpoint).
+  - E2E: `npm run test:e2e` — 49/49 pass (SABnzbd fixture server added; `sabUrl`/`sabApiKey` seeded in fixture DB; scout tests updated to expect `via: 'sabnzbd'`).
+  - Chrome MCP: N/A — tested via live API call. `POST /api/scout/send-to-sab` returned `{"queued":true,"via":"sabnzbd"}` for "300 Rise of an Empire". SABnzbd logs confirmed: `NZB added to queue — Trying to fetch NZB from http://prowlarr:9696/prowlarr/2/download?...` — `Grabbing` state confirmed in queue API.
+  - Commit: 125a8fb, pushed to main, pipeline passed.
+  - Deploy: `docker compose up -d --build curatarr` — container restarted.
+  - Date: 2026-03-09.
 
-- [IN-PROGRESS] Fix Scout magnet link copy — resolve Prowlarr proxy URL to real `magnet:?xt=...` URI (Task 8).
+- ~~[DONE] Fix Scout magnet link copy — resolve Prowlarr proxy URL to real `magnet:?xt=...` URI (Task 8).~~
   - Root cause: Prowlarr search API returns `magnetUrl` as a Docker-internal proxy URL (`http://prowlarr:9696/prowlarr/3/download?apikey=...&link=...`). UI was copying this useless URL directly.
-  - Design: new backend endpoint `POST /api/scout/resolve-magnet` takes the proxy `magnetUrl`, fetches it from the server side with `redirect: 'manual'`, reads the 301 `Location` header which is the real `magnet:?xt=urn:btih:...` URI, and returns it to the UI.
-  - UI: `handleCopyMagnet` now calls backend resolve-magnet first, then copies the returned `magnet:` URI to clipboard.
-  - Magnet button: removed `r.downloadUrl` fallback — only show when `r.magnetUrl` is available (torrent only).
+  - Dev: new endpoint `POST /api/scout/resolve-magnet` fetches the Prowlarr proxy URL with `redirect: 'manual'`, reads 301 `Location` header (real `magnet:?xt=urn:btih:...` URI), returns it to UI. `handleCopyMagnet` now resolves via backend first. Magnet button no longer falls back to `downloadUrl`.
+  - Unit test: covered by existing 58/58 pass.
+  - E2E: 49/49 pass.
+  - Live test: `POST /api/scout/resolve-magnet` with proxy URL for "300 Rise of an Empire" returned `{"magnet":"magnet:?xt=urn:btih:B6C6CBFBD7657BA6B9FFDDB47CC3C04D621D8505&dn=300+Rise+of+an+Empire..."}`.
+  - Commit: 125a8fb, pushed to main, pipeline passed.
+  - Deploy: same as above.
+  - Date: 2026-03-09.
 
 - [IN-PROGRESS] Scout scoring pipeline hardening (TRaSH alignment + configurable score ownership).
   - Constraint: keep strict stage boundaries (`basic` format heuristics must not embed remux-group/TRaSH policy).

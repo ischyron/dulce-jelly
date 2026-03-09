@@ -138,7 +138,7 @@ Color contrast: `--c-muted: #8b87aa` on `--c-bg: #0f0f14` may fail 4.5:1 ratio f
   - Task 4 (fake Jellyfin fixture strategy): DONE (jf-refresh disambiguation + jf-sync enrichment covered in jellyfin.spec.cjs)
   - Task 5 (cleanup/state restoration guardrails): DONE (smoke.spec.cjs CF save test wrapped in try/finally; all mutation tests now restore state)
   - Task 6 (flake hardening/assertion quality): DONE (replaced waitForSelector with expect().toBeVisible(); replaced networkidle with domcontentloaded + response wait; run time 17s→10s)
-  - Task 7 (Prowlarr grab/history fixture + SAB flow e2e): TODO (fixture missing /api/v1/history; SAB button test only asserts visibility, not full grab flow)
+  - Task 7 (Prowlarr grab/history fixture + SAB flow e2e): DONE (fixture now handles /<num>/download + /api/v1/history with stateful grab tracking; mode=redirect path tests false-positive detection; two new scout tests pass: send-to-sab happy path + redirect unsubmitted path)
 
 - [IN-PROGRESS] Scout scoring pipeline hardening (TRaSH alignment + configurable score ownership).
   - Constraint: keep strict stage boundaries (`basic` format heuristics must not embed remux-group/TRaSH policy).

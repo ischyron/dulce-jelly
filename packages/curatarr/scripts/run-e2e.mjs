@@ -30,6 +30,10 @@ function ensureBuildArtifacts() {
   }
 }
 
+// Mutable state for Prowlarr fixture grab tracking. Safe for single-worker e2e runs.
+const prowlarrPortHolder = { port: 0 };
+const prowlarrGrabState = { count: 0, lastMode: 'direct' };
+
 function createScoutFixtureReleases() {
   const rows = [];
   for (let i = 1; i <= 20; i++) {
@@ -42,6 +46,8 @@ function createScoutFixtureReleases() {
           : tier === 2
             ? `Fixture.Movie.2026.1080p.WEB-DL.H264.AAC-GRP${i}`
             : `Fixture.Movie.2026.720p.WEBRip.XviD.AC3-GRP${i}`;
+    // Use fixture-server origin so isSafeProwlarrDownloadUrl passes for send-to-sab tests.
+    const port = prowlarrPortHolder.port;
     rows.push({
       title,
       indexer: 'FixtureIndexer',
@@ -49,11 +55,26 @@ function createScoutFixtureReleases() {
       size: 7_000_000_000 + i * 150_000_000,
       publishDate: `2026-03-${String((i % 9) + 1).padStart(2, '0')}T12:00:00Z`,
       guid: `fixture-guid-${i}`,
-      downloadUrl: `https://fixture.invalid/download/${i}`,
+      downloadUrl: port
+        ? `http://127.0.0.1:${port}/1/download?guid=fixture-guid-${i}`
+        : `https://fixture.invalid/download/${i}`,
       seeders: 5 + i * 3,
       peers: 12 + i * 2,
     });
   }
+  // One usenet release for send-to-sab flow tests (protocol: 'usenet').
+  const port = prowlarrPortHolder.port;
+  rows.push({
+    title: 'Fixture.Movie.2026.1080p.WEB-DL.H264.AAC-FixtureNZB',
+    indexer: 'FixtureUsenet',
+    protocol: 'usenet',
+    size: 4_500_000_000,
+    publishDate: '2026-03-01T12:00:00Z',
+    guid: 'fixture-usenet-1',
+    downloadUrl: port ? `http://127.0.0.1:${port}/1/download?guid=fixture-usenet-1` : 'https://fixture.invalid/nzb/1',
+    seeders: 0,
+    peers: 0,
+  });
   return rows;
 }
 
@@ -295,7 +316,6 @@ async function main() {
   mkdirSync(tempConfigDir, { recursive: true });
   mkdirSync(tempDataDir, { recursive: true });
 
-  const scoutReleases = createScoutFixtureReleases();
   const jellyfinMovies = [
     {
       Id: 'jf-500',
@@ -365,12 +385,43 @@ async function main() {
     }
     if (url.pathname === '/api/v1/search') {
       res.writeHead(200, { 'content-type': 'application/json' });
-      res.end(JSON.stringify(scoutReleases));
+      res.end(JSON.stringify(createScoutFixtureReleases()));
+      return;
+    }
+    // Simulate Prowlarr grab: GET /<indexerId>/download[?mode=redirect]
+    // isSafeProwlarrDownloadUrl requires path to match /^\/[0-9]+\/download$/
+    if (/^\/[0-9]+\/download$/.test(url.pathname)) {
+      const mode = url.searchParams.get('mode') || 'direct';
+      prowlarrGrabState.count++;
+      prowlarrGrabState.lastMode = mode;
+      res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': '0' });
+      res.end();
+      return;
+    }
+    // Simulate Prowlarr history: reflects latest grab state so triggerProwlarrGrab can verify.
+    if (url.pathname === '/api/v1/history') {
+      const records =
+        prowlarrGrabState.count > 0
+          ? [
+              {
+                id: 100 + prowlarrGrabState.count,
+                eventType: 'releaseGrabbed',
+                data:
+                  prowlarrGrabState.lastMode === 'redirect'
+                    ? { grabMethod: 'Redirect' }
+                    : { grabMethod: 'Direct', downloadClientName: 'SABnzbd' },
+              },
+            ]
+          : [];
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ records }));
       return;
     }
     res.writeHead(404, { 'content-type': 'application/json' });
     res.end(JSON.stringify({ error: 'not_found' }));
   });
+  // Assign port so createScoutFixtureReleases() produces valid fixture-origin downloadUrls.
+  prowlarrPortHolder.port = prowlarrFixture.port;
 
   const jellyfinFixture = await startFixtureServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');

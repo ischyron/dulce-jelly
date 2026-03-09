@@ -370,6 +370,50 @@ test.describe('Scout feature checks', () => {
     }
   });
 
+  test('send-to-sab succeeds for usenet fixture release', async ({ request }) => {
+    test.setTimeout(30_000);
+
+    const candidateRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=1');
+    expect(candidateRes.ok()).toBeTruthy();
+    const first = (await candidateRes.json())?.candidates?.[0];
+    expect(first?.id).toBeTruthy();
+
+    const scoutRes = await request.post('/api/scout/search-one', { data: { movieId: first.id } });
+    expect(scoutRes.ok()).toBeTruthy();
+    const scout = await scoutRes.json();
+    const allReleases = [...(scout?.releases ?? []), ...(scout?.droppedReleases ?? [])];
+    const usenetRelease = allReleases.find((r) => r.protocol === 'usenet');
+    expect(usenetRelease, 'fixture must include a usenet release').toBeTruthy();
+
+    const res = await request.post('/api/scout/send-to-sab', {
+      data: { title: usenetRelease.title, protocol: 'usenet', downloadUrl: usenetRelease.downloadUrl },
+    });
+    expect(res.ok()).toBeTruthy();
+    const body = await res.json();
+    expect(body.queued).toBe(true);
+    expect(body.via).toBe('prowlarr');
+  });
+
+  test('send-to-sab returns prowlarr_grab_unsubmitted on redirect-only grab', async ({ request }) => {
+    test.setTimeout(30_000);
+
+    const settingsRes = await request.get('/api/settings');
+    expect(settingsRes.ok()).toBeTruthy();
+    const prowlarrUrl = ((await settingsRes.json())?.settings?.prowlarrUrl ?? '').replace(/\/+$/, '');
+    expect(prowlarrUrl).toBeTruthy();
+
+    // ?mode=redirect instructs the fixture to record a Redirect grab (no downloadClientName).
+    const redirectUrl = `${prowlarrUrl}/1/download?mode=redirect`;
+
+    const res = await request.post('/api/scout/send-to-sab', {
+      data: { title: 'Fixture.Movie.2026.Redirect', protocol: 'usenet', downloadUrl: redirectUrl },
+    });
+    expect(res.status()).toBe(502);
+    const body = await res.json();
+    expect(body.error).toBe('prowlarr_grab_failed');
+    expect(body.detail).toBe('prowlarr_grab_unsubmitted:Redirect');
+  });
+
   test('scout search-one behavior matches prowlarr config state', async ({ request }) => {
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();

@@ -102,7 +102,7 @@ async function reserveFreePort() {
   return port;
 }
 
-async function seedDeterministicDb(dbPath, libraryRoot, prowlarrPort, jellyfinPort) {
+async function seedDeterministicDb(dbPath, libraryRoot, prowlarrPort, jellyfinPort, sabPort) {
   const { CuratDb } = await import('../src/server/dist/db/client.js');
   const db = new CuratDb(dbPath);
 
@@ -111,6 +111,8 @@ async function seedDeterministicDb(dbPath, libraryRoot, prowlarrPort, jellyfinPo
   db.setSetting('prowlarrApiKey', FIXTURE_API_KEY);
   db.setSetting('jellyfinUrl', `http://127.0.0.1:${jellyfinPort}`);
   db.setSetting('jellyfinApiKey', 'pw-e2e-jf');
+  db.setSetting('sabUrl', `http://127.0.0.1:${sabPort}`);
+  db.setSetting('sabApiKey', 'pw-e2e-sab');
 
   function addMovie({ title, year, folderName, critic, imdb, genres, tags, jellyfinId, files }) {
     const safeFolder = folderName ?? `${title} (${year})`;
@@ -480,7 +482,29 @@ async function main() {
     res.end(JSON.stringify({ error: 'not_found' }));
   });
 
-  await seedDeterministicDb(dbPath, libraryRoot, prowlarrFixture.port, jellyfinFixture.port);
+  const sabFixture = await startFixtureServer((req, res) => {
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
+      });
+      req.on('end', () => {
+        const params = new URLSearchParams(body);
+        if (params.get('mode') === 'addurl' && params.get('apikey') === 'pw-e2e-sab') {
+          res.writeHead(200, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ status: true, nzo_ids: ['SABnzbd_nzo_fixture1'] }));
+        } else {
+          res.writeHead(400, { 'content-type': 'application/json' });
+          res.end(JSON.stringify({ status: false, error: 'bad_request' }));
+        }
+      });
+      return;
+    }
+    res.writeHead(404, { 'content-type': 'application/json' });
+    res.end(JSON.stringify({ error: 'not_found' }));
+  });
+
+  await seedDeterministicDb(dbPath, libraryRoot, prowlarrFixture.port, jellyfinFixture.port, sabFixture.port);
 
   const appPort = Number(process.env.CURATARR_E2E_PORT || (await reserveFreePort()));
   const distServerEntry = path.resolve('src/server/dist/index.js');
@@ -528,6 +552,7 @@ async function main() {
     }
     await new Promise((resolve) => prowlarrFixture.server.close(() => resolve(undefined)));
     await new Promise((resolve) => jellyfinFixture.server.close(() => resolve(undefined)));
+    await new Promise((resolve) => sabFixture.server.close(() => resolve(undefined)));
     rmSync(tempRoot, { recursive: true, force: true });
     if (exitCode === 0) cleanupArtifacts();
   }

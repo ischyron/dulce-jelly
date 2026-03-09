@@ -370,7 +370,7 @@ test.describe('Scout feature checks', () => {
     }
   });
 
-  test('send-to-sab succeeds for usenet fixture release', async ({ request }) => {
+  test('send-to-sab submits NZB to SABnzbd via addurl', async ({ request }) => {
     test.setTimeout(30_000);
 
     const candidateRes = await request.get('/api/candidates?criticScoreMin=0&imdbScoreMin=0&resolution=2160p&limit=1');
@@ -391,27 +391,37 @@ test.describe('Scout feature checks', () => {
     expect(res.ok()).toBeTruthy();
     const body = await res.json();
     expect(body.queued).toBe(true);
-    expect(body.via).toBe('prowlarr');
+    expect(body.via).toBe('sabnzbd');
   });
 
-  test('send-to-sab returns prowlarr_grab_unsubmitted on redirect-only grab', async ({ request }) => {
+  test('send-to-sab returns sabnzbd_not_configured when SABnzbd settings absent', async ({ request }) => {
     test.setTimeout(30_000);
 
     const settingsRes = await request.get('/api/settings');
     expect(settingsRes.ok()).toBeTruthy();
-    const prowlarrUrl = ((await settingsRes.json())?.settings?.prowlarrUrl ?? '').replace(/\/+$/, '');
+    const settings = (await settingsRes.json())?.settings ?? {};
+    const prowlarrUrl = (settings.prowlarrUrl ?? '').replace(/\/+$/, '');
     expect(prowlarrUrl).toBeTruthy();
+    const savedSabUrl = settings.sabUrl ?? '';
 
-    // ?mode=redirect instructs the fixture to record a Redirect grab (no downloadClientName).
-    const redirectUrl = `${prowlarrUrl}/1/download?mode=redirect`;
-
-    const res = await request.post('/api/scout/send-to-sab', {
-      data: { title: 'Fixture.Movie.2026.Redirect', protocol: 'usenet', downloadUrl: redirectUrl },
-    });
-    expect(res.status()).toBe(502);
-    const body = await res.json();
-    expect(body.error).toBe('prowlarr_grab_failed');
-    expect(body.detail).toBe('prowlarr_grab_unsubmitted:Redirect');
+    // Temporarily clear SABnzbd settings (empty string → resolveSabConfig returns null).
+    await request.put('/api/settings', { data: { sabUrl: '', sabApiKey: '' } });
+    try {
+      const res = await request.post('/api/scout/send-to-sab', {
+        data: {
+          title: 'Fixture.Movie.2026',
+          protocol: 'usenet',
+          downloadUrl: `${prowlarrUrl}/1/download?guid=fixture-usenet-1`,
+        },
+      });
+      expect(res.status()).toBe(422);
+      const body = await res.json();
+      expect(body.error).toBe('sabnzbd_not_configured');
+    } finally {
+      if (savedSabUrl) {
+        await request.put('/api/settings', { data: { sabUrl: savedSabUrl, sabApiKey: 'pw-e2e-sab' } });
+      }
+    }
   });
 
   test('scout search-one behavior matches prowlarr config state', async ({ request }) => {

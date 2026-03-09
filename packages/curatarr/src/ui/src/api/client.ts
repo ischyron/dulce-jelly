@@ -23,6 +23,7 @@ import type {
   ScoutBatchItem,
   ScoutCustomCfPreviewResponse,
   ScoutRelease,
+  ScoutResolveMagnetResponse,
   ScoutRulesRefineDraftResponse,
   ScoutSearchBatchResponse,
   ScoutSearchOneResponse,
@@ -278,6 +279,12 @@ export const api = {
 
   scoutSendToSab: (body: ScoutSendToSabRequest) =>
     req<ScoutSendToSabResponse>('/scout/send-to-sab', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  scoutResolveMagnet: (body: { magnetUrl: string }) =>
+    req<ScoutResolveMagnetResponse>('/scout/resolve-magnet', {
       method: 'POST',
       body: JSON.stringify(body),
     }),

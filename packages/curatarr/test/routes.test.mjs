@@ -708,30 +708,28 @@ test('scout send-to-sab rejects when prowlarr is not configured', async (t) => {
   assert.equal(body.error, 'prowlarr_not_configured');
 });
 
-test('scout send-to-sab grabs via prowlarr download URL', async (t) => {
-  const tmp = await makeTempDir('scout-send-prowlarr-grab');
+test('scout send-to-sab submits NZB to SABnzbd via addurl', async (t) => {
+  const tmp = await makeTempDir('scout-send-sab-addurl');
   t.after(async () => fs.rm(tmp, { recursive: true, force: true }));
   const db = new CuratDb(path.join(tmp, 'curatarr.db'));
   const app = makeApp(db);
 
   db.setSetting('prowlarrUrl', 'http://prowlarr:9696/prowlarr');
   db.setSetting('prowlarrApiKey', 'test-prowlarr-key');
+  db.setSetting('sabUrl', 'http://sabnzbd:8080');
+  db.setSetting('sabApiKey', 'test-sab-key');
 
   const realFetch = globalThis.fetch;
   globalThis.fetch = async (url, init) => {
     const u = new URL(String(url));
-    if (u.hostname === 'prowlarr' && u.pathname === '/prowlarr/12/download') {
-      assert.equal(u.searchParams.get('apikey'), 'test-prowlarr-key');
-      const headerApiKey =
-        init?.headers instanceof Headers
-          ? init.headers.get('X-Api-Key')
-          : init?.headers && !Array.isArray(init.headers)
-            ? init.headers['X-Api-Key']
-            : null;
-      assert.equal(headerApiKey, 'test-prowlarr-key');
-      return new Response('TORRENT_OR_NZB_BYTES', {
+    if (u.hostname === 'sabnzbd' && u.pathname === '/api') {
+      const body = new URLSearchParams(await (init?.body ? Promise.resolve(init.body) : Promise.resolve('')));
+      assert.equal(body.get('mode'), 'addurl');
+      assert.ok(body.get('name')?.includes('prowlarr'));
+      assert.equal(body.get('apikey'), 'test-sab-key');
+      return new Response(JSON.stringify({ status: true, nzo_ids: ['SABnzbd_nzo_abc123'] }), {
         status: 200,
-        headers: { 'content-type': 'application/octet-stream' },
+        headers: { 'content-type': 'application/json' },
       });
     }
     throw new Error(`unexpected fetch url in test: ${String(url)}`);
@@ -752,5 +750,5 @@ test('scout send-to-sab grabs via prowlarr download URL', async (t) => {
   const body = await res.json();
   assert.equal(res.status, 200);
   assert.equal(body.queued, true);
-  assert.equal(body.via, 'prowlarr');
+  assert.equal(body.via, 'sabnzbd');
 });

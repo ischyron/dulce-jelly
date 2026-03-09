@@ -652,6 +652,65 @@ function resolveProwlarrConfig(db: CuratDb): { url: string; apiKey: string } | n
   return { url, apiKey };
 }
 
+function resolveSabConfig(db: CuratDb): { url: string; apiKey: string } | null {
+  const url = db.getSetting('sabUrl') ?? '';
+  const apiKey = db.getSetting('sabApiKey') ?? '';
+  if (!url || !apiKey) return null;
+  return { url, apiKey };
+}
+
+async function submitToSabViaAddUrl(cfg: { url: string; apiKey: string }, downloadUrl: string): Promise<void> {
+  const apiUrl = `${cfg.url.replace(/\/+$/, '')}/api`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 15_000);
+  try {
+    const params = new URLSearchParams({
+      mode: 'addurl',
+      name: downloadUrl,
+      apikey: cfg.apiKey,
+      output: 'json',
+    });
+    const res = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(`sabnzbd_${res.status}${detail ? `:${detail}` : ''}`);
+    }
+    const payload = (await res.json().catch(() => null)) as { status?: unknown; error?: unknown } | null;
+    if (payload?.status !== true) {
+      const errMsg = typeof payload?.error === 'string' ? payload.error : 'unknown';
+      throw new Error(`sabnzbd_rejected:${errMsg}`);
+    }
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function resolveProwlarrMagnet(cfg: { url: string; apiKey: string }, magnetProxyUrl: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const res = await fetch(magnetProxyUrl, {
+      method: 'GET',
+      headers: {
+        'X-Api-Key': cfg.apiKey,
+        'User-Agent': 'curatarr-scout',
+      },
+      redirect: 'manual',
+      signal: controller.signal,
+    });
+    const location = res.headers.get('location');
+    if (location) return location;
+    throw new Error(`no_redirect:${res.status}`);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 function isSafeProwlarrDownloadUrl(downloadUrl: string, prowlarrUrl: string): boolean {
   let target: URL;
   let configured: URL;
@@ -669,6 +728,50 @@ function isSafeProwlarrDownloadUrl(downloadUrl: string, prowlarrUrl: string): bo
 }
 
 async function triggerProwlarrGrab(cfg: { url: string; apiKey: string }, downloadUrl: string): Promise<void> {
+  const historyUrl = new URL(`${cfg.url.replace(/\/+$/, '')}/api/v1/history`);
+  historyUrl.searchParams.set('page', '1');
+  historyUrl.searchParams.set('pageSize', '30');
+  historyUrl.searchParams.set('sortDirection', 'descending');
+  historyUrl.searchParams.set('sortKey', 'date');
+
+  const historyHeaders = {
+    'X-Api-Key': cfg.apiKey,
+    'User-Agent': 'curatarr-scout-grab',
+  } as const;
+
+  const fetchLatestGrab = async (): Promise<{
+    id: number;
+    method: string;
+    downloadClientName: string;
+  } | null> => {
+    const historyRes = await fetch(historyUrl, {
+      method: 'GET',
+      headers: historyHeaders,
+    });
+    if (!historyRes.ok) return null;
+    const payload = (await historyRes.json().catch(() => null)) as {
+      records?: Array<{
+        id?: unknown;
+        eventType?: unknown;
+        data?: {
+          grabMethod?: unknown;
+          downloadClientName?: unknown;
+        };
+      }>;
+    } | null;
+    if (!payload?.records || !Array.isArray(payload.records)) return null;
+    for (const row of payload.records) {
+      if (typeof row?.id !== 'number' || !Number.isFinite(row.id)) continue;
+      if (row.eventType !== 'releaseGrabbed') continue;
+      const method = typeof row.data?.grabMethod === 'string' ? row.data.grabMethod : '';
+      const downloadClientName =
+        typeof row.data?.downloadClientName === 'string' ? row.data.downloadClientName.trim() : '';
+      return { id: row.id, method, downloadClientName };
+    }
+    return null;
+  };
+
+  const before = await fetchLatestGrab().catch(() => null);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 15_000);
   try {
@@ -692,6 +795,21 @@ async function triggerProwlarrGrab(cfg: { url: string; apiKey: string }, downloa
   } finally {
     clearTimeout(timeout);
   }
+
+  // Guard against false positives: /download can succeed as redirect/proxy without
+  // actually submitting to a configured download client (e.g., SABnzbd).
+  const verifyDeadline = Date.now() + 8_000;
+  while (Date.now() < verifyDeadline) {
+    const latest = await fetchLatestGrab().catch(() => null);
+    if (latest && (!before || latest.id > before.id)) {
+      if (latest.downloadClientName) return;
+      const method = latest.method || 'unknown';
+      throw new Error(`prowlarr_grab_unsubmitted:${method}`);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+
+  throw new Error('prowlarr_grab_unverified');
 }
 
 function configuredBatchCap(db: CuratDb): number {
@@ -1107,20 +1225,39 @@ export function makeScoutRoutes(db: CuratDb): Hono {
     if (protocol && protocol !== 'usenet') {
       return c.json({ error: 'unsupported_protocol' }, 422);
     }
+    const prowlarrCfg = resolveProwlarrConfig(db);
+    if (!prowlarrCfg) return c.json({ error: 'prowlarr_not_configured' }, 422);
+    if (!isSafeProwlarrDownloadUrl(downloadUrl, prowlarrCfg.url)) {
+      return c.json({ error: 'invalid_download_url' }, 400);
+    }
+    const sabCfg = resolveSabConfig(db);
+    if (!sabCfg) return c.json({ error: 'sabnzbd_not_configured' }, 422);
+
+    try {
+      await submitToSabViaAddUrl(sabCfg, downloadUrl);
+      return c.json({ queued: true, via: 'sabnzbd' });
+    } catch (err) {
+      return c.json({ error: 'sabnzbd_queue_failed', detail: (err as Error).message }, 502);
+    }
+  });
+
+  // POST /api/scout/resolve-magnet  { magnetUrl: string }
+  app.post('/resolve-magnet', async (c) => {
+    const body = (await c.req.json().catch(() => ({}))) as { magnetUrl?: unknown };
+    const magnetProxyUrl = toText(body.magnetUrl).trim();
+    if (!magnetProxyUrl) return c.json({ error: 'invalid_payload' }, 400);
+
     const cfg = resolveProwlarrConfig(db);
     if (!cfg) return c.json({ error: 'prowlarr_not_configured' }, 422);
-    if (!isSafeProwlarrDownloadUrl(downloadUrl, cfg.url)) {
-      return c.json({ error: 'invalid_download_url' }, 400);
+    if (!isSafeProwlarrDownloadUrl(magnetProxyUrl, cfg.url)) {
+      return c.json({ error: 'invalid_magnet_url' }, 400);
     }
 
     try {
-      await triggerProwlarrGrab(cfg, downloadUrl);
-      return c.json({
-        queued: true,
-        via: 'prowlarr',
-      });
+      const magnet = await resolveProwlarrMagnet(cfg, magnetProxyUrl);
+      return c.json({ magnet });
     } catch (err) {
-      return c.json({ error: 'prowlarr_grab_failed', detail: (err as Error).message }, 502);
+      return c.json({ error: 'resolve_failed', detail: (err as Error).message }, 502);
     }
   });
 

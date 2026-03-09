@@ -238,7 +238,11 @@ export interface ScoutSendToSabRequest {
 
 export interface ScoutSendToSabResponse {
   queued: boolean;
-  via: 'prowlarr';
+  via: 'sabnzbd' | 'prowlarr';
+}
+
+export interface ScoutResolveMagnetResponse {
+  magnet: string;
 }
 
 export interface ScoutAutoStatusResponse {

@@ -27,7 +27,14 @@ const GENERAL_SETTING_KEYS = new Set([
   'jfSyncBatchSize',
 ]);
 
-const SCOUT_SETTING_EXACT_KEYS = new Set(['prowlarrUrl', 'prowlarrApiKey', 'llmProvider', 'llmApiKey']);
+const SCOUT_SETTING_EXACT_KEYS = new Set([
+  'prowlarrUrl',
+  'prowlarrApiKey',
+  'sabUrl',
+  'sabApiKey',
+  'llmProvider',
+  'llmApiKey',
+]);
 
 export function Settings() {
   const { t } = useTranslation('settings');
@@ -79,6 +86,9 @@ export function Settings() {
         prowlarrUrl: data.settings.prowlarrUrl ?? '',
         prowlarrApiKey: '',
         prowlarrApiKeyMasked: data.settings.prowlarrApiKey ?? '',
+        sabUrl: data.settings.sabUrl ?? '',
+        sabApiKey: '',
+        sabApiKeyMasked: data.settings.sabApiKey ?? '',
         libraryRoots: data.settings.libraryRoots ?? '',
         llmProvider: withDefault('llmProvider'),
         llmApiKey: '',

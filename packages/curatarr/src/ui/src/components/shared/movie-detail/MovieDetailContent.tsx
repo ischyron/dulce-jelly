@@ -25,6 +25,7 @@ interface Props {
   mode: 'page' | 'drawer';
   onClose?: () => void;
   onDeleted?: () => void;
+  onScoutPanelStateChange?: (active: boolean) => void;
 }
 
 function formatSize(bytes: number | null): string {
@@ -57,6 +58,60 @@ function formatAge(value: string | null): string {
 function formatReleaseSize(bytes: number | null): string {
   if (!bytes) return '—';
   return `${(bytes / 1e9).toFixed(1)} GB`;
+}
+
+function resolveTmdbMovieLink(raw: string | null | undefined): string | undefined {
+  const value = raw?.trim();
+  if (!value) return undefined;
+
+  if (/^https?:\/\//i.test(value)) {
+    try {
+      const parsed = new URL(value);
+      const movieMatch = parsed.pathname.match(/\/movie\/(\d+)/i);
+      if (movieMatch?.[1]) return `https://www.themoviedb.org/movie/${movieMatch[1]}`;
+      if (/themoviedb\.org$/i.test(parsed.hostname)) return value;
+    } catch {
+      // fall through to generic parsing
+    }
+  }
+
+  const moviePathMatch = value.match(/(?:^|\/)movie\/(\d+)/i);
+  if (moviePathMatch?.[1]) return `https://www.themoviedb.org/movie/${moviePathMatch[1]}`;
+
+  const idOnlyMatch = value.match(/^\d+$/);
+  if (idOnlyMatch) return `https://www.themoviedb.org/movie/${value}`;
+
+  const numericMatch = value.match(/\b(\d{3,})\b/);
+  if (numericMatch?.[1]) return `https://www.themoviedb.org/movie/${numericMatch[1]}`;
+
+  return undefined;
+}
+
+async function copyTextWithFallback(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    // fallback below
+  }
+
+  try {
+    if (typeof document === 'undefined') return false;
+    const el = document.createElement('textarea');
+    el.value = text;
+    el.setAttribute('readonly', '');
+    el.style.position = 'fixed';
+    el.style.left = '-9999px';
+    document.body.appendChild(el);
+    el.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(el);
+    return ok;
+  } catch {
+    return false;
+  }
 }
 
 type ScoutResultView = 'candidates' | 'dropped' | 'all';
@@ -167,8 +222,20 @@ function releaseKeyForAction(release: ScoutRelease): string {
   return release.guid ?? release.downloadUrl ?? fallback;
 }
 
+function protocolOf(release: { protocol?: string | null | undefined }): string {
+  return (release.protocol ?? '').trim().toLowerCase();
+}
+
+function isUsenetRelease(release: { protocol?: string | null | undefined }): boolean {
+  return protocolOf(release) === 'usenet';
+}
+
+function isTorrentRelease(release: { protocol?: string | null | undefined }): boolean {
+  return protocolOf(release) === 'torrent';
+}
+
 function canSendToSab(release: ScoutRelease): boolean {
-  return Boolean(release.downloadUrl && release.protocol === 'usenet');
+  return Boolean(release.downloadUrl && isUsenetRelease(release));
 }
 
 function ScoutResultsAllTable({
@@ -235,7 +302,7 @@ function ScoutResultsAllTable({
               </td>
               <td className="px-2 py-1.5">
                 <div className="flex items-center justify-end gap-1.5">
-                  {r.kind === 'candidate' && r.protocol === 'usenet' && (
+                  {r.kind === 'candidate' && isUsenetRelease(r) && (
                     <button
                       type="button"
                       aria-label={`Send ${r.title} to SABnzbd`}
@@ -253,11 +320,11 @@ function ScoutResultsAllTable({
                       )}
                     </button>
                   )}
-                  {r.kind === 'candidate' && r.protocol === 'torrent' && r.magnetUrl && (
+                  {r.kind === 'candidate' && isTorrentRelease(r) && r.magnetUrl && (
                     <button
                       type="button"
-                      aria-label={`Copy magnet link for ${r.title}`}
-                      title="Copy magnet link"
+                      aria-label={`Copy torrent link for ${r.title}`}
+                      title="Copy torrent link"
                       onClick={() => {
                         if (r.magnetUrl) actionState.onCopyMagnet(r.magnetUrl);
                       }}
@@ -403,7 +470,7 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
               </td>
               <td className="px-2 py-1.5">
                 <div className="flex items-center justify-end gap-1.5">
-                  {r.protocol === 'usenet' && (
+                  {isUsenetRelease(r) && (
                     <button
                       type="button"
                       aria-label={`Send ${r.title} to SABnzbd`}
@@ -421,11 +488,11 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                       )}
                     </button>
                   )}
-                  {r.protocol === 'torrent' && r.magnetUrl && (
+                  {isTorrentRelease(r) && r.magnetUrl && (
                     <button
                       type="button"
-                      aria-label={`Copy magnet link for ${r.title}`}
-                      title="Copy magnet link"
+                      aria-label={`Copy torrent link for ${r.title}`}
+                      title="Copy torrent link"
                       onClick={() => {
                         if (r.magnetUrl) actionState.onCopyMagnet(r.magnetUrl);
                       }}
@@ -486,7 +553,7 @@ function DroppedScoutResultsTable({ releases }: { releases: DroppedScoutRelease[
   );
 }
 
-export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
+export function MovieDetailContent({ movieId, mode, onDeleted, onScoutPanelStateChange }: Props) {
   const queryClient = useQueryClient();
   const { data: settingsData } = useQuery({ queryKey: ['settings'], queryFn: api.settings, staleTime: 60_000 });
   const { data: tagsData } = useQuery({ queryKey: ['tags'], queryFn: api.tags, staleTime: 60_000 });
@@ -503,6 +570,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   const [scoutResultView, setScoutResultView] = useState<ScoutResultView>('candidates');
   const [scoutFilterChips, setScoutFilterChips] = useState<string[]>([]);
   const [sabStatus, setSabStatus] = useState<string | null>(null);
+  const [sabToast, setSabToast] = useState<{ tone: 'success' | 'error'; message: string } | null>(null);
   const [sendingSabKey, setSendingSabKey] = useState<string | null>(null);
   const scoutSectionRef = useRef<HTMLDivElement | null>(null);
   const scoutHeadingRef = useRef<HTMLHeadingElement | null>(null);
@@ -516,6 +584,12 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
     const timer = setTimeout(() => setSabStatus(null), 4500);
     return () => clearTimeout(timer);
   }, [sabStatus]);
+
+  useEffect(() => {
+    if (!sabToast) return;
+    const timer = setTimeout(() => setSabToast(null), 6000);
+    return () => clearTimeout(timer);
+  }, [sabToast]);
 
   const patchMutation = useMutation({
     mutationFn: (meta: { tags?: string[]; notes?: string }) => api.patchMovie(movieId, meta),
@@ -578,17 +652,31 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
     onSuccess: (res, release) => {
       if (res.queued) {
         setSabStatus(`Queued in SABnzbd via Prowlarr: ${release.title}`);
+        setSabToast({ tone: 'success', message: `Queued in SABnzbd: ${release.title}` });
         return;
       }
       setSabStatus('Error: queue request was not accepted.');
+      setSabToast({ tone: 'error', message: 'SAB queue failed: queue request was not accepted.' });
     },
     onError: (err) => {
-      setSabStatus(`Error: ${(err as Error).message}`);
+      let message = (err as Error).message;
+      if (err instanceof ApiError) {
+        message = err.detail?.trim() || err.code || err.message;
+      }
+      setSabStatus(`Error: ${message}`);
+      setSabToast({ tone: 'error', message: `SAB queue failed: ${message}` });
     },
     onSettled: () => {
       setSendingSabKey(null);
     },
   });
+  const showScoutSection =
+    hasScoutSearchRun || scoutSearch.isPending || scoutSearch.isError || Boolean(scoutSearch.data);
+  const drawerWideSectionClass = mode === 'drawer' ? 'w-full max-w-[52rem]' : 'w-full';
+
+  useEffect(() => {
+    onScoutPanelStateChange?.(showScoutSection);
+  }, [onScoutPanelStateChange, showScoutSection]);
 
   if (isLoading) {
     return (
@@ -616,8 +704,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   const jellyfinDeepLink =
     data.jellyfin_id && jellyfinBase ? `${jellyfinBase}/web/#/details?id=${data.jellyfin_id}` : undefined;
   const imdbLink = data.imdb_id ? `https://www.imdb.com/title/${data.imdb_id}/` : undefined;
-  const tmdbId = data.tmdb_id?.match(/\d+/)?.[0] ?? '';
-  const tmdbLink = tmdbId ? `https://www.themoviedb.org/movie/${tmdbId}` : undefined;
+  const tmdbLink = resolveTmdbMovieLink(data.tmdb_id);
 
   function addExistingTag() {
     const t = normalizeTag(selectedTag);
@@ -657,20 +744,51 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
   function handleSendToSab(release: ScoutRelease) {
     if (!canSendToSab(release) || !release.downloadUrl) {
       setSabStatus('Error: only usenet releases with a download URL can be sent to SABnzbd.');
+      setSabToast({ tone: 'error', message: 'SAB queue failed: selected release is not a valid usenet result.' });
       return;
     }
     sendToSabMutation.mutate(release);
   }
 
-  function handleCopyMagnet(magnetUrl: string) {
-    navigator.clipboard.writeText(magnetUrl).then(() => setSabStatus('Magnet link copied'));
+  async function handleCopyMagnet(magnetProxyUrl: string) {
+    let magnetUri = magnetProxyUrl;
+    if (!magnetProxyUrl.startsWith('magnet:')) {
+      try {
+        const result = await api.scoutResolveMagnet({ magnetUrl: magnetProxyUrl });
+        magnetUri = result.magnet;
+      } catch {
+        setSabStatus('Error: failed to resolve magnet link.');
+        setSabToast({ tone: 'error', message: 'Failed to resolve magnet link from Prowlarr.' });
+        return;
+      }
+    }
+    const copied = await copyTextWithFallback(magnetUri);
+    if (copied) {
+      setSabStatus('Magnet link copied');
+      setSabToast({ tone: 'success', message: 'Magnet link copied' });
+      return;
+    }
+    setSabStatus('Error: unable to copy magnet link in this browser context.');
+    setSabToast({ tone: 'error', message: 'Copy failed: magnet link could not be copied.' });
   }
-
-  const showScoutSection =
-    hasScoutSearchRun || scoutSearch.isPending || scoutSearch.isError || Boolean(scoutSearch.data);
 
   return (
     <>
+      {sabToast && (
+        <div
+          className="fixed top-4 right-4 z-50 max-w-md rounded-lg border px-3 py-2 text-sm shadow-lg"
+          style={{
+            background: sabToast.tone === 'error' ? 'rgba(69,10,10,0.95)' : 'rgba(6,78,59,0.95)',
+            color: sabToast.tone === 'error' ? '#fee2e2' : '#d1fae5',
+            borderColor: sabToast.tone === 'error' ? 'rgba(185,28,28,0.9)' : 'rgba(5,150,105,0.85)',
+          }}
+        >
+          <div className="inline-flex items-start gap-1.5">
+            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+            <span>{sabToast.message}</span>
+          </div>
+        </div>
+      )}
       <div className={mode === 'page' ? 'space-y-5' : 'space-y-4'}>
         <div className="flex flex-col md:flex-row items-start gap-4">
           <div
@@ -852,124 +970,129 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
           </div>
         )}
 
-        <div>
-          {folderRescanError ? (
-            <div
-              className="rounded-lg border px-3 py-2.5 text-sm"
-              style={{
-                borderColor: 'rgba(248,113,113,0.45)',
-                background: 'rgba(127,29,29,0.18)',
-                color: '#fecaca',
-              }}
-            >
-              <div className="inline-flex items-center gap-1.5 font-semibold">
-                <AlertTriangle size={12} /> Video Files
-              </div>
-              <div className="mt-1.5" style={{ color: '#fca5a5' }}>
-                {folderRescanError}
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="mb-2">
-                <div className="text-[11px] font-mono break-all" style={{ color: '#8b87aa' }}>
-                  {data.folder_path}
-                </div>
-              </div>
-              <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
-                Video Files ({data.files.length})
-              </h3>
-              <div className="space-y-2">
-                {data.files.map((f) => (
-                  <FileCard key={f.id} file={f} />
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div
-          className="rounded-lg border p-3 space-y-3"
-          style={{ borderColor: 'var(--c-border)', background: 'rgba(27,27,41,0.45)' }}
-        >
-          <div
-            className="text-sm font-semibold uppercase tracking-wider inline-flex items-center gap-1.5"
-            style={{ color: '#8b87aa' }}
-          >
-            <Tag size={12} /> Tags
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {tags.map((t) => (
-              <span
-                key={t}
-                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-medium"
+        <div className="space-y-4 flex flex-col items-start">
+          <div className={`space-y-2 ${drawerWideSectionClass}`}>
+            {folderRescanError ? (
+              <div
+                className="rounded-lg border px-3 py-2.5 text-sm"
                 style={{
-                  background: 'rgba(124,58,237,0.15)',
-                  border: '1px solid rgba(124,58,237,0.35)',
-                  color: '#c4b5fd',
+                  borderColor: 'rgba(248,113,113,0.45)',
+                  background: 'rgba(127,29,29,0.18)',
+                  color: '#fecaca',
                 }}
               >
-                {t}
-                <button
-                  type="button"
-                  onClick={() => removeTag(t)}
-                  className="opacity-70 hover:opacity-100 leading-none"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            {tags.length === 0 && (
-              <span className="text-sm" style={{ color: '#8b87aa' }}>
-                No tags
-              </span>
+                <div className="inline-flex items-center gap-1.5 font-semibold">
+                  <AlertTriangle size={12} /> Video Files
+                </div>
+                <div className="mt-1.5" style={{ color: '#fca5a5' }}>
+                  {folderRescanError}
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="mb-2">
+                  <div className="text-[11px] font-mono break-all" style={{ color: '#8b87aa' }}>
+                    {data.folder_path}
+                  </div>
+                </div>
+                <h3 className="text-sm font-semibold uppercase tracking-wider mb-2" style={{ color: '#8b87aa' }}>
+                  Video Files ({data.files.length})
+                </h3>
+                <div className="space-y-2">
+                  {data.files.map((f) => (
+                    <FileCard key={f.id} file={f} />
+                  ))}
+                </div>
+              </>
             )}
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
-            <select
-              value={selectedTag}
-              onChange={(e) => setSelectedTag(e.target.value)}
-              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm focus:outline-none sm:min-w-[10rem]"
-              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
+
+          <div
+            className={`rounded-lg border p-3 space-y-3 ${drawerWideSectionClass}`}
+            style={{ borderColor: 'var(--c-border)', background: 'rgba(27,27,41,0.45)' }}
+          >
+            <div
+              className="text-sm font-semibold uppercase tracking-wider inline-flex items-center gap-1.5"
+              style={{ color: '#8b87aa' }}
             >
-              <option value="">Select existing tag</option>
-              {availableTags.map((t) => (
-                <option key={t} value={t}>
+              <Tag size={12} /> Tags
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {tags.map((t) => (
+                <span
+                  key={t}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-medium"
+                  style={{
+                    background: 'rgba(124,58,237,0.15)',
+                    border: '1px solid rgba(124,58,237,0.35)',
+                    color: '#c4b5fd',
+                  }}
+                >
                   {t}
-                </option>
+                  <button
+                    type="button"
+                    onClick={() => removeTag(t)}
+                    className="opacity-70 hover:opacity-100 leading-none"
+                  >
+                    ×
+                  </button>
+                </span>
               ))}
-            </select>
-            <button
-              type="button"
-              onClick={addExistingTag}
-              disabled={!selectedTag || patchMutation.isPending}
-              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm border disabled:opacity-50"
-              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-            >
-              Add tag
-            </button>
-            <input
-              value={newTag}
-              onChange={(e) => setNewTag(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') addNewTag();
-              }}
-              placeholder="new tag"
-              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm focus:outline-none"
-              style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
-            />
-            <button
-              type="button"
-              onClick={addNewTag}
-              disabled={!addableTag || patchMutation.isPending}
-              className="w-full sm:w-auto px-2.5 py-1.5 rounded text-sm border disabled:opacity-50"
-              style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
-            >
-              Add new
-            </button>
+              {tags.length === 0 && (
+                <span className="text-sm" style={{ color: '#8b87aa' }}>
+                  No tags
+                </span>
+              )}
+            </div>
+            <div className="flex flex-col gap-2 md:flex-row md:flex-wrap md:items-center">
+              <select
+                value={selectedTag}
+                onChange={(e) => setSelectedTag(e.target.value)}
+                className="w-full md:w-auto md:min-w-[12rem] px-2.5 py-1.5 rounded text-sm focus:outline-none"
+                style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
+              >
+                <option value="">Select existing tag</option>
+                {availableTags.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={addExistingTag}
+                disabled={!selectedTag || patchMutation.isPending}
+                className="w-full md:w-auto px-2.5 py-1.5 rounded text-sm border disabled:opacity-50"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                Add tag
+              </button>
+              <input
+                value={newTag}
+                onChange={(e) => setNewTag(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') addNewTag();
+                }}
+                placeholder="new tag"
+                className="w-full md:w-auto md:min-w-[11rem] px-2.5 py-1.5 rounded text-sm focus:outline-none"
+                style={{ background: 'var(--c-bg)', border: '1px solid var(--c-border)', color: '#d4cfff' }}
+              />
+              <button
+                type="button"
+                onClick={addNewTag}
+                disabled={!addableTag || patchMutation.isPending}
+                className="w-full md:w-auto px-2.5 py-1.5 rounded text-sm border disabled:opacity-50"
+                style={{ borderColor: 'var(--c-border)', color: '#c4b5fd' }}
+              >
+                Add new
+              </button>
+            </div>
           </div>
 
-          <div className="pt-1 border-t" style={{ borderColor: 'var(--c-border)' }}>
+          <div
+            className={`rounded-lg border p-3 space-y-3 ${drawerWideSectionClass}`}
+            style={{ borderColor: 'var(--c-border)', background: 'rgba(27,27,41,0.45)' }}
+          >
             <div
               className="text-sm font-semibold uppercase tracking-wider inline-flex items-center gap-1.5 mb-2"
               style={{ color: '#8b87aa' }}
@@ -1187,7 +1310,7 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                             {scoutSearch.data.recommendation.best.title}
                           </span>
                           <span className="inline-flex items-center gap-1.5 shrink-0">
-                            {scoutSearch.data.recommendation.best.protocol === 'usenet' && (
+                            {isUsenetRelease(scoutSearch.data.recommendation.best) && (
                               <button
                                 type="button"
                                 aria-label={`Send ${scoutSearch.data.recommendation.best.title} to SABnzbd`}
@@ -1212,14 +1335,17 @@ export function MovieDetailContent({ movieId, mode, onDeleted }: Props) {
                                 )}
                               </button>
                             )}
-                            {scoutSearch.data.recommendation.best.protocol === 'torrent' &&
-                              scoutSearch.data.recommendation.best.magnetUrl && (
+                            {isTorrentRelease(scoutSearch.data.recommendation.best) &&
+                              (scoutSearch.data.recommendation.best.magnetUrl ||
+                                scoutSearch.data.recommendation.best.downloadUrl) && (
                                 <button
                                   type="button"
-                                  aria-label={`Copy magnet link for ${scoutSearch.data.recommendation.best.title}`}
-                                  title="Copy magnet link"
+                                  aria-label={`Copy torrent link for ${scoutSearch.data.recommendation.best.title}`}
+                                  title="Copy torrent link"
                                   onClick={() => {
-                                    const url = scoutSearch.data.recommendation.best?.magnetUrl;
+                                    const url =
+                                      scoutSearch.data.recommendation.best?.magnetUrl ??
+                                      scoutSearch.data.recommendation.best?.downloadUrl;
                                     if (url) handleCopyMagnet(url);
                                   }}
                                   className="inline-flex items-center justify-center px-3.5 py-2 rounded-lg border"

@@ -43,10 +43,11 @@ async function assertLibraryParity(page, request, pageParams, label) {
     const apiJson = await apiRes.json();
     const expectedRows = Array.isArray(apiJson.movies) ? apiJson.movies.length : 0;
 
-    await Promise.all([
+    const [moviesResponse] = await Promise.all([
       page.waitForResponse((r) => r.url().includes('/api/movies?') && r.ok()),
-      page.goto(`/library?${qs(pageParams)}`, { waitUntil: 'networkidle' }),
+      page.goto(`/library?${qs(pageParams)}`, { waitUntil: 'domcontentloaded' }),
     ]);
+    await moviesResponse.finished();
 
     const uiRows = await page.locator('tbody tr').count();
     expect(uiRows, `${label}: UI rows should equal API movies.length`).toBe(expectedRows);
@@ -98,7 +99,7 @@ test.describe('Library', () => {
     await page.goto('/library');
     await expect(page.getByRole('heading', { name: 'Library' })).toBeVisible();
     await expect(page.getByPlaceholder('Search titles…')).toBeVisible();
-    await page.waitForSelector('tbody tr', { timeout: 10000 });
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
   });
 
   test('AV1 compat filter is bookmarkable and active', async ({ page }) => {
@@ -128,7 +129,7 @@ test.describe('Library', () => {
 
   test('status tooltip opens and closes on outside click', async ({ page }) => {
     await page.goto('/library');
-    await page.waitForSelector('tbody tr', { timeout: 10000 });
+    await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
 
     const guideBtn = page.getByRole('button', { name: 'Status color guide' });
     await guideBtn.click();
@@ -152,7 +153,7 @@ test.describe('Library', () => {
     expect(typeof json.total).toBe('number');
     if (json.total > 0) {
       await page.goto(`/library?tags=${encodeURIComponent(tag)}&page=1`);
-      await page.waitForSelector('tbody tr', { timeout: 10000 });
+      await expect(page.locator('tbody tr').first()).toBeVisible({ timeout: 10000 });
       await expect(page.locator('tbody tr').first()).toBeVisible();
     }
   });
@@ -235,34 +236,36 @@ test.describe('Scout / Disambiguate / Verify / Settings', () => {
     test.setTimeout(90_000);
     const snapshot = await snapshotScoutState(request);
     const ruleName = `UI E2E CF ${Date.now()}`;
-    const clear = await request.put('/api/scout/rules/replace-category', {
-      data: { category: 'scout_custom_cf', rules: [] },
-    });
-    expect(clear.ok()).toBeTruthy();
-    await page.goto('/settings/scout');
+    try {
+      const clear = await request.put('/api/scout/rules/replace-category', {
+        data: { category: 'scout_custom_cf', rules: [] },
+      });
+      expect(clear.ok()).toBeTruthy();
+      await page.goto('/settings/scout');
 
-    const customSection = page
-      .locator('section')
-      .filter({ hasText: 'Additional Custom Format Scores & Blocking Rules' })
-      .first();
-    if ((await customSection.locator('input[placeholder="Rule name"]').count()) === 0) {
-      await customSection.getByRole('button', { name: 'Add Rule' }).first().click();
+      const customSection = page
+        .locator('section')
+        .filter({ hasText: 'Additional Custom Format Scores & Blocking Rules' })
+        .first();
+      if ((await customSection.locator('input[placeholder="Rule name"]').count()) === 0) {
+        await customSection.getByRole('button', { name: 'Add Rule' }).first().click();
+      }
+      await customSection.locator('input[placeholder="Rule name"]').first().fill(ruleName);
+      await customSection.locator('input[placeholder="\\\\bframestor\\\\b"]').first().fill('\\bUIE2ETEST\\b');
+      await customSection.locator('input[placeholder="score"]').first().fill('9');
+
+      await customSection.getByRole('button', { name: 'Save Custom CF Rules' }).click();
+      await expect(customSection.getByText('Saved')).toBeVisible();
+
+      const list = await request.get('/api/scout/rules?category=scout_custom_cf');
+      const body = await list.json();
+      const rows = body?.rules?.scout_custom_cf ?? [];
+      const created = rows.find((r) => r.name === ruleName);
+      expect(Boolean(created)).toBeTruthy();
+      expect(created.enabled).toBe(1);
+    } finally {
+      await restoreScoutState(request, snapshot);
     }
-    await customSection.locator('input[placeholder="Rule name"]').first().fill(ruleName);
-    await customSection.locator('input[placeholder="\\\\bframestor\\\\b"]').first().fill('\\bUIE2ETEST\\b');
-    await customSection.locator('input[placeholder="score"]').first().fill('9');
-
-    await customSection.getByRole('button', { name: 'Save Custom CF Rules' }).click();
-    await expect(customSection.getByText('Saved')).toBeVisible();
-
-    const list = await request.get('/api/scout/rules?category=scout_custom_cf');
-    const body = await list.json();
-    const rows = body?.rules?.scout_custom_cf ?? [];
-    const created = rows.find((r) => r.name === ruleName);
-    expect(Boolean(created)).toBeTruthy();
-    expect(created.enabled).toBe(1);
-
-    await restoreScoutState(request, snapshot);
   });
 
   test('scan page jellyfin sync tooltip renders rich content', async ({ page }) => {

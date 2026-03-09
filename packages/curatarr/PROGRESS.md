@@ -131,10 +131,31 @@ Color contrast: `--c-muted: #8b87aa` on `--c-bg: #0f0f14` may fail 4.5:1 ratio f
   - Approach document created: `temp/i18n-approach.md` — covers namespace strategy, component audit, enforcement rules for AGENTS.md/CLAUDE.md, and phased implementation plan.
 
 - [IN-PROGRESS] Harden Playwright e2e to be isolated, deterministic, and cleanup-safe (no live DB/data dependencies).
-  - Plan: `temp/e2e-improvement-plan.md`
-  - Task 1 (isolated runtime harness): DONE (runner now provisions temp DB/temp config/temp server and tears down temp workspace)
-  - Task 2 (deterministic seed fixtures): DONE (seeded synthetic library/candidate data for smoke+scout paths)
-  - Task 3 (fake Prowlarr fixture server): DONE (local deterministic fixture responses power Scout e2e without external network dependency)
-  - Task 4 (fake Jellyfin fixture strategy): IN-PROGRESS (baseline fixture stub added; dedicated sync/enrichment scenarios pending)
-  - Task 5 (cleanup/state restoration guardrails): TODO
-  - Task 6 (flake hardening/assertion quality): IN-PROGRESS (removed brittle hardcoded tag + scout link/SAB assumptions in smoke spec)
+  - Plan: `temp/e2e-improvement-plan.md` (revised 2026-03-09)
+  - Task 1 (isolated runtime harness): DONE (runner provisions temp DB/config/server and tears down regardless of pass/fail)
+  - Task 2 (deterministic seed fixtures): DONE (5 synthetic movies seeded: 500 Days, First Man, Matrix, Legacy Sample, Multi Version)
+  - Task 3 (fake Prowlarr fixture server): DONE (20 deterministic releases on random port; all scout e2e network-independent)
+  - Task 4 (fake Jellyfin fixture strategy): DONE (jf-refresh disambiguation + jf-sync enrichment covered in jellyfin.spec.cjs)
+  - Task 5 (cleanup/state restoration guardrails): DONE (smoke.spec.cjs CF save test wrapped in try/finally; all mutation tests now restore state)
+  - Task 6 (flake hardening/assertion quality): DONE (replaced waitForSelector with expect().toBeVisible(); replaced networkidle with domcontentloaded + response wait; run time 17s→10s)
+  - Task 7 (Prowlarr grab/history fixture + SAB flow e2e): TODO (fixture missing /api/v1/history; SAB button test only asserts visibility, not full grab flow)
+
+- [IN-PROGRESS] Scout scoring pipeline hardening (TRaSH alignment + configurable score ownership).
+  - Constraint: keep strict stage boundaries (`basic` format heuristics must not embed remux-group/TRaSH policy).
+  - Plan:
+  - Stage 1 `basic`: only primitive format signals (resolution/video/audio/source/size-density).
+  - Stage 2 `trash`: only TRaSH-rule matches and TRaSH-derived score values.
+  - Stage 3 `custom`: local user overrides/extensions.
+  - Data model target: persisted TRaSH catalog with `rule_key`, `label`, `default_score`, `source_revision`, `scored/unscored`.
+  - Override target: per-rule local override map (`rule_key -> override_score`) with effective score resolution `override ?? default ?? 0`.
+  - Explainability target: scoring reasons include stage + rule key + applied score + score source (`trash_default` / `local_override`).
+  - Current action: revert ad-hoc remux-group boost from basic stage and design/implement the TRaSH override interface in later step.
+
+- [IN-PROGRESS] Fix Scout SAB handoff false-positive queue status when Prowlarr only performs redirect grabs.
+  - Root cause confirmed: Curatarr treated `GET /{indexerId}/download` HTTP 200 as success, while Prowlarr history showed `grabMethod=Redirect` (no download-client submission), resulting in `{"queued":true}` despite no SAB enqueue.
+  - Dev update: `triggerProwlarrGrab` now verifies post-grab state through `/api/v1/history`; success requires a new `releaseGrabbed` event with `downloadClientName` present. Redirect/proxy-only grabs return `prowlarr_grab_unsubmitted:<method>`.
+  - Validation update:
+  - API check: `POST /api/scout/send-to-sab` now returns `502 {"error":"prowlarr_grab_failed","detail":"prowlarr_grab_unsubmitted:Redirect"}` for this failing path.
+  - Chrome MCP check: on `http://dulce.local:3270/scout` -> open `12 Angry Men` detail -> `Scout Releases` -> click SAB button on recommendation.
+  - Expected: no false success toast; explicit failure surfaced to user.
+  - Actual: toast `SAB queue failed: prowlarr_grab_unsubmitted:Redirect` and detail line `Error: prowlarr_grab_unsubmitted:Redirect`; pass.

@@ -70,11 +70,13 @@ docker exec prowlarr sh -lc 'curl -sS -H "Content-Type: application/json" \
 - Minimum critic quality: Rotten Tomatoes critic score >= 70 for English-language movies.
 - For non-English primary language, require Rotten Tomatoes critic score >= 90.
 - Exclude:
-  - documentaries
-  - animation
-  - film noir
-  - short films
-  - movies older than 1950
+  - Documentary
+  - Animation
+  - History, Music
+  - Musical
+  - Film noir
+  - Short films
+  - movies older than 1960
 - Determine short-film exclusion by runtime, not only by genre. Exclude if runtime is typically short-film length; current working cutoff has been `<= 45 minutes`.
 
 ## Avoid repeating the earlier Jellyfin bug

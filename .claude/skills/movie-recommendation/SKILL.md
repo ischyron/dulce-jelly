@@ -7,6 +7,12 @@ description: Build and maintain /tmp/movie_recommendations.csv for this Dulce Je
 
 Use this skill when the user wants movie recommendations for this repo's media stack, wants to append to the shared CSV, wants validation against the live Jellyfin library, wants Rotten Tomatoes links, wants IMDb-via-FlareSolverr metadata, or wants approved recommendations added to Radarr and searched.
 
+## Role
+
+Act as a film-critic-style curator for this Dulce Jelly stack.
+Use Jellyfin as the ownership source of truth, Rotten Tomatoes as the critic-score source, IMDb via FlareSolverr for metadata when needed, and Radarr only after explicit approval.
+Prefer strong critical picks over broad popularity, preserve the shared CSV workflow in `/tmp/movie_recommendations.csv`, and avoid repeat recommendations already present in Jellyfin.
+
 ## Output contract
 
 - Working CSV path: `/tmp/movie_recommendations.csv`
@@ -18,19 +24,22 @@ Movie,Year,RottenTomatoesLink
 
 - Keep this file as the single working recommendation list.
 - When adding more recommendations, append only new valid rows after rechecking the whole file against Jellyfin.
+- Default batch size for new recommendation runs: `10`
 - Report when the CSV was updated.
-- If asked, open the newly added Rotten Tomatoes links in Chrome tabs.
-- If asked, add only missing titles to Radarr and trigger a Radarr search for each newly added title.
+- Always open the newly added Rotten Tomatoes links in Chrome tabs after updating the CSV.
+- Do not add anything to Radarr until the user explicitly reviews the CSV/tabs and confirms.
+- After approval, add only missing titles to Radarr and trigger a Radarr search for each newly added title.
 
 ## Required stack access
 
 - Jellyfin:
   - Base URL: `http://localhost:3278`
-  - Auth header: `X-Emby-Token: f95a1cc7ae19450689f3a135895cfdc1`
+  - Read the API token from repo `.env` key `JELLFIN_SERVICE_AGENT_API_KEY`
+  - Auth header: `X-Emby-Token: <value from .env>`
   - Movies library id in this stack is usually `f137a2dd21bbc1b99aa5c0f6bf02a805`, but prefer fetching `/Library/VirtualFolders` and selecting `CollectionType == "movies"` rather than hard-coding it.
 - Radarr:
   - Base URL: `http://localhost:3273`
-  - API key: `0946addb43ec433f9f48af222a949b4f`
+  - Read the API key from repo `.env` key `RADARR_API_KEY`
   - Root folder: `/movies`
   - Quality profile: `[SQP] SQP-1 WEB (2160p)` and its current id has been `15`, but verify with `/api/v3/qualityProfile` instead of assuming.
 - FlareSolverr:
@@ -109,8 +118,9 @@ normalized_title_without_trailing_parenthetical_year + "|" + ProductionYear
    - Recheck against Jellyfin normalized `title|year`.
    - Recheck against existing CSV normalized `title|year`.
 6. Append only new valid rows to `/tmp/movie_recommendations.csv`.
-7. If the user asks to review links, open the newly added RT links in Chrome tabs.
-8. If the user approves adding titles:
+7. Open the newly added RT links in Chrome tabs.
+8. Stop and wait for review.
+9. Only after explicit user approval, add titles to Radarr:
    - Query Radarr current movies.
    - Add only missing titles.
    - Use root folder `/movies`.
@@ -158,9 +168,67 @@ https://www.bing.com/search?format=rss&q=site:rottentomatoes.com/m "<title>" <ye
 - After add, trigger a search for that exact movie id.
 - If the user says "add only if missing", skip existing Radarr items instead of updating them.
 
+### Specific API calls
+
+- Get quality profiles:
+
+```http
+GET /api/v3/qualityProfile
+X-Api-Key: <RADARR_API_KEY>
+```
+
+- Get existing Radarr movies:
+
+```http
+GET /api/v3/movie?includeMovieFile=true
+X-Api-Key: <RADARR_API_KEY>
+```
+
+- Lookup a movie before add:
+
+```http
+GET /api/v3/movie/lookup?term=<title%20year>
+X-Api-Key: <RADARR_API_KEY>
+```
+
+- Add a movie:
+
+```http
+POST /api/v3/movie
+X-Api-Key: <RADARR_API_KEY>
+Content-Type: application/json
+
+{
+  "tmdbId": <tmdbId>,
+  "title": "<resolved title>",
+  "qualityProfileId": <verified profile id>,
+  "rootFolderPath": "/movies",
+  "monitored": true,
+  "minimumAvailability": "released",
+  "addOptions": {
+    "searchForMovie": true
+  }
+}
+```
+
+- Trigger a search for a specific added movie id:
+
+```http
+POST /api/v3/command
+X-Api-Key: <RADARR_API_KEY>
+Content-Type: application/json
+
+{
+  "name": "MoviesSearch",
+  "movieIds": [<radarrMovieId>]
+}
+```
+
+- Only run the add/search calls after the user explicitly confirms the reviewed batch.
+
 ## Chrome tab procedure
 
-- When the user asks to open the newly added RT links, open only the newly appended rows, not the whole CSV.
+- Open only the newly appended RT links, not the whole CSV.
 - Use background tabs for all but one foreground tab.
 
 ## Completion checklist

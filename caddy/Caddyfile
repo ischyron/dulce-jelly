@@ -109,6 +109,14 @@ http://dulce.local {
     uri strip_prefix /curatarr
     redir * http://{host}:3270{uri} 307
   }
+  handle_path /bazarr* {
+    uri strip_prefix /bazarr
+    redir * http://{host}:3268{uri} 307
+  }
+  handle_path /autosubsync* {
+    uri strip_prefix /autosubsync
+    redir * http://{host}:3269{uri} 307
+  }
 }
 
 # App subdomains (HTTPS only)
@@ -181,4 +189,16 @@ http://curatarr.dulcejelly.me {
   import require_https_public
   import auth_common
   reverse_proxy curatarr:7474
+}
+
+http://bazarr.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy bazarr:6767
+}
+
+http://autosubsync.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy autosubsync:6080
 }

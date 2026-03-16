@@ -286,6 +286,56 @@ services:
       LOG_HTML: "false"
       CAPTCHA_SOLVER: "none"
 
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:latest
+    container_name: bazarr
+    hostname: bazarr
+    restart: unless-stopped
+    environment:
+      PUID: "${PUID:-1000}"
+      PGID: "${PGID:-1000}"
+      TZ: "${TZ:-Asia/Tashkent}"
+    ports:
+      - "${BAZARR_PORT:-3268}:6767"
+    volumes:
+      - ./data/bazarr/config:/config
+      - "${JELLYFIN_MOVIES:-~/Media/MEDIA1/Movies}:/movies"
+      - "${JELLYFIN_SERIES:-~/Media/MEDIA1/Series}:/series"
+    depends_on:
+      - radarr
+      - sonarr
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:6767/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  autosubsync:
+    build:
+      context: https://github.com/denizsafak/AutoSubSync.git
+    image: autosubsync:latest
+    platform: linux/amd64   # assy/PyQt6 has no arm64 wheel; run under Rosetta on Apple Silicon
+    container_name: autosubsync
+    hostname: autosubsync
+    restart: unless-stopped
+    environment:
+      TZ: "${TZ:-Asia/Tashkent}"
+    ports:
+      - "${AUTOSUBSYNC_PORT:-3269}:6080"
+    volumes:
+      - ./data/autosubsync/input:/app/input
+      - ./data/autosubsync/output:/app/output
+      - ./data/autosubsync/desktop:/home/autosubsync/Desktop
+      - "${JELLYFIN_MOVIES:-~/Media/MEDIA1/Movies}:/movies"
+      - "${JELLYFIN_SERIES:-~/Media/MEDIA1/Series}:/series"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:6080/ >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
   recyclarr:
     image: ghcr.io/recyclarr/recyclarr:latest
     container_name: recyclarr

@@ -256,25 +256,6 @@ services:
       retries: 3
       start_period: 40s
 
-  quality-broker:
-    build:
-      context: ./packages/quality-broker
-      dockerfile: Dockerfile
-    image: quality-broker:latest
-    container_name: quality-broker
-    hostname: quality-broker
-    restart: unless-stopped
-    environment:
-      TZ: "${TZ:-Asia/Tashkent}"
-      CRON_SCHEDULE: "${QUALITY_BROKER_CRON:-0 0 * * *}"
-      LAN_HOSTNAME: "${LAN_HOSTNAME}"
-      RADARR_PORT: "${RADARR_PORT:-3273}"
-      QUALITY_BROKER_CONFIG: "${QUALITY_BROKER_CONFIG:-/data/quality-broker/config/config.yaml}"
-    volumes:
-      - ./data/quality-broker:/data/quality-broker
-    depends_on:
-      - radarr
-
   flaresolverr:
     image: flaresolverr/flaresolverr:latest
     container_name: flaresolverr

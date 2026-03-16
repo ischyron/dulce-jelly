@@ -563,4 +563,5 @@ program
     }
   });
 
-program.parseAsync(process.argv);
+// Auto-run disabled — invoke manually: node dist/index.js run [--dry-run] [--verbose]
+// program.parseAsync(process.argv);

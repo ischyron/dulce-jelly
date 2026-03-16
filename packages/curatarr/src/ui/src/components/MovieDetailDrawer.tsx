@@ -1,5 +1,5 @@
 import { ExternalLink, Film, X } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MovieDetailContent } from './shared/movie-detail';
 
@@ -12,6 +12,7 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
   const asideRef = useRef<HTMLElement | null>(null);
   const closeBtnRef = useRef<HTMLButtonElement | null>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const [scoutPanelActive, setScoutPanelActive] = useState(false);
 
   useEffect(() => {
     previousFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -70,7 +71,9 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
         role="dialog"
         aria-modal="true"
         aria-labelledby="movie-detail-drawer-title"
-        className="relative z-10 w-full border-l flex flex-col overflow-hidden md:w-[70vw] md:max-w-[70vw]"
+        className={`relative z-10 w-full border-l flex flex-col overflow-hidden ${
+          scoutPanelActive ? 'md:w-[70vw] md:max-w-[70vw]' : 'md:w-[44rem] md:max-w-[44rem]'
+        }`}
         style={{ background: 'var(--c-bg)', borderColor: 'var(--c-border)' }}
       >
         <div
@@ -108,7 +111,12 @@ export function MovieDetailDrawer({ movieId, onClose }: Props) {
         </div>
 
         <div className="flex-1 overflow-y-auto p-4">
-          <MovieDetailContent movieId={movieId} mode="drawer" onDeleted={onClose} />
+          <MovieDetailContent
+            movieId={movieId}
+            mode="drawer"
+            onDeleted={onClose}
+            onScoutPanelStateChange={setScoutPanelActive}
+          />
         </div>
       </aside>
     </div>

@@ -1,10 +1,12 @@
 import { ArrowLeft } from 'lucide-react';
+import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { MovieDetailContent } from '../components/shared/movie-detail';
 
 export function Movie() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [scoutPanelActive, setScoutPanelActive] = useState(false);
   const movieId = Number.parseInt(id ?? '0', 10);
 
   if (!movieId) {
@@ -38,12 +40,17 @@ export function Movie() {
         </Link>
       </div>
 
-      <div className="px-6 py-6 max-w-5xl space-y-5">
+      <div className={`px-6 py-6 space-y-5 ${scoutPanelActive ? 'max-w-none w-full' : 'max-w-5xl'}`}>
         <div
           className="rounded-xl border p-5"
           style={{ background: 'var(--c-surface)', borderColor: 'var(--c-border)' }}
         >
-          <MovieDetailContent movieId={movieId} mode="page" onDeleted={() => navigate('/library')} />
+          <MovieDetailContent
+            movieId={movieId}
+            mode="page"
+            onDeleted={() => navigate('/library')}
+            onScoutPanelStateChange={setScoutPanelActive}
+          />
         </div>
       </div>
     </div>

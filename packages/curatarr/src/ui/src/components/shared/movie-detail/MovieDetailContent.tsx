@@ -320,13 +320,14 @@ function ScoutResultsAllTable({
                       )}
                     </button>
                   )}
-                  {r.kind === 'candidate' && isTorrentRelease(r) && r.magnetUrl && (
+                  {r.kind === 'candidate' && isTorrentRelease(r) && (r.magnetUrl || r.downloadUrl) && (
                     <button
                       type="button"
                       aria-label={`Copy torrent link for ${r.title}`}
                       title="Copy torrent link"
                       onClick={() => {
-                        if (r.magnetUrl) actionState.onCopyMagnet(r.magnetUrl);
+                        const url = r.magnetUrl ?? r.downloadUrl;
+                        if (url) actionState.onCopyMagnet(url);
                       }}
                       className="inline-flex h-7 w-7 items-center justify-center rounded border"
                       style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)', color: '#c4b5fd' }}
@@ -488,13 +489,14 @@ function ScoutResultsTable({ releases, actionState }: { releases: ScoutRelease[]
                       )}
                     </button>
                   )}
-                  {isTorrentRelease(r) && r.magnetUrl && (
+                  {isTorrentRelease(r) && (r.magnetUrl || r.downloadUrl) && (
                     <button
                       type="button"
                       aria-label={`Copy torrent link for ${r.title}`}
                       title="Copy torrent link"
                       onClick={() => {
-                        if (r.magnetUrl) actionState.onCopyMagnet(r.magnetUrl);
+                        const url = r.magnetUrl ?? r.downloadUrl;
+                        if (url) actionState.onCopyMagnet(url);
                       }}
                       className="inline-flex h-7 w-7 items-center justify-center rounded border"
                       style={{ borderColor: 'var(--c-border)', background: 'rgba(33,37,41,0.45)', color: '#c4b5fd' }}

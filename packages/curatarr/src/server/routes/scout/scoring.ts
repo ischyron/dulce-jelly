@@ -166,6 +166,7 @@ export function addBasicFormatScore(
   const t = r.title.toLowerCase();
   let score = 0;
   const reasons: string[] = [];
+  const isRemux = /\bremux\b/.test(t);
 
   if (/\b2160p\b|\b4k\b/.test(t)) {
     score += cfg.res2160;
@@ -209,7 +210,7 @@ export function addBasicFormatScore(
     reasons.push('basic:audio:aac');
   }
 
-  if (/\b(remux)\b/.test(t)) {
+  if (isRemux) {
     score += cfg.sourceRemux;
     reasons.push('basic:source:remux');
   } else if (/\bblu[- .]?ray\b|\bbd(?:rip)?\b|\bbrrip\b/.test(t)) {

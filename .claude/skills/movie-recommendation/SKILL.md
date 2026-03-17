@@ -1,6 +1,6 @@
 ---
 name: movie-recommendation
-description: Build and maintain /tmp/movie_recommendations.csv for this Dulce Jelly stack by using Jellyfin as the library source of truth, Rotten Tomatoes for critic-score links, IMDb via FlareSolverr when metadata is needed, and Radarr for add-and-search after approval.
+description: Build and maintain /tmp/movie_recommendations.csv for this Dulce Jelly stack by using Jellyfin as the library source of truth, Rotten Tomatoes as the only critic-score gate, IMDb via FlareSolverr for metadata when needed, and Radarr for add-and-search after approval.
 ---
 
 # Movie Recommendation
@@ -10,8 +10,9 @@ Use this skill when the user wants movie recommendations for this repo's media s
 ## Role
 
 Act as a film-critic-style curator for this Dulce Jelly stack.
-Use Jellyfin as the ownership source of truth, Rotten Tomatoes as the critic-score source, IMDb via FlareSolverr for metadata when needed, and Radarr only after explicit approval.
+Use Jellyfin as the ownership source of truth, Rotten Tomatoes as the only critic-score source for recommendation decisions, IMDb via FlareSolverr for metadata when needed, and Radarr only after explicit approval.
 Prefer strong critical picks over broad popularity, preserve the shared CSV workflow in `/tmp/movie_recommendations.csv`, and avoid repeat recommendations already present in Jellyfin.
+Treat older titles as prestige-only additions, not general accumulation. Do not recommend older films just to backfill decades or increase era coverage; recommend them only when they are clearly canonical, elite, or otherwise defensibly high-prestige picks.
 
 ## Output contract
 
@@ -45,6 +46,8 @@ Movie,Year,RottenTomatoesLink
 - FlareSolverr:
   - Direct host access does not work reliably from the host.
   - Route IMDb requests through the Docker network via `prowlarr`.
+  - Use FlareSolverr for Rotten Tomatoes page fetches when direct host fetches are blocked or unreliable.
+  - Do not rely on TMDB as a required live source for this skill. TMDB may be blocked in this environment and is optional only.
   - Working pattern:
 
 ```sh
@@ -54,14 +57,88 @@ docker exec prowlarr sh -lc 'curl -sS -H "Content-Type: application/json" \
 ```
 
 - Rotten Tomatoes:
-  - Direct page fetches work from the host.
+  - Direct page fetches usually work from the host.
   - Direct RT search endpoints are unreliable; use direct slug guesses first, then Bing RSS fallback.
+  - If direct RT fetch fails or is blocked, retry the RT page fetch through FlareSolverr before giving up on that candidate.
+
+## Live source usage hints
+
+- Jellyfin ownership check:
+  - Fetch libraries first and select the one with `CollectionType == "movies"`:
+
+```sh
+curl -sS -H "X-Emby-Token: $JELLFIN_SERVICE_AGENT_API_KEY" \
+  "http://localhost:3278/Library/VirtualFolders"
+```
+
+  - Then fetch movie items from the movies library id:
+
+```sh
+curl -sS -H "X-Emby-Token: $JELLFIN_SERVICE_AGENT_API_KEY" \
+  "http://localhost:3278/Users/<userId>/Items?ParentId=<moviesLibraryId>&Recursive=true&IncludeItemTypes=Movie&Fields=ProviderIds,OriginalTitle,ProductionYear"
+```
+
+  - Normalize Jellyfin names before comparison and treat Jellyfin as the ownership source of truth.
+
+- FlareSolverr access pattern:
+  - Host access is unreliable; route requests through `prowlarr` on the Docker network.
+  - Reusable pattern:
+
+```sh
+docker exec prowlarr sh -lc 'curl -sS -H "Content-Type: application/json" \
+  -d '\''{"cmd":"request.get","url":"<URL>","maxTimeout":60000}'\'' \
+  http://flaresolverr:8191/v1'
+```
+
+  - Check the response `status` and then read `solution.response` or `solution.url` from the JSON payload.
+  - Keep hard timeouts on every FlareSolverr request and skip a candidate if repeated fetches fail.
+
+- IMDb usage:
+  - Use IMDb through FlareSolverr for metadata only.
+  - Recommended sequence:
+    - IMDb find query:
+
+```text
+https://www.imdb.com/find/?q=<title>&s=tt&ttype=ft&ref_=fn_ft
+```
+
+    - Parse candidate `tt...` ids from the result HTML.
+    - Fetch a few matching title pages through FlareSolverr.
+    - Parse IMDb JSON-LD for `name`, `datePublished`, `duration`, and `genre`.
+  - Do not use IMDb rating as a critic proxy or fallback quality gate.
+
+- Rotten Tomatoes usage:
+  - Rotten Tomatoes is the only critic gate for this skill.
+  - Try direct slug guesses first:
+
+```text
+https://www.rottentomatoes.com/m/<slug>_<year>
+https://www.rottentomatoes.com/m/<slug>
+```
+
+  - If slug guessing fails, use Bing RSS to discover the RT page:
+
+```text
+https://www.bing.com/search?format=rss&q=site:rottentomatoes.com/m "<title>" <year>
+```
+
+  - After finding the RT URL, fetch it directly from the host first.
+  - If host fetch fails or is blocked, fetch that exact RT URL through FlareSolverr via `prowlarr`.
+  - Confirm exact title/year match before reading the critic score from page JSON/JSON-LD.
+  - If RT verification fails, skip the candidate. Do not substitute IMDb, TMDB, or Radarr ratings.
+
+- Radarr usage:
+  - Radarr is only for post-approval add-and-search.
+  - It is not a recommendation discovery tool and not a critic-score source.
+  - Use it only after the CSV batch has already passed Jellyfin ownership checks and Rotten Tomatoes verification.
 
 ## Source-of-truth rules
 
 - Jellyfin is the ownership source of truth.
-- Rotten Tomatoes is the critic-score source of truth and must also supply the final link in the CSV.
-- IMDb via FlareSolverr is the metadata source for runtime, genre, year, and language when TMDB is unavailable or intentionally not used.
+- Rotten Tomatoes is the only critic-score source of truth for this skill and must also supply the final link in the CSV.
+- IMDb via FlareSolverr is a metadata source only. Do not use IMDb rating as a critic proxy or as a substitute for Rotten Tomatoes.
+- TMDB is optional metadata only. Do not use TMDB as a critic proxy or as a gating dependency for recommendation quality.
+- Radarr metadata enrichment is not a recommendation gate. Do not add a title to Radarr just to let Radarr fetch ratings and then decide later.
 - If a required live source is blocked or unavailable for the current workflow, stop and report the failing service. Do not fabricate or silently downgrade quality checks.
 
 ## Current recommendation rules
@@ -69,6 +146,13 @@ docker exec prowlarr sh -lc 'curl -sS -H "Content-Type: application/json" \
 - Recommend only movies not already present in Jellyfin.
 - Minimum critic quality: Rotten Tomatoes critic score >= 70 for English-language movies.
 - For non-English primary language, require Rotten Tomatoes critic score >= 90.
+- Never recommend a movie unless its Rotten Tomatoes critic score has been directly verified from a Rotten Tomatoes page for that exact title and year.
+- Never substitute IMDb score, TMDB score, popularity, or Radarr-fetched metadata for the Rotten Tomatoes critic gate.
+- For older titles, apply a stricter curation standard than the general floor.
+  - Older titles should be prestige-only additions, not general accumulation.
+  - Do not treat older decades as a quota or coverage target by themselves.
+  - For titles from 1960-1989, require Rotten Tomatoes critic score >= 90 before recommending.
+  - For titles from 1960-1989, prefer clearly canonical or elite picks and reject borderline "pretty good" titles even when they technically pass the normal floor.
 - Exclude:
   - Documentary
   - Animation
@@ -106,8 +190,10 @@ normalized_title_without_trailing_parenthetical_year + "|" + ProductionYear
 3. Remove any rows from the CSV that are already in Jellyfin.
 4. Build a candidate slate.
    - Prefer strong critical candidates.
+   - For older titles, prefer prestige picks only; do not fill older decades with merely decent films.
    - Prefer English-heavy slates when IMDb search resolution is fragile.
    - Use curated candidate batches rather than giant discovery sweeps when reliability matters.
+   - Do not include any candidate whose Rotten Tomatoes critic score has not yet been verified from Rotten Tomatoes.
 5. For each candidate:
    - Resolve IMDb page through FlareSolverr.
    - Parse IMDb JSON-LD for `name`, `datePublished`, `duration`, and `genre`.
@@ -116,9 +202,12 @@ normalized_title_without_trailing_parenthetical_year + "|" + ProductionYear
    - Resolve Rotten Tomatoes page.
    - Confirm RT title/year match.
    - Read critic score from page JSON/JSON-LD.
+   - If direct RT fetch fails, retry RT through FlareSolverr before skipping the candidate.
    - Enforce the English/non-English RT thresholds.
+   - If the title is from 1960-1989, apply the prestige-only rule before keeping it in the slate.
    - Recheck against Jellyfin normalized `title|year`.
    - Recheck against existing CSV normalized `title|year`.
+   - Only after RT verification succeeds may the title remain in the slate.
 6. Append only new valid rows to `/tmp/movie_recommendations.csv`.
 7. Open the newly added RT links in Chrome tabs.
 8. Stop and wait for review.
@@ -153,10 +242,14 @@ https://www.bing.com/search?format=rss&q=site:rottentomatoes.com/m "<title>" <ye
 
 - Parse RT page JSON/JSON-LD for title and critic score.
 - Reject mismatched title/year pages even if the slug resolves.
+- If host-side RT fetch is blocked, retry the exact RT URL through FlareSolverr via `prowlarr`.
+- Do not fall back to IMDb score, TMDB score, or Radarr ratings when RT verification fails.
 
 ## Radarr add-and-search procedure
 
 - Verify the quality profile id rather than assuming it.
+- Do not add titles to Radarr in order to trigger Radarr metadata refreshes for recommendation gating.
+- Recommendation gating must be complete before any Radarr add call.
 - Lookup the movie in Radarr before adding:
   - `/api/v3/movie/lookup?term=<title year>`
 - Add only if no normalized `title|year` match already exists in Radarr.

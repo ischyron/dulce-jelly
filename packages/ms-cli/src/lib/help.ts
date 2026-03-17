@@ -13,6 +13,7 @@ const commandsList = [
   '  sync               → docker compose run --rm recyclarr sync',
   '  qb-run [args]      → docker compose --profile quality-broker run --rm quality-broker [args]',
   '  qb-log             → docker compose --profile quality-broker logs -f quality-broker',
+  '  upgrade [service]  → docker compose pull [service] && up -d [service]',
   '  test               → node --test test/test-services.test.mjs',
   '  env                → print key env values',
   '  ports              → show LAN/CF port map',

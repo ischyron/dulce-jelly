@@ -83,6 +83,14 @@ export function qualityBrokerLogs(): number | Promise<number> {
   return runComposeStreaming(['--profile', QB_PROFILE, 'logs', '-f', 'quality-broker']);
 }
 
+export function upgrade(args: string[]): number {
+  const svc = args && args.length ? resolveServiceLoose(args[0]) : null;
+  const services = svc ? [svc] : [];
+  const pullCode = runCompose(['pull', ...services]) as number;
+  if (pullCode !== 0) return pullCode;
+  return runCompose(['up', '-d', ...services]) as number;
+}
+
 export function testCmd(baseDir: string): number {
   const env = envLib.loadEnv(baseDir);
   return runCommand('node', ['--test', 'test/test-services.test.mjs'], { cwd: baseDir, env }) as number;

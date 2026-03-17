@@ -41,6 +41,7 @@ const commands: Record<string, CommandFunction> = {
   sync: () => cmd.sync(),
   'qb-run': (args) => cmd.qualityBrokerRun(args || []),
   'qb-log': () => cmd.qualityBrokerLogs(),
+  upgrade: (args) => cmd.upgrade(args || []),
   test: () => cmd.testCmd(baseDir),
   env: () => {
     const env = envLib.loadEnv(baseDir);

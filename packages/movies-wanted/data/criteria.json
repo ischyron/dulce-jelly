@@ -1,0 +1,27 @@
+{
+  "storageGiBPerMovie": {
+    "moderate": 13.17,
+    "conservative": 15.36
+  },
+  "acceptedThresholds": {
+    "english_1960_1989": 85,
+    "non_english_1960_1989": 92,
+    "english_1990_plus": 80,
+    "non_english_1990_plus": 90
+  },
+  "saturatedSlices": {
+    "years": [2000, 2019],
+    "genres": ["Drama", "Thriller", "Action", "Comedy"],
+    "preferredRtFloor": 90
+  },
+  "excludedGenres": [
+    "Documentary",
+    "Animation",
+    "History",
+    "Music",
+    "Musical",
+    "Film noir"
+  ],
+  "minimumYear": 1960,
+  "shortRuntimeMinutesMax": 45
+}

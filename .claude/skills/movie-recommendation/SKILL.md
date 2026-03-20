@@ -144,15 +144,21 @@ https://www.bing.com/search?format=rss&q=site:rottentomatoes.com/m "<title>" <ye
 ## Current recommendation rules
 
 - Recommend only movies not already present in Jellyfin.
-- Minimum critic quality: Rotten Tomatoes critic score >= 70 for English-language movies.
-- For non-English primary language, require Rotten Tomatoes critic score >= 90.
 - Never recommend a movie unless its Rotten Tomatoes critic score has been directly verified from a Rotten Tomatoes page for that exact title and year.
 - Never substitute IMDb score, TMDB score, popularity, or Radarr-fetched metadata for the Rotten Tomatoes critic gate.
-- For older titles, apply a stricter curation standard than the general floor.
-  - Older titles should be prestige-only additions, not general accumulation.
+- Apply these exact Rotten Tomatoes acceptance thresholds after exact title/year verification:
+  - `1960-1989` English-language movies: Rotten Tomatoes critic score `>= 85`
+  - `1960-1989` non-English movies: Rotten Tomatoes critic score `>= 92`
+  - `1990+` English-language movies: Rotten Tomatoes critic score `>= 80`
+  - `1990+` non-English movies: Rotten Tomatoes critic score `>= 90`
+- Treat `1960-1989` titles as prestige-only additions, not general accumulation.
   - Do not treat older decades as a quota or coverage target by themselves.
-  - For titles from 1960-1989, require Rotten Tomatoes critic score >= 90 before recommending.
-  - For titles from 1960-1989, prefer clearly canonical or elite picks and reject borderline "pretty good" titles even when they technically pass the normal floor.
+  - Reject merely decent or borderline older titles even if they barely clear the numeric floor.
+  - Keep older titles only when they are clearly canonical, elite, or otherwise defensibly high-prestige picks.
+- Penalize saturated mainstream slices from `2000-2019`.
+  - Apply an extra selectivity penalty to `Drama`, `Thriller`, `Action`, and `Comedy` from the `2000s` and `2010s`.
+  - Do not recommend those titles unless the Rotten Tomatoes critic score is clearly above the base floor.
+  - Current working interpretation: for `2000-2019` titles in any of those genres, prefer `RT >= 90`, and reject marginal `80s` scores unless the title is otherwise exceptional.
 - Exclude:
   - Documentary
   - Animation
@@ -191,6 +197,7 @@ normalized_title_without_trailing_parenthetical_year + "|" + ProductionYear
 4. Build a candidate slate.
    - Prefer strong critical candidates.
    - For older titles, prefer prestige picks only; do not fill older decades with merely decent films.
+   - For `2000-2019` `Drama`, `Thriller`, `Action`, and `Comedy`, use a stricter bar than the base decade/language threshold and keep only clearly standout titles.
    - Prefer English-heavy slates when IMDb search resolution is fragile.
    - Use curated candidate batches rather than giant discovery sweeps when reliability matters.
    - Do not include any candidate whose Rotten Tomatoes critic score has not yet been verified from Rotten Tomatoes.
@@ -203,8 +210,10 @@ normalized_title_without_trailing_parenthetical_year + "|" + ProductionYear
    - Confirm RT title/year match.
    - Read critic score from page JSON/JSON-LD.
    - If direct RT fetch fails, retry RT through FlareSolverr before skipping the candidate.
-   - Enforce the English/non-English RT thresholds.
-   - If the title is from 1960-1989, apply the prestige-only rule before keeping it in the slate.
+   - Infer whether the title is English-language or non-English before applying thresholds.
+   - Enforce the exact decade/language RT thresholds.
+   - If the title is from `1960-1989`, apply the prestige-only rule before keeping it in the slate.
+   - If the title is from `2000-2019` and includes `Drama`, `Thriller`, `Action`, or `Comedy`, apply the saturated-slice penalty and keep it only if the RT score is clearly high enough to survive that stricter bar.
    - Recheck against Jellyfin normalized `title|year`.
    - Recheck against existing CSV normalized `title|year`.
    - Only after RT verification succeeds may the title remain in the slate.

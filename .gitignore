@@ -52,6 +52,8 @@ downloads/
 
 # Project outputs
 *.csv
+!packages/movies-wanted/data/*.csv
+!packages/movies-wanted/data/*.json
 
 # Caddy runtime state
 caddy/config/caddy/autosave.json

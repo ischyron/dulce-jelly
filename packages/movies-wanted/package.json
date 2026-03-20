@@ -1,0 +1,19 @@
+{
+  "name": "movies-wanted",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Resumable movies-wanted gap analysis and Radarr/Jellyfin curation pipeline",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "bin": {
+    "movies-wanted": "src/cli.mjs"
+  },
+  "scripts": {
+    "mw": "node src/cli.mjs",
+    "init": "node src/cli.mjs init",
+    "refresh": "node src/cli.mjs refresh",
+    "update": "node src/cli.mjs update"
+  }
+}

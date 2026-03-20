@@ -1,0 +1,42 @@
+title,year,language,genres,rt_score,rt_url,reason,source_list,classification_source,added_to_radarr,rt_review_count
+The Emigrants,1972,Swedish,Drama,94,https://www.rottentomatoes.com/m/emigrants,Accepted: RT 94 meets threshold 85,oscars_best_picture,radarr_lookup,true,17
+The Artist,2011,French,Romance|Comedy|Drama,95,https://www.rottentomatoes.com/m/the_artist,Accepted: RT 95 meets threshold 90,oscars_best_picture,radarr_lookup,true,321
+Sentimental Value,2025,Norwegian,Drama,95,https://www.rottentomatoes.com/m/sentimental_value,Accepted: RT 95 meets threshold 80,oscars_best_picture,radarr_lookup,true,242
+The Virgin Spring,1960,Swedish,Drama,88,https://www.rottentomatoes.com/m/virgin_spring,Accepted: RT 88 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,25
+Through a Glass Darkly,1961,Swedish,Drama,100,https://www.rottentomatoes.com/m/through_a_glass_darkly,Accepted: RT 100 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,29
+Investigation of a Citizen Above Suspicion,1970,Italian,Crime|Drama,100,https://www.rottentomatoes.com/m/investigation_of_a_citizen_above_suspicion,Accepted: RT 100 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,14
+The Garden of the Finzi Continis,1971,Italian,Drama|War,94,https://www.rottentomatoes.com/m/garden_of_the_finzi_continis,Accepted: RT 94 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,16
+The Discreet Charm of the Bourgeoisie,1972,French,Comedy,98,https://www.rottentomatoes.com/m/discreet_charm_of_the_bourgeoisie,Accepted: RT 98 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,60
+Day for Night,1973,French,Comedy|Drama|Romance,98,https://www.rottentomatoes.com/m/day_for_night_1973,Accepted: RT 98 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,40
+Amarcord,1974,Italian,Comedy|Drama,88,https://www.rottentomatoes.com/m/amarcord,Accepted: RT 88 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,49
+Fanny and Alexander,1983,Swedish,Drama,100,https://www.rottentomatoes.com/m/fanny_and_alexander,Accepted: RT 100 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,46
+The Official Story,1985,Spanish,Drama,100,https://www.rottentomatoes.com/m/official_story,Accepted: RT 100 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,13
+Babette's Feast,1987,Danish,Comedy|Drama,97,https://www.rottentomatoes.com/m/babettes_feast,Accepted: RT 97 meets threshold 85,oscars_best_international_winners,radarr_lookup,true,33
+Journey of Hope,1990,German,Drama,83,https://www.rottentomatoes.com/m/journey_of_hope_1990,Accepted: RT 83 meets threshold 80,oscars_best_international_winners,radarr_lookup,true,6
+Mediterraneo,1991,Italian,Comedy,80,https://www.rottentomatoes.com/m/mediterraneo,Accepted: RT 80 meets threshold 80,oscars_best_international_winners,radarr_lookup,true,15
+Kolya,1996,Czech,Comedy|Drama,96,https://www.rottentomatoes.com/m/kolya,Accepted: RT 96 meets threshold 80,oscars_best_international_winners,radarr_lookup,true,25
+Farewell My Concubine,1993,Chinese,Drama|LGBTQ+,90,https://www.rottentomatoes.com/m/farewell_my_concubine,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false,52
+Rosetta,1999,French,Drama,90,https://www.rottentomatoes.com/m/rosetta,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false,31
+Shoplifters,2018,Japanese,Crime|Drama|Adventure,99,https://www.rottentomatoes.com/m/shoplifters,Accepted: RT 99 meets threshold 90,palme_dor,radarr_lookup,false,230
+Titane,2021,French,Horror|Mystery & Thriller|Drama,90,https://www.rottentomatoes.com/m/titane,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false,260
+Hiroshima mon amour,1960,French,Drama,96,https://www.rottentomatoes.com/m/hiroshima_mon_amour,Accepted: RT 96 meets threshold 85,bafta_best_film,radarr_lookup,false,46
+Rocco and His Brothers,1961,Italian,Drama,91,https://www.rottentomatoes.com/m/rocco_and_his_brothers,Accepted: RT 91 meets threshold 85,bafta_best_film,radarr_lookup,false,33
+Jules and Jim,1962,French,Drama,94,https://www.rottentomatoes.com/m/jules_and_jim,Accepted: RT 94 meets threshold 85,bafta_best_film,radarr_lookup,false,51
+Divorce Italian Style,1962,Italian,Comedy,100,https://www.rottentomatoes.com/m/divorce_italian_style,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,false,18
+Knife in the Water,1962,Polish,Drama,97,https://www.rottentomatoes.com/m/knife_in_the_water,Accepted: RT 97 meets threshold 85,bafta_best_film,radarr_lookup,false,34
+"Lacombe, Lucien",1974,French,Drama,100,https://www.rottentomatoes.com/m/lacombe_lucien,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,false,10
+Belle de Jour,1967,French,Drama,95,https://www.rottentomatoes.com/m/belle_de_jour,Accepted: RT 95 meets threshold 85,golden_lion,radarr_lookup,false,60
+The Green Ray,1986,French,Comedy|Drama,94,https://www.rottentomatoes.com/m/the_green_ray_1986,Accepted: RT 94 meets threshold 85,golden_lion,radarr_lookup,false,31
+Au revoir les enfants,1987,French,Drama,97,https://www.rottentomatoes.com/m/au_revoir_les_enfants,Accepted: RT 97 meets threshold 85,golden_lion,radarr_lookup,false,36
+Vive L'Amour,1994,Chinese,Drama,85,https://www.rottentomatoes.com/m/vive_lamour_1994,Accepted: RT 85 meets threshold 80,golden_lion,radarr_lookup,false,13
+Cyclo,1995,Vietnamese,Crime|Drama,82,https://www.rottentomatoes.com/m/cyclo,Accepted: RT 82 meets threshold 80,golden_lion,radarr_lookup,false,11
+Not One Less,1999,Chinese,Drama,96,https://www.rottentomatoes.com/m/not_one_less,Accepted: RT 96 meets threshold 80,golden_lion,radarr_lookup,false,46
+Central Station,1998,Portuguese,Drama,94,https://www.rottentomatoes.com/m/central_station,Accepted: RT 94 meets threshold 80,golden_bear,radarr_lookup,false,50
+Taxi,2015,German,Comedy|Drama,96,https://www.rottentomatoes.com/m/taxi_2015,Accepted: RT 96 meets threshold 90,golden_bear,radarr_lookup,false,110
+The Sacrifice,1986,Swedish,Drama,88,https://www.rottentomatoes.com/m/the_sacrifice_1986,Accepted: RT 88 meets threshold 85,cannes_grand_prix,radarr_lookup,false,43
+To Live,1994,Chinese,Drama,87,https://www.rottentomatoes.com/m/to_live,Accepted: RT 87 meets threshold 80,cannes_grand_prix,radarr_lookup,false,23
+Atlantics,2019,French,Drama,96,https://www.rottentomatoes.com/m/atlantics_2019,Accepted: RT 96 meets threshold 90,cannes_grand_prix,radarr_lookup,false,159
+Close,2022,French,Drama,91,https://www.rottentomatoes.com/m/close_2022,Accepted: RT 91 meets threshold 80,cannes_grand_prix,radarr_lookup,false,154
+Cries and Whispers,1972,Swedish,Drama,92,https://www.rottentomatoes.com/m/cries_and_whispers,Accepted: RT 92 meets threshold 85,nyfcc_best_film,radarr_lookup,false,36
+Persona,1967,Swedish,Drama,91,https://www.rottentomatoes.com/m/persona,Accepted: RT 91 meets threshold 85,nsfc_best_picture,radarr_lookup,false,58
+Yi Yi,2000,Chinese,Drama,97,https://www.rottentomatoes.com/m/yi_yi,Accepted: RT 97 meets threshold 90,nsfc_best_picture,radarr_lookup,false,92

@@ -1,0 +1,406 @@
+title,year,language,genres,rt_score,reason
+The Longest Day,1962,,War|History|Drama,83,Rejected: excluded genre
+The Music Man,1962,,Musical|Comedy,,Rejected: excluded genre
+Mutiny on the Bounty,1962,,Adventure,96,Rejected: pre-1960
+Tom Jones,1963,,Comedy,83,Rejected: RT 83 below threshold 85
+America America,1963,,Drama,67,Rejected: RT 67 below threshold 85
+Cleopatra,1963,,Comedy|Drama,,Rejected: RT title/year mismatch
+How the West Was Won,1963,,Western,85,Rejected: RT title/year mismatch
+My Fair Lady,1964,,Musical,94,Rejected: excluded genre
+Becket,1964,,History|Drama,75,Rejected: excluded genre
+Mary Poppins,1964,,Kids & Family|Musical,97,Rejected: excluded genre
+Zorba the Greek,1964,,Drama,79,Rejected: RT 79 below threshold 85
+The Sound of Music,1965,,Kids & Family|Musical,83,Rejected: excluded genre
+Darling,1965,,drama,,Rejected: RT title/year mismatch
+Doctor Zhivago,1965,,Romance,,Rejected: RT title/year mismatch
+Ship of Fools,1965,,Drama,63,Rejected: RT 63 below threshold 85
+A Thousand Clowns,1965,,Comedy,72,Rejected: RT 72 below threshold 85
+Alfie,1966,,Comedy|Drama|Romance,48,Rejected: RT title/year mismatch
+"The Russians Are Coming, the Russians Are Coming",1966,,Comedy,83,Rejected: RT 83 below threshold 85
+Doctor Dolittle,1967,,Kids & Family|Musical,29,Rejected: excluded genre
+Guess Who's Coming to Dinner,1967,,Comedy|Drama,71,Rejected: RT 71 below threshold 85
+Oliver!,1968,,Musical,90,Rejected: excluded genre
+Funny Girl,1968,,Musical,95,Rejected: excluded genre
+Anne of the Thousand Days,1969,,History|Drama,43,Rejected: excluded genre
+"Hello, Dolly!",1969,,Musical|Comedy,43,Rejected: excluded genre
+Z,1969,,Mystery & Thriller,94,Rejected: RT title/year mismatch
+Airport,1970,,Mystery & Thriller,72,Rejected: RT 72 below threshold 85
+Love Story,1970,,Romance|Drama,63,Rejected: RT 63 below threshold 85
+Fiddler on the Roof,1971,,Musical,81,Rejected: excluded genre
+Cabaret,1972,,Musical,92,Rejected: excluded genre
+The Sting,1973,,Horror|Mystery & Thriller,70,Rejected: RT title/year mismatch
+Cries and Whispers,1973,,Drama,92,Rejected: RT title/year mismatch
+Lenny,1974,,Biography,87,Rejected: RT title/year mismatch
+The Towering Inferno,1974,,Action|Mystery & Thriller,69,Rejected: RT 69 below threshold 85
+Barry Lyndon,1975,,Drama,78,Rejected: RT 78 below threshold 85
+Nashville,1975,,Comedy|Drama|Musical,89,Rejected: excluded genre
+Bound for Glory,1976,,Biography,81,Rejected: RT 81 below threshold 85
+Julia,1977,,Drama,,Rejected: RT title/year mismatch
+The Turning Point,1977,,Comedy|Drama,,Rejected: RT title/year mismatch
+Coming Home,1978,,Drama,83,Rejected: RT 83 below threshold 85
+Heaven Can Wait,1978,,Comedy|Fantasy|Romance,84,Rejected: RT 84 below threshold 85
+All That Jazz,1979,,Drama|Musical,88,Rejected: excluded genre
+Coal Miner's Daughter,1980,,Biography|Drama|Music,84,Rejected: excluded genre
+Tess,1980,,Drama,81,Rejected: RT title/year mismatch
+On Golden Pond,1981,,Comedy|Drama,91,Rejected: RT title/year mismatch
+Reds,1981,,History|Drama|Romance|Biography,90,Rejected: excluded genre
+Missing,1982,,Drama,60,Rejected: RT title/year mismatch
+The Big Chill,1983,,Comedy|Drama,69,Rejected: RT 69 below threshold 85
+The Right Stuff,1983,,History|Drama,96,Rejected: excluded genre
+Tender Mercies,1983,,Drama,83,Rejected: RT 83 below threshold 85
+Amadeus,1984,,Biography|History|Drama,90,Rejected: excluded genre
+A Passage to India,1984,,Drama,77,Rejected: RT title/year mismatch
+Out of Africa,1985,,Romance|Biography|Drama,62,Rejected: RT 62 below threshold 85
+The Color Purple,1985,,Drama,73,Rejected: RT 73 below threshold 85
+Witness,1985,,Mystery & Thriller,,Rejected: RT title/year mismatch
+Children of a Lesser God,1986,,Drama,81,Rejected: RT 81 below threshold 85
+The Last Emperor,1987,,Biography|History|Drama,86,Rejected: excluded genre
+The Accidental Tourist,1988,,Drama,82,Rejected: RT title/year mismatch
+Working Girl,1988,,Romance|Comedy,83,Rejected: RT 83 below threshold 85
+Born on the Fourth of July,1989,,Drama,84,Rejected: RT 84 below threshold 85
+Ghost,1990,,"comedy, drama",50,Rejected: RT title/year mismatch
+JFK,1991,,History|Drama,85,Rejected: excluded genre
+The Prince of Tides,1991,,Romance,69,Rejected: RT 69 below threshold 80
+Apollo 13,1995,,History|Drama,92,Rejected: excluded genre
+Il Postino: The Postman,1995,,Romance|Biography|Drama,92,Rejected: RT title/year mismatch
+Sense and Sensibility,1995,,Drama|Romance,,Rejected: RT title/year mismatch
+The Cider House Rules,1999,,Drama|Romance,72,Rejected: RT 72 below threshold 80
+Gosford Park,2001,,Mystery & Thriller|Comedy|Drama|Crime,87,Rejected: RT 87 below threshold 90
+Moulin Rouge!,2001,,Musical|Drama|Romance,75,Rejected: excluded genre
+Chicago,2002,,Musical|Crime|Drama,87,Rejected: excluded genre
+The Hours,2002,,Drama,79,Rejected: RT 79 below threshold 90
+Ray,2004,,Biography|History|Drama|Music,79,Rejected: excluded genre
+Crash,2005,,Action|Drama,,Rejected: RT title/year mismatch
+"Good Night, and Good Luck",2005,,History|Drama|Biography,93,Rejected: excluded genre
+Letters from Iwo Jima,2006,,War|History|Drama,91,Rejected: excluded genre
+Michael Clayton,2007,,Drama,90,Rejected: RT title/year mismatch
+Extremely Loud & Incredibly Close,2011,,Drama,44,Rejected: RT title/year mismatch
+Selma,2014,,History|Drama,99,Rejected: excluded genre
+The Revenant,2015,,Horror,19,Rejected: RT title/year mismatch
+Hacksaw Ridge,2016,,War|History|Drama|Biography,84,Rejected: excluded genre
+Hidden Figures,2016,,History|Drama|Biography,93,Rejected: excluded genre
+Call Me by Your Name,2017,,Romance|Drama|LGBTQ+,95,Rejected: RT title/year mismatch
+Darkest Hour,2017,,History|Drama|Biography|War,84,Rejected: excluded genre
+Dunkirk,2017,,War|History|Drama,92,Rejected: excluded genre
+Phantom Thread,2017,,Drama|Romance,91,Rejected: RT title/year mismatch
+Bohemian Rhapsody,2018,,Biography|History|Drama|Music|LGBTQ+,60,Rejected: excluded genre
+Vice,2018,,Biography|Comedy|Drama,64,Rejected: RT 64 below threshold 90
+The Irishman,2019,,Drama,,Rejected: RT title/year mismatch
+Jojo Rabbit,2019,,Comedy|Drama,81,Rejected: RT 81 below threshold 90
+1917,2019,,War|History|Drama,88,Rejected: excluded genre
+Once Upon a Time in Hollywood,2019,,Comedy|Drama|History,86,Rejected: excluded genre
+Nomadland,2020,,Drama,93,Rejected: RT title/year mismatch
+Judas and the Black Messiah,2020,,History|Drama|Biography,96,Rejected: excluded genre
+Elvis,2022,,Biography|Drama|Music,77,Rejected: excluded genre
+Triangle of Sadness,2022,,Comedy,72,Rejected: RT 72 below threshold 80
+Women Talking,2022,,Drama,90,Rejected: RT title/year mismatch
+American Fiction,2023,,Comedy|Drama,93,Rejected: RT title/year mismatch
+Maestro,2023,,Biography|Drama|Romance|Music|LGBTQ+,78,Rejected: excluded genre
+A Complete Unknown,2024,,Drama|Mystery & Thriller,52,Rejected: RT title/year mismatch
+Emilia Pérez,2024,,Musical|Crime|Drama,70,Rejected: excluded genre
+Nickel Boys,2024,,Drama,92,Rejected: RT title/year mismatch
+Wicked,2024,,Kids & Family|Musical|Fantasy|Adventure,88,Rejected: excluded genre
+The Secret Agent,2025,,Comedy,,Rejected: RT title/year mismatch
+The English Patient,2025,,Romance|War|History|Drama,86,Rejected: excluded genre
+American Sniper,2025,,War|Biography|Drama,71,Rejected: RT title/year mismatch
+Sundays and Cybele,1962,,Romance,55,Rejected: RT 55 below threshold 85
+"Yesterday, Today and Tomorrow",1964,,Comedy,78,Rejected: RT 78 below threshold 85
+The Shop on Main Street,1965,,Drama,100,Rejected: RT title/year mismatch
+A Man and a Woman,1966,,Romance|Drama,76,Rejected: RT 76 below threshold 85
+Closely Watched Trains,1967,,Comedy|Drama,90,Rejected: RT title/year mismatch
+Dersu Uzala,1975,,Adventure|Drama,73,Rejected: RT 73 below threshold 85
+Black and White in Color,1976,,Comedy|Drama|War,100,Rejected: RT title/year mismatch
+Madame Rosa,1977,,Drama,89,Rejected: RT title/year mismatch
+Get Out Your Handkerchiefs,1978,,Comedy,83,Rejected: RT 83 below threshold 85
+The Tin Drum,1979,,Drama,84,Rejected: RT title/year mismatch
+Moscow Does Not Believe in Tears,1980,,Romance|Comedy|Drama,40,Rejected: RT title/year mismatch
+Mephisto,1981,,Drama,76,Rejected: RT title/year mismatch
+Dangerous Moves,1984,,Drama,,Rejected: RT title/year mismatch
+The Assault,1986,,Drama|Mystery & Thriller|Comedy,100,Rejected: RT title/year mismatch
+Pelle the Conqueror,1988,,Kids & Family|Drama,84,Rejected: RT title/year mismatch
+Cinema Paradiso,1989,,Drama,90,Rejected: RT title/year mismatch
+Indochine,1992,,Romance,74,Rejected: RT 74 below threshold 80
+Belle Époque,1993,,Comedy|Romance,95,Rejected: RT title/year mismatch
+Burnt by the Sun,1994,,History|Drama,81,Rejected: excluded genre
+Antonia's Line,1995,,Comedy|Drama,69,Rejected: RT 69 below threshold 80
+Character,1997,,Drama,92,Rejected: RT title/year mismatch
+Nowhere in Africa,2002,,Drama|History,85,Rejected: excluded genre
+The Barbarian Invasions,2003,,Comedy|Drama,81,Rejected: RT 81 below threshold 90
+The Sea Inside,2004,,Biography|Drama,85,Rejected: RT title/year mismatch
+Tsotsi,2005,,Crime|Drama,82,Rejected: RT title/year mismatch
+The Counterfeiters,2007,,Drama,83,Rejected: RT title/year mismatch
+Departures,2008,,Drama,100,Rejected: RT title/year mismatch
+The Secret in Their Eyes,2009,,Crime|Drama|Mystery & Thriller,89,Rejected: RT title/year mismatch
+In a Better World,2010,,Drama,77,Rejected: RT title/year mismatch
+Ida,2014,,Mystery & Thriller,39,Rejected: RT title/year mismatch
+Son of Saul,2015,,History|Drama,96,Rejected: excluded genre
+The Salesman,2016,,Documentary,100,Rejected: excluded genre
+A Man for All Seasons,1966,,History|Drama,,Rejected: excluded genre
+The Lion in Winter,1968,,History|Drama|War,,Rejected: excluded genre
+The Goodbye Girl,1977,,Romance|Comedy,77,Rejected: RT 77 below threshold 85
+The Mission,1986,,History|Drama,63,Rejected: excluded genre
+The Post,2017,,History|Drama,88,Rejected: excluded genre
+A Star Is Born,2018,,Romance|Drama|Music,90,Rejected: excluded genre
+The Trial of the Chicago 7,2020,,History|Drama,89,Rejected: excluded genre
+The Zone of Interest,2023,,History|Drama|War,93,Rejected: excluded genre
+The Brutalist,2024,,Drama,93,Rejected: RT title/year mismatch
+A Fantastic Woman,2017,,Drama|LGBTQ+,94,Rejected: RT title/year mismatch
+The Long Absence,1961,,Drama,,Rejected: RT title/year mismatch
+Viridiana,1961,,Drama,97,Rejected: RT title/year mismatch
+O Pagador de Promessas,1962,,Drama,,Rejected: RT title/year mismatch
+The Leopard,1963,,History|Drama,98,Rejected: excluded genre
+The Umbrellas of Cherbourg,1964,,Musical|Romance,97,Rejected: excluded genre
+The Knack ...and How to Get It,1965,,Comedy,72,Rejected: RT 72 below threshold 85
+Blowup,1967,,Crime|Drama,87,Rejected: RT title/year mismatch
+If....,1969,,Drama,90,Rejected: RT title/year mismatch
+The Go-Between,1971,,Drama,,Rejected: RT title/year mismatch
+The Mattei Affair,1972,,Crime|Drama|Biography,79,Rejected: RT title/year mismatch
+The Hireling,1973,,Drama,56,Rejected: RT title/year mismatch
+Scarecrow,1973,,Comedy|Crime|Drama|Mystery & Thriller,,Rejected: RT title/year mismatch
+Chronicle of the Years of Fire,1975,,History|Drama,83,Rejected: excluded genre
+Padre Padrone,1977,,Drama,70,Rejected: RT title/year mismatch
+The Tree of Wooden Clogs,1978,,Drama,95,Rejected: RT title/year mismatch
+All That Jazz,1980,,Drama|Musical,88,Rejected: excluded genre
+Kagemusha,1980,,History|Drama,89,Rejected: excluded genre
+Man of Iron,1981,,History|Drama,82,Rejected: excluded genre
+Yol,1982,,Drama,77,Rejected: RT title/year mismatch
+The Ballad of Narayama,1983,,Drama,86,Rejected: RT title/year mismatch
+Under the Sun of Satan,1987,,Drama,78,Rejected: RT title/year mismatch
+The Best Intentions,1992,,Drama|Biography|Romance,81,Rejected: RT title/year mismatch
+Underground,1995,,Action,45,Rejected: RT title/year mismatch
+Taste of Cherry,1997,,Drama,83,Rejected: RT title/year mismatch
+Eternity and a Day,1998,,Drama,95,Rejected: RT title/year mismatch
+Dancer in the Dark,2000,,Drama,69,Rejected: RT 69 below threshold 90
+Elephant,2003,,Drama|Crime,74,Rejected: RT 74 below threshold 90
+The Wind That Shakes the Barley,2006,,History|Drama,90,Rejected: excluded genre
+"4 Months, 3 Weeks and 2 Days",2007,,Drama,96,Rejected: RT title/year mismatch
+The Class,2008,,Drama,95,Rejected: RT title/year mismatch
+Uncle Boonmee Who Can Recall His Past Lives,2010,,Fantasy,90,Rejected: RT title/year mismatch
+Winter Sleep,2014,,Drama,87,Rejected: RT 87 below threshold 90
+Dheepan,2015,,Drama,88,Rejected: RT title/year mismatch
+"I, Daniel Blake",2016,,Drama,92,Rejected: RT title/year mismatch
+The Square,2017,,Comedy,85,Rejected: RT 85 below threshold 90
+It Was Just an Accident,2024,,Drama|Mystery & Thriller,98,Rejected: RT title/year mismatch
+The Image Book,2024,,Documentary,90,Rejected: excluded genre
+Torment,2024,,Horror,,Rejected: RT title/year mismatch
+The Conversation,2024,,Mystery & Thriller,94,Rejected: RT title/year mismatch
+Pelle the Conqueror,2024,,Kids & Family|Drama,84,Rejected: RT title/year mismatch
+When Father Was Away on Business,2024,,Drama,100,Rejected: RT title/year mismatch
+The Ballad of Narayama,2024,,Drama,86,Rejected: RT title/year mismatch
+Rosetta,2024,,Drama,90,Rejected: RT title/year mismatch
+The White Ribbon,2024,,Drama|War,85,Rejected: RT title/year mismatch
+The Wind That Shakes the Barley,2024,,History|Drama,90,Rejected: excluded genre
+The Square,2024,,Mystery & Thriller,86,Rejected: RT title/year mismatch
+The Angry Silence,1960,,Drama,80,Rejected: RT title/year mismatch
+The Adventure,1960,,"action, adventure, sci-fi, animation",,Rejected: RT title/year mismatch
+Let's Make Love,1960,,Musical|Comedy,60,Rejected: excluded genre
+Black Orpheus,1960,,Drama,88,Rejected: RT title/year mismatch
+Saturday Night and Sunday Morning,1960,,Drama,87,Rejected: RT title/year mismatch
+Shadows,1960,,Drama,,Rejected: RT title/year mismatch
+Tunes of Glory,1960,,Drama,70,Rejected: RT 70 below threshold 85
+Ballad of a Soldier,1961,,War|Drama,94,Rejected: RT title/year mismatch
+The Innocents,1961,,Drama,,Rejected: RT title/year mismatch
+The Hole,1961,,Drama,,Rejected: RT title/year mismatch
+Whistle Down the Wind,1961,,Drama,92,Rejected: RT title/year mismatch
+Last Year at Marienbad,1962,,Drama,93,Rejected: RT title/year mismatch
+The Naked Island,1962,,Drama,100,Rejected: RT title/year mismatch
+The L-Shaped Room,1962,,Drama,67,Rejected: RT title/year mismatch
+Lola,1962,,Drama,93,Rejected: RT title/year mismatch
+Only Two Can Play,1962,,Comedy|Drama,83,Rejected: RT 83 below threshold 85
+Phaedra,1962,,Drama,20,Rejected: RT 20 below threshold 85
+Through a Glass Darkly,1962,,Drama,100,Rejected: RT title/year mismatch
+Thou Shalt Not Kill,1962,,Crime|Drama,,Rejected: RT title/year mismatch
+The Long Absence,1962,,Drama,,Rejected: missing RT score
+West Side Story,1962,,Musical,92,Rejected: excluded genre
+Tom Jones,1962,,Comedy,83,Rejected: RT title/year mismatch
+Billy Liar,1962,,Comedy|Drama,91,Rejected: RT title/year mismatch
+This Sporting Life,1962,,Drama,96,Rejected: RT title/year mismatch
+Dr. Strangelove,1964,,Comedy,98,Rejected: RT title/year mismatch
+Stanley Kubrick,1964,,Documentary|Biography,86,Rejected: excluded genre
+The Train,1964,,Action|Mystery & Thriller|War,94,Rejected: RT title/year mismatch
+My Fair Lady,1965,,Musical,94,Rejected: excluded genre
+Hamlet,1965,,Drama,100,Rejected: RT title/year mismatch
+The Hill,1965,,Biography|Drama|Sports,44,Rejected: RT title/year mismatch
+Zorba the Greek,1965,,Drama,79,Rejected: RT title/year mismatch
+Doctor Zhivago,1966,,Romance|History|Drama|War,82,Rejected: excluded genre
+A Man For All Seasons,1967,,History|Drama,,Rejected: excluded genre
+A Man and a Woman,1967,,Romance|Drama,76,Rejected: RT title/year mismatch
+Oh! What a Lovely War,1969,,Musical|Comedy,75,Rejected: excluded genre
+Women in Love,1969,,Romance|LGBTQ+,83,Rejected: RT title/year mismatch
+Ryan's Daughter,1970,,Drama,47,Rejected: RT 47 below threshold 85
+Sunday Bloody Sunday,1971,,Drama|LGBTQ+|Romance,83,Rejected: RT 83 below threshold 85
+Death in Venice,1971,,Drama|LGBTQ+,70,Rejected: RT 70 below threshold 85
+The French Connection,1972,,Crime|Drama|Mystery & Thriller,97,Rejected: RT title/year mismatch
+France,1973,,Documentary,,Rejected: excluded genre
+The Discreet Charm of the Bourgeoisie,1973,,Comedy,98,Rejected: RT title/year mismatch
+France,1974,,Documentary,,Rejected: excluded genre
+Alice Doesn't Live Here Anymore,1975,,Drama,92,Rejected: RT title/year mismatch
+One Flew Over the Cuckoo's Nest,1976,,Drama,92,Rejected: RT title/year mismatch
+Bugsy Malone,1976,,Musical|Comedy,79,Rejected: excluded genre
+Network,1977,,Comedy|Drama,91,Rejected: RT title/year mismatch
+Rocky,1977,,Drama,,Rejected: RT title/year mismatch
+Midnight Express,1977,,Drama|Biography|Crime,90,Rejected: RT title/year mismatch
+Manhattan,1979,,Comedy|Drama,93,Rejected: RT title/year mismatch
+The Deer Hunter,1979,,War|Drama,86,Rejected: RT title/year mismatch
+Being There,1980,,Comedy|Drama,95,Rejected: RT title/year mismatch
+Kramer vs. Kramer,1980,,Drama,90,Rejected: RT title/year mismatch
+Chariots of Fire,1981,,Drama,84,Rejected: RT title/year mismatch
+Gregory's Girl,1981,,Romance|Comedy,95,Rejected: RT title/year mismatch
+Educating Rita,1983,,Comedy|Drama,81,Rejected: RT 81 below threshold 85
+Heat and Dust,1983,,Drama,79,Rejected: RT 79 below threshold 85
+Tootsie,1983,,Comedy|LGBTQ+,91,Rejected: RT title/year mismatch
+The Dresser,1984,,Drama,100,Rejected: RT title/year mismatch
+A Private Function,1984,,Comedy,91,Rejected: RT title/year mismatch
+Amadeus,1985,,Biography|History|Drama,90,Rejected: excluded genre
+A Passage to India,1985,,Drama,77,Rejected: RT 77 below threshold 85
+Jean de Florette,1987,,Drama,93,Rejected: RT title/year mismatch
+France,1987,,Documentary,,Rejected: excluded genre
+Cry Freedom,1987,,History|Drama|Biography,73,Rejected: excluded genre
+Au revoir les enfants,1988,,Drama,97,Rejected: RT title/year mismatch
+Babette's Feast,1988,,Comedy|Drama,97,Rejected: RT title/year mismatch
+Shirley Valentine,1989,,Romance|Comedy,72,Rejected: RT 72 below threshold 85
+Crimes and Misdemeanors,1990,,Comedy|Drama,92,Rejected: RT title/year mismatch
+Driving Miss Daisy,1990,,Comedy|Drama,85,Rejected: RT title/year mismatch
+Ireland,1991,,Documentary,,Rejected: excluded genre
+Dances with Wolves,1991,,History|Drama|Western,87,Rejected: excluded genre
+The Player,1992,,Documentary,,Rejected: excluded genre
+Mrs Brown,1997,,History|Drama,92,Rejected: excluded genre
+Billy Elliot,2000,,Drama|LGBTQ+,85,Rejected: RT 85 below threshold 90
+France,2002,,Documentary,,Rejected: excluded genre
+The Motorcycle Diaries,2004,,Biography|Drama,83,Rejected: RT 83 below threshold 90
+The Last King of Scotland,2006,,Biography|Drama,87,Rejected: RT title/year mismatch
+The Lives of Others,2007,,History|Drama|Mystery & Thriller,92,Rejected: excluded genre
+France,2011,,Documentary,,Rejected: excluded genre
+Carol,2015,,Romance|Drama|LGBTQ+,94,Rejected: RT title/year mismatch
+The Mauritanian,2020,,Drama|Mystery & Thriller,75,Rejected: RT title/year mismatch
+Australia,2021,,Adventure|Drama|Romance|War|Western,53,Rejected: RT title/year mismatch
+Tomorrow Is My Turn,1960,,Drama,,Rejected: RT title/year mismatch
+Last Year at Marienbad,1961,,Drama,93,Rejected: RT title/year mismatch
+Family Diary,1962,,Drama,59,Rejected: RT 59 below threshold 85
+Ivan's Childhood,1962,,Drama|War,100,Rejected: RT title/year mismatch
+Hands over the City,1963,,Drama,87,Rejected: RT title/year mismatch
+Red Desert,1964,,Drama,94,Rejected: RT title/year mismatch
+The Battle of Algiers,1966,,War|History|Drama,99,Rejected: excluded genre
+Artists Under the Big Top: Perplexed,1968,,Drama,,Rejected: RT title/year mismatch
+Atlantic City,1980,,Comedy|Drama,100,Rejected: RT title/year mismatch
+Gloria,1980,,Drama,,Rejected: RT title/year mismatch
+Marianne and Juliane,1981,,Drama,69,Rejected: RT 69 below threshold 85
+First Name: Carmen,1983,,Drama,88,Rejected: RT title/year mismatch
+A Year of the Quiet Sun,1984,,Romance,73,Rejected: RT title/year mismatch
+Vagabond,1985,,Drama,100,Rejected: RT title/year mismatch
+The Legend of the Holy Drinker,1988,,Drama,85,Rejected: RT title/year mismatch
+Rosencrantz & Guildenstern Are Dead,1990,,Comedy|Drama,60,Rejected: RT title/year mismatch
+Close to Eden,1991,,Comedy|Drama,100,Rejected: RT title/year mismatch
+The Story of Qiu Ju,1992,,Comedy,87,Rejected: RT title/year mismatch
+Before the Rain,1994,,Drama,92,Rejected: RT title/year mismatch
+Michael Collins,1996,,History|Drama|Biography|Mystery & Thriller|War,78,Rejected: excluded genre
+The Way We Laughed,1998,,Drama,86,Rejected: RT title/year mismatch
+The Circle,2000,,Horror|Mystery & Thriller,,Rejected: RT title/year mismatch
+Monsoon Wedding,2001,,Comedy|Drama,95,Rejected: RT title/year mismatch
+The Return,2003,,Drama|Mystery & Thriller,,Rejected: RT title/year mismatch
+Still Life,2006,,Mystery & Thriller,,Rejected: RT title/year mismatch
+"Lust, Caution",2007,,Mystery & Thriller|War|History|Drama,73,Rejected: excluded genre
+Lebanon,2009,,Comedy|Drama,50,Rejected: RT title/year mismatch
+Somewhere,2010,,Comedy|Drama,71,Rejected: RT 71 below threshold 90
+Faust,2011,,Adventure|Animation,,Rejected: excluded genre
+Pietà,2012,,Drama|Mystery & Thriller,73,Rejected: RT title/year mismatch
+Sacro GRA,2013,,Documentary,77,Rejected: excluded genre
+A Pigeon Sat on a Branch Reflecting on Existence,2014,,Comedy,90,Rejected: RT title/year mismatch
+From Afar,2015,,Drama|Romance|LGBTQ+,79,Rejected: RT title/year mismatch
+The Woman Who Left,2016,,Drama,80,Rejected: RT title/year mismatch
+Happening,2021,,Drama,99,Rejected: RT title/year mismatch
+All the Beauty and the Bloodshed,2022,,Documentary|Biography,95,Rejected: excluded genre
+The Room Next Door,2024,,Drama,80,Rejected: RT title/year mismatch
+El Lazarillo de Tormes,1960,,Drama,,Rejected: RT title/year mismatch
+La Notte,1961,,Drama,84,Rejected: RT 84 below threshold 85
+Alphaville,1965,,Sci-Fi|Drama|Mystery & Thriller,92,Rejected: RT title/year mismatch
+Cul-de-Sac,1966,,Drama|Mystery & Thriller,,Rejected: RT title/year mismatch
+Le Départ,1967,,Comedy|Drama|Romance,63,Rejected: RT title/year mismatch
+The Canterbury Tales,1972,,Comedy|Drama|History,60,Rejected: excluded genre
+Adoption,1975,,Drama,100,Rejected: RT title/year mismatch
+"Buffalo Bill and the Indians, or Sitting Bull's History Lesson",1976,,Comedy|Drama|Western,61,Rejected: RT title/year mismatch
+The Ascent,1977,,Drama,,Rejected: RT title/year mismatch
+Ascensor,1977,,Drama,,Rejected: RT title/year mismatch
+Las truchas,1977,,Drama,,Rejected: RT title/year mismatch
+David,1979,,Drama,,Rejected: RT title/year mismatch
+Palermo or Wolfsburg,1979,,,,Rejected: RT title/year mismatch
+"Deprisa, deprisa",1981,,Drama,62,Rejected: RT title/year mismatch
+Veronika Voss,1982,,Drama,76,Rejected: RT 76 below threshold 85
+Ascendancy,1982,,Drama,,Rejected: RT title/year mismatch
+Wetherby,1984,,Drama,67,Rejected: RT title/year mismatch
+The Theme,1987,,Drama,100,Rejected: RT title/year mismatch
+Red Sorghum,1988,,War|History|Drama|Romance,85,Rejected: excluded genre
+Rain Man,1989,,Drama,88,Rejected: RT title/year mismatch
+Larks on a String,1989,,Comedy|Drama,89,Rejected: RT title/year mismatch
+Music Box,1989,,Comedy,,Rejected: RT title/year mismatch
+The Wedding Banquet,1992,,Romance|Comedy|LGBTQ+,86,Rejected: RT title/year mismatch
+In the Name of the Father,1994,,Biography|Crime|Drama|History,94,Rejected: excluded genre
+The Bait,1995,,Action,,Rejected: RT title/year mismatch
+Sense and Sensibility,1996,,Drama|Romance,,Rejected: RT title/year mismatch
+Magnolia,2000,,Drama,82,Rejected: RT 82 below threshold 90
+Intimacy,2001,,Drama,,Rejected: RT title/year mismatch
+Bloody Sunday,2001,,History|Drama,92,Rejected: excluded genre
+In This World,2003,,Drama,89,Rejected: RT title/year mismatch
+Head-On,2004,,Drama|LGBTQ+,58,Rejected: RT title/year mismatch
+Grbavica,2006,,Drama,98,Rejected: RT title/year mismatch
+Elite Squad,2008,,Action|Mystery & Thriller|Crime|Drama,53,Rejected: RT 53 below threshold 90
+Honey,2010,,Drama,85,Rejected: RT title/year mismatch
+Caesar Must Die,2012,,Drama,92,Rejected: RT title/year mismatch
+Child's Pose,2013,,Drama,92,Rejected: RT title/year mismatch
+"Black Coal, Thin Ice",2014,,Crime|Drama|Mystery & Thriller,96,Rejected: RT title/year mismatch
+Fire at Sea,2016,,Documentary,95,Rejected: excluded genre
+On Body and Soul,2017,,Drama,90,Rejected: RT title/year mismatch
+Touch Me Not,2018,,Drama,59,Rejected: RT title/year mismatch
+Synonyms,2019,,Drama,87,Rejected: RT title/year mismatch
+There Is No Evil,2020,,Drama,98,Rejected: RT title/year mismatch
+Alcarràs,2022,,Drama,93,Rejected: RT title/year mismatch
+On the Adamant,2023,,Documentary,97,Rejected: excluded genre
+Dahomey,2024,,Documentary,97,Rejected: excluded genre
+Accident,1967,,Documentary,,Rejected: excluded genre
+Johnny Got His Gun,1971,,Drama,67,Rejected: RT title/year mismatch
+Solaris,1972,,Sci-Fi|Mystery & Thriller|Romance,66,Rejected: RT title/year mismatch
+The Mother and the Whore,1973,,Drama,94,Rejected: RT title/year mismatch
+Arabian Nights,1974,,Fantasy|Drama|Romance,83,Rejected: RT 83 below threshold 85
+Cría Cuervos,1976,,Drama,100,Rejected: RT title/year mismatch
+Bye Bye Monkey,1978,,Comedy,60,Rejected: RT title/year mismatch
+The Shout,1978,,Drama,86,Rejected: RT title/year mismatch
+Siberiade,1979,,Drama,92,Rejected: RT title/year mismatch
+Birdy,1985,,Drama,84,Rejected: RT title/year mismatch
+Too Beautiful for You,1989,,Romance|Comedy|Drama,60,Rejected: RT title/year mismatch
+The Sting of Death,1990,,Drama,,Rejected: RT title/year mismatch
+Tilaï,1990,,Drama,64,Rejected: RT 64 below threshold 80
+La Belle Noiseuse,1991,,Drama,100,Rejected: RT title/year mismatch
+"Faraway, So Close!",1993,,Fantasy,58,Rejected: RT 58 below threshold 80
+Humanité,1999,,Drama,,Rejected: RT title/year mismatch
+Devils on the Doorstep,2000,,Comedy|Drama,91,Rejected: RT title/year mismatch
+The Piano Teacher,2001,,Drama,75,Rejected: RT title/year mismatch
+Oldboy,2004,,Action|Mystery & Thriller,82,Rejected: RT title/year mismatch
+Broken Flowers,2005,,Comedy|Drama,87,Rejected: RT 87 below threshold 90
+Flanders,2006,,Drama|War,67,Rejected: RT title/year mismatch
+The Mourning Forest,2007,,Drama,71,Rejected: RT title/year mismatch
+Gomorrah,2008,,Crime|Drama,90,Rejected: RT title/year mismatch
+Of Gods and Men,2010,,Drama,93,Rejected: RT title/year mismatch
+The Kid with a Bike,2011,,Drama,96,Rejected: RT title/year mismatch
+Once Upon a Time in Anatolia,2011,,Drama,92,Rejected: RT title/year mismatch
+Reality,2012,,Comedy|Drama,81,Rejected: RT title/year mismatch
+The Wonders,2014,,Mystery & Thriller,60,Rejected: RT title/year mismatch
+It's Only the End of the World,2016,,Drama,44,Rejected: RT title/year mismatch
+Compartment No. 6,2021,,Drama,93,Rejected: RT title/year mismatch
+A Hero,2021,,Drama,97,Rejected: RT title/year mismatch
+Stars at Noon,2022,,Drama|Mystery & Thriller|Romance,63,Rejected: RT 63 below threshold 80
+Far from Heaven,2002,,Drama|LGBTQ+,87,Rejected: RT 87 below threshold 90
+Life Is Sweet,1991,,Comedy,94,Rejected: RT title/year mismatch
+Being John Malkovich,1998,,Comedy,94,Rejected: RT title/year mismatch
+Melancholia,2011,,Drama|Sci-Fi,80,Rejected: RT 80 below threshold 90
+2023,2022,,Sci-Fi,,Rejected: RT title/year mismatch
+2024,2022,,Drama|Sci-Fi,,Rejected: RT title/year mismatch
+Brazil,1985,,Comedy,,Rejected: RT title/year mismatch
+Do the Right Thing,1989,,Drama,92,Rejected: RT title/year mismatch
+About Schmidt,2002,,Comedy|Drama,86,Rejected: RT 86 below threshold 90
+2023,2022,,Sci-Fi,,Rejected: RT title/year mismatch
+2024,2022,,Drama|Sci-Fi,,Rejected: RT title/year mismatch
+2023,2022,,Sci-Fi,,Rejected: RT title/year mismatch
+2024,2022,,Drama|Sci-Fi,,Rejected: RT title/year mismatch
+Past Lives,2022,,Romance|Drama,95,Rejected: RT title/year mismatch
+Nickel Boys,2022,,Drama,92,Rejected: RT title/year mismatch
+One Battle After Another,2022,,Mystery & Thriller|Comedy|Drama,94,Rejected: RT title/year mismatch

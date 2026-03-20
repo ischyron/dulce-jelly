@@ -13,6 +13,7 @@
   ],
   "scripts": {
     "ms": "node packages/ms-cli/dist/index.js",
+    "movies:wanted": "node --env-file=.env packages/movies-wanted/src/cli.mjs",
     "setup": "npm install && turbo build",
     "build": "turbo build",
     "build:core": "turbo build --filter=ms-cli",

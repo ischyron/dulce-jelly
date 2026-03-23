@@ -229,22 +229,6 @@ async function rewriteState(rows) {
   await writeFile(statePath("candidates.jsonl"), output ? `${output}\n` : "", "utf8");
 }
 
-async function appendAccepted(row, details, reason, rtUrl) {
-  await appendFile(
-    dataPath("accepted_candidates.csv"),
-    [
-      csvEscape(row.title),
-      csvEscape(row.year),
-      csvEscape(details.language),
-      csvEscape(details.genres.join("|")),
-      csvEscape(details.rtScore),
-      csvEscape(rtUrl),
-      csvEscape(reason)
-    ].join(",") + "\n",
-    "utf8"
-  );
-}
-
 async function appendRejected(row, details, reason) {
   await appendFile(
     dataPath("rejected_candidates.csv"),
@@ -309,9 +293,7 @@ async function main() {
       liveRow.reason = decision.reason;
       liveRow.status = decision.accepted ? "accepted" : "rejected";
 
-      if (decision.accepted) {
-        await appendAccepted(liveRow, details, decision.reason, resolved.url);
-      } else {
+      if (!decision.accepted) {
         await appendRejected(liveRow, details, decision.reason);
       }
 

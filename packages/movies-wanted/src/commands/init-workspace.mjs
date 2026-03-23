@@ -24,7 +24,6 @@ async function main() {
 
   await ensureFile(dataPath("raw_candidates.csv"), "title,year,source_list,source_url,notes\n");
   await ensureFile(statePath("candidates.jsonl"), "");
-  await ensureFile(dataPath("accepted_candidates.csv"), "title,year,language,genres,rt_score,rt_url,reason,added_to_radarr\n");
   await ensureFile(dataPath("english-accepted-candidates.csv"), "title,year,language,genres,rt_score,rt_url,reason,source_list,classification_source,added_to_radarr\n");
   await ensureFile(dataPath("foreign-accepted-candidates.csv"), "title,year,language,genres,rt_score,rt_url,reason,source_list,classification_source,added_to_radarr,rt_review_count\n");
   await ensureFile(dataPath("rejected_candidates.csv"), "title,year,language,genres,rt_score,reason\n");

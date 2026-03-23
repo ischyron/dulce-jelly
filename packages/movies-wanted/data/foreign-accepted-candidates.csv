@@ -19,12 +19,6 @@ Farewell My Concubine,1993,Chinese,Drama|LGBTQ+,90,https://www.rottentomatoes.co
 Rosetta,1999,French,Drama,90,https://www.rottentomatoes.com/m/rosetta,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false,31
 Shoplifters,2018,Japanese,Crime|Drama|Adventure,99,https://www.rottentomatoes.com/m/shoplifters,Accepted: RT 99 meets threshold 90,palme_dor,radarr_lookup,false,230
 Titane,2021,French,Horror|Mystery & Thriller|Drama,90,https://www.rottentomatoes.com/m/titane,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false,260
-Hiroshima mon amour,1960,French,Drama,96,https://www.rottentomatoes.com/m/hiroshima_mon_amour,Accepted: RT 96 meets threshold 85,bafta_best_film,radarr_lookup,false,46
-Rocco and His Brothers,1961,Italian,Drama,91,https://www.rottentomatoes.com/m/rocco_and_his_brothers,Accepted: RT 91 meets threshold 85,bafta_best_film,radarr_lookup,false,33
-Jules and Jim,1962,French,Drama,94,https://www.rottentomatoes.com/m/jules_and_jim,Accepted: RT 94 meets threshold 85,bafta_best_film,radarr_lookup,false,51
-Divorce Italian Style,1962,Italian,Comedy,100,https://www.rottentomatoes.com/m/divorce_italian_style,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,false,18
-Knife in the Water,1962,Polish,Drama,97,https://www.rottentomatoes.com/m/knife_in_the_water,Accepted: RT 97 meets threshold 85,bafta_best_film,radarr_lookup,false,34
-"Lacombe, Lucien",1974,French,Drama,100,https://www.rottentomatoes.com/m/lacombe_lucien,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,false,10
 Belle de Jour,1967,French,Drama,95,https://www.rottentomatoes.com/m/belle_de_jour,Accepted: RT 95 meets threshold 85,golden_lion,radarr_lookup,false,60
 The Green Ray,1986,French,Comedy|Drama,94,https://www.rottentomatoes.com/m/the_green_ray_1986,Accepted: RT 94 meets threshold 85,golden_lion,radarr_lookup,false,31
 Au revoir les enfants,1987,French,Drama,97,https://www.rottentomatoes.com/m/au_revoir_les_enfants,Accepted: RT 97 meets threshold 85,golden_lion,radarr_lookup,false,36
@@ -40,3 +34,31 @@ Close,2022,French,Drama,91,https://www.rottentomatoes.com/m/close_2022,Accepted:
 Cries and Whispers,1972,Swedish,Drama,92,https://www.rottentomatoes.com/m/cries_and_whispers,Accepted: RT 92 meets threshold 85,nyfcc_best_film,radarr_lookup,false,36
 Persona,1967,Swedish,Drama,91,https://www.rottentomatoes.com/m/persona,Accepted: RT 91 meets threshold 85,nsfc_best_picture,radarr_lookup,false,58
 Yi Yi,2000,Chinese,Drama,97,https://www.rottentomatoes.com/m/yi_yi,Accepted: RT 97 meets threshold 90,nsfc_best_picture,radarr_lookup,false,92
+Open Doors,1990,Italian,Drama,86,https://www.rottentomatoes.com/m/open_doors,Accepted: RT 86 meets threshold 80,european_film_award_best_film_winner,radarr_lookup,false,4
+"Good Bye, Lenin!",2003,German,Comedy|Drama,91,https://www.rottentomatoes.com/m/good_bye_lenin,Accepted: RT 91 meets threshold 90,european_film_award_best_film_winner,radarr_lookup,false,108
+Toni Erdmann,2016,German,Comedy|Drama,93,https://www.rottentomatoes.com/m/toni_erdmann,Accepted: RT 93 meets threshold 90,european_film_award_best_film_winner,radarr_lookup,false,239
+"Quo Vadis, Aida?",2021,Serbian,Drama|War,100,https://www.rottentomatoes.com/m/quo_vadis_aida,Accepted: RT 100 meets threshold 80,european_film_award_best_film_winner,radarr_lookup,false,82
+Ridicule,1996,French,Drama,80,https://www.rottentomatoes.com/m/ridicule,Accepted: RT 80 meets threshold 80,bafta_best_film_not_english_winner,radarr_lookup,false,20
+Talk to Her,2002,Spanish,Drama|Romance,91,https://www.rottentomatoes.com/m/talk_to_her_2002,Accepted: RT 91 meets threshold 90,bafta_best_film_not_english_winner,radarr_lookup,false,135
+Hiroshima mon amour,1960,French,Drama,96,https://www.rottentomatoes.com/m/hiroshima_mon_amour,Accepted: RT 96 meets threshold 85,bafta_best_film,radarr_lookup,false,46
+Rocco and His Brothers,1961,Italian,Drama,91,https://www.rottentomatoes.com/m/rocco_and_his_brothers,Accepted: RT 91 meets threshold 85,bafta_best_film,radarr_lookup,false,33
+Jules and Jim,1962,French,Drama,94,https://www.rottentomatoes.com/m/jules_and_jim,Accepted: RT 94 meets threshold 85,bafta_best_film,radarr_lookup,false,51
+Divorce Italian Style,1962,Italian,Comedy,100,https://www.rottentomatoes.com/m/divorce_italian_style,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,false,18
+Knife in the Water,1962,Polish,Drama,97,https://www.rottentomatoes.com/m/knife_in_the_water,Accepted: RT 97 meets threshold 85,bafta_best_film,radarr_lookup,false,34
+Blades of the Guardians,2026,Chinese,Action|Drama|Mystery & Thriller,96,https://www.rottentomatoes.com/m/blades_of_the_guardians,Accepted: RT 96 meets threshold 80,rt_browse_movies_in_theaters_fresh,radarr_lookup,false,25
+"4 Months, 3 Weeks and 2 Days",2008,Romanian,Drama,96,https://www.rottentomatoes.com/m/4_months_3_weeks_and_2_days,Accepted: RT 96 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false,145
+Do Not Expect Too Much From the End of the World,2024,Romanian,Comedy|Drama,96,https://www.rottentomatoes.com/m/do_not_expect_too_much_from_the_end_of_the_world,Accepted: RT 96 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,82
+Inside the Yellow Cocoon Shell,2024,Vietnamese,Drama,94,https://www.rottentomatoes.com/m/inside_the_yellow_cocoon_shell,Accepted: RT 94 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,54
+All We Imagine as Light,2024,Malayalam,Drama,100,https://www.rottentomatoes.com/m/all_we_imagine_as_light,Accepted: RT 100 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,158
+No Bears,2022,Persian,Drama|Romance,99,https://www.rottentomatoes.com/m/no_bears,Accepted: RT 99 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,110
+Close-Up,1999,Persian,Drama|Biography,89,https://www.rottentomatoes.com/m/close_up_1999,Accepted: RT 89 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,19
+35 Shots of Rum,2009,French,Drama,97,https://www.rottentomatoes.com/m/35_shots_of_rum,Accepted: RT 97 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false,68
+Leviathan,2014,Russian,Drama,97,https://www.rottentomatoes.com/m/leviathan_2014,Accepted: RT 97 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false,146
+Burning,2018,Hindi,Mystery & Thriller|Drama,95,https://www.rottentomatoes.com/m/burning_2018,Accepted: RT 95 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false,197
+A Summer's Tale,2014,French,Romance|Comedy,98,https://www.rottentomatoes.com/m/a_summers_tale,Accepted: RT 98 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false,49
+Saint Omer,2023,French,Drama,95,https://www.rottentomatoes.com/m/saint_omer,Accepted: RT 95 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,138
+Three Colors: White,1994,French,Drama,91,https://www.rottentomatoes.com/m/three_colors_white,Accepted: RT 91 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,56
+I Am Cuba,1995,Spanish,Drama,100,https://www.rottentomatoes.com/m/i_am_cuba,Accepted: RT 100 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,40
+Hit the Road,2022,Persian,Comedy|Drama,95,https://www.rottentomatoes.com/m/hit_the_road_2022,Accepted: RT 95 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,99
+La Chimera,2024,Italian,Comedy|Drama,95,https://www.rottentomatoes.com/m/la_chimera,Accepted: RT 95 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,152
+The Worst Person in the World,2022,Norwegian,Romance|Comedy|Drama,96,https://www.rottentomatoes.com/m/the_worst_person_in_the_world,Accepted: RT 96 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false,251

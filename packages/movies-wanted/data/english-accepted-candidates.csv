@@ -27,12 +27,26 @@ Shine,1996,English,Biography|Drama,91,https://www.rottentomatoes.com/m/shine,Acc
 Milk,2008,English,Biography|Drama|LGBTQ+,93,https://www.rottentomatoes.com/m/milk,Accepted: RT 93 meets threshold 90,oscars_best_picture,radarr_lookup,true
 Dune: Part Two,2024,English,Sci-Fi|Adventure|Action|Fantasy|Drama,92,https://www.rottentomatoes.com/m/dune_part_two,Accepted: RT 92 meets threshold 80,oscars_best_picture,radarr_lookup,true
 When Father Was Away on Business,1985,English,Drama,100,https://www.rottentomatoes.com/m/when_father_was_away_on_business,Accepted: RT 100 meets threshold 85,palme_dor,radarr_lookup,true
+Heartland,1979,English,Western,100,https://www.rottentomatoes.com/m/heartland,Accepted: RT 100 meets threshold 85,golden_bear,radarr_lookup,true
+Love Streams,1984,English,Drama,100,https://www.rottentomatoes.com/m/love_streams,Accepted: RT 100 meets threshold 85,golden_bear,radarr_lookup,true
+Monty Python's The Meaning of Life,1983,English,Comedy,86,https://www.rottentomatoes.com/m/monty_pythons_the_meaning_of_life,Accepted: RT 86 meets threshold 85,cannes_grand_prix,radarr_lookup,true
+Blow-Up,1966,English,Crime|Drama,87,https://www.rottentomatoes.com/m/blow_up_1966,Accepted: RT 87 meets threshold 85,nsfc_best_picture,radarr_lookup,true
+Melvin and Howard,1980,English,Comedy|Drama,91,https://www.rottentomatoes.com/m/melvin_and_howard,Accepted: RT 91 meets threshold 85,nsfc_best_picture,radarr_lookup,true
+Stranger Than Paradise,1984,English,Comedy|Drama,100,https://www.rottentomatoes.com/m/stranger_than_paradise,Accepted: RT 100 meets threshold 85,nsfc_best_picture,radarr_lookup,true
+The Dead,1987,English,Drama,94,https://www.rottentomatoes.com/m/the_dead,Accepted: RT 94 meets threshold 85,nsfc_best_picture,radarr_lookup,true
+The Unbearable Lightness of Being,1988,English,Drama,86,https://www.rottentomatoes.com/m/the_unbearable_lightness_of_being,Accepted: RT 86 meets threshold 85,nsfc_best_picture,radarr_lookup,true
+Drugstore Cowboy,1989,English,Comedy|Crime|Drama,97,https://www.rottentomatoes.com/m/drugstore_cowboy,Accepted: RT 97 meets threshold 85,nsfc_best_picture,radarr_lookup,true
+Vera Drake,2004,English,Drama,93,https://www.rottentomatoes.com/m/vera_drake,Accepted: RT 93 meets threshold 90,golden_lion,radarr_lookup,true
+Taking Off,1971,English,Comedy|Drama,100,https://www.rottentomatoes.com/m/taking_off,Accepted: RT 100 meets threshold 85,cannes_grand_prix,radarr_lookup,true
+After Hours,1985,English,Comedy,90,https://www.rottentomatoes.com/m/after_hours_1985,Accepted: RT 90 meets threshold 85,independent_spirit_best_film_winner,radarr_lookup,true
+Stand and Deliver,1988,English,Drama|Biography,89,https://www.rottentomatoes.com/m/stand_and_deliver_1988,Accepted: RT 89 meets threshold 85,independent_spirit_best_film_winner,radarr_lookup,true
+Rambling Rose,1991,English,Comedy|Drama,100,https://www.rottentomatoes.com/m/rambling_rose,Accepted: RT 100 meets threshold 80,independent_spirit_best_film_winner,radarr_lookup,true
+This Is England,2007,English,Drama,93,https://www.rottentomatoes.com/m/this_is_england,Accepted: RT 93 meets threshold 90,bafta_outstanding_british_film_winner,radarr_lookup,true
 Inherit the Wind,1960,English,Drama,93,https://www.rottentomatoes.com/m/inherit_the_wind,Accepted: RT 93 meets threshold 85,bafta_best_film,radarr_lookup,true
 The Trials of Oscar Wilde,1960,English,Drama,100,https://www.rottentomatoes.com/m/the_trials_of_oscar_wilde,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,true
 David and Lisa,1962,English,Drama,85,https://www.rottentomatoes.com/m/david_and_lisa,Accepted: RT 85 meets threshold 85,bafta_best_film,radarr_lookup,true
 Days of Wine and Roses,1962,English,Drama,100,https://www.rottentomatoes.com/m/days_of_wine_and_roses_1962,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,true
 The Spy Who Came in From The Cold,1966,English,Mystery & Thriller|Drama,86,https://www.rottentomatoes.com/m/the_spy_who_came_in_from_the_cold,Accepted: RT 86 meets threshold 85,bafta_best_film,radarr_lookup,true
-Taking Off,1971,English,Comedy|Drama,100,https://www.rottentomatoes.com/m/taking_off,Accepted: RT 100 meets threshold 85,bafta_best_film,radarr_lookup,true
 The Day of the Jackal,1973,English,Mystery & Thriller|Crime|Drama,91,https://www.rottentomatoes.com/m/the_day_of_the_jackal_1973,Accepted: RT 91 meets threshold 85,bafta_best_film,radarr_lookup,true
 Don't Look Now,1973,English,Mystery & Thriller,93,https://www.rottentomatoes.com/m/dont_look_now,Accepted: RT 93 meets threshold 85,bafta_best_film,radarr_lookup,true
 Murder on the Orient Express,1974,English,Mystery & Thriller,89,https://www.rottentomatoes.com/m/murder_on_the_orient_express,Accepted: RT 89 meets threshold 85,bafta_best_film,radarr_lookup,true
@@ -41,15 +55,18 @@ Local Hero,1983,English,Comedy,100,https://www.rottentomatoes.com/m/local_hero,A
 Mona Lisa,1986,English,Mystery & Thriller|Comedy,98,https://www.rottentomatoes.com/m/mona_lisa,Accepted: RT 98 meets threshold 85,bafta_best_film,radarr_lookup,true
 Radio Days,1987,English,Comedy,92,https://www.rottentomatoes.com/m/radio_days,Accepted: RT 92 meets threshold 85,bafta_best_film,radarr_lookup,true
 Thelma & Louise,1991,English,Comedy|Drama|Adventure,87,https://www.rottentomatoes.com/m/thelma_and_louise,Accepted: RT 87 meets threshold 80,bafta_best_film,radarr_lookup,true
-Vera Drake,2004,English,Drama,93,https://www.rottentomatoes.com/m/vera_drake,Accepted: RT 93 meets threshold 90,bafta_best_film,radarr_lookup,true
-Heartland,1979,English,Western,100,https://www.rottentomatoes.com/m/heartland,Accepted: RT 100 meets threshold 85,golden_bear,radarr_lookup,true
-Love Streams,1984,English,Drama,100,https://www.rottentomatoes.com/m/love_streams,Accepted: RT 100 meets threshold 85,golden_bear,radarr_lookup,true
-Monty Python's The Meaning of Life,1983,English,Comedy,86,https://www.rottentomatoes.com/m/monty_pythons_the_meaning_of_life,Accepted: RT 86 meets threshold 85,cannes_grand_prix,radarr_lookup,true
-First Cow,2020,English,Western|Drama,96,https://www.rottentomatoes.com/m/first_cow,Accepted: RT 96 meets threshold 80,nyfcc_best_film,radarr_lookup,true
-Blow-Up,1966,English,Crime|Drama,87,https://www.rottentomatoes.com/m/blow_up_1966,Accepted: RT 87 meets threshold 85,nsfc_best_picture,radarr_lookup,false
-Melvin and Howard,1980,English,Comedy|Drama,91,https://www.rottentomatoes.com/m/melvin_and_howard,Accepted: RT 91 meets threshold 85,nsfc_best_picture,radarr_lookup,false
-Stranger Than Paradise,1984,English,Comedy|Drama,100,https://www.rottentomatoes.com/m/stranger_than_paradise,Accepted: RT 100 meets threshold 85,nsfc_best_picture,radarr_lookup,false
-The Dead,1987,English,Drama,94,https://www.rottentomatoes.com/m/the_dead,Accepted: RT 94 meets threshold 85,nsfc_best_picture,radarr_lookup,false
-The Unbearable Lightness of Being,1988,English,Drama,86,https://www.rottentomatoes.com/m/the_unbearable_lightness_of_being,Accepted: RT 86 meets threshold 85,nsfc_best_picture,radarr_lookup,false
-Drugstore Cowboy,1989,English,Comedy|Crime|Drama,97,https://www.rottentomatoes.com/m/drugstore_cowboy,Accepted: RT 97 meets threshold 85,nsfc_best_picture,radarr_lookup,false
-The Rider,2018,English,Drama|Western,97,https://www.rottentomatoes.com/m/the_rider_2018,Accepted: RT 97 meets threshold 90,nsfc_best_picture,radarr_lookup,true
+Send Help,2026,English,Horror|Comedy|Mystery & Thriller,93,https://www.rottentomatoes.com/m/send_help,Accepted: RT 93 meets threshold 80,rt_browse_movies_at_home_fresh,radarr_lookup,false
+If I Had Legs I'd Kick You,2025,English,Mystery & Thriller|Comedy|Drama,92,https://www.rottentomatoes.com/m/if_i_had_legs_id_kick_you,Accepted: RT 92 meets threshold 80,rt_browse_movies_at_home_fresh,radarr_lookup,false
+Crime 101,2026,English,Crime|Drama|Mystery & Thriller,88,https://www.rottentomatoes.com/m/crime_101_2026,Accepted: RT 88 meets threshold 80,rt_browse_movies_in_theaters_fresh,radarr_lookup,false
+Kill Bill: The Whole Bloody Affair,2025,English,Action|Mystery & Thriller,100,https://www.rottentomatoes.com/m/kill_bill_the_whole_bloody_affair,Accepted: RT 100 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
+45 Years,2015,English,Drama,96,https://www.rottentomatoes.com/m/45_years,Accepted: RT 96 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
+Days of Heaven,1978,English,Drama,93,https://www.rottentomatoes.com/m/days_of_heaven,Accepted: RT 93 meets threshold 85,metacritic_browse_1978_plus,radarr_lookup,false
+Carlos,2010,English,Drama|Biography,93,https://www.rottentomatoes.com/m/carlos_2010,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
+Reversal of Fortune,1990,English,Drama,92,https://www.rottentomatoes.com/m/reversal_of_fortune_1990,Accepted: RT 92 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
+Uncut Gems,2019,English,Mystery & Thriller|Comedy,91,https://www.rottentomatoes.com/m/uncut_gems,Accepted: RT 91 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
+Sankofa,1993,English,Drama,93,https://www.rottentomatoes.com/m/sankofa,Accepted: RT 93 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
+BLKNWS: Terms & Conditions,2025,English,Sci-Fi|Drama,100,https://www.rottentomatoes.com/m/blknws_terms_and_conditions,Accepted: RT 100 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
+The Souvenir,2019,English,Romance|Drama,90,https://www.rottentomatoes.com/m/the_souvenir,Accepted: RT 90 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
+Moolaadé,2004,English,Drama,99,https://www.rottentomatoes.com/m/moolaade,Accepted: RT 99 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
+Atanarjuat: The Fast Runner,2002,English,Adventure|Drama,93,https://www.rottentomatoes.com/m/atanarjuat_the_fast_runner_2002,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
+Ghost World,2001,English,Comedy|Drama,93,https://www.rottentomatoes.com/m/ghost_world,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false

@@ -16,7 +16,6 @@ The target is still a storage estimate within roughly `+/- 1 TB`, but the worksp
   - `blacklist.csv`
   - `raw_candidates.csv`
   - `seed_sources.csv`
-  - `accepted_candidates.csv`
   - `english-accepted-candidates.csv`
   - `foreign-accepted-candidates.csv`
   - `owned_titles.csv`
@@ -114,9 +113,47 @@ The same acceptance rules are enforced as the movie recommendation skill:
 
 `english-accepted-candidates.csv` and `foreign-accepted-candidates.csv` are split using Radarr lookup `originalLanguage` when available.
 
-All accepted CSVs also carry `added_to_radarr` so review can distinguish "worth adding" from "already queued in Radarr".
+Both accepted CSVs carry `added_to_radarr` so review can distinguish "worth adding" from "already queued in Radarr".
 
 `foreign-accepted-candidates.csv` also carries `rt_review_count` so low-review festival titles can be manually screened.
+
+## Seed strategy
+
+Current Wikipedia award-list importers are acceptable as recall backfill, but they are not the right long-term primary seed source.
+
+Preferred seed order:
+
+1. Rotten Tomatoes browse/list pages
+2. Curated awards/canon lists as secondary recall
+3. Manual blacklist and review-count filtering
+
+Why Rotten Tomatoes should be primary:
+
+- it already matches the skill's critic gate
+- browse pages expose title, year, RT URL, Tomatometer, and review count in page data
+- review count is useful for suppressing low-signal festival-only titles
+- it reduces title-matching drift because seed and gate come from the same source
+- the package now imports RT browse seeds directly for the English-heavy path
+
+Why Wikipedia should stay secondary:
+
+- table markup is inconsistent across pages
+- rows often mix film, director, producer, studio, and country cells
+- parser bugs waste queue capacity on non-movie entities
+
+Metacritic is viable as an exploratory secondary source through FlareSolverr, but it is not the best first source for this package:
+
+- access works through FlareSolverr in this environment
+- rendered browse pages expose reliable movie cards, so discovery is technically possible
+- data shape is more app-implementation-specific than Rotten Tomatoes JSON-LD
+- it is a weaker fit than RT because the acceptance criteria still resolve on Rotten Tomatoes
+
+Practical product direction:
+
+- keep RT as both the discovery and gating source for the English-heavy path
+- use review-count floors to avoid over-collecting niche festival titles
+- keep award/wiki sources for recall and for foreign-language prestige gaps
+- add source-level tests for any new importer before letting it feed the queue
 
 ## Resume rules
 

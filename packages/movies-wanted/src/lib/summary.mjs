@@ -2,16 +2,6 @@ import { readFile } from "node:fs/promises";
 import { parseCsv, readJson, readJsonLines, writeJson } from "./common.mjs";
 import { dataPath, reportsPath, statePath } from "./paths.mjs";
 
-async function countCsvRows(filePath) {
-  try {
-    const raw = await readFile(filePath, "utf8");
-    const rows = raw.trim().split("\n");
-    return Math.max(rows.length - 1, 0);
-  } catch {
-    return 0;
-  }
-}
-
 export async function writeWorkspaceSummary(extra = {}) {
   const summary = (await readJson(reportsPath("summary.json"), {})) ?? {};
   const rawCandidates = parseCsv(await readFile(dataPath("raw_candidates.csv"), "utf8").catch(() => ""));
@@ -41,8 +31,4 @@ export async function writeWorkspaceSummary(extra = {}) {
     },
     ...extra
   });
-}
-
-export async function readAcceptedCountFromCsv() {
-  return countCsvRows(dataPath("accepted_candidates.csv"));
 }

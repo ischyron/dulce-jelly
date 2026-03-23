@@ -14,6 +14,7 @@
     "mw": "node src/cli.mjs",
     "init": "node src/cli.mjs init",
     "refresh": "node src/cli.mjs refresh",
-    "update": "node src/cli.mjs update"
+    "update": "node src/cli.mjs update",
+    "test": "node --test test/*.test.mjs"
   }
 }

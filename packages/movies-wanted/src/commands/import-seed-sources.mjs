@@ -1,30 +1,17 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { execFile as execFileCallback } from "node:child_process";
+import { promisify } from "node:util";
 import { buildKey, csvEscape, parseCsv } from "../lib/common.mjs";
 import { dataPath } from "../lib/paths.mjs";
+import { parseMetacriticBrowseCards, parseRottenTomatoesBrowseJsonLd } from "../lib/seed-parsers.mjs";
+import {
+  extractFilmTitleFromTableCell,
+  extractTitleFromWikilink,
+  extractWinnerTitleFromHighlightedCell,
+  stripWikiMarkup
+} from "../lib/wiki.mjs";
 
-function stripWikiMarkup(text) {
-  return String(text ?? "")
-    .replace(/<ref[^>]*>.*?<\/ref>/g, "")
-    .replace(/<ref[^/>]*\/>/g, "")
-    .replace(/<[^>]+>/g, "")
-    .replace(/'''''/g, "")
-    .replace(/'''/g, "")
-    .replace(/''/g, "")
-    .replace(/\{\{.*?\}\}/g, "")
-    .replace(/\[\[([^|\]]+)\|([^|\]]+)\]\]/g, "$2")
-    .replace(/\[\[([^|\]]+)\]\]/g, "$1")
-    .replace(/&nbsp;/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function extractTitleFromWikilink(fragment) {
-  const match = fragment.match(/\[\[([^|\]]+)\|([^|\]]+)\]\]|\[\[([^|\]]+)\]\]/);
-  if (!match) {
-    return null;
-  }
-  return stripWikiMarkup(match[2] ?? match[3] ?? match[1]);
-}
+const execFile = promisify(execFileCallback);
 
 function extractItalicizedTitleCell(line) {
   const candidate = String(line)
@@ -32,6 +19,121 @@ function extractItalicizedTitleCell(line) {
     .map((part) => part.trim())
     .find((part) => part.includes("''") && part.includes("[["));
   return extractTitleFromWikilink(candidate ?? line);
+}
+
+async function fetchText(url) {
+  const response = await fetch(url, {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+  });
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`);
+  }
+  return response.text();
+}
+
+async function fetchViaFlareSolverr(url) {
+  const payload = JSON.stringify({
+    cmd: "request.get",
+    url,
+    maxTimeout: 60000
+  });
+
+  const { stdout } = await execFile("docker", [
+    "exec",
+    "prowlarr",
+    "sh",
+    "-lc",
+    `curl -sS -H "Content-Type: application/json" -d '${payload}' http://flaresolverr:8191/v1`
+  ]);
+  const parsed = JSON.parse(stdout);
+  if (parsed.status !== "ok" || !parsed.solution?.response) {
+    throw new Error(`FlareSolverr failed for ${url}`);
+  }
+  return parsed.solution.response;
+}
+
+async function fetchSeedHtml(url, { preferFlareSolverr = false } = {}) {
+  if (!preferFlareSolverr) {
+    try {
+      return await fetchText(url);
+    } catch {}
+  }
+
+  try {
+    return await fetchViaFlareSolverr(url);
+  } catch (error) {
+    if (preferFlareSolverr) {
+      throw error;
+    }
+  }
+
+  return fetchText(url);
+}
+
+async function importRottenTomatoesBrowseSeeds() {
+  const sources = [
+    {
+      source_list: "rt_browse_movies_at_home_fresh",
+      source_url: "https://www.rottentomatoes.com/browse/movies_at_home/critics:fresh~sort:tomatometer_highest",
+      notes: "Rotten Tomatoes browse: movies at home sorted by Tomatometer",
+      minimumReviewCount: 20
+    },
+    {
+      source_list: "rt_browse_movies_in_theaters_fresh",
+      source_url: "https://www.rottentomatoes.com/browse/movies_in_theaters/critics:fresh~sort:tomatometer_highest",
+      notes: "Rotten Tomatoes browse: movies in theaters sorted by Tomatometer",
+      minimumReviewCount: 20
+    }
+  ];
+
+  const rows = [];
+  for (const source of sources) {
+    const html = await fetchSeedHtml(source.source_url);
+    const items = parseRottenTomatoesBrowseJsonLd(html, source.minimumReviewCount);
+    for (const item of items) {
+      if (item.year < 1960) {
+        continue;
+      }
+      rows.push({
+        title: item.title,
+        year: item.year,
+        source_list: source.source_list,
+        source_url: source.source_url,
+        notes: `${source.notes}; RT ${item.rtScore}; reviews ${item.reviewCount}; ${item.rtUrl}`
+      });
+    }
+  }
+
+  return rows;
+}
+
+async function importMetacriticBrowseSeeds() {
+  const currentYear = new Date().getUTCFullYear();
+  const pages = Array.from({ length: 8 }, (_, index) => index + 1);
+  const rows = [];
+
+  for (const page of pages) {
+    const sourceUrl = `https://www.metacritic.com/browse/movie/?releaseYearMin=1978&releaseYearMax=${currentYear}&page=${page}`;
+    const html = await fetchSeedHtml(sourceUrl, { preferFlareSolverr: true });
+    const items = parseMetacriticBrowseCards(html);
+    for (const item of items) {
+      if (item.year < 1978 || item.year > currentYear) {
+        continue;
+      }
+      rows.push({
+        title: item.title,
+        year: item.year,
+        source_list: "metacritic_browse_1978_plus",
+        source_url: sourceUrl,
+        notes: `Metacritic browse page ${page}; ${item.sourceUrl}`
+      });
+    }
+  }
+
+  return rows;
 }
 
 async function importSightAndSound2022() {
@@ -309,7 +411,7 @@ async function importNewYorkFilmCriticsCircleBestFilm() {
       continue;
     }
 
-    const title = extractTitleFromWikilink(line);
+    const title = extractWinnerTitleFromHighlightedCell(line);
     if (!title) {
       continue;
     }
@@ -380,7 +482,7 @@ async function importLosAngelesFilmCriticsBestFilm() {
       continue;
     }
 
-    const title = extractTitleFromWikilink(line);
+    const title = extractWinnerTitleFromHighlightedCell(line);
     if (!title) {
       continue;
     }
@@ -464,15 +566,13 @@ async function importBaftaBestFilm() {
       continue;
     }
 
-    if (!/^\|\s*(?:style="background:#FAEB86"\|\s*)?'{2,5}\[\[/.test(line) && !/^\|\s*(?:style="background:#FAEB86"\|\s*)?'{2,5}\{\{sort\|[^|]+\|''\[\[/.test(line)) {
+    if (
+      !/^\|\s*(?:style="background:#FAEB86"\|\s*)?(?:\{\{sort\|[^|]+\|)?''(?:''|)\[\[/.test(line)
+    ) {
       continue;
     }
 
-    if (!line.includes("''[[")) {
-      continue;
-    }
-
-    const title = extractTitleFromWikilink(line);
+    const title = extractFilmTitleFromTableCell(line);
     if (!title) {
       continue;
     }
@@ -489,8 +589,179 @@ async function importBaftaBestFilm() {
   return rows;
 }
 
+async function importBaftaBestFilmNotInEnglishLanguageWinners() {
+  const url =
+    "https://en.wikipedia.org/wiki/BAFTA_Award_for_Best_Film_Not_in_the_English_Language?action=raw";
+  const text = await (await fetch(url)).text();
+  const rows = [];
+  let currentYear = null;
+
+  for (const line of text.split("\n")) {
+    const yearMatch = line.match(/\{\{center\|'''(\d{4})'''/);
+    if (yearMatch) {
+      currentYear = Number(yearMatch[1]);
+      continue;
+    }
+
+    if (
+      !currentYear ||
+      currentYear < 1960 ||
+      !/background:#FAEB86/.test(line) ||
+      !/''{2,5}\[\[/.test(line)
+    ) {
+      continue;
+    }
+
+    const title = extractWinnerTitleFromHighlightedCell(line);
+    if (!title) {
+      continue;
+    }
+
+    rows.push({
+      title,
+      year: currentYear,
+      source_list: "bafta_best_film_not_english_winner",
+      source_url: url,
+      notes: "BAFTA Award for Best Film Not in the English Language winner"
+    });
+  }
+
+  return rows;
+}
+
+async function importEuropeanFilmAwardBestFilmWinners() {
+  const url = "https://en.wikipedia.org/wiki/European_Film_Award_for_Best_Film?action=raw";
+  const text = await (await fetch(url)).text();
+  const rows = [];
+  let currentYear = null;
+  let capturedYear = null;
+
+  for (const line of text.split("\n")) {
+    const yearMatch = line.match(/rowspan="\d+" align="center"\|\s*'?''?(\d{4})/);
+    if (yearMatch) {
+      currentYear = Number(yearMatch[1]);
+      capturedYear = null;
+      continue;
+    }
+
+    if (!currentYear || currentYear < 1960 || capturedYear === currentYear || !line.startsWith("|")) {
+      continue;
+    }
+
+    const title = extractWinnerTitleFromHighlightedCell(line);
+    if (!title) {
+      continue;
+    }
+
+    rows.push({
+      title,
+      year: currentYear,
+      source_list: "european_film_award_best_film_winner",
+      source_url: url,
+      notes: "European Film Award for Best Film winner"
+    });
+    capturedYear = currentYear;
+  }
+
+  return rows;
+}
+
+async function importIndependentSpiritBestFilmWinners() {
+  const url = "https://en.wikipedia.org/wiki/Independent_Spirit_Award_for_Best_Film?action=raw";
+  const text = await (await fetch(url)).text();
+  const rows = [];
+  let currentYear = null;
+
+  for (const line of text.split("\n")) {
+    const yearMatch = line.match(/!\s*rowspan="\d+"\s*style="text-align:center;"\s*\|\s*\[\[[^|\]]+\|(\d{4})\]\]/);
+    if (yearMatch) {
+      currentYear = Number(yearMatch[1]);
+      continue;
+    }
+
+    if (
+      !currentYear ||
+      currentYear < 1978 ||
+      !/background:#B0C4DE/.test(line) ||
+      !/''{2,5}\[\[/.test(line)
+    ) {
+      continue;
+    }
+
+    const title = extractWinnerTitleFromHighlightedCell(line);
+    if (!title) {
+      continue;
+    }
+
+    rows.push({
+      title,
+      year: currentYear,
+      source_list: "independent_spirit_best_film_winner",
+      source_url: url,
+      notes: "Independent Spirit Award for Best Film winner"
+    });
+  }
+
+  return rows;
+}
+
+async function importBaftaOutstandingBritishFilmWinners() {
+  const url = "https://en.wikipedia.org/wiki/BAFTA_Award_for_Outstanding_British_Film?action=raw";
+  const text = await (await fetch(url)).text();
+  const rows = [];
+  let currentYear = null;
+
+  for (const line of text.split("\n")) {
+    const yearMatch = line.match(/\{\{center\|'''(\d{4})'''/);
+    if (yearMatch) {
+      currentYear = Number(yearMatch[1]);
+      continue;
+    }
+
+    if (
+      !currentYear ||
+      currentYear < 1978 ||
+      !/background:#FAEB86/.test(line) ||
+      !/''{2,5}\[\[/.test(line)
+    ) {
+      continue;
+    }
+
+    const title = extractWinnerTitleFromHighlightedCell(line);
+    if (!title) {
+      continue;
+    }
+
+    rows.push({
+      title,
+      year: currentYear,
+      source_list: "bafta_outstanding_british_film_winner",
+      source_url: url,
+      notes: "BAFTA Award for Outstanding British Film winner"
+    });
+  }
+
+  return rows;
+}
+
 async function updateSeedSources() {
   const seedSources = [
+    {
+      source_name: "rt_browse_movies_at_home_fresh",
+      source_url: "https://www.rottentomatoes.com/browse/movies_at_home/critics:fresh~sort:tomatometer_highest",
+      notes: "Rotten Tomatoes browse: movies at home sorted by Tomatometer"
+    },
+    {
+      source_name: "rt_browse_movies_in_theaters_fresh",
+      source_url:
+        "https://www.rottentomatoes.com/browse/movies_in_theaters/critics:fresh~sort:tomatometer_highest",
+      notes: "Rotten Tomatoes browse: movies in theaters sorted by Tomatometer"
+    },
+    {
+      source_name: "metacritic_browse_1978_plus",
+      source_url: "https://www.metacritic.com/browse/movie/?releaseYearMin=1978",
+      notes: "Metacritic browse pages 1-8 for 1978+ movies"
+    },
     {
       source_name: "sight_sound_2022",
       source_url:
@@ -552,6 +823,27 @@ async function updateSeedSources() {
       notes: "National Board of Review Award for Best Film winner"
     },
     {
+      source_name: "bafta_best_film_not_english_winner",
+      source_url:
+        "https://en.wikipedia.org/wiki/BAFTA_Award_for_Best_Film_Not_in_the_English_Language?action=raw",
+      notes: "BAFTA Award for Best Film Not in the English Language winner"
+    },
+    {
+      source_name: "european_film_award_best_film_winner",
+      source_url: "https://en.wikipedia.org/wiki/European_Film_Award_for_Best_Film?action=raw",
+      notes: "European Film Award for Best Film winner"
+    },
+    {
+      source_name: "independent_spirit_best_film_winner",
+      source_url: "https://en.wikipedia.org/wiki/Independent_Spirit_Award_for_Best_Film?action=raw",
+      notes: "Independent Spirit Award for Best Film winner"
+    },
+    {
+      source_name: "bafta_outstanding_british_film_winner",
+      source_url: "https://en.wikipedia.org/wiki/BAFTA_Award_for_Outstanding_British_Film?action=raw",
+      notes: "BAFTA Award for Outstanding British Film winner"
+    },
+    {
       source_name: "bafta_best_film",
       source_url: "https://en.wikipedia.org/wiki/BAFTA_Award_for_Best_Film?action=raw",
       notes: "BAFTA Best Film winner/nominee"
@@ -571,6 +863,8 @@ async function main() {
   const existingRaw = parseCsv(await readFile(dataPath("raw_candidates.csv"), "utf8"));
   const existingKeys = new Set(existingRaw.map((row) => buildKey(row.title, row.year)));
   const imported = [
+    ...(await importRottenTomatoesBrowseSeeds()),
+    ...(await importMetacriticBrowseSeeds()),
     ...(await importSightAndSound2022()),
     ...(await importBestPictureNominees()),
     ...(await importBestInternationalWinners()),
@@ -582,6 +876,10 @@ async function main() {
     ...(await importNationalSocietyOfFilmCriticsBestPicture()),
     ...(await importLosAngelesFilmCriticsBestFilm()),
     ...(await importNationalBoardOfReviewBestFilm()),
+    ...(await importBaftaBestFilmNotInEnglishLanguageWinners()),
+    ...(await importEuropeanFilmAwardBestFilmWinners()),
+    ...(await importIndependentSpiritBestFilmWinners()),
+    ...(await importBaftaOutstandingBritishFilmWinners()),
     ...(await importBaftaBestFilm())
   ];
 

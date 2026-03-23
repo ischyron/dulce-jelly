@@ -3,35 +3,6 @@ import { buildKey, parseCsv, readJsonLines } from "../lib/common.mjs";
 import { dataPath, statePath } from "../lib/paths.mjs";
 import { writeWorkspaceSummary } from "../lib/summary.mjs";
 
-function csvEscape(value) {
-  const text = String(value ?? "");
-  if (/[",\n]/.test(text)) {
-    return `"${text.replaceAll('"', '""')}"`;
-  }
-  return text;
-}
-
-async function rewriteAcceptedCsv(stateRows) {
-  const lines = [
-    "title,year,language,genres,rt_score,rt_url,reason",
-    ...stateRows
-      .filter((row) => row.status === "accepted")
-      .map((row) =>
-        [
-          csvEscape(row.title),
-          csvEscape(row.year),
-          csvEscape(row.language ?? ""),
-          csvEscape(Array.isArray(row.genres) ? row.genres.join("|") : ""),
-          csvEscape(row.rtScore ?? ""),
-          csvEscape(row.rtUrl ?? ""),
-          csvEscape(row.reason ?? "")
-        ].join(",")
-      )
-  ];
-
-  await writeFile(dataPath("accepted_candidates.csv"), `${lines.join("\n")}\n`, "utf8");
-}
-
 async function main() {
   const blacklistRows = parseCsv(await readFile(dataPath("blacklist.csv"), "utf8"));
   const blacklistedKeys = new Set(
@@ -59,7 +30,6 @@ async function main() {
     stateRows.map((row) => JSON.stringify(row)).join("\n") + "\n",
     "utf8"
   );
-  await rewriteAcceptedCsv(stateRows);
   await writeWorkspaceSummary();
 
   console.log(JSON.stringify({ converted }, null, 2));

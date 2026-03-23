@@ -135,8 +135,6 @@ async function main() {
   const radarrMembership = await fetchRadarrMembership();
   const english = [];
   const foreign = [];
-  const accepted = [];
-
   for (const row of acceptedRows) {
     const resolved = await lookupLanguage(row.title, row.year, languageCache);
     const bucket = resolved.bucket ?? sourceFallbackBucket(row);
@@ -155,7 +153,6 @@ async function main() {
       addedToRadarr
     };
 
-    accepted.push(outputRow);
     if (bucket === "foreign") {
       foreign.push(outputRow);
     } else {
@@ -163,25 +160,8 @@ async function main() {
     }
   }
 
-  const acceptedHeader = "title,year,language,genres,rt_score,rt_url,reason,added_to_radarr";
   const splitHeader =
     "title,year,language,genres,rt_score,rt_url,reason,source_list,classification_source,added_to_radarr";
-  const acceptedCsv =
-    [
-      acceptedHeader,
-      ...accepted.map((row) =>
-        [
-          csvEscape(row.title),
-          csvEscape(row.year),
-          csvEscape(row.classifiedLanguage),
-          csvEscape(Array.isArray(row.genres) ? row.genres.join("|") : ""),
-          csvEscape(row.rtScore ?? ""),
-          csvEscape(row.rtUrl ?? ""),
-          csvEscape(row.reason ?? ""),
-          csvEscape(row.addedToRadarr ? "true" : "false")
-        ].join(",")
-      )
-    ].join("\n") + "\n";
   const toCsv = (rows) =>
     [
       splitHeader,
@@ -201,7 +181,6 @@ async function main() {
       )
     ].join("\n") + "\n";
 
-  await writeFile(dataPath("accepted_candidates.csv"), acceptedCsv, "utf8");
   await writeFile(dataPath("english-accepted-candidates.csv"), toCsv(english), "utf8");
   await writeFile(dataPath("foreign-accepted-candidates.csv"), toCsv(foreign), "utf8");
   await writeJson(languageCachePath, languageCache);

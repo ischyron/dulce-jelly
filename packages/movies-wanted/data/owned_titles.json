@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-03-20T05:43:36.666Z",
+  "generatedAt": "2026-03-23T11:45:48.527Z",
   "baseUrl": "http://localhost:3278",
   "libraryId": "f137a2dd21bbc1b99aa5c0f6bf02a805",
   "userId": "8115abec794b45c8859385532f29f529",
-  "count": 1885,
+  "count": 1889,
   "items": [
     {
       "title": "10 Cloverfield Lane",
@@ -2319,11 +2319,11 @@
       "imdbId": "tt0361411"
     },
     {
-      "title": "Bridge of Spies (2015)",
+      "title": "Bridge of Spies",
       "year": 2015,
       "normalizedTitle": "bridge of spies",
       "key": "bridge of spies|2015",
-      "jellyfinId": "04a4408a12dde03add8b9436a6aaa82f",
+      "jellyfinId": "980e4f622566991021f1327670426d20",
       "tmdbId": "296098",
       "imdbId": "tt3682448"
     },
@@ -4668,6 +4668,15 @@
       "imdbId": "tt0104815"
     },
     {
+      "title": "Election",
+      "year": 1999,
+      "normalizedTitle": "election",
+      "key": "election|1999",
+      "jellyfinId": "96e4a0b0105826f8ed8046b880b0dad2",
+      "tmdbId": "9451",
+      "imdbId": "tt0126886"
+    },
+    {
       "title": "Elektra (2005)",
       "year": 2005,
       "normalizedTitle": "elektra",
@@ -5422,6 +5431,15 @@
       "jellyfinId": "946c62f99e01c0b5fcf16d98937820f1",
       "tmdbId": "1368",
       "imdbId": "tt0083944"
+    },
+    {
+      "title": "First Cow",
+      "year": 2020,
+      "normalizedTitle": "first cow",
+      "key": "first cow|2020",
+      "jellyfinId": "1a2bf2f1216d1781cc3fc4ee65ddf052",
+      "tmdbId": "558582",
+      "imdbId": "tt9231040"
     },
     {
       "title": "First Man",
@@ -6565,6 +6583,15 @@
       "jellyfinId": "2f293fb44fd650ae17ccf8aa2012987c",
       "tmdbId": "75174",
       "imdbId": "tt1601913"
+    },
+    {
+      "title": "The Grifters",
+      "year": 1990,
+      "normalizedTitle": "grifters",
+      "key": "grifters|1990",
+      "jellyfinId": "ace361c10e6a72f1d2c171b3186f310d",
+      "tmdbId": "18129",
+      "imdbId": "tt0099703"
     },
     {
       "title": "Grosse Pointe Blank (1997)",
@@ -9348,6 +9375,15 @@
       "imdbId": "tt16148552"
     },
     {
+      "title": "The Lost Daughter",
+      "year": 2021,
+      "normalizedTitle": "lost daughter",
+      "key": "lost daughter|2021",
+      "jellyfinId": "d208ed3b015e3e880e03b64bc8bfdc1f",
+      "tmdbId": "554230",
+      "imdbId": "tt9100054"
+    },
+    {
       "title": "Lost in Translation",
       "year": 2003,
       "normalizedTitle": "lost in translation",
@@ -10167,11 +10203,11 @@
       "imdbId": "tt1229238"
     },
     {
-      "title": "Mission- Impossible II (2000)",
+      "title": "Mission: Impossible II",
       "year": 2000,
       "normalizedTitle": "mission impossible ii",
       "key": "mission impossible ii|2000",
-      "jellyfinId": "4717341693056e4da8e037bbd1b32f61",
+      "jellyfinId": "9f4c0ceda5fdd691835ea65098c9c70c",
       "tmdbId": "955",
       "imdbId": "tt0120755"
     },
@@ -10185,11 +10221,11 @@
       "imdbId": "tt0317919"
     },
     {
-      "title": "Mission- Impossible - Rogue Nation (2015)",
+      "title": "Mission: Impossible - Rogue Nation",
       "year": 2015,
       "normalizedTitle": "mission impossible rogue nation",
       "key": "mission impossible rogue nation|2015",
-      "jellyfinId": "b293f1c4b5032b585a5a3b5710f12c82",
+      "jellyfinId": "30868f58a05683ac4d6105d2c1ba6f89",
       "tmdbId": "177677",
       "imdbId": "tt2381249"
     },
@@ -11589,15 +11625,6 @@
       "imdbId": "tt0958860"
     },
     {
-      "title": "PBS.Triumph.of.the.Nerds.1of3",
-      "year": 1996,
-      "normalizedTitle": "pbs triumph of the nerds 1of3",
-      "key": "pbs triumph of the nerds 1of3|1996",
-      "jellyfinId": "b140501bb9b49c2b3e4cbcb45ee207b1",
-      "tmdbId": "15554",
-      "imdbId": "tt0115398"
-    },
-    {
       "title": "Pearl Harbor (2001)",
       "year": 2001,
       "normalizedTitle": "pearl harbor",
@@ -12541,6 +12568,15 @@
       "jellyfinId": "1ab93d8a4a3663eaa6b674686f4cd706",
       "tmdbId": "1089223",
       "imdbId": "tt28284984"
+    },
+    {
+      "title": "The Rider",
+      "year": 2018,
+      "normalizedTitle": "rider",
+      "key": "rider|2018",
+      "jellyfinId": "07eb12b36f2c7b3e7f7cfc71d4639970",
+      "tmdbId": "453278",
+      "imdbId": "tt6217608"
     },
     {
       "title": "The Ring Two (2005)",
@@ -16111,7 +16147,7 @@
       "year": 2026,
       "normalizedTitle": "war machine",
       "key": "war machine|2026",
-      "jellyfinId": "240c21484efa5672c28ca5b0e039ab14",
+      "jellyfinId": "0db9bc585a08db843a2aab6ede62227c",
       "tmdbId": "1265609",
       "imdbId": "tt15940132"
     },

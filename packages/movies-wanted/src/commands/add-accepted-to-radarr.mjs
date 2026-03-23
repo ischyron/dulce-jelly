@@ -16,7 +16,7 @@ function csvPathForBucket(bucket) {
   if (bucket === "foreign") {
     return dataPath("foreign-accepted-candidates.csv");
   }
-  return dataPath("accepted_candidates.csv");
+  throw new Error(`Unsupported bucket: ${bucket}`);
 }
 
 function membershipKey(title, year) {

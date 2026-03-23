@@ -1,4 +1,7 @@
 source_name,source_url,notes
+rt_browse_movies_at_home_fresh,https://www.rottentomatoes.com/browse/movies_at_home/critics:fresh~sort:tomatometer_highest,Rotten Tomatoes browse: movies at home sorted by Tomatometer
+rt_browse_movies_in_theaters_fresh,https://www.rottentomatoes.com/browse/movies_in_theaters/critics:fresh~sort:tomatometer_highest,Rotten Tomatoes browse: movies in theaters sorted by Tomatometer
+metacritic_browse_1978_plus,https://www.metacritic.com/browse/movie/?releaseYearMin=1978,Metacritic browse pages 1-8 for 1978+ movies
 sight_sound_2022,https://en.wikipedia.org/wiki/The_Sight_and_Sound_Greatest_Films_of_All_Time_2022?action=raw,Sight and Sound 2022 critics/directors top list
 oscars_best_picture,https://en.wikipedia.org/wiki/Academy_Award_for_Best_Picture?action=raw,Academy Award for Best Picture winner/nominee
 oscars_best_international_winners,https://en.wikipedia.org/wiki/Academy_Award_for_Best_International_Feature_Film?action=raw,Academy Award for Best International Feature Film winner
@@ -10,4 +13,8 @@ nyfcc_best_film,https://en.wikipedia.org/wiki/New_York_Film_Critics_Circle_Award
 nsfc_best_picture,https://en.wikipedia.org/wiki/National_Society_of_Film_Critics_Award_for_Best_Picture?action=raw,National Society of Film Critics Award for Best Picture winner
 lafca_best_film,https://en.wikipedia.org/wiki/Los_Angeles_Film_Critics_Association_Award_for_Best_Film?action=raw,Los Angeles Film Critics Association Award for Best Film winner
 national_board_of_review_best_film,https://en.wikipedia.org/wiki/National_Board_of_Review_Award_for_Best_Film?action=raw,National Board of Review Award for Best Film winner
+bafta_best_film_not_english_winner,https://en.wikipedia.org/wiki/BAFTA_Award_for_Best_Film_Not_in_the_English_Language?action=raw,BAFTA Award for Best Film Not in the English Language winner
+european_film_award_best_film_winner,https://en.wikipedia.org/wiki/European_Film_Award_for_Best_Film?action=raw,European Film Award for Best Film winner
+independent_spirit_best_film_winner,https://en.wikipedia.org/wiki/Independent_Spirit_Award_for_Best_Film?action=raw,Independent Spirit Award for Best Film winner
+bafta_outstanding_british_film_winner,https://en.wikipedia.org/wiki/BAFTA_Award_for_Outstanding_British_Film?action=raw,BAFTA Award for Outstanding British Film winner
 bafta_best_film,https://en.wikipedia.org/wiki/BAFTA_Award_for_Best_Film?action=raw,BAFTA Best Film winner/nominee

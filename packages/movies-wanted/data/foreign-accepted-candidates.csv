@@ -15,11 +15,9 @@ Babette's Feast,1987,Danish,Comedy|Drama,97,https://www.rottentomatoes.com/m/bab
 Journey of Hope,1990,German,Drama,83,https://www.rottentomatoes.com/m/journey_of_hope_1990,Accepted: RT 83 meets threshold 80,oscars_best_international_winners,radarr_lookup,true
 Mediterraneo,1991,Italian,Comedy,80,https://www.rottentomatoes.com/m/mediterraneo,Accepted: RT 80 meets threshold 80,oscars_best_international_winners,radarr_lookup,true
 Kolya,1996,Czech,Comedy|Drama,96,https://www.rottentomatoes.com/m/kolya,Accepted: RT 96 meets threshold 80,oscars_best_international_winners,radarr_lookup,true
-Farewell My Concubine,1993,Chinese,Drama|LGBTQ+,90,https://www.rottentomatoes.com/m/farewell_my_concubine,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false
-Rosetta,1999,French,Drama,90,https://www.rottentomatoes.com/m/rosetta,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false
-Shoplifters,2018,Japanese,Crime|Drama|Adventure,99,https://www.rottentomatoes.com/m/shoplifters,Accepted: RT 99 meets threshold 90,palme_dor,radarr_lookup,false
-Titane,2021,French,Horror|Mystery & Thriller|Drama,90,https://www.rottentomatoes.com/m/titane,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,false
-Belle de Jour,1967,French,Drama,95,https://www.rottentomatoes.com/m/belle_de_jour,Accepted: RT 95 meets threshold 85,golden_lion,radarr_lookup,false
+Farewell My Concubine,1993,Chinese,Drama|LGBTQ+,90,https://www.rottentomatoes.com/m/farewell_my_concubine,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,true
+Rosetta,1999,French,Drama,90,https://www.rottentomatoes.com/m/rosetta,Accepted: RT 90 meets threshold 80,palme_dor,radarr_lookup,true
+Shoplifters,2018,Japanese,Crime|Drama|Adventure,99,https://www.rottentomatoes.com/m/shoplifters,Accepted: RT 99 meets threshold 90,palme_dor,radarr_lookup,true
 The Green Ray,1986,French,Comedy|Drama,94,https://www.rottentomatoes.com/m/the_green_ray_1986,Accepted: RT 94 meets threshold 85,golden_lion,radarr_lookup,false
 Au revoir les enfants,1987,French,Drama,97,https://www.rottentomatoes.com/m/au_revoir_les_enfants,Accepted: RT 97 meets threshold 85,golden_lion,radarr_lookup,false
 Vive L'Amour,1994,Chinese,Drama,85,https://www.rottentomatoes.com/m/vive_lamour_1994,Accepted: RT 85 meets threshold 80,golden_lion,radarr_lookup,false

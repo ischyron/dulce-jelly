@@ -55,18 +55,17 @@ Local Hero,1983,English,Comedy,100,https://www.rottentomatoes.com/m/local_hero,A
 Mona Lisa,1986,English,Mystery & Thriller|Comedy,98,https://www.rottentomatoes.com/m/mona_lisa,Accepted: RT 98 meets threshold 85,bafta_best_film,radarr_lookup,true
 Radio Days,1987,English,Comedy,92,https://www.rottentomatoes.com/m/radio_days,Accepted: RT 92 meets threshold 85,bafta_best_film,radarr_lookup,true
 Thelma & Louise,1991,English,Comedy|Drama|Adventure,87,https://www.rottentomatoes.com/m/thelma_and_louise,Accepted: RT 87 meets threshold 80,bafta_best_film,radarr_lookup,true
-Send Help,2026,English,Horror|Comedy|Mystery & Thriller,93,https://www.rottentomatoes.com/m/send_help,Accepted: RT 93 meets threshold 80,rt_browse_movies_at_home_fresh,radarr_lookup,false
-If I Had Legs I'd Kick You,2025,English,Mystery & Thriller|Comedy|Drama,92,https://www.rottentomatoes.com/m/if_i_had_legs_id_kick_you,Accepted: RT 92 meets threshold 80,rt_browse_movies_at_home_fresh,radarr_lookup,false
-Crime 101,2026,English,Crime|Drama|Mystery & Thriller,88,https://www.rottentomatoes.com/m/crime_101_2026,Accepted: RT 88 meets threshold 80,rt_browse_movies_in_theaters_fresh,radarr_lookup,false
-Kill Bill: The Whole Bloody Affair,2025,English,Action|Mystery & Thriller,100,https://www.rottentomatoes.com/m/kill_bill_the_whole_bloody_affair,Accepted: RT 100 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
-45 Years,2015,English,Drama,96,https://www.rottentomatoes.com/m/45_years,Accepted: RT 96 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
-Days of Heaven,1978,English,Drama,93,https://www.rottentomatoes.com/m/days_of_heaven,Accepted: RT 93 meets threshold 85,metacritic_browse_1978_plus,radarr_lookup,false
-Carlos,2010,English,Drama|Biography,93,https://www.rottentomatoes.com/m/carlos_2010,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
-Reversal of Fortune,1990,English,Drama,92,https://www.rottentomatoes.com/m/reversal_of_fortune_1990,Accepted: RT 92 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
-Uncut Gems,2019,English,Mystery & Thriller|Comedy,91,https://www.rottentomatoes.com/m/uncut_gems,Accepted: RT 91 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
-Sankofa,1993,English,Drama,93,https://www.rottentomatoes.com/m/sankofa,Accepted: RT 93 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
-BLKNWS: Terms & Conditions,2025,English,Sci-Fi|Drama,100,https://www.rottentomatoes.com/m/blknws_terms_and_conditions,Accepted: RT 100 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,false
-The Souvenir,2019,English,Romance|Drama,90,https://www.rottentomatoes.com/m/the_souvenir,Accepted: RT 90 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
-Moolaadé,2004,English,Drama,99,https://www.rottentomatoes.com/m/moolaade,Accepted: RT 99 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
-Atanarjuat: The Fast Runner,2002,English,Adventure|Drama,93,https://www.rottentomatoes.com/m/atanarjuat_the_fast_runner_2002,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
-Ghost World,2001,English,Comedy|Drama,93,https://www.rottentomatoes.com/m/ghost_world,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,false
+Send Help,2026,English,Horror|Comedy|Mystery & Thriller,93,https://www.rottentomatoes.com/m/send_help,Accepted: RT 93 meets threshold 80,rt_browse_movies_at_home_fresh,radarr_lookup,true
+If I Had Legs I'd Kick You,2025,English,Mystery & Thriller|Comedy|Drama,92,https://www.rottentomatoes.com/m/if_i_had_legs_id_kick_you,Accepted: RT 92 meets threshold 80,rt_browse_movies_at_home_fresh,radarr_lookup,true
+Crime 101,2026,English,Crime|Drama|Mystery & Thriller,88,https://www.rottentomatoes.com/m/crime_101_2026,Accepted: RT 88 meets threshold 80,rt_browse_movies_in_theaters_fresh,radarr_lookup,true
+45 Years,2015,English,Drama,96,https://www.rottentomatoes.com/m/45_years,Accepted: RT 96 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,true
+Days of Heaven,1978,English,Drama,93,https://www.rottentomatoes.com/m/days_of_heaven,Accepted: RT 93 meets threshold 85,metacritic_browse_1978_plus,radarr_lookup,true
+Carlos,2010,English,Drama|Biography,93,https://www.rottentomatoes.com/m/carlos_2010,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,true
+Reversal of Fortune,1990,English,Drama,92,https://www.rottentomatoes.com/m/reversal_of_fortune_1990,Accepted: RT 92 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,true
+Uncut Gems,2019,English,Mystery & Thriller|Comedy,91,https://www.rottentomatoes.com/m/uncut_gems,Accepted: RT 91 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,true
+Sankofa,1993,English,Drama,93,https://www.rottentomatoes.com/m/sankofa,Accepted: RT 93 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,true
+BLKNWS: Terms & Conditions,2025,English,Sci-Fi|Drama,100,https://www.rottentomatoes.com/m/blknws_terms_and_conditions,Accepted: RT 100 meets threshold 80,metacritic_browse_1978_plus,radarr_lookup,true
+The Souvenir,2019,English,Romance|Drama,90,https://www.rottentomatoes.com/m/the_souvenir,Accepted: RT 90 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,true
+Moolaadé,2004,English,Drama,99,https://www.rottentomatoes.com/m/moolaade,Accepted: RT 99 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,true
+Atanarjuat: The Fast Runner,2002,English,Adventure|Drama,93,https://www.rottentomatoes.com/m/atanarjuat_the_fast_runner_2002,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,true
+Ghost World,2001,English,Comedy|Drama,93,https://www.rottentomatoes.com/m/ghost_world,Accepted: RT 93 meets threshold 90,metacritic_browse_1978_plus,radarr_lookup,true

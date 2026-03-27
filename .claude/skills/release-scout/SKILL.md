@@ -1,312 +1,12 @@
 ---
 name: release-scout
-description: Scout Radarr releases for a movie, rank by quality against TRaSH/profile logic, optionally push the best NZB to SABnzbd. Usage: /release-scout <title> [year] OR /release-scout --batch to process the full YTS upgrade queue.
+description: Scout Radarr releases for a single movie, rank by quality against TRaSH/profile logic, and optionally push the best NZB to SABnzbd. Usage: /release-scout <title> [year]. For batch YTS upgrades, use /upgrade-batch.
 allowed-tools: Bash, Read
 ---
 
 # Release Scout
 
-Two modes:
-- **Single title:** `/release-scout <title> [year]` — scout one movie, rank releases, push confirmed pick to SABnzbd.
-- **Batch mode:** `/release-scout --batch` — pull all Radarr movies tagged `YTS-to-upgrade`, apply eligibility rules, scout each, split into AUTO_GRAB and MANUAL_REVIEW queues.
-
----
-
-## Batch Upgrade Mode
-
-### How it works
-
-Radarr's existing `YTS-to-upgrade` tag already identifies YTS releases using Radarr's internal release group filter (complex regex handled entirely by Radarr — we don't replicate it). The batch pipeline queries that tag, applies upgrade eligibility rules to decide which titles are worth scouting, scouts each one, then splits results into two output queues.
-
-### Step B1 — Storage headroom check
-
-```bash
-source .env 2>/dev/null
-MEDIA_PATH="${JELLYFIN_MOVIES:-$HOME/Media/MEDIA1/Movies}"
-HEADROOM_GB=$(df -BG "$MEDIA_PATH" | awk 'NR==2 {gsub("G","",$4); print $4}')
-WATERMARK_PCT=${UPGRADE_WATERMARK_PCT:-85}
-TOTAL_GB=$(df -BG "$MEDIA_PATH" | awk 'NR==2 {gsub("G","",$2); print $2}')
-WATERMARK_GB=$(echo "$TOTAL_GB $WATERMARK_PCT" | awk '{printf "%d", $1 * $2 / 100}')
-USED_GB=$(echo "$TOTAL_GB $HEADROOM_GB" | awk '{print $1 - $2}')
-SAFE_BUDGET_GB=$(echo "$WATERMARK_GB $USED_GB" | awk '{if ($1>$2) print $1-$2; else print 0}')
-
-echo "Volume: ${MEDIA_PATH}"
-echo "Total: ${TOTAL_GB}GB  Used: ${USED_GB}GB  Free: ${HEADROOM_GB}GB"
-echo "Watermark: ${WATERMARK_PCT}% = ${WATERMARK_GB}GB  Safe budget: ${SAFE_BUDGET_GB}GB"
-
-if [ "$SAFE_BUDGET_GB" -lt 50 ]; then
-  echo "⚠ Less than 50GB safe budget — abort batch or expand storage first."
-  exit 1
-fi
-```
-
-Set `UPGRADE_WATERMARK_PCT` in `.env` to control the ceiling (default 85%). Each YTS→WEB-DL 2160p upgrade costs ~16–18 GB net (new file ~20 GB minus ~2 GB YTS freed). Budget accordingly.
-
-### Step B2 — Pull YTS-to-upgrade candidate list from Radarr
-
-```bash
-curl -s -H "X-Api-Key: $RADARR_API_KEY" \
-  "http://localhost:${RADARR_PORT:-3273}/api/v3/movie" | \
-python3 -c "
-import json, sys
-
-movies = json.load(sys.stdin)
-
-# Find the tag ID for 'YTS-to-upgrade' (tag name may vary — check your Radarr tags)
-# Run: curl -s -H 'X-Api-Key: \$RADARR_API_KEY' http://localhost:3273/api/v3/tag
-# to find the exact tag label and ID, then set YTS_TAG_ID below or pass via env.
-import os
-YTS_TAG_ID = int(os.environ.get('YTS_TAG_ID', '0'))  # set in .env
-
-candidates = []
-for m in movies:
-    if YTS_TAG_ID not in m.get('tags', []):
-        continue
-    r = m.get('ratings', {})
-    rt    = r.get('rottenTomatoes', {}).get('value')
-    imdb  = r.get('imdb', {}).get('value')
-    votes = r.get('imdb', {}).get('votes', 0)
-    genres = [g['name'] for g in m.get('genres', [])]
-    candidates.append({
-        'id':      m['id'],
-        'title':   m['title'],
-        'year':    m['year'],
-        'rt':      rt,
-        'imdb':    imdb,
-        'votes':   votes,
-        'genres':  genres,
-        'profile': m['qualityProfileId'],
-        'hasFile': m['hasFile'],
-        'runtime': m.get('runtime', 0),
-    })
-
-print(json.dumps(candidates, indent=2))
-" | tee "${SCOUT_DIR}/yts-candidates-raw.json"
-echo "Total YTS-tagged movies: $(python3 -c "import json,sys; print(len(json.load(sys.stdin)))" < ${SCOUT_DIR}/yts-candidates-raw.json)"
-```
-
-**First run:** confirm `YTS_TAG_ID` is correct by checking a known YTS title appears in the output. Add `YTS_TAG_ID=<n>` to `.env`.
-
-### Step B3 — Apply upgrade eligibility rules
-
-```bash
-python3 -c "
-import json, sys, os
-
-candidates = json.load(open('${SCOUT_DIR}/yts-candidates-raw.json'))
-
-# ── Genre classification helpers ──────────────────────────────────────────
-HARD_EXCLUDE = {'Musical', 'Music'}          # skip entirely, no scout
-MANUAL_ONLY  = {'Horror', 'Documentary'}     # never auto-grade; flag for manual
-
-GHIBLI_STUDIOS = {'Studio Ghibli'}           # check via m['studio'] or title knowledge
-
-def is_ghibli(m):
-    # Radarr does not expose studio reliably; use known title list as fallback
-    # Add known titles to this set as you identify them in your library
-    GHIBLI_TITLES = {
-        'Spirited Away', 'My Neighbor Totoro', 'Princess Mononoke',
-        'Howl\\'s Moving Castle', 'Nausicaä of the Valley of the Wind',
-        'Castle in the Sky', 'Kiki\\'s Delivery Service', 'Porco Rosso',
-        'The Tale of the Princess Kaguya', 'The Wind Rises', 'Grave of the Fireflies',
-        'Castle of Cagliostro', 'Pom Poko', 'Only Yesterday', 'My Neighbors the Yamadas',
-        'The Cat Returns', 'Arrietty', 'From Up on Poppy Hill', 'The Boy and the Heron',
-        'When Marnie Was There',
-    }
-    return m['title'] in GHIBLI_TITLES
-
-# ── RT floor by primary genre ─────────────────────────────────────────────
-RT_FLOORS = {
-    'Action':    78, 'Science Fiction': 78, 'Sci-Fi': 78,
-    'Fantasy':   78, 'Adventure': 78, 'War': 78,
-    'Crime':     80, 'Thriller': 80, 'Mystery': 80,
-    'Horror':    None,   # manual only
-    'Animation': 82,
-    'Drama':     88,
-    'Music':     88,
-    'Romance':   85,
-    'Comedy':    85,
-    'Western':   80,
-    'History':   80,
-    'Biography': 82,
-}
-RT_FLOOR_DEFAULT = 88   # any genre not listed above
-
-# ── Tier 1: undeniable threshold (overrides genre floor) ──────────────────
-TIER1_RT = 90
-
-auto_upgrade   = []
-manual_review  = []
-skipped        = []
-
-for m in candidates:
-    genres  = m['genres']
-    rt      = m['rt']
-    title   = m['title']
-
-    # Hard excludes
-    if any(g in HARD_EXCLUDE for g in genres):
-        skipped.append({**m, 'skip_reason': 'genre excluded (' + ', '.join(g for g in genres if g in HARD_EXCLUDE) + ')'})
-        continue
-
-    # Anime: exclude unless Ghibli
-    if 'Animation' in genres and any(kw in title for kw in ['anime','Anime']) or \
-       any(g in genres for g in ['Animation']) and not is_ghibli(m) and \
-       m.get('originalLanguage','') in ['ja','Japanese']:
-        # Best-effort Anime detection; Ghibli titles pass through
-        if not is_ghibli(m):
-            skipped.append({**m, 'skip_reason': 'anime non-Ghibli excluded'})
-            continue
-
-    # Manual-only genres
-    if any(g in MANUAL_ONLY for g in genres):
-        manual_review.append({**m, 'review_reason': 'manual-only genre: ' + ', '.join(g for g in genres if g in MANUAL_ONLY)})
-        continue
-
-    # RT missing — flag for manual
-    if rt is None:
-        manual_review.append({**m, 'review_reason': 'RT unavailable — check IMDb fallback'})
-        continue
-
-    # Tier 1: undeniable
-    if rt >= TIER1_RT:
-        auto_upgrade.append({**m, 'tier': 1, 'rt_floor': TIER1_RT})
-        continue
-
-    # Tier 2: genre-gated
-    primary_genre = genres[0] if genres else ''
-    floor = None
-    for g in genres:
-        f = RT_FLOORS.get(g)
-        if f is not None:
-            floor = min(floor, f) if floor else f   # use most permissive matching genre
-    if floor is None:
-        floor = RT_FLOOR_DEFAULT
-
-    if rt >= floor:
-        auto_upgrade.append({**m, 'tier': 2, 'rt_floor': floor})
-    else:
-        skipped.append({**m, 'skip_reason': f'RT {rt}% below floor {floor}% for {primary_genre}'})
-
-# Sort auto_upgrade: Tier 1 first, then RT descending
-auto_upgrade.sort(key=lambda x: (-x['tier'], -(x['rt'] or 0)))
-
-result = {
-    'auto_upgrade':  auto_upgrade,
-    'manual_review': manual_review,
-    'skipped':       skipped,
-    'summary': {
-        'total_candidates': len(candidates),
-        'auto_upgrade':     len(auto_upgrade),
-        'manual_review':    len(manual_review),
-        'skipped':          len(skipped),
-    }
-}
-print(json.dumps(result, indent=2))
-" < "${SCOUT_DIR}/yts-candidates-raw.json" | tee "${SCOUT_DIR}/upgrade-queue.json"
-
-python3 -c "
-import json, sys
-d = json.load(sys.stdin)['summary']
-print(f\"Auto-upgrade queue: {d['auto_upgrade']}  Manual review: {d['manual_review']}  Skipped: {d['skipped']}\")
-" < "${SCOUT_DIR}/upgrade-queue.json"
-```
-
-### Step B4 — Scout each auto-upgrade candidate
-
-For each title in `auto_upgrade`, run the standard single-title scout (Steps 3–7 — movie ID is already known from Step B2, skip Step 2). Apply the **AUTO_GRAB gate** after ranking:
-
-**AUTO_GRAB gate — all conditions must pass:**
-
-| Condition | Requirement |
-|---|---|
-| Risk Level | Low only |
-| Protocol | usenet only |
-| Repute | High or Medium-with-verified-paid-source |
-| CF score | ≥ 2500 |
-| DV profile | P5/8 or no DV (HDR10); never Hybrid DV or P7 |
-| Audio | DD+/Atmos or AAC; never TrueHD or DTS-HD MA |
-| Physics | Pass (size within MB/min range; no WEB-DL+lossless flag) |
-| NZB age | ≤ 180 days |
-| History | No prior failed grab for this group on this title |
-| Storage budget | Cumulative grabbed GB < `SAFE_BUDGET_GB` |
-
-If any condition fails → move to MANUAL_REVIEW with the specific failing condition noted.
-
-**Storage budget tracking:**
-```bash
-GRABBED_GB=0
-MAX_GB=$SAFE_BUDGET_GB
-
-# Before each grab:
-if (( GRABBED_GB + RELEASE_SIZE_GB > MAX_GB )); then
-  echo "⚠ Budget exhausted (${GRABBED_GB}GB grabbed). Stopping batch."
-  break
-fi
-GRABBED_GB=$((GRABBED_GB + RELEASE_SIZE_GB))
-```
-
-### Step B5 — Write output queues
-
-```bash
-python3 << 'PYEOF'
-import json, csv, sys
-
-# Write AUTO_GRAB results
-with open('temp/release-scout/auto-grab.csv', 'w', newline='') as f:
-    w = csv.writer(f)
-    w.writerow(['Title','Year','RT','Genres','Release','Quality','SizeGB','Group','Repute','Audio','DV','Score','Tier'])
-    for item in auto_grab_results:   # populated during Step B4
-        w.writerow([item['title'], item['year'], item['rt'], '|'.join(item['genres']),
-                    item['release'], item['quality'], item['size_gb'], item['group'],
-                    item['repute'], item['audio'], item['dv_profile'], item['score'], item['tier']])
-
-# Write MANUAL_REVIEW queue
-with open('temp/release-scout/manual-review.csv', 'w', newline='') as f:
-    w = csv.writer(f)
-    w.writerow(['Title','Year','RT','Genres','ReviewReason','BestRelease','RiskLevel','Why'])
-    for item in manual_review_results:
-        w.writerow([item['title'], item['year'], item['rt'], '|'.join(item['genres']),
-                    item['review_reason'], item.get('best_release','—'),
-                    item.get('risk_level','—'), item.get('why','—')])
-PYEOF
-
-echo "Output written:"
-echo "  temp/release-scout/auto-grab.csv     — grabs already pushed to Radarr/SABnzbd"
-echo "  temp/release-scout/manual-review.csv — your review queue (Horror, Docs, risky releases)"
-```
-
----
-
-## Upgrade Eligibility Rules (Reference)
-
-**Critic score source:** Rotten Tomatoes (TomatoScore) is the sole programmatic gate. Metacritic is not reliably available in Radarr. IMDb score + votes used as corroboration only — never as a hard gate.
-
-**Tier 1 — Undeniable (RT ≥ 90%, any genre except hard excludes)**
-All genres except Musical, non-Ghibli Anime, and non-Ghibli Animation qualify automatically. No further genre check needed.
-
-**Tier 2 — Genre-gated RT floors**
-
-| Genre | RT floor | Notes |
-|---|---|---|
-| Action / Sci-Fi / Fantasy / Adventure / War | 78% | Visual spectacle; 4K DV upgrade gap is large |
-| Crime / Thriller / Mystery / Western / History | 80% | Strong rewatch value |
-| Animation (non-anime studio) | 82% | Studio masters excel in 4K |
-| Studio Ghibli | 82% | Treated as studio animation regardless of anime origin |
-| Biography | 82% | — |
-| Romance / Comedy | 85% | Low format benefit; high bar |
-| Drama / Music (genre tag) | 88% | Near-Tier-1 threshold; flag for review even when eligible |
-
-**Hard excludes (never scout, never upgrade):**
-- Musical
-- Anime (non-Ghibli) — best-effort detection; borderline cases flag for review
-
-**Manual-only (scout but never auto-grab — always in MANUAL_REVIEW):**
-- Horror — taste-specific; personal exceptions curated manually
-- Documentary — cultural/historical importance not measurable by RT; curate manually
-
-**IMDb corroboration (soft signal, not gate):**
-When RT feels thin (< 20 critic reviews), require IMDb ≥ 7.5 with ≥ 100K votes to confirm the RT score is not a fluke. Flag for manual review if IMDb corroboration is missing.
+Scouts releases for a single movie in Radarr: triggers an indexer search, ranks results by quality/physics/repute, and pushes the confirmed pick via Radarr's API. For batch YTS upgrades, use `/upgrade-batch`.
 
 ---
 
@@ -375,6 +75,193 @@ for m in json.load(sys.stdin):
 **Capture `originalLanguage` — it governs the MULTI/language filter logic below.**
 
 If not in library yet: `GET /api/v3/movie/lookup?term=<title>+<year>` to get tmdbId, then `POST /api/v3/movie` to add it.
+
+### 2.5. Critic score verification (FlareSolverr)
+
+**When to run:**
+- RT from Radarr is `?` / null — always run
+- RT is present but title is borderline (75–84%) and genre has a higher bar (Drama, Biography, Comedy) — run to get review count and Metacritic as second opinion
+- RT feels suspicious (obscure title, very high score) — run to confirm review count ≥ 20
+
+Routes through the `prowlarr` container which shares a Docker network with `flaresolverr`. Same pattern used by `packages/movies-wanted`.
+
+```python
+#!/usr/bin/env python3
+# Save as temp/release-scout/verify_critics.py and run:
+#   python3 temp/release-scout/verify_critics.py "<Title>" <Year>
+
+import sys, re, json, subprocess, urllib.request
+
+TITLE = sys.argv[1]
+YEAR  = int(sys.argv[2]) if len(sys.argv) > 2 else None
+
+# ── FlareSolverr via prowlarr container ──────────────────────────────────
+def flare_get(url, timeout=70):
+    payload = json.dumps({"cmd": "request.get", "url": url, "maxTimeout": 60000})
+    r = subprocess.run(
+        ['docker', 'exec', 'prowlarr', 'sh', '-lc',
+         f"curl -sS -H 'Content-Type: application/json' -d '{payload}' http://flaresolverr:8191/v1"],
+        capture_output=True, text=True, timeout=timeout
+    )
+    parsed = json.loads(r.stdout)
+    if parsed.get('status') != 'ok' or not parsed.get('solution', {}).get('response'):
+        raise RuntimeError(f"FlareSolverr failed for {url}: {parsed.get('message','')}")
+    return parsed['solution']['response']
+
+# ── RT URL discovery ──────────────────────────────────────────────────────
+def rt_slug(title, year):
+    s = re.sub(r"['\"]", '', title.lower())
+    s = re.sub(r'[^a-z0-9]+', '_', s).strip('_')
+    return (f"{s}_{year}", s)
+
+def fetch_rt_html(title, year):
+    slug_yr, slug = rt_slug(title, year)
+    # 1. Direct fetch (fast path)
+    for url in [f"https://www.rottentomatoes.com/m/{slug_yr}",
+                f"https://www.rottentomatoes.com/m/{slug}"]:
+        try:
+            req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 Chrome/120'})
+            html = urllib.request.urlopen(req, timeout=8).read().decode('utf-8', errors='ignore')
+            if 'tomatometer' in html.lower():
+                print(f'RT: direct fetch OK — {url}')
+                return url, html
+        except Exception:
+            pass
+    # 2. Bing RSS to find real slug
+    bing = f"https://www.bing.com/search?format=rss&q=site:rottentomatoes.com/m+\"{title}\"+{year or ''}"
+    try:
+        req = urllib.request.Request(bing, headers={'User-Agent': 'Mozilla/5.0'})
+        rss = urllib.request.urlopen(req, timeout=8).read().decode('utf-8', errors='ignore')
+        m = re.search(r'https://www\.rottentomatoes\.com/m/[^<"\s]+', rss)
+        if m:
+            rt_url = m.group(0).rstrip('/')
+            print(f'RT: Bing resolved → {rt_url}')
+            html = flare_get(rt_url)
+            return rt_url, html
+    except Exception:
+        pass
+    # 3. FlareSolverr direct
+    rt_url = f"https://www.rottentomatoes.com/m/{slug_yr}"
+    print(f'RT: FlareSolverr fallback → {rt_url}')
+    return rt_url, flare_get(rt_url)
+
+# ── RT score + review count extraction ───────────────────────────────────
+def parse_rt(html):
+    score = None
+    for pat in [r'"scoreType":"ALL"[^}]*?"score":"?(\d+)"?',
+                r'<rt-text slot="criticsScore">(\d+)<',
+                r'"tomatometer[Score]*":"?(\d+)"?']:
+        m = re.search(pat, html, re.IGNORECASE)
+        if m: score = int(m.group(1)); break
+
+    count = None
+    for pat in [r'"reviewCount":(\d+),"score":"\d+","scoreType":"ALL"',
+                r'"scoreType":"ALL".{0,200}?"reviewCount":(\d+)',
+                r'"criticsScore":\{"reviewCount":(\d+)',
+                r'"aggregateRating"[^}]*"reviewCount":(\d+)']:
+        m = re.search(pat, html, re.IGNORECASE | re.DOTALL)
+        if m: count = int(m.group(1)); break
+
+    return score, count
+
+# ── Metacritic via FlareSolverr ──────────────────────────────────────────
+def fetch_metacritic(title):
+    slug = re.sub(r"['\"]", '', title.lower())
+    slug = re.sub(r'[^a-z0-9]+', '-', slug).strip('-')
+    url  = f"https://www.metacritic.com/movie/{slug}/"
+    try:
+        html  = flare_get(url)
+        score = count = None
+        m = re.search(r'"score":(\d+).*?"criticScoreCount":(\d+)', html, re.DOTALL)
+        if m:
+            score, count = int(m.group(1)), int(m.group(2))
+        else:
+            m = re.search(r'c-siteReviewScore[^>]*>.*?(\d+)<', html, re.DOTALL)
+            if m: score = int(m.group(1))
+        return score, count, url
+    except Exception as e:
+        return None, None, f"error: {e}"
+
+# ── Critic confidence verdict ─────────────────────────────────────────────
+def verdict(rt_score, rt_count, mc_score, mc_count):
+    lines = []
+    if rt_score is None:
+        lines.append('RT: unavailable')
+    else:
+        thin = rt_count is not None and rt_count < 20
+        label = f'RT: {rt_score}%'
+        if rt_count: label += f' ({rt_count} reviews)'
+        if rt_count is not None and rt_count < 10:
+            label += ' ⚠ UNRELIABLE (<10 reviews) — treat as unavailable'
+        elif thin:
+            label += ' ⚠ thin (<20 reviews) — use with caution'
+        lines.append(label)
+
+    if mc_score is None:
+        lines.append('MC: unavailable')
+    else:
+        label = f'MC: {mc_score}'
+        if mc_count: label += f' ({mc_count} reviews)'
+        lines.append(label)
+
+    # Decision signal
+    eff_rt = rt_score if (rt_count is None or rt_count >= 10) else None
+    if eff_rt and eff_rt >= 85:
+        lines.append('→ Critic signal: STRONG (RT ≥ 85%)')
+    elif eff_rt and eff_rt >= 75 and mc_score and mc_score >= 75:
+        lines.append('→ Critic signal: SOLID (RT borderline + MC ≥ 75 — upgrade eligible)')
+    elif eff_rt and eff_rt >= 75 and mc_score and mc_score >= 55:
+        lines.append('→ Critic signal: BORDERLINE — manual review recommended')
+    elif (eff_rt is None or eff_rt < 75) and mc_score and mc_score >= 75:
+        lines.append('→ Critic signal: MC-only — flag for manual review; MC alone insufficient for auto-upgrade')
+    else:
+        lines.append('→ Critic signal: WEAK — skip or manual review')
+    return '\n'.join(lines)
+
+# ── Main ──────────────────────────────────────────────────────────────────
+rt_url, rt_html = fetch_rt_html(TITLE, YEAR)
+rt_score, rt_count = parse_rt(rt_html)
+
+# Fetch MC when: RT unavailable, RT thin, or RT borderline
+need_mc = (rt_score is None) or (rt_count is not None and rt_count < 20) or \
+          (rt_score is not None and rt_score < 85)
+mc_score = mc_count = mc_url = None
+if need_mc:
+    print('Fetching Metacritic...')
+    mc_score, mc_count, mc_url = fetch_metacritic(TITLE)
+
+print('\n─── Critic Score Verification ───────────────────────')
+print(f'Title: {TITLE}  Year: {YEAR}')
+print(verdict(rt_score, rt_count, mc_score, mc_count))
+if mc_url and not mc_url.startswith('error'): print(f'MC URL: {mc_url}')
+```
+
+**Review count thresholds:**
+
+| RT review count | Interpretation |
+|---|---|
+| < 10 | Unreliable — treat score as unavailable; use MC if available |
+| 10–19 | Thin — use with caution; flag `RT (thin, N reviews)` in output |
+| ≥ 20 | Reliable |
+
+**Combined RT + MC decision:**
+
+| RT | RT reviews | MC | Outcome |
+|---|---|---|---|
+| ≥ 85% | ≥ 20 | — | Strong — eligible |
+| ≥ 85% | 10–19 | — | Eligible; flag thin RT |
+| ≥ 85% | < 10 | ≥ 70 | Eligible via MC |
+| ≥ 85% | < 10 | < 70 | Manual review |
+| 75–84% | ≥ 20 | ≥ 75 | Borderline elevated — eligible |
+| 75–84% | ≥ 20 | < 55 | Skip |
+| 75–84% | any | — | Genre floor applies; manual if Drama/Bio |
+| unavailable | — | ≥ 75 | MC-only — manual review; never auto-grab |
+| unavailable | — | < 75 | Skip |
+
+**In the scout header output**, replace `RT:?` with the live-fetched value and flag review count:
+```
+Lang: English   RT:91% (47 reviews)   IMDb:7.6 (600K votes)   MC:78 (28 reviews)
+```
 
 ### 3. Fetch all releases (triggers indexer search)
 

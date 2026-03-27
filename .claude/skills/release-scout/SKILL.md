@@ -107,6 +107,33 @@ print(json.dumps(out, indent=2))
 # Saved to ${SCOUT_DIR}/releases-raw.json for reference during the session
 ```
 
+### 3.5. Radarr history check
+
+Pull prior download and import events for this movie. Failed grabs and manual deletions are strong signals.
+
+```bash
+curl -s -H "X-Api-Key: $RADARR_API_KEY" \
+  "http://localhost:3273/api/v3/history?movieId=<ID>&pageSize=30&sortKey=date&sortDirection=descending" | \
+  python3 -c "
+import json, sys
+events = json.load(sys.stdin).get('records', [])
+for e in events:
+    etype = e.get('eventType','?')
+    src   = e.get('sourceTitle','?')[:70]
+    date  = e.get('date','?')[:10]
+    data  = e.get('data', {})
+    reason = data.get('message') or data.get('importFailedReason') or ''
+    print(f'  [{date}] {etype:20} {src}  {reason}')
+"
+```
+
+Look for:
+- `downloadFailed` or `importFailed` on a specific group → that group's NZBs are suspect for this title; downrank them
+- Recent `grabbed` with no `downloadFolderImported` follow-up → stalled grab; avoid same release
+- Manual deletion of a previously imported file → prior quality was rejected by the user; treat equivalent releases with caution
+
+Capture relevant flags as `⚠ prev-fail(<group>)` in the FLAGS column of ranked output.
+
 ### 4. Hard filters (drop before ranking)
 
 | Condition | Action |
@@ -117,6 +144,9 @@ print(json.dumps(out, indent=2))
 | quality is `TELESYNC`, `CAM`, `HDTV-*`, `WEBDL-480p`, `WEBDL-720p` | Drop |
 | `Remux-*` quality | Hold — see Remux policy below; not auto-dropped |
 | MB/min below quality minimum (see size table) | Drop — mislabeled or corrupt |
+| **Remux-2160p < 35 GB** | Drop — physics mismatch; a real remux is 50–90 GB; this is an encode masquerading as remux |
+| **Remux-1080p < 10 GB** | Drop — physics mismatch; real 1080p remux is 15–35 GB |
+| **WEB-DL + TrueHD or DTS-HD MA audio** | Flag as physics mismatch — streaming services deliver DD+ or AAC, never lossless; this is a mislabelled BluRay encode. Downrank with `⚠ WEB-DL+lossless (physics mismatch)`; do not auto-drop if no better alternative exists |
 | Torrent with `seeders < 4` | Drop — effectively dead; flag as `low seeds (<4)` |
 | **English-original film:** release language is not English and an English alternative exists | Drop |
 | **English-original film:** release carries a multi-language tag (e.g. MULTI, VFQ, TRUEFRENCH, NORDIC) and an English-only alternative exists | Keep but rank below English-only (see MULTI tiebreaker) |
@@ -279,6 +309,9 @@ Use `⚠ Remux excluded` (not just a generic dropped line) whenever the title's 
 | AV1 video codec | −30 — compatibility penalty; many Google TV/Android TV chipsets lack AV1 hardware decode, forcing full video transcode |
 | Scene CF (verified group) | +5 |
 | usenet protocol | +10 |
+| Usenet post age > 180 days | −15 — aging NZB; completeness risk; prefer fresher equivalent if one exists |
+| Hybrid DV (BluRay base + injected DV layer) | −100 — DV correctness risk; see DV Profile Classification below |
+| DV Profile 7 (REMUX + DV + TrueHD) | −200 — high risk on Google TV; see DV Profile Classification below |
 
 **AV1 codec note:** AV1 is a score penalty, not a hard drop. It is a modern, efficient codec but hardware decode support on Google TV (Android TV) varies widely by chipset generation. When AV1 is present:
 - Apply the −30 score penalty.
@@ -313,6 +346,21 @@ Use `⚠ Remux excluded` (not just a generic dropped line) whenever the title's 
   - If no comparable safer candidate exists at same quality tier/profile target,
     keep as fallback and annotate:
     `⚠ playback-risk score=<n>; validate before grab`.
+
+**DV Profile Classification (infer from release name — applied before repute, stacks with playback-risk):**
+
+Dolby Vision exists in several profiles with very different playback behaviour on Google TV + Sonos eARC. Infer the profile from release name patterns:
+
+| Profile | Name patterns | Risk | Score modifier | Flag |
+|---|---|---|---|---|
+| **Profile 5/8** | WEB-DL + `DV`/`DoVi` + no `TrueHD`/`DTS-HD` (e.g. DSNP, ATVP, NF, MA) | **Safe** | 0 (DV bonus already applied) | `DV P5/8` |
+| **HDR10 / HDR10+** | No DV present, `HDR`/`HDR10` or `HDR10+` in name | **Safe** | 0 | `HDR10` |
+| **Hybrid DV** | `BluRay` or `Bluray-2160p` + `DV`/`DoVi` + `x265` (not REMUX) | **Risk** | −100 (in addition to any playback-risk) | `⚠ Hybrid DV (risk)` |
+| **Profile 7** | `REMUX` + `DV`/`DoVi` + `TrueHD` | **High Risk** | −200 (stacks with TrueHD playback-risk) | `⚠ DV P7 HIGH RISK` |
+
+**Priority across DV types:** Profile 5/8 (streaming DV) > HDR10/HDR10+ > Hybrid DV > Profile 7. Never prefer a higher-risk DV profile over a safe non-DV release purely on the DV bonus — the DV bonus (+25) is for safe DV only; high-risk DV types receive net penalties via the modifiers above.
+
+**Hybrid DV detection note:** Hybrid DV typically appears as a BluRay-2160p or Bluray encode (not REMUX) with `DoVi` or `DV` in the title alongside `x265`. It is a BluRay disc rip with a post-processed DV layer injected. It can produce HDR switching artefacts on Google TV and cause issues with Sonos eARC passthrough. When detected, always add `⚠ Hybrid DV (risk)` to FLAGS even if repute is High.
 
 **Repute — evaluate in this order: CF tier → source provenance → group name knowledge**
 
@@ -398,6 +446,19 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 - **Above maximum → DROP.** Already handled by size cap filter above.
 - Only files within range proceed to ranking.
 
+**Hard evaluation rules (absolute — applied before any tiebreaker):**
+
+These rules never yield to score arithmetic or group repute. Apply them first.
+
+- **Playback stability first.** A release that will fail or transcode on Google TV is never the right pick, regardless of score.
+- **DV correctness second.** Prefer safe DV (P5/8) or no-DV (HDR10) over Hybrid DV or P7, even if the risk variant scores higher.
+- **Physics over labels.** A WEB-DL claiming TrueHD is mislabelled; a Remux under 35 GB is not a remux. Never trust the quality label — verify it against physics.
+- **Do NOT assume BluRay > WEB-DL.** For digital-era films, a streaming WEB-DL from a verified paid source is typically equivalent or superior to an unverified BluRay encode.
+- **Do NOT prefer a larger file blindly.** Size advantage is only meaningful when both files pass physics sanity and are in the same bitrate class (±10% size = same class; don't let size drive the decision).
+- **Do NOT trust group repute over physics.** Even a High-repute group can release a bad file. Physics contradictions (wrong size, lossless audio on WEB-DL) override the repute signal.
+- **WEB-DL preferred when BluRay group repute is Unknown or Low.** An authenticated streaming download beats an unverified disc rip regardless of file size.
+- **Remux only for prestige titles.** Never surface Remux unless the title qualifies as Tier A/B exceptional. See Remux policy above.
+
 **Tiebreaker and preference rules (apply in order):**
 
 1. **Dolby Vision wins close contests — except in Remux from non-High repute groups.** When two releases are within ~300 score points, prefer the one with DV (`DV` or `DV Boost` CF present). DV is a meaningful display-layer upgrade that score arithmetic undersells. If the score gap is large (>300), score wins regardless of DV.
@@ -444,16 +505,38 @@ Score bonus: Repute High → +30, Medium → +10, Low → drop, Unknown → 0 (f
 ```bash
 curl -s -H "X-Api-Key: $RADARR_API_KEY" \
   "http://localhost:3273/api/v3/qualityprofile" | \
-  python3 -c "import json,sys; [print(f'id={p[\"id\"]:2} {p[\"name\"]:20} min_score={p.get(\"minFormatScore\",0):5} upgrades={p.get(\"upgradeAllowed\")}') for p in json.load(sys.stdin)]"
+  python3 -c "import json,sys; [print(f'id={p[\"id\"]:2} {p[\"name\"]:30} min_score={p.get(\"minFormatScore\",0):5} upgrades={p.get(\"upgradeAllowed\")}') for p in json.load(sys.stdin)]"
 ```
+
+**Profiles in this stack (IDs are assigned by Radarr — verify from the API call above):**
+
+| Name | Min CF Score | Upgrade target | BluRay-2160p | Notes |
+|---|---|---|---|---|
+| `AutoAssignQuality` | 0 | None (upgrades off) | ✗ | Intake/hold; Quality Broker reassigns |
+| `DontUpgrade` | 0 | None (upgrades off) | ✓ | Accept-and-freeze; no future upgrades |
+| `HD` | 2500 | Bluray-1080p | ✗ | 1080p only; TRaSH WEB Tier required |
+| `Efficient-4K` | 2500 | WEBDL-2160p | ✗ | Pure streaming 4K; no BluRay-2160p |
+| `HighQuality-4K` | 2500 | Bluray-2160p | ✓ | Streaming + BluRay encodes; best encode ceiling |
+| `[SQP] SQP-1 WEB (2160p)` | TRaSH-managed | WEBDL-2160p | ✗ (penalised) | TRaSH streaming-pure profile; BluRay and Remux get negative CF scores from TRaSH upstream; `sqp-streaming` size definition applies |
+
+**SQP-1 WEB (2160p) — what it means for scouting:**
+
+`[SQP] SQP-1 WEB (2160p)` is the TRaSH Streaming Quality Profile managed entirely by Recyclarr from the TRaSH upstream guide (`trash_id: e91c9adaca0231493f4af0d571b907f9`). Its key behaviours:
+- Uses `sqp-streaming` quality definition — tighter min/max MB/min bounds calibrated for streaming encodes
+- TRaSH applies high positive CF scores to WEB Tier groups; BluRay encodes and Remux receive negative scores that push them below `min_format_score`
+- WEBRip is also effectively blocked (negative CF in TRaSH's scoring)
+- Optional CF groups (DV Boost, HDR10+ Boost, streaming services) are currently commented out in `data/recyclarr/config/configs/radarr.yml` — these CFs are not scored under this profile
+- Result: **only WEB-DL 2160p from TRaSH-tiered WEB groups will pass** the profile's minimum score gate
+
+When a movie is on SQP-1: do not surface BluRay-2160p or Remux as viable candidates — Radarr will reject them via CF scoring regardless. Focus the scout entirely on WEB-DL 2160p from WEB Tier 01-03 groups. If no tiered WEB-DL 2160p exists, the correct action is to note the gap and suggest either waiting or switching to `HighQuality-4K` to unlock BluRay options.
 
 **Re-evaluate the profile — do not take the current assignment for granted.**
 
 Before accepting the current profile as correct, assess whether it fits the title. Ask:
 
-1. **Does the profile's upgrade target exist for this title?** If the profile targets WEBDL-2160p (Efficient-4K) but no streaming service has released a 4K version (common for pre-2000 films, niche releases), the upgrade target will never appear. Radarr will spin forever and reject perfectly good Bluray-2160p options. → Switch to `HighQuality-4K` or `DontUpgrade`.
+1. **Does the profile's upgrade target exist for this title?** If the profile targets WEBDL-2160p (Efficient-4K or SQP-1) but no streaming service has released a 4K version (common for pre-2000 films, niche releases), the upgrade target will never appear. Radarr will spin forever and reject perfectly good Bluray-2160p options. → Switch to `HighQuality-4K` or `DontUpgrade`.
 
-2. **Is the title acclaimed enough to deserve a higher-quality profile?** A film with strong critical reception (e.g. RT ≥ 85, Metacritic ≥ 75, or a known critics' favourite even without mass cultural penetration) warrants a higher-quality target than a generic blockbuster. If it's on `Efficient-4K` but a Bluray-2160p from a tiered group exists, switching to `HighQuality-4K` gets you a better encode. If it approaches Tier B exceptional status, consider whether Remux is justified.
+2. **Is the title acclaimed enough to deserve a higher-quality profile?** A film with strong critical reception (e.g. RT ≥ 85, Metacritic ≥ 75, or a known critics' favourite even without mass cultural penetration) warrants a higher-quality target than a generic blockbuster. If it's on `Efficient-4K` or `SQP-1` but a Bluray-2160p from a tiered group exists, switching to `HighQuality-4K` gets you a better encode. If it approaches Tier B exceptional status, consider whether Remux is justified.
 
 3. **Is the title on an over-ambitious profile relative to what's actually available?** A 1960s black-and-white film assigned to `HighQuality-4K` will rarely have a 4K release at all — `HD` may be the right ceiling.
 
@@ -463,11 +546,14 @@ State the profile assessment prominently at the top of the scout output, especia
 
 | Situation | Action |
 |---|---|
-| All releases rejected due to `min_format_score: 2500`, no TRaSH-tiered group released yet | After manual push, switch to `DontUpgrade` (id=13) to stop Radarr spinning |
-| Profile targets WEBDL-2160p but no streaming 4K release exists for this title (e.g. pre-2000 or niche film) | Switch to `HighQuality-4K` (id=10) to allow Bluray-2160p, or `DontUpgrade` if no good Bluray-2160p exists yet |
-| Title is critically acclaimed or approaching exceptional — profile is undershooting | Upgrade to `HighQuality-4K` (id=10); consider Remux if title meets exceptional threshold |
-| Movie on 4K profile but only 1080p sources are quality-appropriate | Switch to `HD` (id=12) via Quality Broker reassignment |
-| Movie on HD profile but good 4K is available | Switch to `Efficient-4K` (id=9) or `HighQuality-4K` (id=10) |
+| Movie on `SQP-1` — no WEB-DL 2160p from tiered group exists (pre-streaming era, niche title) | Switch to `HighQuality-4K` to unlock BluRay-2160p; or `DontUpgrade` if nothing at 4K |
+| Movie on `SQP-1` — BluRay has clearly better encode than any streaming WEB-DL (grain, cinematic master) | Switch to `HighQuality-4K` to allow BluRay-2160p alongside WEB-DL |
+| Movie on `SQP-1` — title is prestige/exceptional; Remux warranted | Switch to a profile that includes `Remux-2160p` in wanted qualities (custom or `DontUpgrade` won't work — needs Remux enabled) |
+| All releases rejected due to `min_format_score: 2500`, no TRaSH-tiered group released yet | After manual push, switch to `DontUpgrade` to stop Radarr spinning |
+| Profile targets WEBDL-2160p but no streaming 4K release exists for this title | Switch to `HighQuality-4K` or `DontUpgrade` |
+| Title is critically acclaimed or approaching exceptional — profile is undershooting | Upgrade to `HighQuality-4K`; consider Remux if title meets exceptional threshold |
+| Movie on 4K profile but only 1080p sources are quality-appropriate | Switch to `HD` via Quality Broker reassignment |
+| Movie on HD profile but good 4K is available | Switch to `Efficient-4K` or `HighQuality-4K`; or `SQP-1` if pure streaming WEB-DL is preferred |
 
 ### 7. Present ranked output
 
@@ -518,6 +604,25 @@ Rules:
 - For DROPPED: one row per release (or one summary row for bulk-same-reason groups like "3× TELESYNC").
 - Include repute in DROPPED so the user knows what was discarded and why.
 - Remux candidates that require confirmation appear in CANDIDATES with score shown as `—` and an explicit confirm note in FLAGS.
+- Always append the structured decision block below the DROPPED table.
+
+**Structured decision block (mandatory, always present):**
+
+```
+─────────────────────────────────────────────────────────────────────────────────────────────────────
+Final Recommendation:    [exact release filename of rank 1]
+Risk Level:              Low / Moderate / High
+                         Low    = safe DV or no DV; DD+ or AAC; usenet; High/Medium repute; physics verified
+                         Moderate = Hybrid DV OR DTS-HD MA OR Unknown repute OR aging NZB (>180 days)
+                         High   = DV P7 / TrueHD on Google TV / AV1 / physics mismatch / Low repute
+Perceptual Difference:   Negligible / Mild / Noticeable / Significant  (vs. next-best alternative)
+                         Negligible  = same bitrate class, same source, same DV tier
+                         Mild        = one tier below in repute or minor DV downgrade
+                         Noticeable  = WEB-DL vs WEBRip at same res, or DV P5/8 vs HDR10
+                         Significant = resolution step down, or Remux vs encode for prestige title
+Why:                     [≤3 sentences: physics verdict, DV/audio safety, repute and source reasoning]
+─────────────────────────────────────────────────────────────────────────────────────────────────────
+```
 
 ### 8. Push confirmed release to SABnzbd
 
@@ -600,29 +705,30 @@ curl -s -X PUT -H "X-Api-Key: $RADARR_API_KEY" \
 
 ## Worked Example — Avatar: The Way of Water (2022)
 
-Efficient-4K profile, 192min runtime, file already present (upgrade scouting).
-435 releases found → 154 hard-filtered → 62 candidates → ranked below.
+**[SQP] SQP-1 WEB (2160p)** profile, 192min runtime, file already present (upgrade scouting).
+Under SQP-1: BluRay-2160p and Remux receive negative TRaSH CF scores and are blocked by the profile’s min_format_score gate. Only WEBDL-2160p from WEB Tier groups pass.
+435 releases found → 154 hard-filtered (SDR/HDTV/720p/non-EN/LQ/BluRay/Remux) → 8 candidates → ranked below.
+
+History check: no prior failed grabs for this title.
 
 ```
-Movie: Avatar: The Way of Water (2022)   Runtime: 192min   Profile: Efficient-4K   Status: hasFile
+Movie: Avatar: The Way of Water (2022)   Runtime: 192min   Profile: [SQP] SQP-1 WEB (2160p)   Status: hasFile
 Lang: English   MC:—  RT:91%  IMDb:7.6 (600K votes)
+⚠ Profile note: BluRay-2160p and Remux blocked by SQP-1 TRaSH CF scoring. Only WEB-DL 2160p from tiered groups eligible.
 
 CANDIDATES (8 ranked) ────────────────────────────────────────────────────────────────────────────────
  #   SCORE    QUALITY         SIZE     PROTO    REPUTE    GROUP                  AUDIO       FLAGS
 ─────────────────────────────────────────────────────────────────────────────────────────────────────
- 1   +4500    WEBDL-2160p    23.8GB   usenet   High      PiRaTeS (DSNP)         DD+ Atmos   DV+HDR10
+ 1   +4500    WEBDL-2160p    23.8GB   usenet   High      PiRaTeS (DSNP)         DD+ Atmos   DV P5/8 + HDR10 — recommended
               → Avatar.The.Way.of.Water.2022.2160p.DSNP.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS
-              Medium group lifted by Disney+ verified source; 124MB/m ✓
+              Medium group elevated by Disney+ paid source; DV P5/8 (streaming DV = safe); 124MB/m ✓ physics pass
  2   +6220    WEBDL-1080p    13.8GB   usenet   High      FLUX (MA, WEB Tier 01) DD+ Atmos   —
               → Avatar.The.Way.of.Water.2022.1080p.MA.WEB-DL.DDP5.1.Atmos.H.264-FLUX
-              Gold standard 1080p; below Efficient-4K target (72MB/m ✓)
+              Gold standard 1080p; below SQP-1 target resolution — switch profile to HD if keeping this
  3   +6200    WEBDL-1080p    15.1GB   torrent  High      CMRG (WEB Tier 01)     DD+ Atmos   torrent only — last resort
               → Avatar.The.Way.of.Water.2022.1080p.WEB-DL.DDP5.1.Atmos.H.264-CMRG
               Tier 01; no service tag; no usenet equivalent
- 4   +4000    Bluray-2160p   18.1GB   usenet   Medium    MgB (Bluray)           TrueHD 7.1  HDR10
-              → Avatar.The.Way.Of.Water.2022.UHD.4K.BluRay.2160p.HDR10.TrueHD.7.1.Atmos.H.265-MgB
-              Physical disc, no streaming auth; 94MB/m ✓ — ⚠ DTS-HD MA (transcode req.)
- 5   +3000    WEBDL-1080p     9.4GB   usenet   Medium    PiRaTeS (MAX)          DD+ Atmos   —
+ 4   +3000    WEBDL-1080p     9.4GB   usenet   Medium    PiRaTeS (MAX)          DD+ Atmos   —
               → Avatar.The.Way.of.Water.2022.1080p.MAX.WEB-DL.DDPA.5.1.H.265-PiRaTeS
               MAX source unscored by CF but streaming-authenticated; 49MB/m ✓
  6   +3005    WEBDL-1080p    12.8GB   usenet   Medium    BANDOLEROS (WEB)       DD+ Atmos   NORDIC REPACK
@@ -641,7 +747,8 @@ DROPPED (154 filtered) ───────────────────
  WEBDL-2160p    38.7GB   usenet   High      CMRG                   oversized 201 MB/m (cap 170)
  WEBDL-1080p    15.9GB   usenet   High      CMRG                   oversized 83 MB/m (cap 80)
  Bluray-1080p   15.5GB   usenet   High      hallowed               oversized 81 MB/m (cap 75)
- Remux-2160p    44-81GB  usenet   High      FraMeSToR / CiNEPHiLES not exceptional — Remux excluded (sequel, not culturally defining entry)
+ Bluray-2160p   18.1GB   usenet   Medium    MgB                    SQP-1 CF blocks BluRay-2160p; also ⚠ Hybrid DV (risk) + ⚠ TrueHD (transcode on Google TV)
+ Remux-2160p    44-81GB  usenet   High      FraMeSToR / CiNEPHiLES not exceptional (sequel) + SQP-1 CF blocks Remux
  Bluray-2160p   46-62GB  usenet   High/Unk  W4NK3R / SPHD / HDS    oversized 241-321 MB/m (cap 200)
  WEBDL-2160p    36-39GB  usenet   Unknown   CM / DVSUX              oversized 188-202 MB/m (cap 170)
  WEBRip-2160p   38.2GB   usenet   Medium    MgB                    oversized 199 MB/m (cap 110)
@@ -651,27 +758,41 @@ DROPPED (154 filtered) ───────────────────
 ─────────────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
+─────────────────────────────────────────────────────────────────────────────────────────────────────
+Final Recommendation:    Avatar.The.Way.of.Water.2022.2160p.DSNP.WEB-DL.DDPA.5.1.DV.HDR.H.265-PiRaTeS
+Risk Level:              Low
+                         Streaming DV (P5/8) — safe on Google TV; DD+ Atmos — native passthrough on Sonos via eARC; usenet; High repute via DSNP paid source
+Perceptual Difference:   Mild (vs. rank 2 FLUX 1080p)
+                         2160p DV over 1080p HDR — meaningful for 55" and 65" panels; both safe and from High-repute groups
+Why:                     PiRaTeS DSNP is a 4K streaming WEB-DL with safe Dolby Vision (Profile 5/8) and DD+ Atmos — both are native passthrough on Google TV and Sonos Arc Ultra; physics passes at 124 MB/min. The only 4K WEB-DL passing the SQP-1 CF gate; all BluRay and Remux alternatives are blocked by the profile.
+─────────────────────────────────────────────────────────────────────────────────────────────────────
+
 **Repute decisions called out:**
 - PiRaTeS (Medium) + DSNP → **High**: Disney+ is a paid authenticated source; someone paid to rip it
 - FLUX (High) + MA → **High**: WEB Tier 01 + Movies Anywhere = gold standard
-- MgB (Medium) + Bluray → **Medium**: physical disc has no service authentication; group tier holds
+- MgB (Medium) + Bluray → **Medium**: physical disc has no service authentication; group tier holds; also blocked by SQP-1 TRaSH CF scoring
 - CM (Unknown) + iT → **Medium**: iTunes elevates Unknown to Medium but cannot reach High without group history
 - Asiimov (Unknown) + no service tag → **Unknown**: nothing to anchor trust; flag in output
 - Musafirboy (Low) + MA → **Low**: verified source cannot lift a Low group
+
+**SQP-1 impact on this scout:** BluRay-2160p and Remux are blocked by TRaSH CF scoring in the profile — they appear in DROPPED with CF gate as the reason. If a Bluray-2160p encode from a tiered group (W4NK3R, SPHD) were desired, switch to `HighQuality-4K`. For this title (high-CG sequel, streaming DV available from Disney+), SQP-1 is the correct profile.
 
 ---
 
 ## Quick Reference
 
-**Profile IDs (this stack):**
+**Profile IDs (this stack — verify live IDs with `GET /api/v3/qualityprofile`):**
 
-| ID | Name | Min Score | Upgrades |
-|---|---|---|---|
-| 7 | AutoAssignQuality | 0 | No |
-| 9 | Efficient-4K | 2500 | Yes → WEBDL-2160p |
-| 10 | HighQuality-4K | 2500 | Yes → Bluray-2160p |
-| 12 | HD | 2500 | Yes → Bluray-1080p |
-| 13 | DontUpgrade | 0 | No |
+| ID (typical) | Name | Min CF Score | Upgrades to | BluRay-2160p | Remux |
+|---|---|---|---|---|---|
+| 7 | AutoAssignQuality | 0 | Off | ✗ | ✗ |
+| 9 | Efficient-4K | 2500 | WEBDL-2160p | ✗ | ✗ |
+| 10 | HighQuality-4K | 2500 | Bluray-2160p | ✓ | ✗ |
+| 12 | HD | 2500 | Bluray-1080p | ✗ | ✗ |
+| 13 | DontUpgrade | 0 | Off | ✓ | ✗ |
+| dynamic | [SQP] SQP-1 WEB (2160p) | TRaSH-managed | WEBDL-2160p | ✗ (penalised) | ✗ (penalised) |
+
+**SQP-1 key difference:** CF scores are set by TRaSH upstream via Recyclarr (not the stack's custom scoring). BluRay and Remux receive negative TRaSH CF scores → rejected by `min_format_score`. Only WEB-DL 2160p from WEB Tier 01-03 groups pass. Optional CF groups (DV Boost, streaming services) are currently inactive (commented in `data/recyclarr/config/configs/radarr.yml`) — these CFs do not score under SQP-1.
 
 **Temp file layout:**
 

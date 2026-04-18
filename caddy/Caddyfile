@@ -117,6 +117,10 @@ http://dulce.local {
     uri strip_prefix /autosubsync
     redir * http://{host}:3269{uri} 307
   }
+  handle_path /streamystats* {
+    uri strip_prefix /streamystats
+    redir * http://{host}:3267{uri} 307
+  }
 }
 
 # App subdomains (HTTPS only)
@@ -201,4 +205,10 @@ http://autosubsync.dulcejelly.me {
   import require_https_public
   import auth_common
   reverse_proxy autosubsync:6080
+}
+
+http://streamystats.dulcejelly.me {
+  import require_https_public
+  import auth_common
+  reverse_proxy streamystats:3000
 }

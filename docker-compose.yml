@@ -26,6 +26,7 @@ services:
     depends_on:
       - jellyfin
       - jellyseerr
+      - streamystats
       - qbittorrent
       - prowlarr
       - radarr
@@ -97,6 +98,84 @@ services:
       retries: 3
       start_period: 20s
 
+  streamystats:
+    image: ghcr.io/fredrikburmester/streamystats-nextjs:latest
+    container_name: streamystats
+    hostname: streamystats
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${STREAMYSTATS_POSTGRES_USER}:${STREAMYSTATS_POSTGRES_PASSWORD}@streamystats-db:5432/${STREAMYSTATS_POSTGRES_DB:-streamystats}"
+      JOB_SERVER_URL: http://streamystats-job:3005
+      HOSTNAME: 0.0.0.0
+      SESSION_SECRET: "${STREAMYSTATS_SESSION_SECRET}"
+      NEXT_SERVER_ACTIONS_ENCRYPTION_KEY: "${STREAMYSTATS_ACTIONS_ENCRYPTION_KEY}"
+    ports:
+      - "${STREAMYSTATS_PORT:-3267}:3000"
+    depends_on:
+      streamystats-db:
+        condition: service_healthy
+      streamystats-job:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  streamystats-job:
+    image: ghcr.io/fredrikburmester/streamystats-job-server:latest
+    container_name: streamystats-job
+    hostname: streamystats-job
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: "postgresql://${STREAMYSTATS_POSTGRES_USER}:${STREAMYSTATS_POSTGRES_PASSWORD}@streamystats-db:5432/${STREAMYSTATS_POSTGRES_DB:-streamystats}"
+      PORT: 3005
+      HOST: 0.0.0.0
+      SESSION_POLL_INTERVAL_MS: "${STREAMYSTATS_SESSION_POLL_INTERVAL_MS:-5000}"
+      CRON_ACTIVITY_SYNC: "${STREAMYSTATS_CRON_ACTIVITY_SYNC:-*/1 * * * *}"
+      CRON_RECENT_ITEMS_SYNC: "${STREAMYSTATS_CRON_RECENT_ITEMS_SYNC:-*/1 * * * *}"
+      CRON_USER_SYNC: "${STREAMYSTATS_CRON_USER_SYNC:-*/1 * * * *}"
+      CRON_PEOPLE_SYNC: "${STREAMYSTATS_CRON_PEOPLE_SYNC:-*/15 * * * *}"
+      CRON_EMBEDDINGS_SYNC: "${STREAMYSTATS_CRON_EMBEDDINGS_SYNC:-*/15 * * * *}"
+      CRON_GEOLOCATION_SYNC: "${STREAMYSTATS_CRON_GEOLOCATION_SYNC:-*/5 * * * *}"
+      CRON_FINGERPRINT_SYNC: "${STREAMYSTATS_CRON_FINGERPRINT_SYNC:-0 4 * * *}"
+      CRON_JOB_CLEANUP: "${STREAMYSTATS_CRON_JOB_CLEANUP:-*/1 * * * *}"
+      CRON_OLD_JOB_CLEANUP: "${STREAMYSTATS_CRON_OLD_JOB_CLEANUP:-0 3 * * *}"
+      CRON_FULL_SYNC: "${STREAMYSTATS_CRON_FULL_SYNC:-0 2 * * *}"
+      CRON_DELETED_ITEMS_CLEANUP: "${STREAMYSTATS_CRON_DELETED_ITEMS_CLEANUP:-0 * * * *}"
+      SKIP_STARTUP_FULL_SYNC: "${STREAMYSTATS_SKIP_STARTUP_FULL_SYNC:-false}"
+    depends_on:
+      streamystats-db:
+        condition: service_healthy
+
+  streamystats-db:
+    image: tensorchord/vchord-postgres:pg17-v0.4.1
+    container_name: streamystats-db
+    hostname: streamystats-db
+    restart: unless-stopped
+    command: ["postgres", "-c", "log_checkpoints=off"]
+    environment:
+      POSTGRES_USER: "${STREAMYSTATS_POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${STREAMYSTATS_POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${STREAMYSTATS_POSTGRES_DB:-streamystats}"
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256
+    volumes:
+      - ./data/streamystats/db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${STREAMYSTATS_POSTGRES_USER} -d ${STREAMYSTATS_POSTGRES_DB:-streamystats}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
   qbittorrent:
     image: lscr.io/linuxserver/qbittorrent:latest
     container_name: qbittorrent
@@ -146,7 +225,7 @@ services:
       start_period: 20s
 
   radarr:
-    image: lscr.io/linuxserver/radarr:6.0.4.10291-ls296
+    image: lscr.io/linuxserver/radarr:latest
     container_name: radarr
     hostname: radarr
     restart: unless-stopped
@@ -329,6 +408,18 @@ services:
       LOG_LEVEL: "debug"
     volumes:
       - ./data/recyclarr/config:/config
+
+  storage-utils:
+    image: alpine:3.21
+    container_name: storage-utils
+    hostname: storage-utils
+    profiles:
+      - storage-utils
+    privileged: true
+    network_mode: none
+    volumes:
+      - /dev:/dev
+    entrypoint: ["/bin/sh"]
 
 networks:
   default:

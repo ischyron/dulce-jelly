@@ -56,7 +56,8 @@ const openRoutes = [
   `http://${lanHostname}/sonarr/`,
   `http://${lanHostname}/sab/`,
   `http://${lanHostname}/prowlarr/`,
-  `http://${lanHostname}/huntarr/`
+  `http://${lanHostname}/huntarr/`,
+  `http://${lanHostname}/streamystats/`
 ]
 
 const publicHost = (subdomain) => (subdomain ? `${subdomain}.${publicDomain}` : publicDomain)
@@ -70,7 +71,8 @@ const httpsAuthRoutes = HAVE_PUBLIC_DOMAIN ? [
   publicUrl('sonarr', '/'),
   publicUrl('sab', '/'),
   publicUrl('prowlarr', '/'),
-  publicUrl('huntarr', '/')
+  publicUrl('huntarr', '/'),
+  publicUrl('streamystats', '/')
 ] : []
 
 const httpsOpenRoutes = HAVE_PUBLIC_DOMAIN ? [
@@ -86,6 +88,7 @@ const httpRedirectsToHttps = HAVE_PUBLIC_DOMAIN ? [
   { from: `http://${publicHost('sab')}/`, to: publicUrl('sab', '/') },
   { from: `http://${publicHost('prowlarr')}/`, to: publicUrl('prowlarr', '/') },
   { from: `http://${publicHost('huntarr')}/`, to: publicUrl('huntarr', '/') },
+  { from: `http://${publicHost('streamystats')}/`, to: publicUrl('streamystats', '/') },
   { from: `http://${publicHost('jellyfin')}/`, to: publicUrl('jellyfin', '/') },
   { from: `http://${publicHost(null)}/logos/jellyfin.png`, to: publicUrl(null, '/logos/jellyfin.png') },
   { from: `http://${publicHost(null)}/logos/shouldnotexist.png`, to: publicUrl(null, '/logos/shouldnotexist.png') }
@@ -111,7 +114,8 @@ const redirectRoutes = [
   { from: `http://${lanHostname}/radarr/`, expected: `http://${lanHostname}:3273/` },
   { from: `http://${lanHostname}/sonarr/`, expected: `http://${lanHostname}:3272/` },
   { from: `http://${lanHostname}/prowlarr/`, expected: `http://${lanHostname}:3276/` },
-  { from: `http://${lanHostname}/huntarr/`, expected: `http://${lanHostname}:3271/` }
+  { from: `http://${lanHostname}/huntarr/`, expected: `http://${lanHostname}:3271/` },
+  { from: `http://${lanHostname}/streamystats/`, expected: `http://${lanHostname}:3267/` }
 ]
 
 const directServiceRoutes = [
@@ -122,7 +126,8 @@ const directServiceRoutes = [
   `http://${lanHostname}:3273/`, // radarr
   `http://${lanHostname}:3272/`, // sonarr
   `http://${lanHostname}:3276/`, // prowlarr
-  `http://${lanHostname}:3271/` // huntarr
+  `http://${lanHostname}:3271/`, // huntarr
+  `http://${lanHostname}:3267/` // streamystats
 ]
 
 const assetRoutesHttps = HAVE_PUBLIC_DOMAIN ? [
@@ -206,6 +211,67 @@ async function fetchWithHost(url, { auth = false } = {}) {
   })
 }
 
+async function fetchTextWithHost(url, { auth = false } = {}) {
+  const target = new URL(url)
+
+  if (!FORCE_HOST_IP && (HOST_IP === '127.0.0.1' || HOST_IP === 'localhost')) {
+    const headers = {}
+    if (auth) {
+      const token = Buffer.from(`${AUTH_USER}:${AUTH_PASS}`).toString('base64')
+      headers.Authorization = `Basic ${token}`
+    }
+
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), MAX_TIME_MS)
+
+    try {
+      const res = await fetch(url, {
+        redirect: 'manual',
+        headers,
+        signal: controller.signal
+      })
+      return await res.text()
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+
+  return new Promise((resolve, reject) => {
+    const port = target.port || 80
+    const headers = { Host: target.host }
+    if (auth) {
+      const token = Buffer.from(`${AUTH_USER}:${AUTH_PASS}`).toString('base64')
+      headers.Authorization = `Basic ${token}`
+    }
+
+    const timeout = setTimeout(() => {
+      reject(new Error('Request timeout'))
+    }, MAX_TIME_MS)
+
+    const req = http.request({
+      hostname: HOST_IP,
+      port,
+      path: target.pathname + target.search,
+      method: 'GET',
+      headers
+    }, (res) => {
+      const chunks = []
+      res.on('data', (chunk) => chunks.push(chunk))
+      res.on('end', () => {
+        clearTimeout(timeout)
+        resolve(Buffer.concat(chunks).toString('utf8'))
+      })
+    })
+
+    req.on('error', (err) => {
+      clearTimeout(timeout)
+      reject(err)
+    })
+
+    req.end()
+  })
+}
+
 async function fetchDirect(url, { auth = false } = {}) {
   const headers = {}
   if (auth) {
@@ -234,6 +300,15 @@ describe('Ingress (open routes)', () => {
       assert.ok(successStatus(res.status), `${url} returned ${res.status}`)
     })
   }
+})
+
+describe('Landing page service links', () => {
+  it('includes a Streamystats tile and icon on the homepage', async () => {
+    const html = await fetchTextWithHost(`http://${lanHostname}/`)
+    assert.match(html, /streamystats\.dulcejelly\.me/)
+    assert.match(html, /logos\/streamystats\.svg/)
+    assert.match(html, /Watch Insights/)
+  })
 })
 
 describe('Direct service ports (LAN)', () => {
@@ -424,7 +499,8 @@ describeHttpsAuth('Security: Admin services authentication', () => {
     { url: publicUrl('qb', '/'), name: 'qBittorrent' },
     { url: publicUrl('prowlarr', '/'), name: 'Prowlarr' },
     { url: publicUrl('sab', '/'), name: 'SABnzbd' },
-    { url: publicUrl('huntarr', '/'), name: 'Huntarr' }
+    { url: publicUrl('huntarr', '/'), name: 'Huntarr' },
+    { url: publicUrl('streamystats', '/'), name: 'Streamystats' }
   ]
 
   for (const { url, name } of adminServiceUrls) {
@@ -500,6 +576,7 @@ describe('Smoke: LAN access remains functional', () => {
       `http://${lanHostname}:3278/`, // Jellyfin
       `http://${lanHostname}:3277/`, // Jellyseerr
       `http://${lanHostname}:3271/`, // Huntarr
+      `http://${lanHostname}:3267/`, // Streamystats
     ]
 
     for (const url of lanServices) {

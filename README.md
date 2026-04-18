@@ -41,6 +41,7 @@ DulceJelly is a collection of open-source media management tools:
 - **[SABnzbd](https://sabnzbd.org/)** - Usenet client
 - **[Recyclarr](https://recyclarr.dev/)** - Quality profile synchronization
 - **[Huntarr](https://github.com/plexguide/Huntarr.io)** - Continuous missing/upgrade search automation for *arr apps
+- **[Streamystats](https://github.com/fredrikburmester/streamystats)** - Playback analytics and watch-time dashboards for Jellyfin
 - **[Caddy](https://caddyserver.com/)** - Reverse proxy server
 - **[Cloudflare Tunnel](https://www.cloudflare.com/products/tunnel/)** - Secure remote access
 
@@ -52,6 +53,11 @@ DulceJelly is a collection of open-source media management tools:
 - [Accessing Your Services](#accessing-your-services)
 - [Testing](#testing)
 - [Documentation](#documentation)
+
+## Repo Automation
+
+- Repo-local Codex skills live under `.claude/skills/`.
+- `jellyfin-user-insights` reads the local Jellyfin databases and summarizes watch history for a named Jellyfin user.
 
 ## Quick Start
 
@@ -246,6 +252,7 @@ Use direct IP addresses (most reliable):
 |---------|---------|--------------|
 | **Jellyfin** | Stream your media library | `http://localhost:3278` |
 | Jellyseerr | Manage library requests | `http://localhost:3277` |
+| Streamystats | Playback analytics | `http://localhost:3267` |
 | Radarr | Movie library management | `http://localhost:3273` |
 | Sonarr | TV show library management | `http://localhost:3272` |
 | qBittorrent | BitTorrent client | `http://localhost:3275` |
@@ -260,6 +267,7 @@ Use your public domain (requires Cloudflare Tunnel setup):
 
 - `https://jellyfin.mymedialibrary.example` - Stream media (no login required at edge)
 - `https://jellyseerr.mymedialibrary.example` - Manage library (login required)
+- `https://streamystats.mymedialibrary.example` - View playback analytics (login required)
 - `https://radarr.mymedialibrary.example` - Manage movies (login required)
 - `https://sonarr.mymedialibrary.example` - Manage TV shows (login required)
 - And more...

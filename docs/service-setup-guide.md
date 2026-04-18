@@ -8,6 +8,7 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 |---------|--------------|-------------------|
 | Jellyfin | `http://localhost:3278` | `jellyfin:8096` |
 | Jellyseerr | `http://localhost:3277` | `jellyseerr:5055` |
+| Streamystats | `http://localhost:3267` | `streamystats:3000` |
 | Prowlarr | `http://localhost:3276` | `prowlarr:9696` |
 | qBittorrent | `http://localhost:3275` | `qbittorrent:8080` |
 | SABnzbd | `http://localhost:3274` | `sabnzbd:8080` |
@@ -25,6 +26,12 @@ Quick, one-time setup steps for each service after the stack is running. Start w
 1) Open `http://localhost:3277` (use direct port for first setup).
 2) Select **Configure Jellyfin** and set host `http://jellyfin:8096` (no base URL).
 3) Sign in with Jellyfin credentials; choose libraries to monitor.
+
+## Streamystats
+1) Open `http://localhost:3267`.
+2) Follow the setup wizard and add your Jellyfin server URL.
+3) Use a Jellyfin API key from Dashboard → Advanced → API Keys for the initial connection.
+4) Keep the Postgres data under `data/streamystats/db` backed up before upgrades; upstream Docker migrations are one-way.
 
 ## qBittorrent
 1) Open `http://localhost:3275`; grab the temporary password from logs:

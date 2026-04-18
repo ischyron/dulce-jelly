@@ -1,7 +1,7 @@
 import { Engine } from 'json-rules-engine';
 import type { RuleProperties, RuleResult } from 'json-rules-engine';
 
-import { BrokerConfig, DecisionResult, RadarrMovie, RuleDefinition } from './types.js';
+import type { BrokerConfig, DecisionResult, RadarrMovie, RuleDefinition } from './types.js';
 import {
   buildPopularitySignal,
   computePopularityTier,
@@ -294,7 +294,7 @@ export function createRulesEngine(config: BrokerConfig) {
         .filter((match) => match.event?.type === 'decision' && match.event.params?.profile);
 
       const winner = matches.sort((a, b) => b.priority - a.priority)[0];
-      const profile = winner?.event?.params?.profile || config.decisionProfiles?.[0] || 'HD';
+      const profile = winner?.event?.params?.profile || config.decisionProfiles?.[0] || '4K-Efficient';
       const rawReasons = winner?.event?.params?.reasons || [];
       const reasons = normalizeReasons(rawReasons, config, facts);
       const reasoning = buildReasoning(profile, reasons, facts, config);

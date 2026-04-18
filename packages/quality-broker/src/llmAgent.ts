@@ -414,7 +414,7 @@ export class LLMAgent {
     // Final validation for reasoning with fallback
     const maxSentences = this.config.policies?.reasoning?.maxSentences ?? 2;
     const forbidTrends = this.config.policies?.reasoning?.forbidCurrentTrendsClaims !== false;
-    const profileName = returnedProfile || 'HD';
+    const profileName = returnedProfile || '4K-Efficient';
     const fallbackParts: string[] = [];
     if (finalRules.includes('lowq') && currentQuality) {
       fallbackParts.push(`current quality is ${currentQuality}`);

@@ -13,7 +13,7 @@ const DEFAULT_REASON_TAGS = {
   lowq: 'current file is 720p or below',
   weak: 'limited or low signal',
   mix: 'mixed signals',
-  exceed: 'current file exceeds HD (2160p)'
+  exceed: 'current file is already high-quality 4K; lower tier blocked'
 };
 
 const DEFAULT_POLICIES: Policies = {
@@ -94,7 +94,7 @@ export function loadConfig(baseDir: string): BrokerConfig {
   const raw = loadYaml(found) as Partial<BrokerConfig>;
 
   const batchSize = Number(raw.batchSize || DEFAULT_BATCH);
-  const decisionProfiles = raw.decisionProfiles || ['HD', 'Efficient-4K', 'HighQuality-4K'];
+  const decisionProfiles = raw.decisionProfiles || ['4K-Efficient', '4K-Bluray'];
   const ignoredProfilesFromChanges = Array.from(
     new Set(
       (Array.isArray(raw.ignoredProfilesFromChanges) ? raw.ignoredProfilesFromChanges : ['DontUpgrade'])

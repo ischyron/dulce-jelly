@@ -83,7 +83,7 @@ async function run(
     if (decision.profile === config.autoAssignProfile) return ['ambiguous_fallback'];
     if (source === 'deterministic_rule') {
       const tier =
-        decision.profile === 'HighQuality-4K' ? 'high' : decision.profile === 'Efficient-4K' ? 'mid' : 'low';
+        decision.profile === '4K-Bluray' ? 'high' : decision.profile === '4K-Efficient' ? 'mid' : 'low';
       return [`score_${tier}`];
     }
     return decision.rules.map((rule) => reasonDescriptions[rule] || rule);
@@ -313,11 +313,11 @@ async function run(
       }
       const currentIs4k = is4kQuality(currentQuality);
       const blockDowngrade =
-        decision.profile === 'HD' && currentIs4k && config.downgradeQualityProfile !== true;
+        decision.profile === config.decisionProfiles[0] && currentIs4k && config.downgradeQualityProfile !== true;
       if (blockDowngrade && !decision.rules.includes('exceed')) {
         const exceedTarget =
           fromProfile === config.autoAssignProfile
-            ? (config.decisionProfiles.includes('Efficient-4K') ? 'Efficient-4K' : decision.profile)
+            ? (config.decisionProfiles.length > 1 ? config.decisionProfiles[1] : decision.profile)
             : fromProfile;
         decision = {
           ...decision,

@@ -5,13 +5,14 @@ autoAssignProfile: AutoAssignQuality
 # Leave empty to only process AutoAssignQuality queue.
 reviseQualityForProfile: ""
 # Profiles in this list are never modified by quality-broker (no profile/tag updates).
-# Default behavior protects DontUpgrade titles from accidental reassignment.
+# 4K-Remux and [Anime] BD + WEB are manually curated; DontUpgrade is frozen.
 ignoredProfilesFromChanges:
   - DontUpgrade
+  - 4K-Remux
+  - Anime
 decisionProfiles:
-  - HD
-  - Efficient-4K
-  - HighQuality-4K
+  - 4K-Efficient
+  - 4K-Bluray
 
 # Delay (ms) before each LLM request to avoid 429s on large queues.
 # Set to 0 to disable.
@@ -58,14 +59,13 @@ policyForAmbiguousCases:
   # Defaults to AutoAssignQuality (keeps profile unchanged).
   noLLMFallbackProfile: AutoAssignQuality
 
-# DANGEROUS: when true, allows downgrading quality profiles even if the file is already 2160p.
-# When false, any HD decision for a current 2160p file will be blocked and tagged "exceed".
-# Exceeding-quality matches will be tagged as "exceed".
+# DANGEROUS: when true, allows downgrading quality profiles even if the file is already 4K.
+# When false, any lower-tier decision for a current 4K file will be blocked and tagged "exceed".
 downgradeQualityProfile: false
 
 rulesEngine:
   weights:
-    # Huge boost so critic-high always lands in HighQuality-4K tier.
+    # Huge boost so critic-high always lands in 4K-Bluray tier.
     criticHighBoost: 10
     criticMidBand: 1
     popularityStrong: 3
@@ -102,7 +102,7 @@ rulesEngine:
       event:
         type: decision
         params:
-          profile: HighQuality-4K
+          profile: 4K-Bluray
     - name: score_mid
       priority: 700
       conditions:
@@ -113,7 +113,7 @@ rulesEngine:
       event:
         type: decision
         params:
-          profile: Efficient-4K
+          profile: 4K-Efficient
     - name: score_low
       priority: 600
       conditions:
@@ -124,7 +124,7 @@ rulesEngine:
       event:
         type: decision
         params:
-          profile: HD
+          profile: 4K-Efficient
 
 policies:
   reasoning:
@@ -138,7 +138,7 @@ reasonTags:
   lowq: current file is 720p or below
   weak: limited or low signal
   mix: mixed signals
-  exceed: current file exceeds HD (2160p)
+  exceed: current file is already high-quality 4K; lower tier blocked
 
 promptTemplate:
   prelude: |
@@ -162,6 +162,5 @@ promptHints: |
       * decisionScore is computed from rulesEngine.weights.
       * decisionScoreTier uses rulesEngine.scoreThresholds.
   - Profile intent summary:
-      - HighQuality-4K: score tier high (critic-high adds a large boost).
-      - Efficient-4K: score tier mid.
-      - HD: score tier low.
+      - 4K-Bluray: score tier high (critic-high adds a large boost); large Bluray encodes, visually rich titles.
+      - 4K-Efficient: score tier mid or low; streaming WEB-DL, default for most titles.

@@ -8,6 +8,7 @@ export const serviceMap: Record<string, string> = {
   sb: 'sabnzbd',
   fs: 'flaresolverr',
   ht: 'huntarr',
+  st: 'streamystats',
   rc: 'recyclarr',
   qbq: 'quality-broker',
   ca: 'caddy',

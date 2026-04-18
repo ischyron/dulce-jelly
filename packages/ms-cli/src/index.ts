@@ -72,6 +72,7 @@ const commands: Record<string, CommandFunction> = {
       radarr: d('RADARR_PORT', '3273'),
       sonarr: d('SONARR_PORT', '3272'),
       huntarr: d('HUNTARR_PORT', '3271'),
+      streamystats: d('STREAMYSTATS_PORT', '3267'),
       qb_peer: d('QBITTORRENT_PEER_PORT', '6881'),
     };
     Object.entries(ports).forEach(([k, v]) => console.log(`${k}: ${v}`));
@@ -81,6 +82,7 @@ const commands: Record<string, CommandFunction> = {
     const result = checkMounts();
     return result.ok ? 0 : 1;
   },
+  smart: (args) => cmd.smart(args || []),
   doctor: () => runDoctor(),
   health: () => {
     const entries = getHealthEntries();

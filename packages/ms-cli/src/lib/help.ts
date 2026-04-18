@@ -19,7 +19,8 @@ const commandsList = [
   '  ports              → show LAN/CF port map',
   '  mounts             → verify host paths',
   '  health             → docker compose ps --format json',
-  '  doctor             → health + mounts + recent log scan'
+  '  doctor             → health + mounts + recent log scan',
+  '  smart [--short|--long] <LABEL...>  → run SMART test via storage-utils container (default: --short)'
 ];
 
 function serviceCodes(): string[] {

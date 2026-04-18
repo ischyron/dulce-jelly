@@ -467,6 +467,27 @@ Use `⚠ Remux excluded` (not just a generic dropped line) whenever the title's 
 
 ---
 
+## Display & Audio Setup (Perceptual Reference)
+
+Use this when calibrating Risk Level, Perceptual Difference, and DV/grain recommendations.
+
+**Primary displays:**
+- **Sony BRAVIA 85"** — main viewing screen; DV-capable; at this size grain rendering differences between a compressed x265 encode and a Remux are visible at normal viewing distance (~10ft). Bitrate gaps matter more here than on smaller screens. A 35mm film encoded at <300 MB/min will show grain pulsing on static shots.
+- **TCL 65"** — secondary; DV-capable; grain differences require closer attention or deliberate comparison to notice.
+
+**Audio:**
+- **Sonos Arc Ultra (eARC)** — DD+/Atmos: native passthrough ✓; TrueHD: Jellyfin must transcode (acceptable quality, but CPU cost); DTS-HD MA: Jellyfin must transcode (lossless decode, output is excellent but not bitstream).
+
+**Playback client:** Google TV (Android TV) — AV1 hardware decode varies by chipset; H.264/H.265 native.
+
+**Perceptual calibration for recommendations:**
+- On the 85" Sony: DV vs HDR10 is visible without side-by-side comparison — shadow gradation and highlight rolloff are noticeably different, especially on high-contrast or HDR-graded content.
+- On the 85" Sony: a high-grain 35mm film (e.g. Twelve Monkeys, Apocalypse Now) at 245 MB/min x265 will show grain pulsing on slow/static scenes at normal viewing distance. The threshold where this becomes invisible is ~350–400 MB/min for grain-heavy content.
+- For action-heavy modern productions (Superman, Mad Max, Avatar): both DV impact and motion artifact reduction from higher bitrate are clearly perceptible at 85".
+- For clean CGI or low-grain digital photography: bitrate difference between a good x265 encode and a Remux is minimal; DV remains the main differentiator.
+
+---
+
 ### 5. Score and rank
 
 **Quality tier baseline:**

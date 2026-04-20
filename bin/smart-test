@@ -1,16 +1,22 @@
 #!/usr/bin/env bash
-# smart-test — Run SMART self-tests on a drive by volume label or device path.
+# smart-test — Run SMART self-tests and APM diagnostics on a drive.
 # Intended for use in a Linux VM (VMware Fusion) with USB passthrough.
 # Requires: smartmontools  (sudo apt install smartmontools)
+#           hdparm         (sudo apt install hdparm)  — for apm command
 #
 # Usage:
-#   sudo smart-test <LABEL|/dev/sdX> [short|long|status]
+#   sudo smart-test <LABEL|/dev/sdX> [short|long|status|apm]
 #
 # Examples:
 #   sudo smart-test MEDIA2 short         # ~2 min basic test
 #   sudo smart-test MEDIA1 long          # full surface scan (hours)
 #   sudo smart-test MEDIA2 status        # check progress / last result
+#   sudo smart-test /dev/sda apm         # show APM level + Load_Cycle_Count
 #   sudo smart-test /dev/sdb short       # use device path directly (APFS drives)
+#
+# NOTE: APM/head-parking fix must be applied on the host OS (macOS), not here.
+#       On macOS: sudo pmset -a disksleep 0
+#       For WD drives: sudo idle3ctl -s 0 /dev/sdX  (persistent firmware change)
 
 set -uo pipefail
 
@@ -21,7 +27,7 @@ TYPE="${2:-short}"
 
 usage() {
   cat >&2 <<EOF
-Usage: sudo $(basename "$0") <LABEL|/dev/sdX> [short|long|status]
+Usage: sudo $(basename "$0") <LABEL|/dev/sdX> [short|long|status|apm]
 
   LABEL       Volume label (e.g. MEDIA2) — resolved via blkid
               Falls back to device listing if label not found (e.g. APFS)
@@ -29,11 +35,13 @@ Usage: sudo $(basename "$0") <LABEL|/dev/sdX> [short|long|status]
   short       ~2 minute self-test (default)
   long        Full surface scan — can take several hours on large drives
   status      Show current test progress and last result
+  apm         Show APM level and Load_Cycle_Count (head park counter)
 
 Examples:
   sudo $(basename "$0") MEDIA2
   sudo $(basename "$0") MEDIA1 long
   sudo $(basename "$0") /dev/sdb short
+  sudo $(basename "$0") /dev/sda apm
   sudo $(basename "$0") MEDIA2 status
 EOF
   exit 1
@@ -41,8 +49,8 @@ EOF
 
 [[ -z "$TARGET" ]] && usage
 
-if [[ "$TYPE" != "short" && "$TYPE" != "long" && "$TYPE" != "status" ]]; then
-  echo "Error: type must be short, long, or status — got '$TYPE'" >&2
+if [[ "$TYPE" != "short" && "$TYPE" != "long" && "$TYPE" != "status" && "$TYPE" != "apm" ]]; then
+  echo "Error: type must be short, long, status, or apm — got '$TYPE'" >&2
   usage
 fi
 
@@ -56,6 +64,12 @@ fi
 if ! command -v smartctl &>/dev/null; then
   echo "Error: smartmontools not installed." >&2
   echo "  sudo apt install smartmontools" >&2
+  exit 1
+fi
+
+if [[ "$TYPE" == "apm" ]] && ! command -v hdparm &>/dev/null; then
+  echo "Error: hdparm not installed." >&2
+  echo "  sudo apt install hdparm" >&2
   exit 1
 fi
 
@@ -93,14 +107,48 @@ else
   fi
 fi
 
+# ── Validate device ───────────────────────────────────────────────────────────
+
+if [[ ! -b "$DISK" ]]; then
+  echo "Error: '$DISK' is not a block device." >&2
+  echo ""
+  echo "Available block devices:"
+  lsblk -o NAME,SIZE,TYPE,TRAN,VENDOR,MODEL 2>/dev/null | grep -v loop || lsblk
+  exit 1
+fi
+
+# ── Auto-detect device type for USB bridges ───────────────────────────────────
+
+DTYPE_FLAG=()
+_probe=$(smartctl -i "$DISK" 2>&1)
+if echo "$_probe" | grep -qE "Unknown USB bridge|Please specify device type"; then
+  echo "USB bridge detected — probing device type..."
+  _found=0
+  for _d in sat sat,12 scsi; do
+    _probe2=$(smartctl -i -d "$_d" "$DISK" 2>&1)
+    if ! echo "$_probe2" | grep -qE "Unable to detect|Unknown USB bridge|Please specify device type"; then
+      DTYPE_FLAG=(-d "$_d")
+      echo "  Using device type: $_d"
+      _found=1
+      break
+    fi
+  done
+  if [[ $_found -eq 0 ]]; then
+    echo "Error: Could not find a working device type for '$DISK'." >&2
+    echo "Try manually: sudo smartctl -d TYPE -i $DISK  (where TYPE = sat / scsi / usbcypress)" >&2
+    exit 1
+  fi
+fi
+
 # ── Report setup ──────────────────────────────────────────────────────────────
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPORT_DIR="$SCRIPT_DIR/../temp/smart-reports"
+REPORT_DIR="$SCRIPT_DIR/smart-reports"
 mkdir -p "$REPORT_DIR"
 
-DATE=$(date +"%d-%b-%Y" | tr '[:upper:]' '[:lower:]')
-REPORT="$REPORT_DIR/smart_${LABEL}_${TYPE}_${DATE}.txt"
+DATE_DISPLAY=$(date +"%d %b %Y  %H:%M")
+DATE_FILE=$(date +"%d-%b-%Y_%H%M")
+REPORT="$REPORT_DIR/smart_${LABEL}_${TYPE}_${DATE_FILE}.txt"
 : > "$REPORT"
 
 BAR=$(printf '=%.0s' {1..72})
@@ -115,16 +163,83 @@ run() {
   return "${PIPESTATUS[0]}"
 }
 
+# ── APM helpers ───────────────────────────────────────────────────────────────
+
+# Extract current APM level from hdparm output (returns number or "disabled"/"unknown")
+get_apm_level() {
+  local raw
+  raw=$(hdparm -B "$DISK" 2>&1)
+  if echo "$raw" | grep -q "APM_level"; then
+    echo "$raw" | grep -oE "APM_level\s*=\s*[0-9]+" | grep -oE "[0-9]+"
+  elif echo "$raw" | grep -q "disabled"; then
+    echo "disabled"
+  else
+    echo "unknown"
+  fi
+}
+
+# Extract Load_Cycle_Count from SMART attributes
+get_load_cycle_count() {
+  smartctl "${DTYPE_FLAG[@]}" -A "$DISK" 2>/dev/null \
+    | grep -i "Load_Cycle_Count" \
+    | awk '{print $10}'
+}
+
+# ── APM status ────────────────────────────────────────────────────────────────
+
+if [[ "$TYPE" == "apm" ]]; then
+  out "$BAR"
+  out "APM STATUS: $LABEL"
+  out "Device  : $DISK"
+  out "Date    : $DATE_DISPLAY"
+  out "$BAR"
+  out ""
+
+  APM_LEVEL=$(get_apm_level)
+  LCC=$(get_load_cycle_count)
+
+  out "APM level        : $APM_LEVEL"
+  out "Load_Cycle_Count : ${LCC:-unknown}"
+  out ""
+
+  if [[ "$APM_LEVEL" =~ ^[0-9]+$ ]]; then
+    if [[ "$APM_LEVEL" -lt 128 ]]; then
+      out "WARNING: APM=$APM_LEVEL — aggressive head parking enabled."
+      out "         This causes excessive Load_Cycle_Count wear on USB/DAS drives."
+      out "         Fix on macOS: sudo pmset -a disksleep 0"
+      out "         Fix for WD drives (persistent): sudo idle3ctl -s 0 $DISK  then power-cycle"
+    elif [[ "$APM_LEVEL" -lt 254 ]]; then
+      out "NOTE: APM=$APM_LEVEL — power saving on, no spin-down. Moderate setting."
+    else
+      out "OK: APM=$APM_LEVEL — maximum performance, head parking disabled."
+    fi
+  elif [[ "$APM_LEVEL" == "disabled" ]]; then
+    out "OK: APM disabled — head parking fully disabled."
+  else
+    out "NOTE: Could not read APM level. Drive may not support APM via this bridge."
+  fi
+
+  out ""
+  out "--- FULL hdparm OUTPUT ---"
+  run hdparm -B "$DISK" || true
+  out ""
+  out "$BAR"
+  echo ""
+  echo "Saved: $REPORT"
+  exit 0
+fi
+
+
 # ── Status check ──────────────────────────────────────────────────────────────
 
 if [[ "$TYPE" == "status" ]]; then
   out "$BAR"
   out "SMART STATUS: $LABEL"
   out "Device  : $DISK"
-  out "Date    : $DATE"
+  out "Date    : $DATE_DISPLAY"
   out "$BAR"
   out ""
-  run smartctl -a "$DISK" || true
+  run smartctl "${DTYPE_FLAG[@]}" -x "$DISK" || true
   out ""
   out "$BAR"
   echo ""
@@ -141,29 +256,44 @@ out "SMART REPORT"
 out "Volume  : $LABEL"
 out "Device  : $DISK"
 out "Test    : $TYPE_UPPER"
-out "Date    : $DATE"
+out "Date    : $DATE_DISPLAY"
 out "$BAR"
 out ""
 
 out "--- DEVICE INFORMATION ---"
-run smartctl -i "$DISK" || true
+run smartctl "${DTYPE_FLAG[@]}" -i "$DISK" || true
+out ""
+
+out "--- APM & HEAD PARKING ---"
+APM_LEVEL=$(get_apm_level)
+LCC=$(get_load_cycle_count)
+out "APM level        : $APM_LEVEL"
+out "Load_Cycle_Count : ${LCC:-unknown}"
+if [[ "$APM_LEVEL" =~ ^[0-9]+$ && "$APM_LEVEL" -lt 128 ]]; then
+  out "WARNING: APM=$APM_LEVEL — aggressive head parking. On macOS: sudo pmset -a disksleep 0"
+fi
 out ""
 
 out "--- HEALTH ASSESSMENT ---"
-run smartctl -H "$DISK" || true
+run smartctl "${DTYPE_FLAG[@]}" -H "$DISK" || true
 out ""
 
 out "--- SMART ATTRIBUTES ---"
-run smartctl -A "$DISK" || true
+run smartctl "${DTYPE_FLAG[@]}" -A "$DISK" || true
+out ""
+
+out "--- EXTENDED DATA (device stats, error log, SCT) ---"
+run smartctl "${DTYPE_FLAG[@]}" -x "$DISK" || true
 out ""
 
 out "--- INITIATING $TYPE_UPPER TEST ---"
-# smartctl exits non-zero for advisory conditions (bitmask codes) — treat <8 as success.
+# smartctl exits non-zero for advisory conditions (bitmask codes).
+# Codes 1-3 are real failures; 4-7 are advisory SMART status bits (test still started).
 SMART_EC=0
-run smartctl -t "$TYPE" "$DISK" || SMART_EC=$?
+run smartctl "${DTYPE_FLAG[@]}" -t "$TYPE" "$DISK" || SMART_EC=$?
 
 out ""
-if [[ $SMART_EC -lt 8 ]]; then
+if [[ $SMART_EC -eq 0 || ($SMART_EC -ge 4 && $SMART_EC -lt 8) ]]; then
   if [[ "$TYPE" == "short" ]]; then
     out "Test initiated. Check results in ~2 minutes:"
   else
@@ -171,8 +301,8 @@ if [[ $SMART_EC -lt 8 ]]; then
   fi
   out "  sudo $(basename "$0") $LABEL status"
 else
-  out "Warning: smartctl exited with code $SMART_EC — test may not have started."
-  out "Try running: sudo smartctl -t $TYPE $DISK"
+  out "Warning: smartctl exited with code $SMART_EC — test did not start."
+  out "Try running: sudo smartctl ${DTYPE_FLAG[*]} -t $TYPE $DISK"
 fi
 
 out ""

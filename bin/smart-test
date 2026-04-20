@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+# smart-test — Run SMART self-tests on a drive by volume label or device path.
+# Intended for use in a Linux VM (VMware Fusion) with USB passthrough.
+# Requires: smartmontools  (sudo apt install smartmontools)
+#
+# Usage:
+#   sudo smart-test <LABEL|/dev/sdX> [short|long|status]
+#
+# Examples:
+#   sudo smart-test MEDIA2 short         # ~2 min basic test
+#   sudo smart-test MEDIA1 long          # full surface scan (hours)
+#   sudo smart-test MEDIA2 status        # check progress / last result
+#   sudo smart-test /dev/sdb short       # use device path directly (APFS drives)
+
+set -uo pipefail
+
+# ── Arguments ─────────────────────────────────────────────────────────────────
+
+TARGET="${1:-}"
+TYPE="${2:-short}"
+
+usage() {
+  cat >&2 <<EOF
+Usage: sudo $(basename "$0") <LABEL|/dev/sdX> [short|long|status]
+
+  LABEL       Volume label (e.g. MEDIA2) — resolved via blkid
+              Falls back to device listing if label not found (e.g. APFS)
+  /dev/sdX    Device path directly — use when blkid cannot find the label
+  short       ~2 minute self-test (default)
+  long        Full surface scan — can take several hours on large drives
+  status      Show current test progress and last result
+
+Examples:
+  sudo $(basename "$0") MEDIA2
+  sudo $(basename "$0") MEDIA1 long
+  sudo $(basename "$0") /dev/sdb short
+  sudo $(basename "$0") MEDIA2 status
+EOF
+  exit 1
+}
+
+[[ -z "$TARGET" ]] && usage
+
+if [[ "$TYPE" != "short" && "$TYPE" != "long" && "$TYPE" != "status" ]]; then
+  echo "Error: type must be short, long, or status — got '$TYPE'" >&2
+  usage
+fi
+
+# ── Prereqs ───────────────────────────────────────────────────────────────────
+
+if [[ $EUID -ne 0 ]]; then
+  echo "Error: must run as root — use: sudo $(basename "$0") $*" >&2
+  exit 1
+fi
+
+if ! command -v smartctl &>/dev/null; then
+  echo "Error: smartmontools not installed." >&2
+  echo "  sudo apt install smartmontools" >&2
+  exit 1
+fi
+
+# ── Resolve device ────────────────────────────────────────────────────────────
+
+LABEL="$TARGET"
+
+if [[ "$TARGET" == /dev/* ]]; then
+  # Device path provided directly
+  DISK="$TARGET"
+  LABEL="$(basename "$TARGET")"
+else
+  # Resolve label → device via blkid
+  DEVICE=$(blkid -L "$TARGET" 2>/dev/null || true)
+
+  if [[ -z "$DEVICE" ]]; then
+    echo "Label '$TARGET' not found by blkid."
+    echo "This is expected for APFS volumes — blkid cannot read APFS labels."
+    echo ""
+    echo "Identify your drive by size below, then re-run with the device path:"
+    echo "  sudo $(basename "$0") /dev/sdb short"
+    echo ""
+    echo "Available block devices:"
+    lsblk -o NAME,SIZE,TYPE,TRAN,VENDOR,MODEL 2>/dev/null | grep -v loop || lsblk
+    exit 1
+  fi
+
+  # Strip partition suffix to get the whole-disk device for smartctl.
+  # /dev/sdb1   → /dev/sdb   (SATA/USB)
+  # /dev/nvme0n1p1 → /dev/nvme0n1  (NVMe)
+  if [[ "$DEVICE" =~ nvme ]]; then
+    DISK=$(echo "$DEVICE" | sed 's/p[0-9]*$//')
+  else
+    DISK=$(echo "$DEVICE" | sed 's/[0-9]*$//')
+  fi
+fi
+
+# ── Report setup ──────────────────────────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPORT_DIR="$SCRIPT_DIR/../temp/smart-reports"
+mkdir -p "$REPORT_DIR"
+
+DATE=$(date +"%d-%b-%Y" | tr '[:upper:]' '[:lower:]')
+REPORT="$REPORT_DIR/smart_${LABEL}_${TYPE}_${DATE}.txt"
+: > "$REPORT"
+
+BAR=$(printf '=%.0s' {1..72})
+
+# out: print to terminal and append to report
+out() { echo "$@" | tee -a "$REPORT"; }
+
+# run: execute command, send stdout+stderr to terminal and report.
+# Uses PIPESTATUS[0] so the command's exit code is returned, not tee's.
+run() {
+  "$@" 2>&1 | tee -a "$REPORT"
+  return "${PIPESTATUS[0]}"
+}
+
+# ── Status check ──────────────────────────────────────────────────────────────
+
+if [[ "$TYPE" == "status" ]]; then
+  out "$BAR"
+  out "SMART STATUS: $LABEL"
+  out "Device  : $DISK"
+  out "Date    : $DATE"
+  out "$BAR"
+  out ""
+  run smartctl -a "$DISK" || true
+  out ""
+  out "$BAR"
+  echo ""
+  echo "Saved: $REPORT"
+  exit 0
+fi
+
+# ── Full test run ─────────────────────────────────────────────────────────────
+
+TYPE_UPPER=$(echo "$TYPE" | tr '[:lower:]' '[:upper:]')
+
+out "$BAR"
+out "SMART REPORT"
+out "Volume  : $LABEL"
+out "Device  : $DISK"
+out "Test    : $TYPE_UPPER"
+out "Date    : $DATE"
+out "$BAR"
+out ""
+
+out "--- DEVICE INFORMATION ---"
+run smartctl -i "$DISK" || true
+out ""
+
+out "--- HEALTH ASSESSMENT ---"
+run smartctl -H "$DISK" || true
+out ""
+
+out "--- SMART ATTRIBUTES ---"
+run smartctl -A "$DISK" || true
+out ""
+
+out "--- INITIATING $TYPE_UPPER TEST ---"
+# smartctl exits non-zero for advisory conditions (bitmask codes) — treat <8 as success.
+SMART_EC=0
+run smartctl -t "$TYPE" "$DISK" || SMART_EC=$?
+
+out ""
+if [[ $SMART_EC -lt 8 ]]; then
+  if [[ "$TYPE" == "short" ]]; then
+    out "Test initiated. Check results in ~2 minutes:"
+  else
+    out "Test initiated. Check results in several hours:"
+  fi
+  out "  sudo $(basename "$0") $LABEL status"
+else
+  out "Warning: smartctl exited with code $SMART_EC — test may not have started."
+  out "Try running: sudo smartctl -t $TYPE $DISK"
+fi
+
+out ""
+out "$BAR"
+out "Generated by dulce-jelly bin/smart-test"
+out "$BAR"
+
+echo ""
+echo "Saved: $REPORT"

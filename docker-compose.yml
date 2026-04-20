@@ -410,7 +410,10 @@ services:
       - ./data/recyclarr/config:/config
 
   storage-utils:
-    image: alpine:3.21
+    build:
+      context: ./storage-utils
+      dockerfile: Dockerfile
+    image: storage-utils:latest
     container_name: storage-utils
     hostname: storage-utils
     profiles:
@@ -419,7 +422,6 @@ services:
     network_mode: none
     volumes:
       - /dev:/dev
-    entrypoint: ["/bin/sh"]
 
 networks:
   default:

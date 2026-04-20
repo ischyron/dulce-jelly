@@ -409,20 +409,6 @@ services:
     volumes:
       - ./data/recyclarr/config:/config
 
-  storage-utils:
-    build:
-      context: ./storage-utils
-      dockerfile: Dockerfile
-    image: storage-utils:latest
-    container_name: storage-utils
-    hostname: storage-utils
-    profiles:
-      - storage-utils
-    privileged: true
-    network_mode: none
-    volumes:
-      - /dev:/dev
-
 networks:
   default:
     name: media_net

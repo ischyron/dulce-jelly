@@ -82,7 +82,6 @@ const commands: Record<string, CommandFunction> = {
     const result = checkMounts();
     return result.ok ? 0 : 1;
   },
-  smart: (args) => cmd.smart(args || []),
   doctor: () => runDoctor(),
   health: () => {
     const entries = getHealthEntries();

@@ -409,6 +409,20 @@ services:
     volumes:
       - ./data/recyclarr/config:/config
 
+  # disk-keepalive:
+  #   image: alpine:3.20
+  #   container_name: disk-keepalive
+  #   hostname: disk-keepalive
+  #   restart: unless-stopped
+  #   environment:
+  #     MEDIA_ROOT: /media
+  #     KEEPALIVE_FILE: /media/.keepalive
+  #     SLEEP_SECONDS: "210"
+  #   command: ["sh", "/usr/local/bin/disk_keepalive.sh"]
+  #   volumes:
+  #     - "${JELLYFIN_MOVIES}:/media"
+  #     - ./scripts/scheduled/disk_keepalive.sh:/usr/local/bin/disk_keepalive.sh:ro
+
 networks:
   default:
     name: media_net

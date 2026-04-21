@@ -1,0 +1,577 @@
+==========================================================================================
+ openSeaChest_PowerControl - openSeaChest drive utilities - NVMe Enabled
+ Copyright (c) 2014-2026 Seagate Technology LLC and/or its Affiliates, All Rights Reserved
+ openSeaChest_PowerControl Version: 26.03.0 ARM64
+ Build Date: Mar  6 2026
+ Today: 20260421T164010	User: current user
+==========================================================================================
+Usage
+=====
+	 openSeaChest_PowerControl [-d <sg_device>] {arguments} {options}
+
+Examples
+========
+	openSeaChest_PowerControl --scan
+	openSeaChest_PowerControl -d /dev/sg<#> -i
+	openSeaChest_PowerControl -d /dev/sg<#> --SATInfo
+	openSeaChest_PowerControl -d /dev/sg<#> --llInfo
+	openSeaChest_PowerControl -d /dev/sg<#> --checkPowerMode
+	openSeaChest_PowerControl -d /dev/sg<#> --showEPCSettings
+	openSeaChest_PowerControl -d /dev/sg<#> --idle_a 5000
+	openSeaChest_PowerControl -d /dev/sg<#> --idle_b disable
+	openSeaChest_PowerControl -d /dev/sg<#> --transitionPower standby_z
+	openSeaChest_PowerControl -d /dev/sg<#> --spinDown
+	openSeaChest_PowerControl -d /dev/sg<#> --transitionPowerState 1
+	openSeaChest_PowerControl -d /dev/sg<#> --showNVMPowerStates
+	openSeaChest_PowerControl -d /dev/sg<#> --idle_a 5000 --standby_z 30000 --idle_b enable --idle_c disable
+	openSeaChest_PowerControl -d /dev/sg<#> --showPowerTelemetry
+	openSeaChest_PowerControl -d /dev/sg<#> --requestPowerMeasurement 120 --powerMeasurementMode 12
+	openSeaChest_PowerControl -d /dev/sg<#> --EPCfeature enable
+	openSeaChest_PowerControl -d /dev/sg<#> --standby 15000
+	openSeaChest_PowerControl -d /dev/sg<#> --idle 5000
+	openSeaChest_PowerControl -d /dev/sg<#> --showAPMLevel
+	openSeaChest_PowerControl -d /dev/sg<#> --setAPMLevel 128
+	openSeaChest_PowerControl -d /dev/sg<#> --showPowerConsumption
+	openSeaChest_PowerControl -d /dev/sg<#> --setPowerConsumption 12
+	openSeaChest_PowerControl -d /dev/sg<#> --setPowerConsumption lowest
+
+Return codes
+============
+	Generic/Common exit codes
+	0 = No Error Found
+	1 = Error in command line options
+	2 = Invalid Device Handle or Missing Device Handle
+	3 = Operation Failure
+	4 = Operation not supported
+	5 = Operation Aborted
+	6 = File Path Not Found
+	7 = Cannot Open File
+	8 = File Already Exists
+	9 = Need Elevated Privileges
+	10 = Not enough resources
+	11 = Error Writing File
+	12 = Device not found when opening handle.
+	13 = Device not opened. Handle is busy.
+	14 = Insecure Directory to read or write file
+	Anything else = unknown error
+
+
+Utility Options
+===============
+	--csmiIgnorePort (Obsolete)
+		This option is obsolete and will be removed in future versions.
+
+	--csmiUsePort (Obsolete)
+		This option is obsolete and will be removed in future versions.
+
+	--csmiVerbose (Obsolete)
+		This option is obsolete and will be removed in future versions.
+
+	--echoCommandLine
+		Echo the command line entered into the utility on the screen.
+
+	--enableLegacyUSBPassthrough
+		Only use this option on old USB or IEEE1394 (Firewire)
+		products that do not otherwise work with the tool.
+		This option will enable a trial and error method that
+		attempts sending various ATA Identify commands through
+		vendor specific means. Because of this, certain products
+		that may respond in unintended ways since they may interpret
+		these commands differently than the bridge chip the command
+		was designed for.
+
+	--forceATA
+		Using this option will force the current drive to
+		be treated as a ATA drive. Only ATA commands will
+		be used to talk to the drive.
+
+	--forceATADMA	(SATA Only)
+		Using this option will force the tool to issue SAT
+		commands to ATA device using the protocol set to DMA
+		whenever possible (on DMA commands).
+		This option can be combined with --forceATA
+
+	--forceATAPIO	(SATA Only)
+		Using this option will force the tool to issue PIO
+		commands to ATA device when possible. This option can
+		be combined with --forceATA
+
+	--forceATAUDMA	(SATA Only)
+		Using this option will force the tool to issue SAT
+		commands to ATA device using the protocol set to UDMA
+		whenever possible (on DMA commands).
+		This option can be combined with --forceATA
+
+	--forceSCSI
+		Using this option will force the current drive to
+		be treated as a SCSI drive. Only SCSI commands will
+		be used to talk to the drive.
+
+	-h, --help
+		Show utility options and example usage (this output you see now)
+		Please report bugs/suggestions to seaboard@seagate.com.
+		Include the output of --version information in the email.
+
+	--license
+		Display the Seagate End User License Agreement (EULA).
+
+	--modelMatch [model Number]
+		Use this option to run on all drives matching the provided
+		model number. This option will provide a closest match although
+		an exact match is preferred. Ex: ST500 will match ST500LM0001
+
+	--noBanner
+		Use this option to suppress the text banner that displays each time
+		openSeaChest is run.
+
+	--onlyFW [firmware revision]
+		Use this option to run on all drives matching the provided
+		firmware revision. This option will only do an exact match.
+
+	--onlySeagate
+		Use this option to match only Seagate drives for the options
+		provided
+
+	-q, --quiet
+		Run openSeaChest_PowerControl in quiet mode. This is the same as
+		-v 0 or --verbose 0
+
+	-v [0-4], --verbose [0 | 1 | 2 | 3 | 4]
+		Show verbose information. Verbosity levels are:
+		0 - quiet
+		1 - default
+		2 - command descriptions
+		3 - command descriptions and values
+		4 - command descriptions, values, and data buffers
+		Example: -v 3 or --verbose 3
+
+	-V, --version
+		Show openSeaChest_PowerControl version and copyright information & exit
+
+
+Utility Arguments
+=================
+	-d, --device [deviceHandle | all]
+		Use this option with most commands to specify the device
+		handle on which to perform an operation. Example: /dev/sg<#>
+		CSMI device handles can be specified as <error<#><#><#>>
+		To run across all devices detected in the system, use the
+		"all" argument instead of a device handle.
+		Example: -d all
+		NOTE: The "all" argument is handled by running the
+		      specified options on each drive detected in the
+		      OS sequentially. For parallel operations, please
+		      use a script opening a separate instance for each
+		      device handle.
+
+	-F, --scanFlags [option list]
+		Use this option to control the output from scan with the
+		options listed below. Multiple options can be combined.
+			ata - show only ATA (SATA) devices
+			usb - show only USB devices
+			scsi - show only SCSI (SAS) devices
+			nvme - show only NVMe devices
+			interfaceATA - show devices on an ATA interface
+			interfaceUSB - show devices on a USB interface
+			interfaceSCSI - show devices on a SCSI or SAS interface
+			interfaceNVME = show devices on an NVMe interface
+			sd - show sd device handles
+			sgtosd - show the sd and sg device handle mapping
+			ignoreCSMI - do not scan for any CSMI devices
+			allowDuplicates - allow drives with both CSMI and PD handles
+			                  to show up multiple times in the list
+
+	-i, --deviceInfo
+		Show information and features for the storage device
+
+	--llInfo
+		Dump low-level information about the device to assist with debugging.
+
+	-s, --scan
+		Scan the system and list all storage devices with logical
+		/dev/sg<#> assignments. Shows model, serial and firmware
+		numbers.  If your device is not listed on a scan  immediately
+		after booting, then wait 10 seconds and run it again.
+
+	-S, --Scan
+		This option is the same as --scan or -s,
+		however it will also perform a low level rescan to pick up
+		other devices. This low level rescan may wake devices from low
+		power states and may cause the OS to re-enumerate them.
+		Use this option when a device is plugged in and not discovered in
+		a normal scan.
+		NOTE: A low-level rescan may not be available on all interfaces or
+		all OSs. The low-level rescan is not guaranteed to find additional
+		devices in the system when the device is unable to come to a ready state.
+
+	--SATInfo
+		Displays SATA device information on any interface
+		using both SCSI Inquiry / VPD / Log reported data
+		(translated according to SAT) and the ATA Identify / Log
+		reported data.
+
+	--testUnitReady
+		Issues a SCSI Test Unit Ready command and displays the
+		status. If the drive is not ready, the sense key, asc,
+		ascq, and fru will be displayed and a human readable
+		translation from the SPC spec will be displayed if one
+		is available.
+
+	--fastDiscovery
+		Use this option  to issue a fast scan on the specified drive. 
+
+	--checkPowerMode
+		Get the current power mode of a drive.
+		On SCSI devices, this will only work if the drive has
+		transitioned from active state to another state.
+
+	--EPCfeature [enable | disable]
+		Enables or disables Extended Power Conditions (EPC) support for
+		devices. To disable EPC use --EPCfeature disable. Note that the
+		EPC Feature Set is not supported on all devices.
+		Use --deviceInfo option to see if EPC is supported.
+
+		WARNING: The EPC settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--idle_a [ enable | disable | default | timerValueMilliseconds ]
+		Use this setting to change the EPC Idle_A power mode settings.
+		    enable  - enable the power state
+		    disable - disable the power state
+		    default - restore default settings for this power state
+		    timerValue - number of milliseconds to set for the timer
+		                 used in this power state. If a timer is provided
+		                 the state will also be enabled, if not already.
+		                 EPC spec timers are set in 100 millisecond increments.
+		                 Timers will be truncated to fit 100 millisecond increments.
+
+		When using this option, the setting is non-volatile.
+		Use this with the --volatile flag to make the
+		setting volatile.
+		WARNING: EPC Settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--idle_b [ enable | disable | default | timerValueMilliseconds ]
+		Use this setting to change the EPC Idle_B power mode settings.
+		    enable  - enable the power state
+		    disable - disable the power state
+		    default - restore default settings for this power state
+		    timerValue - number of milliseconds to set for the timer
+		                 used in this power state. If a timer is provided
+		                 the state will also be enabled, if not already.
+		                 EPC spec timers are set in 100 millisecond increments.
+		                 Timers will be truncated to fit 100 millisecond increments.
+
+		When using this option, the setting is non-volatile.
+		Use this with the --volatile flag to make the
+		setting volatile.
+		WARNING: EPC Settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--idle_c [ enable | disable | default | timerValueMilliseconds ]
+		Use this setting to change the EPC Idle_C power mode settings.
+		    enable  - enable the power state
+		    disable - disable the power state
+		    default - restore default settings for this power state
+		    timerValue - number of milliseconds to set for the timer
+		                 used in this power state. If a timer is provided
+		                 the state will also be enabled, if not already.
+		                 EPC spec timers are set in 100 millisecond increments.
+		                 Timers will be truncated to fit 100 millisecond increments.
+
+		When using this option, the setting is non-volatile.
+		Use this with the --volatile flag to make the
+		setting volatile.
+		WARNING: EPC Settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--powerMeasurementMode [all | 5 | 12]	(Seagate Only)
+		Use this option along with --requestPowerMeasurement to specify
+		which sources to measure power on for the requested time.
+		 all - measure all power sources
+		 5   - measure only the 5v power
+		 12  - measure only the 12v power
+
+	--requestPowerMeasurement [seconds to perform measurement]	(Seagate Only)
+		This option is used to specify a time to perform a power
+		measurement for. The minimum measurement time is 22 seconds
+		and the maximum is 65535 seconds. If a time less than 22 seconds
+		is provided, 22 seconds will be used by the drive. A value greater
+		than 65535 will result in error.
+		Use the --powerMeasurementMode option to specify which mode to measure.
+
+	--powerBalanceFeature [ info | enable | disable | limited]	 (Seagate Only)
+		Use this option to see the state of the Seagate Power Balance
+		feature or to change its state.
+		Seagate's PowerBalance feature will adjust drive performance during
+		random operations to reduce power consumption of the drive.
+		  info - will dump the state of the Power Balance feature on the screen
+		  enable - use this to enable Power Balance (lowest power consumption)
+		  disable - use this to disable Power Balance (hihgest power consumption)
+		  limited - 12w limited mode. Dual actuator SATA only
+		Note: While this feature is available on some SAS products,
+		it is recommended that the --setPowerConsumption option is
+		used instead since it allows more levels of control.
+		This option and the --setPowerConsumption option are incompatible
+		because they use the same mode page fields (1Ah-01h).
+
+		WARNING: Seagate Power Balance may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--showEPCSettings
+		Use this option to show the current EPC settings on the screen.
+		Only drives supporting the EPC feature will show this data and
+		only supported power conditions will be shown.
+
+	--showPowerTelemetry	(Seagate Only)
+		Use this option to show the power telemetry data from
+		a Seagate drive that supports the power telemetry feature
+		If a measurement was not previously requested, this will show
+		free-running mode data from the last 10 minutes.
+		If this option is provided while a measurement is still
+		in progress, this will show all data that is currently available
+		Use the --requestPowerMeasurement option to request a power
+		measurement with a set time window.
+
+		NOTE: Power measurements are for the full device, not individual
+		      logical units. All logical units will be measured for this data.
+
+	--spinDown
+		Removes power to the disk drive motor with the Standby Immediate
+		command. Use this before moving a hard disk drive. The drive
+		will spin back up if the operating system selects the drive.
+		This means that an active drive will not stay spun down.
+
+		WARNING: Spindown may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--standby [ enable | disable | default | timerValueMilliseconds ] (Some settings are SAS only)
+		Use this setting to change the standby power mode settings.
+		NOTE: This is the legacy standby timer before EPC drives.
+		      If this is used on an EPC drive, this will modify
+		      the standby_z power state and timer values.
+		    enable  - enable the power state	(SAS Only)
+		    disable - disable the power state	(SAS Only)
+		    default - restore default settings for this power state	(SAS Only)
+		    timerValue - number of milliseconds to set for the timer
+		                 used in this power state. If a timer is provided
+		                 the state will also be enabled, if not already.
+		                 Spec timers are set in 100 millisecond increments.
+		                 Timers will be truncated to fit 100 millisecond increments.
+
+		When using this option, the setting is non-volatile.
+		Use this with the --volatile flag to make the
+		setting volatile.
+		ATA drives can only change the standby timer, not disable it.
+		On ATA drives, the standby timer set by this command is volatile
+		and drive defaults are restored on next power cycle.
+
+		WARNING: EPC Settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--standby_y [ enable | disable | default | timerValueMilliseconds ]
+		Use this setting to change the EPC Standby_Y power mode settings.
+		    enable  - enable the power state
+		    disable - disable the power state
+		    default - restore default settings for this power state
+		    timerValue - number of milliseconds to set for the timer
+		                 used in this power state. If a timer is provided
+		                 the state will also be enabled, if not already.
+		                 EPC spec timers are set in 100 millisecond increments.
+		                 Timers will be truncated to fit 100 millisecond increments.
+
+		When using this option, the setting is non-volatile.
+		Use this with the --volatile flag to make the
+		setting volatile.
+		WARNING: EPC Settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--standby_z [ enable | disable | default | timerValueMilliseconds ]
+		Use this setting to change the EPC Standby_Z power mode settings.
+		    enable  - enable the power state
+		    disable - disable the power state
+		    default - restore default settings for this power state
+		    timerValue - number of milliseconds to set for the timer
+		                 used in this power state. If a timer is provided
+		                 the state will also be enabled, if not already.
+		                 EPC spec timers are set in 100 millisecond increments.
+		                 Timers will be truncated to fit 100 millisecond increments.
+
+		When using this option, the setting is non-volatile.
+		Use this with the --volatile flag to make the
+		setting volatile.
+		WARNING: EPC Settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--transitionPower [active | idle | idleUnload | standby | idle_a | idle_b | idle_c | standby_y | standby_z | sleep]
+		Use this option to transition the drive to a specific power state.
+		EPC and legacy power states are supported. EPC states are only available
+		on devices supporting the EPC feature.
+		Supported power states:
+		  active
+		  idle - idle mode (legacy mode equivalent to idle_a on EPC)
+		  idleUnload - same as above, but heads are unloaded. This may not
+		               be supported on all devices.
+		  standby - standby mode (legacy mode equivalent to standby_z on EPC)
+		  idle_a - EPC idle mode
+		  idle_b - EPC lower power idle mode
+		  idle_c - EPC lowest power idle mode
+		  standby_y - EPC low power standby mode
+		  standby_z - EPC lowest power standby mode
+		  sleep - Sleep state. WARNING: This requires a reset to wake from.
+		          Once in this state, this tool cannot wake the drive on its own.
+		          The OS or adapter will need to issue a reset, which may or may not happen.
+
+		WARNING: Transitioning power modes may affect all LUNs/namespaces
+		         for devices with multiple logical units or namespaces.
+
+
+	SATA Only:
+	=========
+	--disableAPM   (SATA Only)
+		Use this option to disable the APM feature on a device.
+		Note: This command is optional and some device may not
+		      disabling the APM feature.
+
+	--sataDAPSfeature [info | enable | disable]	(SATA Only)
+		Use this option to enable or disable the SATA Device Automatic
+		Partial To Slumber Transitions (DAPS) feature. Use the "info"
+		option to see the current state of the DIPM feature on the device.
+		The use of this feature requires that the DIPM feature is enabled.
+		NOTE: Please ensure that the host adapter/controller/driver can
+		handle this before enabling it, otherwise the drive link may
+		go down and the device will not be able to communicate.
+
+	--sataDIPMfeature [info | enable | disable]	(SATA Only)
+		Use this option to enable or disable the SATA Device Initiated
+		Power Management (DIPM) feature. Use the "info" option to see
+		the current state of the DIPM feature on the device.
+		NOTE: Please ensure that the host adapter/controller/driver can
+		handle this before enabling it, otherwise the drive link may
+		go down and the device will not be able to communicate.
+
+	--puisFeature [ info | spinup | enable | disable ]  (SATA Only)
+		Use this option to enable or disable the power up in standby
+		(PUIS) feature on SATA drives. 
+		Arguments:
+		    info    - display information about the PUIS support on the device
+		    spinup  - issue the PUIS spinup set features command to spin up
+		              the device to active/idle state.
+		    enable  - enable the PUIS feature using setfeatures command
+		    disable - disable the PUIS feature using setfeatures command
+		Note: If this is configured on the drive with a jumper, this
+		      command will fail.
+		Note2: Not all products support this feature.
+		WARNING: Before enabling this feature on any SAS/SATA HBA,
+		         check the HBA documentation to see if this feature
+		         is supported by the HBA. Enabling this on an HBA that
+		         does not support this feature will cause the drive to
+		         stop showing up to the host OS or even in the HBA's
+		         firmware/BIOS/UEFI configuration.
+
+	--setAPMLevel [1 - 254]   (SATA Only)
+		Use this option to set the APM level of a device.
+		Valid values are between 1 and 254.
+		    1 = Minimum power consumption with standby mode
+		    2-127 = Intermediate power management with standby
+		        mode
+		    128 = Minimum power consumption without standby mode
+		    129-253 = Intermediate power management without
+		        standby mode
+		    254 = Maximum Performance.
+
+	--showAPMLevel   (SATA Only)
+		Use this option to show the current APM level of a device
+
+
+	SAS Only:
+	=========
+	--idle [ enable | disable | default | timerValueMilliseconds ]	(SAS Only)
+		Use this setting to change the idle power mode settings.
+		NOTE: This is the legacy idle timer before EPC drives.
+		      If this is used on an EPC drive, this will modify
+		      the idle_a power state and timer values.
+		    enable  - enable the power state
+		    disable - disable the power state
+		    default - restore default settings for this power state
+		    timerValue - number of milliseconds to set for the timer
+		                 used in this power state. If a timer is provided
+		                 the state will also be enabled, if not already.
+		                 Spec timers are set in 100 millisecond increments.
+		                 Timers will be truncated to fit 100 millisecond increments.
+
+		When using this option, the setting is non-volatile.
+		Use this with the --volatile flag to make the
+		setting volatile.
+		This is only available on SAS/SCSI drives as ATA drives did not
+		have a separate configurable idle timer.
+
+		WARNING: EPC Settings may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--sasPhy [phy number] (SAS Only)
+		Use this option to specify a specific phy to use
+		with another option that uses a phy identifier value.
+		Some tool options will assume all SAS Phys when this
+		option is not present. Others will produce an error when
+		a specific phy is needed for an operation.
+		Use the -i option to learn more about the supported phys.
+
+	--sasPhyPartial [info | enable | disable] (SAS Only)
+		Use this option to enable or disable the partial phy power
+		condition. This is from the enhanced phy control mode page.
+		Use the --sasPhy option to specify an individual phy,
+		otherwise this will be changed on all phys.
+		WARNING: Configuring this setting may cause the drive to be
+		undetectable by other hardware if this power condition is not
+		supported by a controller or expander.
+
+		WARNING: Changing SAS Phy partial may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--sasPhySlumber [info | enable | disable] (SAS Only)
+		Use this option to enable or disable the slumber phy power
+		condition. This is from the enhanced phy control mode page.
+		Use the --sasPhy option to specify an individual phy,
+		otherwise this will be changed on all phys.
+		WARNING: Configuring this setting may cause the drive to be
+		undetectable by other hardware if this power condition is not
+		supported by a controller or expander.
+
+		WARNING: Changing SAS Phy slumber may affect all LUNs/namespaces for devices
+		         with multiple logical units or namespaces.
+
+	--setPowerConsumption [default | highest | intermediate | lowest | watt value]	(SAS Only) 
+		This option will set the power consumption rate of
+		the device to the value input.
+		Options:
+		-default - sets the device back to default settings
+		-highest - sets the active level to "highest"
+		-intermediate - sets the active level to "intermediate"
+		-lowest - sets the active level to "lowest"
+		-watt value - sets the device to a nearest watt value
+		less than or equal to the value entered.
+		Power consumption watt values are listed with the
+		--showPowerConsumption command line option.
+
+	--showPowerConsumption	(SAS Only)
+		This option will show the power consumption
+		rates supported by the device and the current power
+		consumption rate of the device. Use a supported watt value
+		with the --setPowerConsumption option to set the
+		power consumption to that value.
+
+
+	NVMe Only:
+	=========
+	--showNVMPowerStates	(NVMe Only)
+		Use this option to display a device's supported power states.
+	--transitionPowerState [new power state]	(NVMe Only)
+		Use this option to transition to a specific power state.
+		WARNING: Transitioning the drive to a non-operational power state
+		         may make the device stop responding. The operating system
+		         may or may not block this transition. It is recommended
+		         to only use this option for operational power states
+		HINT:
+		  Use --showNVMPowerStates to view the supported states
+

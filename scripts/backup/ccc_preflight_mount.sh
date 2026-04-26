@@ -1,6 +1,6 @@
 #!/bin/bash
 # CCC Pre-run script (macOS)
-# Ensures volume "media2" is mounted at /Volumes/media2.
+# Ensures volume "MEDIA1B" is mounted at /Volumes/MEDIA1B.
 # - Attempts mount once (by UUID if provided, else by name)
 # - Waits up to MAX_WAIT_SEC for spin-up/mount to appear
 # - Does NOT do any write tests or create files on the disk
@@ -38,7 +38,7 @@ fi
 # ----------------------------
 # CONFIG (from .env with defaults)
 # ----------------------------
-VOL_NAME="${VOL_NAME:-MEDIA2}"
+VOL_NAME="${VOL_NAME:-MEDIA1B}"
 MOUNT_POINT="/Volumes/${VOL_NAME}"
 VOLUME_UUID="${VOLUME_UUID:-}"
 MIN_WAIT_SEC="${MIN_WAIT_SEC:-13}"

@@ -8,9 +8,9 @@
 #   sudo smart-test <LABEL|/dev/sdX> [short|long|status|apm]
 #
 # Examples:
-#   sudo smart-test MEDIA2 short         # ~2 min basic test
+#   sudo smart-test MEDIA1B short         # ~2 min basic test
 #   sudo smart-test MEDIA1 long          # full surface scan (hours)
-#   sudo smart-test MEDIA2 status        # check progress / last result
+#   sudo smart-test MEDIA1B status        # check progress / last result
 #   sudo smart-test /dev/sda apm         # show APM level + Load_Cycle_Count
 #   sudo smart-test /dev/sdb short       # use device path directly (APFS drives)
 #
@@ -29,7 +29,7 @@ usage() {
   cat >&2 <<EOF
 Usage: sudo $(basename "$0") <LABEL|/dev/sdX> [short|long|status|apm]
 
-  LABEL       Volume label (e.g. MEDIA2) — resolved via blkid
+  LABEL       Volume label (e.g. MEDIA1B) — resolved via blkid
               Falls back to device listing if label not found (e.g. APFS)
   /dev/sdX    Device path directly — use when blkid cannot find the label
   short       ~2 minute self-test (default)
@@ -38,11 +38,11 @@ Usage: sudo $(basename "$0") <LABEL|/dev/sdX> [short|long|status|apm]
   apm         Show APM level and Load_Cycle_Count (head park counter)
 
 Examples:
-  sudo $(basename "$0") MEDIA2
+  sudo $(basename "$0") MEDIA1B
   sudo $(basename "$0") MEDIA1 long
   sudo $(basename "$0") /dev/sdb short
   sudo $(basename "$0") /dev/sda apm
-  sudo $(basename "$0") MEDIA2 status
+  sudo $(basename "$0") MEDIA1B status
 EOF
   exit 1
 }

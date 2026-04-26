@@ -362,7 +362,7 @@ DulceJelly includes sample preflight scripts for [Carbon Copy Cloner](https://bo
    cp .env.example .env
    # Edit .env and configure:
    # - LOG_DIR: Directory for script logs
-   # - VOL_NAME: Backup volume name (e.g., MEDIA2)
+   # - VOL_NAME: Backup volume name (e.g., MEDIA1B)
    # - VOLUME_UUID: Optional volume UUID (recommended if duplicate names exist)
    # - Mount wait timeouts (MIN_WAIT_SEC, MAX_WAIT_SEC, POLL_SEC)
    ```

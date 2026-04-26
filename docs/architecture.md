@@ -534,7 +534,7 @@ dulce-jelly/
 
 All stateful data is in `data/`, which is:
 - **Bind-mounted** from host (not Docker volumes)
-- **Backed up** weekly via Carbon Copy Cloner (MEDIA1 → MEDIA2)
+- **Backed up** weekly via Carbon Copy Cloner (MEDIA1 → MEDIA1B)
 - **Owned by PUID:PGID** (default 1000:1000)
 - **UMASK 002**: Group-writable for shared access
 
@@ -587,7 +587,7 @@ docker image prune
 
 ### Backups
 
-- **Media libraries**: Weekly full clone via Carbon Copy Cloner (MEDIA1 → MEDIA2)
+- **Media libraries**: Weekly full clone via Carbon Copy Cloner (MEDIA1 → MEDIA1B)
 - **App state**: Included in CCC backup (data is on MEDIA1)
 - **Configuration**: Check into git (except `.env` and tunnel credentials)
 

@@ -4,4 +4,4 @@
 sleep 120
 
 # unmount backup disk
-diskutil unmount /Volumes/MEDIA2
+diskutil unmount /Volumes/MEDIA1B

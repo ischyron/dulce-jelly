@@ -100,11 +100,26 @@ fi
 
 [[ "$ROOT" != "/" ]] && ROOT="${ROOT%/}"
 
+# CCC may pass APFS source paths under /private/mnt/<volume>. Allow only that
+# subtree while continuing to reject broader /private locations.
+is_allowed_private_mnt_root() {
+  case "$1" in
+    /private/mnt/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # Refuse to operate on broad/system locations
 case "$ROOT" in
-  "/"|"/System"*|"/Volumes"|"/Users"|"/private"*|"/var"*|"/etc"*|"/bin"*|"/sbin"*|"/usr"*)
+  "/"|"/System"*|"/Volumes"|"/Users"|"/var"*|"/etc"*|"/bin"*|"/sbin"*|"/usr"*)
     log "ERROR: unsafe root '$ROOT'"
     exit 1
+    ;;
+  "/private"*)
+    if ! is_allowed_private_mnt_root "$ROOT"; then
+      log "ERROR: unsafe root '$ROOT'"
+      exit 1
+    fi
     ;;
 esac
 
